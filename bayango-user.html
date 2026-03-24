@@ -1,0 +1,700 @@
+<!DOCTYPE html>
+<html lang="tl">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <title>BayanGo — Binangonan Concierge</title>
+  <meta name="description" content="Kami na ang mamamalengke para sa'yo sa Binangonan!" />
+  <meta name="theme-color" content="#166534" />
+  <meta name="mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <meta name="apple-mobile-web-app-title" content="BayanGo" />
+  <link rel="manifest" href="bayango-user-manifest.json" />
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    html, body { height: 100%; background: #F8FAF8; font-family: 'Plus Jakarta Sans', sans-serif; overscroll-behavior: none; }
+    button { font-family: inherit; cursor: pointer; border: none; background: none; }
+    input, textarea, select { font-family: inherit; }
+    ::-webkit-scrollbar { width: 4px; height: 4px; }
+    ::-webkit-scrollbar-thumb { background: #D1D5DB; border-radius: 4px; }
+    @keyframes fadeUp  { from { opacity:0; transform:translateY(14px); } to { opacity:1; transform:translateY(0); } }
+    @keyframes slideIn { from { transform:translateX(100%); } to { transform:translateX(0); } }
+    @keyframes slideUp { from { transform:translateY(100%); } to { transform:translateY(0); } }
+    @keyframes pop     { 0%{transform:scale(.85);opacity:0;} 100%{transform:scale(1);opacity:1;} }
+    @keyframes spin    { to { transform:rotate(360deg); } }
+    @keyframes pulse   { 0%,100%{opacity:1;} 50%{opacity:.45;} }
+    @keyframes ripple  { 0%{transform:scale(0);opacity:.6;} 100%{transform:scale(2.5);opacity:0;} }
+    .fade-up  { animation: fadeUp  .38s ease both; }
+    .slide-in { animation: slideIn .28s cubic-bezier(.4,0,.2,1) both; }
+    .slide-up { animation: slideUp .3s cubic-bezier(.4,0,.2,1) both; }
+    .pop      { animation: pop .25s ease both; }
+    .spin     { animation: spin 1s linear infinite; }
+    .ai-pulse { animation: pulse 1.4s ease infinite; }
+  </style>
+</head>
+<body>
+  <div id="root"></div>
+
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.23.2/babel.min.js"></script>
+
+  <script type="text/babel">
+    const { useState, useEffect, useCallback, useRef } = React;
+
+    /* ══════════════════ CONSTANTS ══════════════════ */
+    const CATEGORIES = [
+      { id:"isda",     label:"Isda",     icon:"🐟", color:"#0EA5E9" },
+      { id:"karne",    label:"Karne",    icon:"🥩", color:"#EF4444" },
+      { id:"gulay",    label:"Gulay",    icon:"🥬", color:"#22C55E" },
+      { id:"hardware", label:"Hardware", icon:"🔧", color:"#F59E0B" },
+    ];
+
+    const DEFAULT_PRODUCTS = [
+      { id:1,  name:"Tilapia",          cat:"isda",     price:160, unit:"kg",   img:"🐟", stock:true },
+      { id:2,  name:"Galunggong",       cat:"isda",     price:200, unit:"kg",   img:"🐠", stock:true },
+      { id:3,  name:"Bangus",           cat:"isda",     price:180, unit:"kg",   img:"🎏", stock:true },
+      { id:4,  name:"Hipon",            cat:"isda",     price:320, unit:"kg",   img:"🦐", stock:true },
+      { id:5,  name:"Pusit",            cat:"isda",     price:280, unit:"kg",   img:"🦑", stock:true },
+      { id:6,  name:"Pork Liempo",      cat:"karne",    price:320, unit:"kg",   img:"🥓", stock:true },
+      { id:7,  name:"Chicken Whole",    cat:"karne",    price:190, unit:"kg",   img:"🍗", stock:true },
+      { id:8,  name:"Beef Brisket",     cat:"karne",    price:380, unit:"kg",   img:"🥩", stock:true },
+      { id:9,  name:"Ground Pork",      cat:"karne",    price:280, unit:"kg",   img:"🍖", stock:true },
+      { id:10, name:"Kamatis",          cat:"gulay",    price:80,  unit:"kg",   img:"🍅", stock:true },
+      { id:11, name:"Sibuyas",          cat:"gulay",    price:120, unit:"kg",   img:"🧅", stock:true },
+      { id:12, name:"Bawang",           cat:"gulay",    price:200, unit:"kg",   img:"🧄", stock:true },
+      { id:13, name:"Talong",           cat:"gulay",    price:60,  unit:"kg",   img:"🍆", stock:true },
+      { id:14, name:"Sili",             cat:"gulay",    price:100, unit:"kg",   img:"🌶️", stock:true },
+      { id:15, name:"Pako",             cat:"gulay",    price:40,  unit:"tali", img:"🌿", stock:true },
+      { id:16, name:"Cement (Portland)",cat:"hardware", price:260, unit:"bag",  img:"🏗️", stock:true },
+      { id:17, name:"Hollow Blocks",    cat:"hardware", price:14,  unit:"pc",   img:"🧱", stock:true },
+      { id:18, name:"GI Wire #16",      cat:"hardware", price:85,  unit:"kg",   img:"🔩", stock:true },
+      { id:19, name:"Pako 4\"",         cat:"hardware", price:95,  unit:"kg",   img:"📌", stock:true },
+      { id:20, name:"Paint Latex White",cat:"hardware", price:450, unit:"gal",  img:"🎨", stock:true },
+    ];
+
+    const ORDER_STATUSES = [
+      { key:"pending",   label:"Pending",   icon:"⏳", desc:"Nai-receive na ang order mo" },
+      { key:"buying",    label:"Buying",    icon:"🛒", desc:"Binibili na sa palengke" },
+      { key:"otw",       label:"OTW",       icon:"🏍️", desc:"Papunta na sa'yo" },
+      { key:"delivered", label:"Delivered", icon:"✅", desc:"Na-deliver na!" },
+    ];
+
+    const DELIVERY_ZONES = [
+      { label:"Bayan Area",          fee:49 },
+      { label:"Eastridge / Tayuman", fee:65 },
+      { label:"Libis / Pantok",      fee:75 },
+    ];
+
+    const SERVICE_FEE = 20;
+    const fmt = n => "₱" + Number(n).toLocaleString("en-PH", { minimumFractionDigits:0 });
+    const genId = () => Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
+
+    /* ══════════════════ STORAGE HELPERS ══════════════════ */
+    const LS = {
+      getProducts: () => {
+        try { return JSON.parse(localStorage.getItem("bayango_products")) || DEFAULT_PRODUCTS; }
+        catch { return DEFAULT_PRODUCTS; }
+      },
+      getOrders: () => {
+        try { return JSON.parse(localStorage.getItem("bayango_orders")) || []; }
+        catch { return []; }
+      },
+      saveOrders: (orders) => localStorage.setItem("bayango_orders", JSON.stringify(orders)),
+    };
+
+    /* ══════════════════ CLAUDE API ══════════════════ */
+    async function askClaude(system, user) {
+      const res = await fetch("https://api.anthropic.com/v1/messages", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          model: "claude-sonnet-4-20250514",
+          max_tokens: 1000,
+          system,
+          messages: [{ role:"user", content:user }],
+        }),
+      });
+      const data = await res.json();
+      return data.content?.map(b => b.text || "").join("") || "";
+    }
+
+    /* ══════════════════ MAIN APP ══════════════════ */
+    function App() {
+      const [products, setProducts] = useState(LS.getProducts);
+      const [orders,   setOrders]   = useState(LS.getOrders);
+
+      /* sync from admin changes via storage events */
+      useEffect(() => {
+        const onStorage = (e) => {
+          if (e.key === "bayango_products") setProducts(JSON.parse(e.newValue) || DEFAULT_PRODUCTS);
+          if (e.key === "bayango_orders")   setOrders(JSON.parse(e.newValue) || []);
+        };
+        window.addEventListener("storage", onStorage);
+        /* also poll every 4s for same-tab refresh */
+        const interval = setInterval(() => {
+          const fresh = LS.getProducts();
+          setProducts(p => JSON.stringify(p) !== JSON.stringify(fresh) ? fresh : p);
+        }, 4000);
+        return () => { window.removeEventListener("storage", onStorage); clearInterval(interval); };
+      }, []);
+
+      const addOrder = useCallback((order) => {
+        setOrders(prev => {
+          const updated = [{ ...order, id:genId(), createdAt:Date.now() }, ...prev];
+          LS.saveOrders(updated);
+          return updated;
+        });
+      }, []);
+
+      return <UserApp products={products} orders={orders} onOrder={addOrder} />;
+    }
+
+    /* ══════════════════ USER APP ══════════════════ */
+    function UserApp({ products, orders, onOrder }) {
+      const [activeCat,    setActiveCat]    = useState("isda");
+      const [cart,         setCart]         = useState({});
+      const [showCart,     setShowCart]     = useState(false);
+      const [showCheckout, setShowCheckout] = useState(false);
+      const [showTracker,  setShowTracker]  = useState(null);
+      const [zone,         setZone]         = useState(0);
+      const [name,         setName]         = useState(() => localStorage.getItem("bayango_customer_name") || "");
+      const [phone,        setPhone]        = useState(() => localStorage.getItem("bayango_customer_phone") || "");
+      const [addr,         setAddr]         = useState(() => localStorage.getItem("bayango_customer_addr") || "");
+      const [searchQ,      setSearchQ]      = useState("");
+      const [orderPlaced,  setOrderPlaced]  = useState(false);
+      const [showAI,       setShowAI]       = useState(false);
+
+      const cartCount = Object.values(cart).reduce((s,v) => s+v, 0);
+      const cartItems = Object.entries(cart)
+        .filter(([,q]) => q > 0)
+        .map(([id,qty]) => ({ ...products.find(p => p.id === +id), qty }))
+        .filter(i => i.name);
+
+      const subtotal    = cartItems.reduce((s,i) => s + i.price * i.qty, 0);
+      const deliveryFee = DELIVERY_ZONES[zone].fee;
+      const total       = subtotal + deliveryFee + SERVICE_FEE;
+
+      const add = id => setCart(c => ({ ...c, [id]:(c[id]||0)+1 }));
+      const rem = id => setCart(c => {
+        const n = { ...c };
+        if (n[id] > 1) n[id]--; else delete n[id];
+        return n;
+      });
+
+      const filtered = products.filter(p =>
+        p.cat === activeCat && (searchQ === "" || p.name.toLowerCase().includes(searchQ.toLowerCase()))
+      );
+
+      const placeOrder = () => {
+        if (!name || !phone || !addr) return;
+        localStorage.setItem("bayango_customer_name",  name);
+        localStorage.setItem("bayango_customer_phone", phone);
+        localStorage.setItem("bayango_customer_addr",  addr);
+        onOrder({
+          items:cartItems, subtotal, deliveryFee,
+          serviceFee:SERVICE_FEE, total,
+          zone:DELIVERY_ZONES[zone].label,
+          customer:{ name, phone, address:addr },
+          status:"pending",
+        });
+        setCart({});
+        setShowCheckout(false);
+        setShowCart(false);
+        setOrderPlaced(true);
+        setTimeout(() => setOrderPlaced(false), 3500);
+      };
+
+      const myOrders = orders.filter(o => o.customer?.name === name && name !== "");
+
+      return (
+        <div style={{ maxWidth:480, margin:"0 auto", paddingBottom:120, background:"#F8FAF8", minHeight:"100vh" }}>
+
+          {/* ── Hero ── */}
+          <div style={{
+            background:"linear-gradient(145deg,#0D5C2E,#166534,#22C55E)",
+            padding:"env(safe-area-inset-top, 16px) 24px 32px",
+            paddingTop:`calc(env(safe-area-inset-top, 0px) + 28px)`,
+            color:"#fff", position:"relative", overflow:"hidden"
+          }}>
+            <div style={{ position:"absolute", top:-50, right:-40, width:180, height:180, borderRadius:"50%", background:"rgba(255,255,255,.07)" }} />
+            <div style={{ position:"absolute", bottom:-30, left:-20, width:120, height:120, borderRadius:"50%", background:"rgba(255,255,255,.04)" }} />
+            <div style={{ position:"relative" }}>
+              <div style={{ fontSize:11, fontWeight:600, opacity:.7, letterSpacing:".1em", textTransform:"uppercase", marginBottom:6 }}>
+                Binangonan Concierge
+              </div>
+              <h1 style={{ fontSize:34, fontWeight:800, letterSpacing:"-.02em", margin:"0 0 6px" }}>BayanGo</h1>
+              <p style={{ fontSize:13, opacity:.75, fontWeight:400, lineHeight:1.5 }}>
+                Kami na ang mamamalengke para sa'yo 🛒
+              </p>
+            </div>
+          </div>
+
+          {/* ── Search ── */}
+          <div style={{ padding:"16px 20px 0" }}>
+            <div style={{ background:"#fff", borderRadius:16, padding:"12px 16px", display:"flex", alignItems:"center", gap:10, boxShadow:"0 1px 4px rgba(0,0,0,.07)", border:"1px solid #E9ECEF" }}>
+              <span style={{ fontSize:17, opacity:.35 }}>🔍</span>
+              <input placeholder="Maghanap ng produkto..." value={searchQ}
+                onChange={e => setSearchQ(e.target.value)}
+                style={{ flex:1, border:"none", outline:"none", fontSize:15, fontWeight:500, background:"transparent", color:"#111" }} />
+              {searchQ && <button onClick={() => setSearchQ("")} style={{ opacity:.4, fontSize:16 }}>✕</button>}
+            </div>
+          </div>
+
+          {/* ── Categories ── */}
+          <div style={{ display:"flex", gap:8, padding:"14px 20px", overflowX:"auto", scrollbarWidth:"none" }}>
+            {CATEGORIES.map(cat => (
+              <button key={cat.id} onClick={() => setActiveCat(cat.id)} style={{
+                padding:"10px 18px", borderRadius:30, whiteSpace:"nowrap",
+                fontSize:13, fontWeight:700, display:"flex", alignItems:"center", gap:6,
+                background: activeCat===cat.id ? cat.color : "#fff",
+                color: activeCat===cat.id ? "#fff" : "#555",
+                boxShadow: activeCat===cat.id ? `0 4px 14px ${cat.color}40` : "0 1px 3px rgba(0,0,0,.06)",
+                border: activeCat===cat.id ? "none" : "1px solid #E5E7EB",
+                transition:"all .22s ease",
+                transform: activeCat===cat.id ? "scale(1.04)" : "scale(1)"
+              }}>
+                <span style={{ fontSize:16 }}>{cat.icon}</span>{cat.label}
+              </button>
+            ))}
+          </div>
+
+          {/* ── Section Label ── */}
+          <div style={{ padding:"0 20px 10px", display:"flex", justifyContent:"space-between", alignItems:"center" }}>
+            <h2 style={{ fontSize:15, fontWeight:800, color:"#111" }}>
+              {CATEGORIES.find(c=>c.id===activeCat)?.icon} {CATEGORIES.find(c=>c.id===activeCat)?.label}
+            </h2>
+            <span style={{ fontSize:12, color:"#999", fontWeight:500 }}>{filtered.length} items</span>
+          </div>
+
+          {/* ── Products Grid ── */}
+          <div style={{ padding:"0 20px 16px" }}>
+            <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:12 }}>
+              {filtered.map((p, i) => (
+                <div key={p.id} className="fade-up" style={{
+                  animationDelay:`${i*.05}s`,
+                  background:"#fff", borderRadius:18, overflow:"hidden",
+                  border:"1px solid #F0F0F0", boxShadow:"0 2px 8px rgba(0,0,0,.04)",
+                  opacity:p.stock?1:.5, position:"relative"
+                }}>
+                  {!p.stock && (
+                    <div style={{
+                      position:"absolute", top:10, right:10, background:"#EF4444",
+                      color:"#fff", fontSize:9, fontWeight:800, padding:"3px 8px",
+                      borderRadius:6, zIndex:2, letterSpacing:".04em"
+                    }}>SOLD OUT</div>
+                  )}
+                  <div style={{
+                    height:96, display:"flex", alignItems:"center", justifyContent:"center",
+                    background:`linear-gradient(135deg,${CATEGORIES.find(c=>c.id===p.cat)?.color}12,${CATEGORIES.find(c=>c.id===p.cat)?.color}06)`,
+                    fontSize:46
+                  }}>{p.img}</div>
+                  <div style={{ padding:"11px 14px 14px" }}>
+                    <div style={{ fontSize:13, fontWeight:700, color:"#111", marginBottom:2, lineHeight:1.25 }}>{p.name}</div>
+                    <div style={{ fontSize:11, color:"#aaa", marginBottom:10 }}>per {p.unit}</div>
+                    <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between" }}>
+                      <span style={{ fontSize:17, fontWeight:800, color:"#166534" }}>{fmt(p.price)}</span>
+                      {p.stock && (
+                        cart[p.id] ? (
+                          <div style={{ display:"flex", alignItems:"center", gap:5 }}>
+                            <button onClick={() => rem(p.id)} style={{ width:28, height:28, borderRadius:8, background:"#F3F4F6", fontSize:16, fontWeight:700, color:"#555", display:"flex", alignItems:"center", justifyContent:"center" }}>−</button>
+                            <span style={{ fontSize:14, fontWeight:800, minWidth:16, textAlign:"center" }}>{cart[p.id]}</span>
+                            <button onClick={() => add(p.id)} style={{ width:28, height:28, borderRadius:8, background:"#22C55E", fontSize:16, fontWeight:700, color:"#fff", display:"flex", alignItems:"center", justifyContent:"center" }}>+</button>
+                          </div>
+                        ) : (
+                          <button onClick={() => add(p.id)} style={{
+                            width:34, height:34, borderRadius:10, background:"#22C55E",
+                            color:"#fff", fontSize:20, display:"flex", alignItems:"center", justifyContent:"center",
+                            boxShadow:"0 3px 10px #22C55E40"
+                          }}>+</button>
+                        )
+                      )}
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+            {filtered.length === 0 && (
+              <div style={{ textAlign:"center", padding:"50px 0", color:"#bbb" }}>
+                <div style={{ fontSize:48, marginBottom:10 }}>🤷</div>
+                <div style={{ fontSize:14, fontWeight:600 }}>Walang makitang produkto</div>
+              </div>
+            )}
+          </div>
+
+          {/* ── My Orders ── */}
+          {myOrders.length > 0 && (
+            <div style={{ padding:"0 20px 16px" }}>
+              <h3 style={{ fontSize:15, fontWeight:800, color:"#111", marginBottom:12 }}>📦 My Orders</h3>
+              {myOrders.slice(0,4).map(o => {
+                const st = ORDER_STATUSES.find(s => s.key === o.status);
+                return (
+                  <button key={o.id} onClick={() => setShowTracker(o)} style={{
+                    width:"100%", textAlign:"left", background:"#fff", borderRadius:14,
+                    padding:"14px 16px", marginBottom:8,
+                    border:"1px solid #E5E7EB", display:"flex", alignItems:"center", justifyContent:"space-between",
+                    boxShadow:"0 1px 4px rgba(0,0,0,.04)"
+                  }}>
+                    <div style={{ flex:1, marginRight:12 }}>
+                      <div style={{ fontSize:13, fontWeight:700, color:"#111", whiteSpace:"nowrap", overflow:"hidden", textOverflow:"ellipsis", maxWidth:200 }}>
+                        {o.items.map(i=>i.name).join(", ")}
+                      </div>
+                      <div style={{ fontSize:11, color:"#aaa", marginTop:2 }}>{fmt(o.total)} • {new Date(o.createdAt).toLocaleDateString("en-PH")}</div>
+                    </div>
+                    <div style={{
+                      padding:"5px 12px", borderRadius:20, fontSize:12, fontWeight:700, whiteSpace:"nowrap",
+                      background:o.status==="delivered"?"#DCFCE7":o.status==="otw"?"#FEF3C7":"#F3F4F6",
+                      color:o.status==="delivered"?"#166534":o.status==="otw"?"#92400E":"#555"
+                    }}>{st?.icon} {st?.label}</div>
+                  </button>
+                );
+              })}
+            </div>
+          )}
+
+          {/* ── AI FAB ── */}
+          {cartItems.length > 0 && (
+            <div style={{ position:"fixed", bottom:90, right:20, zIndex:90 }}>
+              <button onClick={() => setShowAI(true)} style={{
+                width:56, height:56, borderRadius:16,
+                background:"linear-gradient(135deg,#7C3AED,#A855F7)",
+                color:"#fff", fontSize:26, display:"flex", alignItems:"center", justifyContent:"center",
+                boxShadow:"0 6px 24px rgba(124,58,237,.45)"
+              }}>🤖</button>
+              <div style={{
+                position:"absolute", top:-8, right:-4,
+                background:"#22C55E", color:"#fff", borderRadius:10,
+                fontSize:8, fontWeight:800, padding:"2px 6px", whiteSpace:"nowrap", letterSpacing:".03em"
+              }}>AI Recipe</div>
+            </div>
+          )}
+
+          {/* ── Floating Cart ── */}
+          {cartCount > 0 && !showCart && (
+            <div className="slide-up" style={{
+              position:"fixed", bottom:`calc(env(safe-area-inset-bottom,0px) + 20px)`,
+              left:"50%", transform:"translateX(-50%)",
+              zIndex:100, width:"calc(100% - 40px)", maxWidth:440
+            }}>
+              <button onClick={() => setShowCart(true)} style={{
+                width:"100%", padding:"15px 24px", borderRadius:18,
+                background:"linear-gradient(135deg,#166534,#22C55E)",
+                color:"#fff", display:"flex", alignItems:"center", justifyContent:"space-between",
+                boxShadow:"0 8px 32px rgba(22,101,52,.38)", fontSize:15, fontWeight:700
+              }}>
+                <span>🛒 Basket ({cartCount} items)</span>
+                <span style={{ fontSize:16, fontWeight:800 }}>{fmt(subtotal)}</span>
+              </button>
+            </div>
+          )}
+
+          {/* ── AI Modal ── */}
+          {showAI && <AIRecipeModal cartItems={cartItems} onClose={() => setShowAI(false)} />}
+
+          {/* ── Cart Drawer ── */}
+          {showCart && (
+            <div style={{ position:"fixed", inset:0, zIndex:200, background:"rgba(0,0,0,.55)", backdropFilter:"blur(4px)" }}
+              onClick={() => setShowCart(false)}>
+              <div className="slide-in" onClick={e => e.stopPropagation()} style={{
+                position:"absolute", right:0, top:0, bottom:0,
+                width:"100%", maxWidth:400, background:"#FAFAFA",
+                display:"flex", flexDirection:"column"
+              }}>
+                <div style={{ padding:"20px 24px", borderBottom:"1px solid #E5E7EB", display:"flex", alignItems:"center", justifyContent:"space-between", background:"#fff" }}>
+                  <h2 style={{ fontSize:19, fontWeight:800 }}>🧺 Your Basket</h2>
+                  <button onClick={() => setShowCart(false)} style={{ width:36, height:36, borderRadius:10, background:"#F3F4F6", fontSize:18, display:"flex", alignItems:"center", justifyContent:"center" }}>✕</button>
+                </div>
+                <div style={{ flex:1, overflowY:"auto", padding:"12px 24px" }}>
+                  {cartItems.map(item => (
+                    <div key={item.id} className="fade-up" style={{ display:"flex", alignItems:"center", gap:12, padding:"13px 0", borderBottom:"1px solid #F0F0F0" }}>
+                      <div style={{ width:50, height:50, borderRadius:13, fontSize:28, display:"flex", alignItems:"center", justifyContent:"center", background:"#F0FDF4" }}>{item.img}</div>
+                      <div style={{ flex:1 }}>
+                        <div style={{ fontSize:14, fontWeight:700, color:"#111" }}>{item.name}</div>
+                        <div style={{ fontSize:12, color:"#999" }}>{fmt(item.price)} / {item.unit}</div>
+                      </div>
+                      <div style={{ display:"flex", alignItems:"center", gap:7 }}>
+                        <button onClick={() => rem(item.id)} style={{ width:30, height:30, borderRadius:8, background:"#F3F4F6", fontSize:16, fontWeight:700, color:"#666", display:"flex", alignItems:"center", justifyContent:"center" }}>−</button>
+                        <span style={{ fontSize:14, fontWeight:800, minWidth:20, textAlign:"center" }}>{item.qty}</span>
+                        <button onClick={() => add(item.id)} style={{ width:30, height:30, borderRadius:8, background:"#22C55E", fontSize:16, fontWeight:700, color:"#fff", display:"flex", alignItems:"center", justifyContent:"center" }}>+</button>
+                      </div>
+                      <div style={{ fontSize:14, fontWeight:800, color:"#166534", minWidth:58, textAlign:"right" }}>{fmt(item.price*item.qty)}</div>
+                    </div>
+                  ))}
+                </div>
+                <div style={{ padding:"18px 24px", background:"#fff", borderTop:"1px solid #E5E7EB" }}>
+                  {[["Subtotal",fmt(subtotal)],["Delivery ("+DELIVERY_ZONES[zone].label+")",fmt(deliveryFee)],["Service Fee",fmt(SERVICE_FEE)]].map(([l,v]) => (
+                    <div key={l} style={{ display:"flex", justifyContent:"space-between", marginBottom:6, fontSize:13, color:"#777" }}>
+                      <span>{l}</span><span style={{ fontWeight:600 }}>{v}</span>
+                    </div>
+                  ))}
+                  <div style={{ display:"flex", justifyContent:"space-between", paddingTop:12, borderTop:"2px dashed #E5E7EB", fontSize:17, fontWeight:800, color:"#111" }}>
+                    <span>Total</span><span>{fmt(total)}</span>
+                  </div>
+                  <button onClick={() => { setShowCart(false); setShowCheckout(true); }} style={{
+                    width:"100%", marginTop:14, padding:"15px", borderRadius:16,
+                    background:"linear-gradient(135deg,#166534,#22C55E)", color:"#fff",
+                    fontSize:15, fontWeight:700, boxShadow:"0 4px 16px rgba(22,101,52,.3)"
+                  }}>Proceed to Checkout →</button>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* ── Checkout Modal ── */}
+          {showCheckout && (
+            <div style={{ position:"fixed", inset:0, zIndex:300, background:"rgba(0,0,0,.65)", backdropFilter:"blur(6px)", display:"flex", alignItems:"flex-end", justifyContent:"center" }}>
+              <div className="slide-up" style={{ width:"100%", maxWidth:480, background:"#fff", borderRadius:"24px 24px 0 0", padding:"26px 24px 36px", maxHeight:"92vh", overflowY:"auto" }}>
+                <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:22 }}>
+                  <h2 style={{ fontSize:21, fontWeight:800 }}>📋 Checkout</h2>
+                  <button onClick={() => setShowCheckout(false)} style={{ width:36, height:36, borderRadius:10, background:"#F3F4F6", fontSize:18, display:"flex", alignItems:"center", justifyContent:"center" }}>✕</button>
+                </div>
+
+                <label style={{ fontSize:12, fontWeight:700, color:"#666", display:"block", marginBottom:8 }}>📍 Delivery Area</label>
+                <div style={{ display:"flex", gap:8, marginBottom:20 }}>
+                  {DELIVERY_ZONES.map((z,i) => (
+                    <button key={i} onClick={() => setZone(i)} style={{
+                      flex:1, padding:"12px 6px", borderRadius:12, textAlign:"center",
+                      border:zone===i?"2px solid #22C55E":"1px solid #E5E7EB",
+                      background:zone===i?"#F0FDF4":"#fff", transition:"all .2s"
+                    }}>
+                      <div style={{ fontSize:12, fontWeight:700, color:zone===i?"#166534":"#333", lineHeight:1.3 }}>{z.label}</div>
+                      <div style={{ fontSize:11, color:"#aaa", marginTop:3 }}>{fmt(z.fee)}</div>
+                    </button>
+                  ))}
+                </div>
+
+                {[
+                  { lbl:"Pangalan", val:name, set:setName, ph:"Juan Dela Cruz" },
+                  { lbl:"Phone",    val:phone, set:setPhone, ph:"09XX XXX XXXX" },
+                  { lbl:"Address",  val:addr,  set:setAddr,  ph:"House/Lot, Street, Barangay" },
+                ].map(({ lbl, val, set, ph }) => (
+                  <div key={lbl} style={{ marginBottom:14 }}>
+                    <label style={{ fontSize:12, fontWeight:700, color:"#666", display:"block", marginBottom:6 }}>{lbl}</label>
+                    <input value={val} onChange={e => set(e.target.value)} placeholder={ph}
+                      style={{ width:"100%", padding:"13px 16px", borderRadius:12, fontSize:14, border:"1.5px solid #E5E7EB", outline:"none", transition:"border .2s" }}
+                      onFocus={e => e.target.style.borderColor="#22C55E"}
+                      onBlur={e  => e.target.style.borderColor="#E5E7EB"} />
+                  </div>
+                ))}
+
+                <div style={{ background:"#F9FAFB", borderRadius:14, padding:"14px 16px", marginBottom:16, border:"1px solid #E5E7EB" }}>
+                  {cartItems.map(i => (
+                    <div key={i.id} style={{ display:"flex", justifyContent:"space-between", padding:"5px 0", fontSize:13, color:"#555" }}>
+                      <span>{i.img} {i.name} x{i.qty}</span>
+                      <span style={{ fontWeight:600 }}>{fmt(i.price*i.qty)}</span>
+                    </div>
+                  ))}
+                  <div style={{ borderTop:"1px solid #E5E7EB", marginTop:8, paddingTop:8, display:"flex", justifyContent:"space-between", fontSize:13, color:"#888" }}>
+                    <span>Delivery + Service</span><span style={{ fontWeight:600 }}>{fmt(deliveryFee+SERVICE_FEE)}</span>
+                  </div>
+                  <div style={{ marginTop:10, paddingTop:10, borderTop:"2px dashed #D1D5DB", display:"flex", justifyContent:"space-between", fontSize:17, fontWeight:800, color:"#111" }}>
+                    <span>Total</span><span>{fmt(total)}</span>
+                  </div>
+                </div>
+
+                <div style={{ background:"#FEF3C7", borderRadius:12, padding:"12px 14px", marginBottom:18, display:"flex", gap:10 }}>
+                  <span style={{ fontSize:18 }}>💳</span>
+                  <div style={{ fontSize:12, color:"#92400E", lineHeight:1.5 }}>
+                    <strong>GCash o COD</strong> — Pag-deliver ng order, pwede kang magbayad via GCash o Cash on Delivery.
+                  </div>
+                </div>
+
+                <button onClick={placeOrder} disabled={!name||!phone||!addr} style={{
+                  width:"100%", padding:"17px", borderRadius:16,
+                  background:(!name||!phone||!addr)?"#D1D5DB":"linear-gradient(135deg,#166534,#22C55E)",
+                  color:"#fff", fontSize:16, fontWeight:700,
+                  boxShadow:(!name||!phone||!addr)?"none":"0 4px 20px rgba(22,101,52,.35)",
+                  transition:"all .2s"
+                }}>Mag-Order Na! 🎉</button>
+              </div>
+            </div>
+          )}
+
+          {/* ── Order Tracker Modal ── */}
+          {showTracker && (
+            <div style={{ position:"fixed", inset:0, zIndex:300, background:"rgba(0,0,0,.55)", backdropFilter:"blur(4px)", display:"flex", alignItems:"center", justifyContent:"center", padding:20 }}
+              onClick={() => setShowTracker(null)}>
+              <div className="pop" onClick={e => e.stopPropagation()} style={{ width:"100%", maxWidth:370, background:"#fff", borderRadius:24, padding:"28px 22px", boxShadow:"0 20px 60px rgba(0,0,0,.14)" }}>
+                <div style={{ display:"flex", justifyContent:"space-between", alignItems:"flex-start", marginBottom:20 }}>
+                  <div>
+                    <h3 style={{ fontSize:19, fontWeight:800 }}>Order Tracker</h3>
+                    <p style={{ fontSize:12, color:"#bbb", marginTop:2 }}>#{showTracker.id?.slice(0,8)}</p>
+                  </div>
+                  <button onClick={() => setShowTracker(null)} style={{ width:34, height:34, borderRadius:10, background:"#F3F4F6", fontSize:16, display:"flex", alignItems:"center", justifyContent:"center" }}>✕</button>
+                </div>
+                {ORDER_STATUSES.map((s,i) => {
+                  const idx     = ORDER_STATUSES.findIndex(st => st.key === showTracker.status);
+                  const active  = i <= idx;
+                  const current = i === idx;
+                  return (
+                    <div key={s.key} style={{ display:"flex", gap:14 }}>
+                      <div style={{ display:"flex", flexDirection:"column", alignItems:"center" }}>
+                        <div style={{
+                          width:40, height:40, borderRadius:12, fontSize:20,
+                          display:"flex", alignItems:"center", justifyContent:"center",
+                          background:active?"#22C55E":"#F3F4F6", color:active?"#fff":"#ccc",
+                          boxShadow:current?"0 0 0 4px #BBF7D0":"none", transition:"all .3s"
+                        }}>{s.icon}</div>
+                        {i < 3 && <div style={{ width:3, height:32, background:active&&i<idx?"#22C55E":"#E5E7EB", borderRadius:3 }} />}
+                      </div>
+                      <div style={{ paddingTop:4, paddingBottom:i<3?14:0 }}>
+                        <div style={{ fontSize:14, fontWeight:700, color:active?"#111":"#ccc" }}>{s.label}</div>
+                        <div style={{ fontSize:11, color:"#aaa" }}>{s.desc}</div>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+
+          {/* ── Success Toast ── */}
+          {orderPlaced && (
+            <div className="pop" style={{
+              position:"fixed", top:60, left:"50%", transform:"translateX(-50%)", zIndex:500,
+              background:"#166534", color:"#fff", padding:"15px 26px", borderRadius:16,
+              fontSize:14, fontWeight:700, boxShadow:"0 8px 32px rgba(0,0,0,.22)",
+              display:"flex", alignItems:"center", gap:10, whiteSpace:"nowrap"
+            }}>
+              <span style={{ fontSize:22 }}>🎉</span> Order placed! Salamat, mare/pare!
+            </div>
+          )}
+        </div>
+      );
+    }
+
+    /* ══════════════════ AI RECIPE MODAL ══════════════════ */
+    function AIRecipeModal({ cartItems, onClose }) {
+      const [loading,  setLoading]  = useState(false);
+      const [recipes,  setRecipes]  = useState(null);
+      const [error,    setError]    = useState(null);
+      const [selected, setSelected] = useState(null);
+
+      const generate = async () => {
+        setLoading(true); setError(null); setRecipes(null); setSelected(null);
+        try {
+          const itemList = cartItems.map(i => `${i.name} (${i.qty} ${i.unit})`).join(", ");
+          const system = `Ikaw ay isang expert na Filipino chef na taga-Rizal.
+Magbibigay ka ng tatlong (3) putahe na recipe gamit ang mga sangkap na nasa basket ng customer.
+Sumagot LAMANG ng valid JSON, walang markdown, walang backtick, walang text bago o pagkatapos.
+Format:
+[{"name":"Pangalan","emoji":"🍳","difficulty":"Madali|Katamtaman|Mahirap","time":"XX minuto","description":"1-2 sentence sa Tagalog","steps":["Hakbang 1","Hakbang 2"],"tip":"Pro tip sa Tagalog"}]`;
+          const raw = await askClaude(system, `Mga sangkap: ${itemList}. Mag-suggest ng 3 putahe.`);
+          setRecipes(JSON.parse(raw.replace(/```json|```/g,"").trim()));
+        } catch(e) {
+          setError("May error sa AI. Subukan ulit!");
+        } finally {
+          setLoading(false);
+        }
+      };
+
+      return (
+        <div style={{ position:"fixed", inset:0, zIndex:400, background:"rgba(0,0,0,.7)", backdropFilter:"blur(8px)", display:"flex", alignItems:"flex-end", justifyContent:"center" }}>
+          <div className="slide-up" style={{ width:"100%", maxWidth:480, background:"#fff", borderRadius:"24px 24px 0 0", padding:"26px 22px 40px", maxHeight:"90vh", overflowY:"auto" }}>
+            <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:8 }}>
+              <div>
+                <h2 style={{ fontSize:21, fontWeight:800 }}>🤖 Ano Lulutuin?</h2>
+                <p style={{ fontSize:12, color:"#aaa", marginTop:2 }}>AI-powered recipe suggestions</p>
+              </div>
+              <button onClick={onClose} style={{ width:36, height:36, borderRadius:10, background:"#F3F4F6", fontSize:18, display:"flex", alignItems:"center", justifyContent:"center" }}>✕</button>
+            </div>
+
+            <div style={{ background:"#F0FDF4", borderRadius:14, padding:"12px 14px", marginBottom:18, border:"1px solid #BBF7D0" }}>
+              <div style={{ fontSize:11, fontWeight:700, color:"#166534", marginBottom:8 }}>📋 Mga sangkap sa basket:</div>
+              <div style={{ display:"flex", flexWrap:"wrap", gap:6 }}>
+                {cartItems.map(i => (
+                  <span key={i.id} style={{ background:"#fff", border:"1px solid #D1FAE5", borderRadius:20, padding:"4px 10px", fontSize:11, fontWeight:700, color:"#166534" }}>
+                    {i.img} {i.name}
+                  </span>
+                ))}
+              </div>
+            </div>
+
+            {!recipes && (
+              <button onClick={generate} disabled={loading} style={{
+                width:"100%", padding:"16px", borderRadius:16,
+                background:loading?"#E5E7EB":"linear-gradient(135deg,#7C3AED,#A855F7)",
+                color:loading?"#aaa":"#fff", fontSize:15, fontWeight:700,
+                boxShadow:loading?"none":"0 4px 20px rgba(124,58,237,.35)",
+                display:"flex", alignItems:"center", justifyContent:"center", gap:10
+              }}>
+                {loading ? (<><span className="spin" style={{ fontSize:18 }}>⚙️</span><span className="ai-pulse">Nag-iisip si AI...</span></>) : (<><span>✨</span> Mag-suggest ng Recipe</>)}
+              </button>
+            )}
+
+            {error && (
+              <div style={{ background:"#FEF2F2", border:"1px solid #FECACA", borderRadius:12, padding:"12px 14px", marginTop:14, fontSize:13, color:"#DC2626", fontWeight:500 }}>
+                ⚠️ {error} <button onClick={generate} style={{ marginLeft:8, color:"#DC2626", textDecoration:"underline", fontWeight:700 }}>Ulit</button>
+              </div>
+            )}
+
+            {recipes && !selected && (
+              <div style={{ marginTop:8 }}>
+                <p style={{ fontSize:12, color:"#aaa", marginBottom:12, textAlign:"center" }}>Piliin ang gusto mong lutuin:</p>
+                {recipes.map((r,i) => (
+                  <button key={i} onClick={() => setSelected(r)} className="fade-up" style={{
+                    width:"100%", textAlign:"left", background:"#fff", borderRadius:16,
+                    padding:"16px", marginBottom:10, border:"1px solid #E5E7EB",
+                    boxShadow:"0 2px 8px rgba(0,0,0,.04)", animationDelay:`${i*.1}s`
+                  }}>
+                    <div style={{ display:"flex", alignItems:"center", gap:12, marginBottom:8 }}>
+                      <span style={{ fontSize:34 }}>{r.emoji}</span>
+                      <div>
+                        <div style={{ fontSize:15, fontWeight:800, color:"#111" }}>{r.name}</div>
+                        <div style={{ display:"flex", gap:6, marginTop:4 }}>
+                          <span style={{ fontSize:10, fontWeight:700, background:"#F0FDF4", color:"#166534", padding:"2px 8px", borderRadius:6 }}>⏱ {r.time}</span>
+                          <span style={{ fontSize:10, fontWeight:700, background:"#FEF3C7", color:"#92400E", padding:"2px 8px", borderRadius:6 }}>🔥 {r.difficulty}</span>
+                        </div>
+                      </div>
+                    </div>
+                    <p style={{ fontSize:12, color:"#777", lineHeight:1.55 }}>{r.description}</p>
+                  </button>
+                ))}
+                <button onClick={() => { setRecipes(null); generate(); }} style={{
+                  width:"100%", padding:"12px", borderRadius:12, background:"#F9FAFB",
+                  border:"1px solid #E5E7EB", fontSize:13, fontWeight:600, color:"#888"
+                }}>🔄 Ibang suggestions</button>
+              </div>
+            )}
+
+            {selected && (
+              <div className="fade-up">
+                <button onClick={() => setSelected(null)} style={{ color:"#7C3AED", fontWeight:700, fontSize:13, marginBottom:16, display:"flex", alignItems:"center", gap:4 }}>← Bumalik</button>
+                <div style={{ textAlign:"center", marginBottom:20 }}>
+                  <div style={{ fontSize:60 }}>{selected.emoji}</div>
+                  <h3 style={{ fontSize:21, fontWeight:800, marginTop:8 }}>{selected.name}</h3>
+                  <div style={{ display:"flex", gap:8, justifyContent:"center", marginTop:8 }}>
+                    <span style={{ fontSize:11, fontWeight:700, background:"#F0FDF4", color:"#166534", padding:"4px 12px", borderRadius:20 }}>⏱ {selected.time}</span>
+                    <span style={{ fontSize:11, fontWeight:700, background:"#FEF3C7", color:"#92400E", padding:"4px 12px", borderRadius:20 }}>🔥 {selected.difficulty}</span>
+                  </div>
+                  <p style={{ fontSize:13, color:"#777", lineHeight:1.6, marginTop:12 }}>{selected.description}</p>
+                </div>
+                <div style={{ background:"#F9FAFB", borderRadius:16, padding:"16px", marginBottom:14, border:"1px solid #E5E7EB" }}>
+                  <div style={{ fontSize:12, fontWeight:700, color:"#444", marginBottom:12 }}>📝 Paraan ng Pagluto:</div>
+                  {selected.steps.map((step,i) => (
+                    <div key={i} style={{ display:"flex", gap:12, marginBottom:12, alignItems:"flex-start" }}>
+                      <div style={{ width:26, height:26, borderRadius:8, background:"#7C3AED", color:"#fff", fontSize:11, fontWeight:800, display:"flex", alignItems:"center", justifyContent:"center", flexShrink:0 }}>{i+1}</div>
+                      <p style={{ fontSize:13, color:"#555", lineHeight:1.55, margin:0, paddingTop:3 }}>{step}</p>
+                    </div>
+                  ))}
+                </div>
+                <div style={{ background:"#FFF7ED", borderRadius:14, padding:"14px 16px", border:"1px solid #FED7AA", display:"flex", gap:10 }}>
+                  <span style={{ fontSize:18 }}>💡</span>
+                  <div>
+                    <div style={{ fontSize:11, fontWeight:800, color:"#EA580C", marginBottom:4 }}>Pro Tip</div>
+                    <p style={{ fontSize:12, color:"#9A3412", lineHeight:1.55, margin:0 }}>{selected.tip}</p>
+                  </div>
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+      );
+    }
+
+    ReactDOM.createRoot(document.getElementById("root")).render(<App />);
+  </script>
+</body>
+</html>
