@@ -91,7 +91,7 @@
     const SERVICE_FEE = 20;
     const fmt = n => "₱" + Number(n).toLocaleString("en-PH", { minimumFractionDigits:0 });
 
-    /* ══════════════════ FIREBASE INIT ══════════════════ */
+    /* ══════════════════ FIREBASE INIT (AUTH + FIRESTORE) ══════════════════ */
     const FIREBASE_CONFIG = {
       apiKey:            "AIzaSyC0AQ3rkH-fhxlThobjDDtrvxttAfFLXTE",
       authDomain:        "bayango-315c6.firebaseapp.com",
@@ -103,16 +103,24 @@
 
     let _db = null;
     let _fns = null;
+    let _auth = null;
+    let _authFns = null;
 
     async function initFirebase() {
-      if (_db) return { db: _db, fns: _fns };
+      if (_db && _auth) return { db: _db, fns: _fns, auth: _auth, authFns: _authFns };
+      
       const { initializeApp } = await import("https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js");
-      const { getFirestore, collection, addDoc, onSnapshot, query, orderBy, doc, updateDoc, serverTimestamp, getDocs }
-        = await import("https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js");
+      const { getFirestore, collection, addDoc, onSnapshot, query, orderBy, doc, updateDoc, serverTimestamp, getDocs } = await import("https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js");
+      const { getAuth, signInWithPopup, GoogleAuthProvider, onAuthStateChanged, signOut } = await import("https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js");
+      
       const app = initializeApp(FIREBASE_CONFIG);
       _db  = getFirestore(app);
+      _auth = getAuth(app);
+      
       _fns = { collection, addDoc, onSnapshot, query, orderBy, doc, updateDoc, serverTimestamp, getDocs };
-      return { db: _db, fns: _fns };
+      _authFns = { signInWithPopup, GoogleAuthProvider, onAuthStateChanged, signOut };
+      
+      return { db: _db, fns: _fns, auth: _auth, authFns: _authFns };
     }
 
     /* ══════════════════ CLAUDE API ══════════════════ */
@@ -136,12 +144,19 @@
       const [products, setProducts] = useState(DEFAULT_PRODUCTS);
       const [orders,   setOrders]   = useState([]);
       const [ready,    setReady]    = useState(false);
+      const [user,     setUser]     = useState(null);
 
       useEffect(() => {
-        let unsubOrders, unsubProducts;
+        let unsubOrders, unsubProducts, unsubAuth;
         (async () => {
-          const { db, fns } = await initFirebase();
+          const { db, fns, auth, authFns } = await initFirebase();
           const { collection, onSnapshot, query, orderBy, getDocs } = fns;
+          const { onAuthStateChanged } = authFns;
+
+          // Makinig kung may naka-login na user
+          unsubAuth = onAuthStateChanged(auth, (currentUser) => {
+            setUser(currentUser);
+          });
 
           // Load products once (fallback to DEFAULT if empty)
           const snap = await getDocs(collection(db, "products"));
@@ -160,7 +175,7 @@
 
           setReady(true);
         })();
-        return () => { unsubOrders?.(); unsubProducts?.(); };
+        return () => { unsubOrders?.(); unsubProducts?.(); unsubAuth?.(); };
       }, []);
 
       const addOrder = useCallback(async (order) => {
@@ -173,7 +188,61 @@
         });
       }, []);
 
-      return <UserApp products={products} orders={orders} onOrder={addOrder} />;
+      const handleGoogleLogin = async () => {
+        try {
+          const { auth, authFns } = await initFirebase();
+          const provider = new authFns.GoogleAuthProvider();
+          await authFns.signInWithPopup(auth, provider);
+        } catch (error) {
+          alert("Error sa pag-login: " + error.message);
+        }
+      };
+
+      const handleLogout = async () => {
+        const { auth, authFns } = await initFirebase();
+        await authFns.signOut(auth);
+      };
+
+      // Show loading state while Firebase connects
+      if (!ready) return (
+        <div style={{ minHeight:"100vh", background:"#F8FAF8", display:"flex", alignItems:"center", justifyContent:"center", flexDirection:"column", gap:16 }}>
+          <div className="spin" style={{ fontSize:48 }}>⚙️</div>
+          <div style={{ fontSize:16, fontWeight:700, color:"#166534" }}>Nagkokonekta sa BayanGo...</div>
+          <div style={{ fontSize:12, color:"#aaa" }}>Hinihintay ang Firebase</div>
+        </div>
+      );
+
+      // Show login screen if not logged in
+      if (!user) {
+        return (
+          <div style={{ minHeight:"100vh", background:"#111", display:"flex", alignItems:"center", justifyContent:"center", flexDirection:"column", gap:20, padding:20 }}>
+            <div className="fade-up" style={{ textAlign:"center" }}>
+              <div style={{ fontSize:64, marginBottom:10 }}>⚙️</div>
+              <h1 style={{ fontSize:28, fontWeight:800, color:"#fff" }}>BayanGo Admin</h1>
+              <p style={{ color:"#888", fontSize:14 }}>Mag-sign in para pamahalaan ang orders.</p>
+            </div>
+            <button className="fade-up" onClick={handleGoogleLogin} style={{
+              background:"#fff", border:"1px solid #ddd", padding:"12px 24px", borderRadius:12,
+              fontSize:15, fontWeight:700, color:"#111", display:"flex", alignItems:"center", gap:10,
+              boxShadow:"0 2px 10px rgba(0,0,0,0.5)", cursor:"pointer", animationDelay:".1s"
+            }}>
+              <img src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg" alt="Google" style={{width:20, height:20}} />
+              Sign in with Google
+            </button>
+          </div>
+        );
+      }
+
+      // Render actual app with logout bar
+      return (
+        <>
+          <div style={{ background:"#000", color:"#fff", padding:"8px 20px", display:"flex", justifyContent:"space-between", alignItems:"center", fontSize:12 }}>
+            <span style={{color:"#aaa"}}>Admin: <b style={{color:"#fff"}}>{user.displayName || user.email}</b></span>
+            <button onClick={handleLogout} style={{ color:"#EF4444", fontWeight:"bold" }}>Sign Out</button>
+          </div>
+          <UserApp products={products} orders={orders} onOrder={addOrder} />
+        </>
+      );
     }
 
     /* ══════════════════ USER APP ══════════════════ */
@@ -231,15 +300,6 @@
       };
 
       const myOrders = orders.filter(o => o.customer?.name === name && name !== "");
-
-      // Show loading state while Firebase connects
-      if (!ready) return (
-        <div style={{ minHeight:"100vh", background:"#F8FAF8", display:"flex", alignItems:"center", justifyContent:"center", flexDirection:"column", gap:16 }}>
-          <div style={{ fontSize:48 }}>🛒</div>
-          <div style={{ fontSize:16, fontWeight:700, color:"#166534" }}>Nagkokonekta sa BayanGo...</div>
-          <div style={{ fontSize:12, color:"#aaa" }}>Hinihintay ang Firebase</div>
-        </div>
-      );
 
       return (
         <div style={{ maxWidth:480, margin:"0 auto", paddingBottom:120, background:"#F8FAF8", minHeight:"100vh" }}>
