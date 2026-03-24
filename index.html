@@ -121,7 +121,6 @@
       { label:"Libis / Pantok",      fee:75 },
     ];
 
-    const SERVICE_FEE = 20;
     const fmt = n => "₱" + Number(n).toLocaleString("en-PH", { minimumFractionDigits:0 });
     const genId = () => Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
 
@@ -674,10 +673,13 @@
         .map(([id,qty]) => ({ ...products.find(p => p.id === +id), qty }))
         .filter(i => i.name);
 
-      const customEstTotal = customItems.reduce((s,i) => s + (i.estPrice || 0), 0);
-      const subtotal    = cartItems.reduce((s,i) => s + i.price * i.qty, 0);
-      const deliveryFee = DELIVERY_ZONES[zone].fee;
-      const total       = subtotal + customEstTotal + deliveryFee + SERVICE_FEE;
+      const customEstTotal  = customItems.reduce((s,i) => s + (i.estPrice || 0), 0);
+      const subtotal        = cartItems.reduce((s,i) => s + i.price * i.qty, 0);
+      const itemsTotal      = subtotal + customEstTotal;
+      const deliveryFee     = DELIVERY_ZONES[zone].fee;
+      const serviceFee      = Math.round(itemsTotal * 0.10);
+      const smallOrderFee   = itemsTotal < 100 ? Math.round(itemsTotal * 0.05) : 0;
+      const total           = itemsTotal + deliveryFee + serviceFee + smallOrderFee;
       const totalItemCount = cartCount + customItems.length;
 
       const add = id => setCart(c => ({ ...c, [id]:(c[id]||0)+1 }));
@@ -718,7 +720,7 @@
         onOrder({
           items: allItems,
           subtotal, customEstimate: customEstTotal, deliveryFee,
-          serviceFee: SERVICE_FEE, total,
+          serviceFee, smallOrderFee, total,
           zone: DELIVERY_ZONES[zone].label,
           customer: { name, phone, address: addr },
           status: "pending",
@@ -1060,7 +1062,10 @@
                 <div style={{ padding:"18px 24px", background:"#fff", borderTop:"1px solid #E5E7EB" }}>
                   {[["Subtotal (catalog)",fmt(subtotal)],
                     ...(customEstTotal > 0 ? [["Custom items (est.)", "~"+fmt(customEstTotal)]] : []),
-                    ["Delivery ("+DELIVERY_ZONES[zone].label+")",fmt(deliveryFee)],["Service Fee",fmt(SERVICE_FEE)]].map(([l,v]) => (
+                    ["Delivery ("+DELIVERY_ZONES[zone].label+")",fmt(deliveryFee)],
+                    ["Service Fee (10%)",fmt(serviceFee)],
+                    ...(smallOrderFee > 0 ? [["Small Order Fee (5%)",fmt(smallOrderFee)]] : [])
+                  ].map(([l,v]) => (
                     <div key={l} style={{ display:"flex", justifyContent:"space-between", marginBottom:6, fontSize:13, color:"#777" }}>
                       <span>{l}</span><span style={{ fontWeight:600 }}>{v}</span>
                     </div>
@@ -1133,8 +1138,18 @@
                       ))}
                     </>
                   )}
-                  <div style={{ borderTop:"1px solid #E5E7EB", marginTop:8, paddingTop:8, display:"flex", justifyContent:"space-between", fontSize:13, color:"#888" }}>
-                    <span>Delivery + Service</span><span style={{ fontWeight:600 }}>{fmt(deliveryFee+SERVICE_FEE)}</span>
+                  <div style={{ borderTop:"1px solid #E5E7EB", marginTop:8, paddingTop:8, fontSize:13, color:"#888" }}>
+                    <div style={{ display:"flex", justifyContent:"space-between", marginBottom:4 }}>
+                      <span>Delivery ({DELIVERY_ZONES[zone].label})</span><span style={{ fontWeight:600 }}>{fmt(deliveryFee)}</span>
+                    </div>
+                    <div style={{ display:"flex", justifyContent:"space-between", marginBottom: smallOrderFee > 0 ? 4 : 0 }}>
+                      <span>Service Fee (10%)</span><span style={{ fontWeight:600 }}>{fmt(serviceFee)}</span>
+                    </div>
+                    {smallOrderFee > 0 && (
+                      <div style={{ display:"flex", justifyContent:"space-between" }}>
+                        <span style={{ color:"#D97706" }}>⚠️ Small Order Fee (5%)</span><span style={{ fontWeight:600, color:"#D97706" }}>{fmt(smallOrderFee)}</span>
+                      </div>
+                    )}
                   </div>
                   <div style={{ marginTop:10, paddingTop:10, borderTop:"2px dashed #D1D5DB", display:"flex", justifyContent:"space-between", fontSize:17, fontWeight:800, color:"#111" }}>
                     <span>~Total</span><span>~{fmt(total)}</span>
