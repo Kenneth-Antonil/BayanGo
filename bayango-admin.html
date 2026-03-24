@@ -153,27 +153,39 @@
           const { collection, onSnapshot, query, orderBy, getDocs } = fns;
           const { onAuthStateChanged } = authFns;
 
-          // Makinig kung may naka-login na user
           unsubAuth = onAuthStateChanged(auth, (currentUser) => {
             setUser(currentUser);
+            setReady(true);
+
+            // Clean up any previous realtime listeners before re-establishing
+            unsubOrders?.();
+            unsubProducts?.();
+
+            if (!currentUser) {
+              setOrders([]);
+              return;
+            }
+
+            // Load products (fallback to DEFAULT if empty)
+            getDocs(collection(db, "products")).then(snap => {
+              if (!snap.empty) setProducts(snap.docs.map(d => ({ id: d.id, ...d.data() })));
+            }).catch(err => console.error("Products load error:", err));
+
+            // Listen products realtime
+            unsubProducts = onSnapshot(
+              collection(db, "products"),
+              s => { if (!s.empty) setProducts(s.docs.map(d => ({ id: d.id, ...d.data() }))); },
+              err => console.error("Products snapshot error:", err)
+            );
+
+            // Listen orders realtime — only after user is authenticated
+            const q = query(collection(db, "orders"), orderBy("createdAt", "desc"));
+            unsubOrders = onSnapshot(
+              q,
+              s => { setOrders(s.docs.map(d => ({ id: d.id, ...d.data() }))); },
+              err => console.error("Orders snapshot error:", err.code, err.message)
+            );
           });
-
-          // Load products once (fallback to DEFAULT if empty)
-          const snap = await getDocs(collection(db, "products"));
-          if (!snap.empty) setProducts(snap.docs.map(d => ({ id: d.id, ...d.data() })));
-
-          // Listen products realtime
-          unsubProducts = onSnapshot(collection(db, "products"), s => {
-            if (!s.empty) setProducts(s.docs.map(d => ({ id: d.id, ...d.data() })));
-          });
-
-          // Listen orders realtime
-          const q = query(collection(db, "orders"), orderBy("createdAt", "desc"));
-          unsubOrders = onSnapshot(q, s => {
-            setOrders(s.docs.map(d => ({ id: d.id, ...d.data() })));
-          });
-
-          setReady(true);
         })();
         return () => { unsubOrders?.(); unsubProducts?.(); unsubAuth?.(); };
       }, []);

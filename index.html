@@ -351,12 +351,13 @@
       const [orders,      setOrders]      = useState(LS.getOrders);
       const [user,        setUser]        = useState(null);
       const [loading,     setLoading]     = useState(true);
-      const [authMode,    setAuthMode]    = useState("options"); // "options" | "email-signin" | "email-signup"
-      const [authEmail,   setAuthEmail]   = useState("");
-      const [authPassword,setAuthPassword]= useState("");
-      const [authConfirm, setAuthConfirm] = useState("");
-      const [authError,   setAuthError]   = useState("");
-      const [authLoading, setAuthLoading] = useState(false);
+      const [authMode,      setAuthMode]      = useState("options");
+      const [authEmail,     setAuthEmail]     = useState("");
+      const [authPassword,  setAuthPassword]  = useState("");
+      const [authConfirm,   setAuthConfirm]   = useState("");
+      const [authError,     setAuthError]     = useState("");
+      const [authLoading,   setAuthLoading]   = useState(false);
+      const [syncError,     setSyncError]     = useState(null);
 
       useEffect(() => {
         let unsubAuth;
@@ -396,13 +397,16 @@
           return updated;
         });
         // Write to Firestore so admin can see it
+        setSyncError(null);
         try {
+          if (!_fbDb) throw new Error("Firestore not initialized");
           await _fbDb.collection("orders").add({
             ...order,
-            createdAt: firebase.firestore.FieldValue.serverTimestamp(),
+            createdAt: new Date(),
           });
         } catch (err) {
-          console.error("Firestore write failed:", err);
+          console.error("Firestore write failed:", err.code, err.message);
+          setSyncError(err.code || err.message || "sync-failed");
         }
       }, []);
 
@@ -576,6 +580,21 @@
           </div>
           <UserApp products={products} orders={orders} onOrder={addOrder} />
           <InstallBanner />
+          {syncError && (
+            <div className="pop" style={{
+              position:"fixed", top:60, left:"50%", transform:"translateX(-50%)", zIndex:9999,
+              background:"#EF4444", color:"#fff", padding:"12px 20px", borderRadius:14,
+              fontSize:13, fontWeight:700, boxShadow:"0 4px 20px rgba(0,0,0,.25)",
+              display:"flex", alignItems:"center", gap:8, maxWidth:"calc(100% - 40px)",
+            }}>
+              <span>⚠️</span>
+              <div>
+                <div>Hindi ma-sync ang order sa admin</div>
+                <div style={{ fontSize:11, fontWeight:400, opacity:0.85, marginTop:2 }}>Error: {syncError}</div>
+              </div>
+              <button onClick={() => setSyncError(null)} style={{ color:"#fff", opacity:.7, fontSize:16, marginLeft:8 }}>✕</button>
+            </div>
+          )}
         </>
       );
     }
