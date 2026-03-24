@@ -142,15 +142,17 @@
       const [myOrders,        setMyOrders]        = useState([]);
       const [claiming,        setClaiming]        = useState(null);
       const [delivering,      setDelivering]      = useState(null);
+      const [markingOtw,      setMarkingOtw]      = useState(null);
       const [toast,           setToast]           = useState(null);
+      const [availErr,        setAvailErr]        = useState(null);
 
       useEffect(() => {
-        /* Available: status=="buying", no rider yet */
+        /* Available: status=="pending", not yet claimed by any rider */
         const unsubAvail = _fbDb.collection("orders")
-          .where("status", "==", "buying")
+          .where("status", "==", "pending")
           .onSnapshot(
             snap => setAvailableOrders(snap.docs.map(d => ({ id:d.id, ...d.data() })).filter(o => !o.riderId)),
-            err => console.error("Available orders error:", err.code)
+            err => { console.error("Available orders error:", err.code); setAvailErr(err.code || "permission-denied"); }
           );
 
         /* My orders: assigned to this rider */
@@ -173,15 +175,29 @@
             riderId:    user.uid,
             riderName:  user.displayName || user.email,
             riderPhoto: user.photoURL || null,
-            status:     "otw",
+            status:     "buying",
             acceptedAt: firebase.firestore.FieldValue.serverTimestamp(),
           });
-          showToast("✅ Na-accept! Pumunta ka na sa pick-up point.");
+          showToast("✅ Na-accept! Pumunta ka na sa tindahan.");
           setTab("deliveries");
         } catch (err) {
           showToast("⚠️ Error: " + (err.code || err.message));
         } finally {
           setClaiming(null);
+        }
+      };
+
+      const markOtw = async (orderId) => {
+        setMarkingOtw(orderId);
+        try {
+          await _fbDb.collection("orders").doc(orderId).update({
+            status: "otw",
+          });
+          showToast("🏍️ OTW na! Mag-ingat sa daan.");
+        } catch (err) {
+          showToast("⚠️ Error: " + (err.code || err.message));
+        } finally {
+          setMarkingOtw(null);
         }
       };
 
@@ -200,6 +216,7 @@
         }
       };
 
+      const buyingOrders    = myOrders.filter(o => o.status === "buying");
       const activeOrders    = myOrders.filter(o => o.status === "otw");
       const completedOrders = myOrders.filter(o => o.status === "delivered");
       const todayEarnings   = completedOrders.filter(o => isToday(o.deliveredAt)).reduce((s,o) => s + (o.deliveryFee||0), 0);
@@ -251,8 +268,8 @@
 
           {/* ── Tab Content ── */}
           <div>
-            {tab === "available"  && <AvailableTab  orders={availableOrders} onAccept={acceptOrder} claiming={claiming} />}
-            {tab === "deliveries" && <DeliveriesTab active={activeOrders} completed={completedOrders} onDeliver={markDelivered} delivering={delivering} />}
+            {tab === "available"  && <AvailableTab  orders={availableOrders} onAccept={acceptOrder} claiming={claiming} availErr={availErr} />}
+            {tab === "deliveries" && <DeliveriesTab buying={buyingOrders} active={activeOrders} completed={completedOrders} onOtw={markOtw} markingOtw={markingOtw} onDeliver={markDelivered} delivering={delivering} />}
             {tab === "earnings"   && <EarningsTab   completed={completedOrders} today={todayEarnings} week={weekEarnings} total={totalEarnings} />}
           </div>
 
@@ -267,7 +284,7 @@
           }}>
             {[
               { key:"available",  icon:"📦", label:"Available", badge: availableOrders.length },
-              { key:"deliveries", icon:"🏍️", label:"Deliveries", badge: activeOrders.length },
+              { key:"deliveries", icon:"🏍️", label:"Deliveries", badge: buyingOrders.length + activeOrders.length },
               { key:"earnings",   icon:"💰", label:"Earnings" },
             ].map(t => (
               <button key={t.key} onClick={() => setTab(t.key)} style={{
@@ -303,12 +320,20 @@
     }
 
     /* ══════════════════ AVAILABLE TAB ══════════════════ */
-    function AvailableTab({ orders, onAccept, claiming }) {
+    function AvailableTab({ orders, onAccept, claiming, availErr }) {
+      if (availErr) return (
+        <div style={{ textAlign:"center", padding:"60px 20px", color:"#94A3B8" }}>
+          <div style={{ fontSize:52, marginBottom:12 }}>⚠️</div>
+          <div style={{ fontSize:15, fontWeight:700, color:"#EF4444" }}>Hindi ma-load ang orders</div>
+          <div style={{ fontSize:12, marginTop:6, color:"#94A3B8" }}>{availErr}</div>
+          <div style={{ fontSize:12, marginTop:8, color:"#94A3B8" }}>I-check ang Firestore security rules.</div>
+        </div>
+      );
       if (orders.length === 0) return (
         <div style={{ textAlign:"center", padding:"60px 20px", color:"#94A3B8" }}>
           <div style={{ fontSize:52, marginBottom:12 }}>📭</div>
           <div style={{ fontSize:15, fontWeight:700, color:"#64748B" }}>Walang available na orders</div>
-          <div style={{ fontSize:13, marginTop:6 }}>Hintayin ang bagong orders mula sa admin</div>
+          <div style={{ fontSize:13, marginTop:6 }}>Hintayin ang bagong orders</div>
         </div>
       );
 
@@ -378,7 +403,7 @@
                 }}>
                   {claiming === order.id
                     ? <span className="pulse">Tinatanggap...</span>
-                    : `🏍️ Tanggapin — ${fmt(order.deliveryFee || 0)}`}
+                    : `🛒 Tanggapin — ${fmt(order.deliveryFee || 0)}`}
                 </button>
               </div>
             );
@@ -388,58 +413,79 @@
     }
 
     /* ══════════════════ DELIVERIES TAB ══════════════════ */
-    function DeliveriesTab({ active, completed, onDeliver, delivering }) {
+    function DeliveriesTab({ buying, active, completed, onOtw, markingOtw, onDeliver, delivering }) {
+      const OrderCard = ({ order, statusBadge, badgeBg, badgeColor, actionBtn }) => {
+        const regularItems = (order.items || []).filter(it => !it.isCustom);
+        const customItems  = (order.items || []).filter(it => it.isCustom);
+        return (
+          <div className="fade-up" style={{ background:"#fff", borderRadius:20, padding:"18px", marginBottom:12, boxShadow:"0 2px 16px rgba(29,78,216,.10)", border:"2px solid #BFDBFE" }}>
+            <div style={{ display:"flex", justifyContent:"space-between", alignItems:"flex-start", marginBottom:10 }}>
+              <div>
+                <div style={{ fontSize:16, fontWeight:800, color:"#1E293B" }}>{order.customer?.name}</div>
+                <div style={{ fontSize:13, color:"#64748B", marginTop:2 }}>📱 {order.customer?.phone}</div>
+              </div>
+              <div style={{ background:badgeBg, color:badgeColor, borderRadius:20, padding:"5px 12px", fontSize:12, fontWeight:700 }}>
+                {statusBadge}
+              </div>
+            </div>
+            <div style={{ background:"#F0F9FF", borderRadius:12, padding:"10px 14px", marginBottom:10 }}>
+              <div style={{ fontSize:11, fontWeight:700, color:"#0369A1", marginBottom:3 }}>📍 I-DELIVER DITO</div>
+              <div style={{ fontSize:14, color:"#1E293B", fontWeight:700 }}>{order.customer?.address}</div>
+              <div style={{ fontSize:12, color:"#64748B", marginTop:2 }}>Zone: {order.zone}</div>
+            </div>
+            <div style={{ marginBottom:12 }}>
+              {regularItems.map(it => (
+                <div key={it.id} style={{ fontSize:13, color:"#374151", padding:"2px 0" }}>{it.img} {it.name} × {it.qty} {it.unit}</div>
+              ))}
+              {customItems.map(it => (
+                <div key={it.id} style={{ fontSize:13, color:"#374151", padding:"2px 0" }}>📝 {it.name} ({it.unit})</div>
+              ))}
+            </div>
+            <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:12 }}>
+              <div style={{ fontSize:12, color:"#64748B" }}>Kita mo</div>
+              <div style={{ fontSize:18, fontWeight:800, color:"#1D4ED8" }}>{fmt(order.deliveryFee || 0)}</div>
+            </div>
+            {actionBtn}
+          </div>
+        );
+      };
+
       return (
         <div style={{ padding:"14px 16px" }}>
-          {/* Active deliveries */}
-          {active.length > 0 && (
+          {/* Buying orders */}
+          {buying.length > 0 && (
             <>
               <div style={{ fontSize:12, fontWeight:700, color:"#64748B", marginBottom:10, textTransform:"uppercase", letterSpacing:".08em" }}>
-                🏍️ Active ({active.length})
+                🛒 Binibili ({buying.length})
               </div>
-              {active.map(order => {
-                const regularItems = (order.items || []).filter(it => !it.isCustom);
-                const customItems  = (order.items || []).filter(it => it.isCustom);
-                return (
-                  <div key={order.id} className="fade-up" style={{
-                    background:"#fff", borderRadius:20, padding:"18px", marginBottom:12,
-                    boxShadow:"0 2px 16px rgba(29,78,216,.12)",
-                    border:"2px solid #BFDBFE",
-                  }}>
-                    <div style={{ display:"flex", justifyContent:"space-between", alignItems:"flex-start", marginBottom:10 }}>
-                      <div>
-                        <div style={{ fontSize:16, fontWeight:800, color:"#1E293B" }}>{order.customer?.name}</div>
-                        <div style={{ fontSize:13, color:"#64748B", marginTop:2 }}>📱 {order.customer?.phone}</div>
-                      </div>
-                      <div style={{ background:"#DBEAFE", color:"#1D4ED8", borderRadius:20, padding:"5px 12px", fontSize:12, fontWeight:700 }}>
-                        🏍️ OTW
-                      </div>
-                    </div>
+              {buying.map(order => (
+                <OrderCard key={order.id} order={order}
+                  statusBadge="🛒 Buying" badgeBg="#FEF3C7" badgeColor="#92400E"
+                  actionBtn={
+                    <button onClick={() => onOtw(order.id)} disabled={markingOtw === order.id} style={{
+                      width:"100%", padding:"14px", borderRadius:14,
+                      background: markingOtw === order.id ? "#E2E8F0" : "linear-gradient(135deg,#1D4ED8,#3B82F6)",
+                      color: markingOtw === order.id ? "#94A3B8" : "#fff",
+                      fontSize:15, fontWeight:800,
+                    }}>
+                      {markingOtw === order.id ? <span className="pulse">Ina-update...</span> : "🏍️ Tapos na! OTW na ako!"}
+                    </button>
+                  }
+                />
+              ))}
+            </>
+          )}
 
-                    <div style={{ background:"#F0F9FF", borderRadius:12, padding:"10px 14px", marginBottom:10 }}>
-                      <div style={{ fontSize:11, fontWeight:700, color:"#0369A1", marginBottom:3 }}>📍 I-DELIVER DITO</div>
-                      <div style={{ fontSize:14, color:"#1E293B", fontWeight:700 }}>{order.customer?.address}</div>
-                      <div style={{ fontSize:12, color:"#64748B", marginTop:2 }}>Zone: {order.zone}</div>
-                    </div>
-
-                    <div style={{ marginBottom:12 }}>
-                      {regularItems.map(it => (
-                        <div key={it.id} style={{ fontSize:13, color:"#374151", padding:"2px 0" }}>
-                          {it.img} {it.name} × {it.qty} {it.unit}
-                        </div>
-                      ))}
-                      {customItems.map(it => (
-                        <div key={it.id} style={{ fontSize:13, color:"#374151", padding:"2px 0" }}>
-                          📝 {it.name} ({it.unit})
-                        </div>
-                      ))}
-                    </div>
-
-                    <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:12 }}>
-                      <div style={{ fontSize:12, color:"#64748B" }}>Kita mo sa delivery na ito</div>
-                      <div style={{ fontSize:18, fontWeight:800, color:"#1D4ED8" }}>{fmt(order.deliveryFee || 0)}</div>
-                    </div>
-
+          {/* OTW deliveries */}
+          {active.length > 0 && (
+            <>
+              <div style={{ fontSize:12, fontWeight:700, color:"#64748B", marginBottom:10, marginTop: buying.length > 0 ? 16 : 0, textTransform:"uppercase", letterSpacing:".08em" }}>
+                🏍️ OTW ({active.length})
+              </div>
+              {active.map(order => (
+                <OrderCard key={order.id} order={order}
+                  statusBadge="🏍️ OTW" badgeBg="#DBEAFE" badgeColor="#1D4ED8"
+                  actionBtn={
                     <button onClick={() => onDeliver(order.id)} disabled={delivering === order.id} style={{
                       width:"100%", padding:"14px", borderRadius:14,
                       background: delivering === order.id ? "#E2E8F0" : "linear-gradient(135deg,#059669,#10B981)",
@@ -449,9 +495,9 @@
                     }}>
                       {delivering === order.id ? <span className="pulse">Ina-update...</span> : "✅ Na-deliver na!"}
                     </button>
-                  </div>
-                );
-              })}
+                  }
+                />
+              ))}
             </>
           )}
 
@@ -484,7 +530,7 @@
             </>
           )}
 
-          {active.length === 0 && completed.length === 0 && (
+          {buying.length === 0 && active.length === 0 && completed.length === 0 && (
             <div style={{ textAlign:"center", padding:"60px 20px", color:"#94A3B8" }}>
               <div style={{ fontSize:52, marginBottom:12 }}>🏍️</div>
               <div style={{ fontSize:15, fontWeight:700, color:"#64748B" }}>Walang deliveries pa</div>
