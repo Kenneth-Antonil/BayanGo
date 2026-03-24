@@ -661,6 +661,7 @@
       const [searchQ,        setSearchQ]        = useState("");
       const [orderPlaced,    setOrderPlaced]    = useState(false);
       const [showAI,         setShowAI]         = useState(false);
+      const [activePage,     setActivePage]     = useState("shop");
       const [customItems,    setCustomItems]    = useState([]);
       const [showCustomList, setShowCustomList] = useState(false);
       const [newItemName,    setNewItemName]    = useState("");
@@ -733,8 +734,13 @@
 
       const myOrders = orders.filter(o => o.customer?.name === name && name !== "");
 
+      const activeOrders = myOrders.filter(o => o.status !== "delivered");
+
       return (
-        <div style={{ maxWidth:480, margin:"0 auto", paddingBottom:120, background:"#F8FAF8", minHeight:"100vh" }}>
+        <div style={{ maxWidth:480, margin:"0 auto", paddingBottom:80, background:"#F8FAF8", minHeight:"100vh" }}>
+
+          {/* ── SHOP PAGE ── */}
+          {activePage === "shop" && <>
 
           {/* ── Hero ── */}
           <div style={{
@@ -872,36 +878,6 @@
             )}
           </div>
 
-          {/* ── My Orders ── */}
-          {myOrders.length > 0 && (
-            <div style={{ padding:"0 20px 16px" }}>
-              <h3 style={{ fontSize:15, fontWeight:800, color:"#111", marginBottom:12 }}>📦 My Orders</h3>
-              {myOrders.slice(0,4).map(o => {
-                const st = ORDER_STATUSES.find(s => s.key === o.status);
-                return (
-                  <button key={o.id} onClick={() => setShowTracker(o)} style={{
-                    width:"100%", textAlign:"left", background:"#fff", borderRadius:14,
-                    padding:"14px 16px", marginBottom:8,
-                    border:"1px solid #E5E7EB", display:"flex", alignItems:"center", justifyContent:"space-between",
-                    boxShadow:"0 1px 4px rgba(0,0,0,.04)"
-                  }}>
-                    <div style={{ flex:1, marginRight:12 }}>
-                      <div style={{ fontSize:13, fontWeight:700, color:"#111", whiteSpace:"nowrap", overflow:"hidden", textOverflow:"ellipsis", maxWidth:200 }}>
-                        {o.items.map(i=>i.name).join(", ")}
-                      </div>
-                      <div style={{ fontSize:11, color:"#aaa", marginTop:2 }}>{fmt(o.total)} • {new Date(o.createdAt).toLocaleDateString("en-PH")}</div>
-                    </div>
-                    <div style={{
-                      padding:"5px 12px", borderRadius:20, fontSize:12, fontWeight:700, whiteSpace:"nowrap",
-                      background:o.status==="delivered"?"#DCFCE7":o.status==="otw"?"#FEF3C7":"#F3F4F6",
-                      color:o.status==="delivered"?"#166534":o.status==="otw"?"#92400E":"#555"
-                    }}>{st?.icon} {st?.label}</div>
-                  </button>
-                );
-              })}
-            </div>
-          )}
-
           {/* ── AI FAB ── */}
           {cartItems.length > 0 && (
             <div style={{ position:"fixed", bottom:90, right:20, zIndex:90 }}>
@@ -922,7 +898,7 @@
           {/* ── Floating Cart ── */}
           {totalItemCount > 0 && !showCart && (
             <div className="slide-up" style={{
-              position:"fixed", bottom:`calc(env(safe-area-inset-bottom,0px) + 20px)`,
+              position:"fixed", bottom:`calc(env(safe-area-inset-bottom,0px) + 76px)`,
               left:"50%", transform:"translateX(-50%)",
               zIndex:100, width:"calc(100% - 40px)", maxWidth:440
             }}>
@@ -1241,6 +1217,158 @@
               <span style={{ fontSize:22 }}>🎉</span> Order placed! Salamat, mare/pare!
             </div>
           )}
+
+          </> /* end shop page */}
+
+          {/* ── ORDERS PAGE ── */}
+          {activePage === "orders" && (
+            <OrdersPage orders={myOrders} onTrack={setShowTracker} />
+          )}
+
+          {/* ── Bottom Nav ── */}
+          <div style={{
+            position:"fixed", bottom:0, left:"50%", transform:"translateX(-50%)",
+            width:"100%", maxWidth:480,
+            background:"#fff", borderTop:"1px solid #E5E7EB",
+            display:"flex", paddingBottom:"env(safe-area-inset-bottom,0px)",
+            boxShadow:"0 -4px 20px rgba(0,0,0,.07)", zIndex:150,
+          }}>
+            {[
+              { key:"shop",   icon:"🛒", label:"Tindahan" },
+              { key:"orders", icon:"📦", label:"Orders", badge: activeOrders.length },
+            ].map(t => (
+              <button key={t.key} onClick={() => setActivePage(t.key)} style={{
+                flex:1, padding:"11px 0 9px", display:"flex", flexDirection:"column", alignItems:"center", gap:3,
+                color: activePage===t.key ? "#166534" : "#94A3B8",
+                borderTop: activePage===t.key ? "2px solid #166534" : "2px solid transparent",
+                position:"relative",
+              }}>
+                <span style={{ fontSize:22 }}>{t.icon}</span>
+                <span style={{ fontSize:10, fontWeight:700 }}>{t.label}</span>
+                {t.badge > 0 && (
+                  <span style={{
+                    position:"absolute", top:6, right:"calc(50% - 18px)",
+                    background:"#EF4444", color:"#fff", borderRadius:10,
+                    fontSize:10, fontWeight:800, padding:"1px 6px", minWidth:17, textAlign:"center",
+                  }}>{t.badge}</span>
+                )}
+              </button>
+            ))}
+          </div>
+
+        </div>
+      );
+    }
+
+    /* ══════════════════ ORDERS PAGE ══════════════════ */
+    function OrdersPage({ orders, onTrack }) {
+      const active    = orders.filter(o => o.status !== "delivered");
+      const completed = orders.filter(o => o.status === "delivered");
+
+      const ST_COLOR = {
+        pending:   { bg:"#F3F4F6", color:"#555",    label:"Pending",   icon:"⏳" },
+        buying:    { bg:"#FEF3C7", color:"#92400E", label:"Buying",    icon:"🛒" },
+        otw:       { bg:"#DBEAFE", color:"#1D4ED8", label:"OTW",       icon:"🏍️" },
+        delivered: { bg:"#DCFCE7", color:"#166534", label:"Delivered", icon:"✅" },
+      };
+
+      const OrderCard = ({ o }) => {
+        const st = ST_COLOR[o.status] || ST_COLOR.pending;
+        const ts = o.createdAt ? (o.createdAt.toDate ? o.createdAt.toDate() : new Date(o.createdAt)) : new Date();
+        const idx = ORDER_STATUSES.findIndex(s => s.key === o.status);
+        return (
+          <button onClick={() => onTrack(o)} style={{
+            width:"100%", textAlign:"left", background:"#fff", borderRadius:18,
+            padding:"16px", marginBottom:12, border:"1px solid #F0F0F0",
+            boxShadow:"0 2px 8px rgba(0,0,0,.05)", display:"block",
+          }}>
+            {/* Top row */}
+            <div style={{ display:"flex", justifyContent:"space-between", alignItems:"flex-start", marginBottom:12 }}>
+              <div style={{ flex:1, marginRight:12 }}>
+                <div style={{ fontSize:13, fontWeight:800, color:"#111", overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>
+                  {o.items?.map(i=>i.name).join(", ") || "—"}
+                </div>
+                <div style={{ fontSize:11, color:"#aaa", marginTop:2 }}>
+                  {ts.toLocaleDateString("en-PH")} {ts.toLocaleTimeString("en-PH",{hour:"2-digit",minute:"2-digit"})}
+                </div>
+              </div>
+              <div style={{ padding:"5px 12px", borderRadius:20, fontSize:12, fontWeight:700, whiteSpace:"nowrap", background:st.bg, color:st.color }}>
+                {st.icon} {st.label}
+              </div>
+            </div>
+
+            {/* Progress bar */}
+            <div style={{ display:"flex", gap:4, marginBottom:12 }}>
+              {ORDER_STATUSES.map((s, i) => (
+                <div key={s.key} style={{
+                  flex:1, height:4, borderRadius:4,
+                  background: i <= idx ? "#22C55E" : "#E5E7EB",
+                  transition:"background .3s",
+                }} />
+              ))}
+            </div>
+
+            {/* Steps */}
+            <div style={{ display:"flex", justifyContent:"space-between" }}>
+              {ORDER_STATUSES.map((s, i) => (
+                <div key={s.key} style={{ textAlign:"center", flex:1 }}>
+                  <div style={{ fontSize:16, opacity: i <= idx ? 1 : 0.25 }}>{s.icon}</div>
+                  <div style={{ fontSize:9, fontWeight:700, color: i <= idx ? "#166534" : "#ccc", marginTop:2 }}>{s.label}</div>
+                </div>
+              ))}
+            </div>
+
+            {/* Footer */}
+            <div style={{ marginTop:12, paddingTop:10, borderTop:"1px dashed #E5E7EB", display:"flex", justifyContent:"space-between", alignItems:"center" }}>
+              <div style={{ fontSize:12, color:"#888" }}>{o.customer?.address}</div>
+              <div style={{ fontSize:14, fontWeight:800, color:"#166534" }}>~{fmt(o.total)}</div>
+            </div>
+          </button>
+        );
+      };
+
+      return (
+        <div style={{ padding:"0 0 20px" }}>
+          {/* Header */}
+          <div style={{
+            background:"linear-gradient(145deg,#0D5C2E,#166534)",
+            padding:"env(safe-area-inset-top, 0px) 24px 24px",
+            paddingTop:`calc(env(safe-area-inset-top, 0px) + 28px)`,
+            color:"#fff",
+          }}>
+            <div style={{ fontSize:11, opacity:.7, letterSpacing:".1em", textTransform:"uppercase", marginBottom:4 }}>BayanGo</div>
+            <h1 style={{ fontSize:28, fontWeight:800, letterSpacing:"-.02em" }}>📦 Ang Orders Ko</h1>
+            <p style={{ fontSize:13, opacity:.75, marginTop:4 }}>I-tap ang order para makita ang detalye</p>
+          </div>
+
+          <div style={{ padding:"20px 20px 0" }}>
+            {orders.length === 0 ? (
+              <div style={{ textAlign:"center", padding:"60px 0", color:"#ccc" }}>
+                <div style={{ fontSize:56, marginBottom:12 }}>📭</div>
+                <div style={{ fontSize:16, fontWeight:700, color:"#555" }}>Wala pang orders</div>
+                <div style={{ fontSize:13, marginTop:6, color:"#aaa" }}>Pumunta sa Tindahan para mag-order!</div>
+              </div>
+            ) : (
+              <>
+                {active.length > 0 && (
+                  <>
+                    <div style={{ fontSize:12, fontWeight:700, color:"#166534", marginBottom:10, textTransform:"uppercase", letterSpacing:".08em" }}>
+                      🔴 Active ({active.length})
+                    </div>
+                    {active.map(o => <OrderCard key={o.id} o={o} />)}
+                  </>
+                )}
+                {completed.length > 0 && (
+                  <>
+                    <div style={{ fontSize:12, fontWeight:700, color:"#94A3B8", margin:`${active.length>0?16:0}px 0 10px`, textTransform:"uppercase", letterSpacing:".08em" }}>
+                      ✅ Na-deliver na ({completed.length})
+                    </div>
+                    {completed.map(o => <OrderCard key={o.id} o={o} />)}
+                  </>
+                )}
+              </>
+            )}
+          </div>
         </div>
       );
     }
