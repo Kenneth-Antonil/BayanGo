@@ -358,12 +358,21 @@
 
       useEffect(() => {
         let unsubAuth;
+        // Fallback: kung di nag-resolve ang Firebase sa loob ng 8 segundos, ipakita na ang login
+        const timeout = setTimeout(() => setLoading(false), 8000);
         (async () => {
-          const { auth, authFns } = await initFirebaseAuth();
-          unsubAuth = authFns.onAuthStateChanged(auth, currentUser => {
-            setUser(currentUser);
+          try {
+            const { auth, authFns } = await initFirebaseAuth();
+            unsubAuth = authFns.onAuthStateChanged(auth, currentUser => {
+              clearTimeout(timeout);
+              setUser(currentUser);
+              setLoading(false);
+            });
+          } catch (err) {
+            console.error("Firebase init error:", err);
+            clearTimeout(timeout);
             setLoading(false);
-          });
+          }
         })();
 
         const onStorage = (e) => {
