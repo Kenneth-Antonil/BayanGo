@@ -47,8 +47,6 @@
   <script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.23.2/babel.min.js"></script>
-  <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
-  <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-auth-compat.js"></script>
 
   <!-- Capture install prompt before React mounts -->
   <script>
@@ -131,15 +129,24 @@
       storageBucket:     "bayango-315c6.firebasestorage.app",
       messagingSenderId: "199013441811",
       appId:             "1:199013441811:web:315a38f03ddc9b676e3ae6",
+      measurementId:     "G-1EEGFZWB7E",
     };
 
-    let _firebaseApp = null;
+    let _auth = null;
 
-    function initFirebaseAuth() {
-      if (!_firebaseApp) {
-        _firebaseApp = firebase.initializeApp(FIREBASE_CONFIG);
-      }
-      return firebase.auth();
+    async function initFirebaseAuth() {
+      if (_auth) return _auth;
+      const [{ initializeApp, getApps }, { getAuth, signInWithPopup, GoogleAuthProvider, onAuthStateChanged, signOut }] = await Promise.all([
+        import("https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js"),
+        import("https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js"),
+      ]);
+      const app = getApps().length === 0 ? initializeApp(FIREBASE_CONFIG) : getApps()[0];
+      _auth = getAuth(app);
+      _auth._signInWithPopup   = (p) => signInWithPopup(_auth, p);
+      _auth._GoogleAuthProvider = GoogleAuthProvider;
+      _auth._onAuthStateChanged = (cb) => onAuthStateChanged(_auth, cb);
+      _auth._signOut            = () => signOut(_auth);
+      return _auth;
     }
 
     /* ══════════════════ CLAUDE API ══════════════════ */
@@ -356,18 +363,20 @@
       useEffect(() => {
         let unsubAuth;
         const timeout = setTimeout(() => setLoading(false), 8000);
-        try {
-          const auth = initFirebaseAuth();
-          unsubAuth = auth.onAuthStateChanged(currentUser => {
+        (async () => {
+          try {
+            const auth = await initFirebaseAuth();
+            unsubAuth = auth._onAuthStateChanged(currentUser => {
+              clearTimeout(timeout);
+              setUser(currentUser);
+              setLoading(false);
+            });
+          } catch (err) {
+            console.error("Firebase init error:", err);
             clearTimeout(timeout);
-            setUser(currentUser);
             setLoading(false);
-          });
-        } catch (err) {
-          console.error("Firebase init error:", err);
-          clearTimeout(timeout);
-          setLoading(false);
-        }
+          }
+        })();
 
         const onStorage = (e) => {
           if (e.key === "bayango_products") setProducts(JSON.parse(e.newValue) || DEFAULT_PRODUCTS);
@@ -391,17 +400,17 @@
 
       const handleGoogleLogin = async () => {
         try {
-          const auth = initFirebaseAuth();
-          const provider = new firebase.auth.GoogleAuthProvider();
-          await auth.signInWithPopup(provider);
+          const auth = await initFirebaseAuth();
+          const provider = new auth._GoogleAuthProvider();
+          await auth._signInWithPopup(provider);
         } catch (error) {
           alert("Error sa pag-login: " + error.message);
         }
       };
 
       const handleLogout = async () => {
-        const auth = initFirebaseAuth();
-        await auth.signOut();
+        const auth = await initFirebaseAuth();
+        await auth._signOut();
       };
 
       if (loading) return (
