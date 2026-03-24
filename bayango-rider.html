@@ -40,20 +40,26 @@
   <script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.23.2/babel.min.js"></script>
-
-  <script type="text/babel">
-    const { useState, useEffect, useCallback } = React;
-
-    const FIREBASE_CONFIG = {
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
+  <script>
+    const RIDER_FB_APP = firebase.initializeApp({
       apiKey:            "AIzaSyC0AQ3rkH-fhxlThobjDDtrvxttAfFLXTE",
       authDomain:        "bayango-315c6.firebaseapp.com",
       projectId:         "bayango-315c6",
       storageBucket:     "bayango-315c6.firebasestorage.app",
       messagingSenderId: "199013441811",
       appId:             "1:199013441811:web:315a38f03ddc9b676e3ae6",
-    };
+    }, "rider");
+    const _fbAuth = firebase.auth(RIDER_FB_APP);
+    const _fbDb   = firebase.firestore(RIDER_FB_APP);
+  </script>
 
-    const fmt   = n => "₱" + Number(n).toLocaleString("en-PH", { minimumFractionDigits: 0 });
+  <script type="text/babel">
+    const { useState, useEffect, useCallback } = React;
+
+    const fmt = n => "₱" + Number(n).toLocaleString("en-PH", { minimumFractionDigits: 0 });
     const isToday = ts => {
       if (!ts) return false;
       const d = ts.toDate ? ts.toDate() : new Date(ts);
@@ -61,56 +67,29 @@
       return d.getFullYear() === t.getFullYear() && d.getMonth() === t.getMonth() && d.getDate() === t.getDate();
     };
 
-    /* ── Firebase init ── */
-    let _db = null, _auth = null, _fns = null, _authFns = null;
-    async function initFirebase() {
-      if (_db && _auth) return { db:_db, fns:_fns, auth:_auth, authFns:_authFns };
-      const { initializeApp, getApps } = await import("https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js");
-      const { getFirestore, collection, onSnapshot, query, where, doc, updateDoc, serverTimestamp }
-        = await import("https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js");
-      const { getAuth, signInWithPopup, signInWithRedirect, getRedirectResult, GoogleAuthProvider, onAuthStateChanged, signOut }
-        = await import("https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js");
-      const app = getApps().find(a => a.name === "rider") || initializeApp(FIREBASE_CONFIG, "rider");
-      _db = getFirestore(app);
-      _auth = getAuth(app);
-      _fns = { collection, onSnapshot, query, where, doc, updateDoc, serverTimestamp };
-      _authFns = { signInWithPopup, signInWithRedirect, getRedirectResult, GoogleAuthProvider, onAuthStateChanged, signOut };
-      return { db:_db, fns:_fns, auth:_auth, authFns:_authFns };
-    }
-
     /* ══════════════════ APP ══════════════════ */
     function App() {
       const [user,  setUser]  = useState(null);
       const [ready, setReady] = useState(false);
 
       useEffect(() => {
-        let unsub;
-        (async () => {
-          try {
-            const { auth, authFns } = await initFirebase();
-            // Handle redirect result first (after signInWithRedirect)
-            try { await authFns.getRedirectResult(auth); } catch (_) {}
-            unsub = authFns.onAuthStateChanged(auth, u => { setUser(u); setReady(true); });
-          } catch (err) {
-            console.error("Firebase init failed:", err);
-            setReady(true); // unblock UI even on failure
-          }
-        })();
-        return () => unsub?.();
+        // Handle redirect result (after signInWithRedirect)
+        _fbAuth.getRedirectResult().catch(() => {});
+        const unsub = _fbAuth.onAuthStateChanged(u => { setUser(u); setReady(true); });
+        return () => unsub();
       }, []);
 
       const handleLogin = async () => {
-        const { auth, authFns } = await initFirebase();
-        const provider = new authFns.GoogleAuthProvider();
+        const provider = new firebase.auth.GoogleAuthProvider();
         try {
-          await authFns.signInWithPopup(auth, provider);
+          await _fbAuth.signInWithPopup(provider);
         } catch (err) {
           if (
             err.code === "auth/popup-blocked" ||
             err.code === "auth/popup-closed-by-user" ||
             err.code === "auth/cancelled-popup-request"
           ) {
-            await authFns.signInWithRedirect(auth, provider);
+            await _fbAuth.signInWithRedirect(provider);
           } else {
             console.error("Sign-in error:", err.code, err.message);
           }
@@ -118,8 +97,7 @@
       };
 
       const handleLogout = async () => {
-        const { auth, authFns } = await initFirebase();
-        await authFns.signOut(auth);
+        await _fbAuth.signOut();
       };
 
       if (!ready) return (
@@ -167,28 +145,23 @@
       const [toast,           setToast]           = useState(null);
 
       useEffect(() => {
-        let unsubAvail, unsubMine;
-        (async () => {
-          const { db, fns } = await initFirebase();
-          const { collection, onSnapshot, query, where } = fns;
-
-          /* Available: status=="buying", no rider yet */
-          unsubAvail = onSnapshot(
-            query(collection(db, "orders"), where("status", "==", "buying")),
-            snap => setAvailableOrders(
-              snap.docs.map(d => ({ id:d.id, ...d.data() })).filter(o => !o.riderId)
-            ),
+        /* Available: status=="buying", no rider yet */
+        const unsubAvail = _fbDb.collection("orders")
+          .where("status", "==", "buying")
+          .onSnapshot(
+            snap => setAvailableOrders(snap.docs.map(d => ({ id:d.id, ...d.data() })).filter(o => !o.riderId)),
             err => console.error("Available orders error:", err.code)
           );
 
-          /* My orders: assigned to this rider */
-          unsubMine = onSnapshot(
-            query(collection(db, "orders"), where("riderId", "==", user.uid)),
+        /* My orders: assigned to this rider */
+        const unsubMine = _fbDb.collection("orders")
+          .where("riderId", "==", user.uid)
+          .onSnapshot(
             snap => setMyOrders(snap.docs.map(d => ({ id:d.id, ...d.data() }))),
             err => console.error("My orders error:", err.code)
           );
-        })();
-        return () => { unsubAvail?.(); unsubMine?.(); };
+
+        return () => { unsubAvail(); unsubMine(); };
       }, [user.uid]);
 
       const showToast = msg => { setToast(msg); setTimeout(() => setToast(null), 3000); };
@@ -196,13 +169,12 @@
       const acceptOrder = async (orderId) => {
         setClaiming(orderId);
         try {
-          const { db, fns } = await initFirebase();
-          await fns.updateDoc(fns.doc(db, "orders", orderId), {
+          await _fbDb.collection("orders").doc(orderId).update({
             riderId:    user.uid,
             riderName:  user.displayName || user.email,
             riderPhoto: user.photoURL || null,
             status:     "otw",
-            acceptedAt: fns.serverTimestamp(),
+            acceptedAt: firebase.firestore.FieldValue.serverTimestamp(),
           });
           showToast("✅ Na-accept! Pumunta ka na sa pick-up point.");
           setTab("deliveries");
@@ -216,10 +188,9 @@
       const markDelivered = async (orderId) => {
         setDelivering(orderId);
         try {
-          const { db, fns } = await initFirebase();
-          await fns.updateDoc(fns.doc(db, "orders", orderId), {
+          await _fbDb.collection("orders").doc(orderId).update({
             status:      "delivered",
-            deliveredAt: fns.serverTimestamp(),
+            deliveredAt: firebase.firestore.FieldValue.serverTimestamp(),
           });
           showToast("🎉 Na-deliver na! Good job!");
         } catch (err) {
