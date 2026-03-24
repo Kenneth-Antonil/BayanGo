@@ -345,15 +345,23 @@
 
     /* ══════════════════ MAIN APP ══════════════════ */
     function App() {
-      const [products, setProducts] = useState(LS.getProducts);
-      const [orders,   setOrders]   = useState(LS.getOrders);
-      const [user,     setUser]     = useState(null);
-      const [loading,  setLoading]  = useState(true);
+      const [products,    setProducts]    = useState(LS.getProducts);
+      const [orders,      setOrders]      = useState(LS.getOrders);
+      const [user,        setUser]        = useState(null);
+      const [loading,     setLoading]     = useState(true);
+      const [authMode,    setAuthMode]    = useState("options"); // "options" | "email-signin" | "email-signup"
+      const [authEmail,   setAuthEmail]   = useState("");
+      const [authPassword,setAuthPassword]= useState("");
+      const [authConfirm, setAuthConfirm] = useState("");
+      const [authError,   setAuthError]   = useState("");
+      const [authLoading, setAuthLoading] = useState(false);
 
       useEffect(() => {
         let unsubAuth;
         const timeout = setTimeout(() => setLoading(false), 8000);
         try {
+          // Handle redirect result (for signInWithRedirect flow)
+          _fbAuth.getRedirectResult().catch(err => console.error("Redirect result error:", err));
           unsubAuth = _fbAuth.onAuthStateChanged(currentUser => {
             clearTimeout(timeout);
             setUser(currentUser);
@@ -385,12 +393,67 @@
         });
       }, []);
 
+      const getFriendlyError = (code) => {
+        const map = {
+          'auth/user-not-found':     'Walang account na may email na ito.',
+          'auth/wrong-password':     'Mali ang password.',
+          'auth/invalid-credential': 'Mali ang email o password.',
+          'auth/email-already-in-use': 'Ginagamit na ang email na ito.',
+          'auth/weak-password':      'Masyadong mahina ang password (min. 6 characters).',
+          'auth/invalid-email':      'Hindi valid ang email address.',
+          'auth/too-many-requests':  'Napakaraming pagtatangka. Subukan ulit mamaya.',
+          'auth/popup-blocked':      'Nablock ang popup. Subukan ulit.',
+        };
+        return map[code] || 'May error. Subukan ulit.';
+      };
+
       const handleGoogleLogin = async () => {
         try {
           const provider = new firebase.auth.GoogleAuthProvider();
           await _fbAuth.signInWithPopup(provider);
         } catch (error) {
-          alert("Error sa pag-login: " + error.message);
+          if (
+            error.code === 'auth/popup-blocked' ||
+            error.code === 'auth/popup-closed-by-user' ||
+            error.code === 'auth/cancelled-popup-request'
+          ) {
+            try {
+              const provider = new firebase.auth.GoogleAuthProvider();
+              await _fbAuth.signInWithRedirect(provider);
+            } catch (err2) {
+              alert("Error sa pag-login: " + err2.message);
+            }
+          } else {
+            alert("Error sa pag-login: " + error.message);
+          }
+        }
+      };
+
+      const handleEmailSignIn = async () => {
+        setAuthError("");
+        setAuthLoading(true);
+        try {
+          await _fbAuth.signInWithEmailAndPassword(authEmail, authPassword);
+        } catch (error) {
+          setAuthError(getFriendlyError(error.code));
+        } finally {
+          setAuthLoading(false);
+        }
+      };
+
+      const handleEmailSignUp = async () => {
+        setAuthError("");
+        if (authPassword !== authConfirm) {
+          setAuthError("Hindi magkaparehong password.");
+          return;
+        }
+        setAuthLoading(true);
+        try {
+          await _fbAuth.createUserWithEmailAndPassword(authEmail, authPassword);
+        } catch (error) {
+          setAuthError(getFriendlyError(error.code));
+        } finally {
+          setAuthLoading(false);
         }
       };
 
@@ -406,21 +469,88 @@
       );
 
       if (!user) {
+        const inputStyle = {
+          border:"1px solid #E5E7EB", borderRadius:12, padding:"14px 16px",
+          fontSize:15, outline:"none", background:"#fff", width:"100%",
+        };
         return (
-          <div style={{ minHeight:"100vh", display:"flex", alignItems:"center", justifyContent:"center", flexDirection:"column", gap:20, padding:20 }}>
+          <div style={{ minHeight:"100vh", display:"flex", alignItems:"center", justifyContent:"center", flexDirection:"column", gap:20, padding:"20px 24px" }}>
             <div className="fade-up" style={{ textAlign:"center" }}>
               <div style={{ fontSize:64, marginBottom:10 }}>🛒</div>
               <h1 style={{ fontSize:32, fontWeight:800, color:"#166534", letterSpacing:"-.02em" }}>BayanGo</h1>
               <p style={{ color:"#666", fontSize:15, marginTop:4 }}>Palengke sa'yo. Mag-sign in para makapag-order.</p>
             </div>
-            <button className="fade-up" onClick={handleGoogleLogin} style={{
-              background:"#fff", border:"1px solid #E5E7EB", padding:"14px 28px", borderRadius:100,
-              fontSize:16, fontWeight:700, color:"#333", display:"flex", alignItems:"center", gap:12,
-              boxShadow:"0 4px 12px rgba(0,0,0,0.05)", transition:"transform 0.2s", animationDelay:".1s"
-            }}>
-              <img src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg" alt="Google" style={{width:24, height:24}} />
-              Sign in with Google
-            </button>
+
+            {authMode === "options" && (
+              <div className="fade-up" style={{ width:"100%", maxWidth:360, display:"flex", flexDirection:"column", gap:12, animationDelay:".1s" }}>
+                <button onClick={handleGoogleLogin} style={{
+                  background:"#fff", border:"1px solid #E5E7EB", padding:"14px 20px", borderRadius:100,
+                  fontSize:15, fontWeight:700, color:"#333", display:"flex", alignItems:"center", justifyContent:"center", gap:12,
+                  boxShadow:"0 4px 12px rgba(0,0,0,0.05)",
+                }}>
+                  <img src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg" alt="Google" style={{width:22, height:22}} />
+                  Sign in with Google
+                </button>
+                <button onClick={() => { setAuthMode("email-signin"); setAuthError(""); }} style={{
+                  background:"#166534", border:"none", padding:"14px 20px", borderRadius:100,
+                  fontSize:15, fontWeight:700, color:"#fff", display:"flex", alignItems:"center", justifyContent:"center", gap:10,
+                  boxShadow:"0 4px 16px rgba(22,101,52,0.3)",
+                }}>
+                  ✉️ Sign in with Email
+                </button>
+                <div style={{ textAlign:"center", fontSize:13, color:"#888", marginTop:4 }}>
+                  Wala pang account?{" "}
+                  <button onClick={() => { setAuthMode("email-signup"); setAuthError(""); }} style={{ color:"#166534", fontWeight:700, textDecoration:"underline", fontSize:13 }}>
+                    Mag-sign up
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {(authMode === "email-signin" || authMode === "email-signup") && (
+              <div className="fade-up" style={{ width:"100%", maxWidth:360, display:"flex", flexDirection:"column", gap:12 }}>
+                <h2 style={{ textAlign:"center", fontSize:20, fontWeight:800, color:"#166534", marginBottom:4 }}>
+                  {authMode === "email-signup" ? "Gumawa ng Account" : "Mag-sign in"}
+                </h2>
+
+                {authError && (
+                  <div style={{ background:"#FEF2F2", border:"1px solid #FCA5A5", borderRadius:12, padding:"10px 14px", fontSize:13, color:"#B91C1C" }}>
+                    {authError}
+                  </div>
+                )}
+
+                <input type="email" placeholder="Email address" value={authEmail}
+                  onChange={e => setAuthEmail(e.target.value)} style={inputStyle} />
+                <input type="password" placeholder="Password" value={authPassword}
+                  onChange={e => setAuthPassword(e.target.value)} style={inputStyle} />
+                {authMode === "email-signup" && (
+                  <input type="password" placeholder="Ulitin ang Password" value={authConfirm}
+                    onChange={e => setAuthConfirm(e.target.value)} style={inputStyle} />
+                )}
+
+                <button
+                  onClick={authMode === "email-signup" ? handleEmailSignUp : handleEmailSignIn}
+                  disabled={authLoading}
+                  style={{
+                    background:"#166534", border:"none", padding:"14px", borderRadius:100,
+                    fontSize:15, fontWeight:700, color:"#fff", opacity: authLoading ? 0.7 : 1, marginTop:4,
+                  }}
+                >
+                  {authLoading ? "Loading..." : authMode === "email-signup" ? "Gumawa ng Account" : "Mag-sign in"}
+                </button>
+
+                <div style={{ textAlign:"center", fontSize:13, color:"#888" }}>
+                  {authMode === "email-signup"
+                    ? <>May account na? <button onClick={() => { setAuthMode("email-signin"); setAuthError(""); }} style={{ color:"#166534", fontWeight:700, textDecoration:"underline", fontSize:13 }}>Mag-sign in</button></>
+                    : <>Wala pang account? <button onClick={() => { setAuthMode("email-signup"); setAuthError(""); }} style={{ color:"#166534", fontWeight:700, textDecoration:"underline", fontSize:13 }}>Mag-sign up</button></>
+                  }
+                </div>
+
+                <button onClick={() => { setAuthMode("options"); setAuthError(""); }} style={{ color:"#999", fontSize:13, textAlign:"center", marginTop:2 }}>
+                  ← Bumalik sa ibang options
+                </button>
+              </div>
+            )}
           </div>
         );
       }
