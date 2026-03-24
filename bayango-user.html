@@ -111,6 +111,30 @@
       saveOrders: (orders) => localStorage.setItem("bayango_orders", JSON.stringify(orders)),
     };
 
+    /* ══════════════════ FIREBASE AUTH INIT ══════════════════ */
+    const FIREBASE_CONFIG = {
+      apiKey:            "AIzaSyC0AQ3rkH-fhxlThobjDDtrvxttAfFLXTE",
+      authDomain:        "bayango-315c6.firebaseapp.com",
+      projectId:         "bayango-315c6",
+      storageBucket:     "bayango-315c6.firebasestorage.app",
+      messagingSenderId: "199013441811",
+      appId:             "1:199013441811:web:315a38f03ddc9b676e3ae6",
+    };
+
+    let _auth = null;
+    let _authFns = null;
+
+    async function initFirebaseAuth() {
+      if (_auth) return { auth: _auth, authFns: _authFns };
+      const { initializeApp } = await import("https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js");
+      const { getAuth, signInWithPopup, GoogleAuthProvider, onAuthStateChanged, signOut } = await import("https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js");
+      
+      const app = initializeApp(FIREBASE_CONFIG);
+      _auth = getAuth(app);
+      _authFns = { signInWithPopup, GoogleAuthProvider, onAuthStateChanged, signOut };
+      return { auth: _auth, authFns: _authFns };
+    }
+
     /* ══════════════════ CLAUDE API ══════════════════ */
     function getApiKey() {
       let key = localStorage.getItem("bayango_api_key");
@@ -155,20 +179,30 @@
     function App() {
       const [products, setProducts] = useState(LS.getProducts);
       const [orders,   setOrders]   = useState(LS.getOrders);
+      const [user,     setUser]     = useState(null);
+      const [loading,  setLoading]  = useState(true);
 
-      /* sync from admin changes via storage events */
+      /* sync from admin changes via storage events + Firebase Auth */
       useEffect(() => {
+        let unsubAuth;
+        (async () => {
+          const { auth, authFns } = await initFirebaseAuth();
+          unsubAuth = authFns.onAuthStateChanged(auth, currentUser => {
+            setUser(currentUser);
+            setLoading(false);
+          });
+        })();
+
         const onStorage = (e) => {
           if (e.key === "bayango_products") setProducts(JSON.parse(e.newValue) || DEFAULT_PRODUCTS);
           if (e.key === "bayango_orders")   setOrders(JSON.parse(e.newValue) || []);
         };
         window.addEventListener("storage", onStorage);
-        /* also poll every 4s for same-tab refresh */
         const interval = setInterval(() => {
           const fresh = LS.getProducts();
           setProducts(p => JSON.stringify(p) !== JSON.stringify(fresh) ? fresh : p);
         }, 4000);
-        return () => { window.removeEventListener("storage", onStorage); clearInterval(interval); };
+        return () => { window.removeEventListener("storage", onStorage); clearInterval(interval); unsubAuth?.(); };
       }, []);
 
       const addOrder = useCallback((order) => {
@@ -179,7 +213,57 @@
         });
       }, []);
 
-      return <UserApp products={products} orders={orders} onOrder={addOrder} />;
+      const handleGoogleLogin = async () => {
+        try {
+          const { auth, authFns } = await initFirebaseAuth();
+          const provider = new authFns.GoogleAuthProvider();
+          await authFns.signInWithPopup(auth, provider);
+        } catch (error) {
+          alert("Error sa pag-login: " + error.message);
+        }
+      };
+
+      const handleLogout = async () => {
+        const { auth, authFns } = await initFirebaseAuth();
+        await authFns.signOut(auth);
+      };
+
+      if (loading) return (
+        <div style={{ display:"flex", flexDirection:"column", alignItems:"center", justifyContent:"center", height:"100vh", gap:14 }}>
+          <div className="spin" style={{ fontSize:48 }}>⚙️</div>
+          <div style={{ fontSize:16, fontWeight:800, color:"#166534" }}>Naglo-load...</div>
+        </div>
+      );
+
+      if (!user) {
+        return (
+          <div style={{ minHeight:"100vh", display:"flex", alignItems:"center", justifyContent:"center", flexDirection:"column", gap:20, padding:20 }}>
+            <div className="fade-up" style={{ textAlign:"center" }}>
+              <div style={{ fontSize:64, marginBottom:10 }}>🛒</div>
+              <h1 style={{ fontSize:32, fontWeight:800, color:"#166534", letterSpacing:"-.02em" }}>BayanGo</h1>
+              <p style={{ color:"#666", fontSize:15, marginTop:4 }}>Palengke sa'yo. Mag-sign in para makapag-order.</p>
+            </div>
+            <button className="fade-up" onClick={handleGoogleLogin} style={{
+              background:"#fff", border:"1px solid #E5E7EB", padding:"14px 28px", borderRadius:100,
+              fontSize:16, fontWeight:700, color:"#333", display:"flex", alignItems:"center", gap:12,
+              boxShadow:"0 4px 12px rgba(0,0,0,0.05)", transition:"transform 0.2s", animationDelay:".1s"
+            }}>
+              <img src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg" alt="Google" style={{width:24, height:24}} />
+              Sign in with Google
+            </button>
+          </div>
+        );
+      }
+
+      return (
+        <>
+          <div style={{ background:"#166534", color:"#fff", padding:"8px 20px", display:"flex", justifyContent:"space-between", alignItems:"center", fontSize:12, fontWeight:600 }}>
+            <span style={{opacity:0.9}}>👋 Hello, {user.displayName || user.email.split('@')[0]}</span>
+            <button onClick={handleLogout} style={{ color:"#BBF7D0", textDecoration:"underline", fontSize:12, fontWeight:700 }}>Log Out</button>
+          </div>
+          <UserApp products={products} orders={orders} onOrder={addOrder} />
+        </>
+      );
     }
 
     /* ══════════════════ USER APP ══════════════════ */
