@@ -1,0 +1,580 @@
+<!DOCTYPE html>
+<html lang="tl">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <title>BayanGo Rider</title>
+  <meta name="theme-color" content="#1D4ED8" />
+  <meta name="mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <meta name="apple-mobile-web-app-title" content="BayanGo Rider" />
+  <link rel="manifest" href="bayango-rider-manifest.json" />
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    html, body { height: 100%; background: #EFF6FF; font-family: 'Plus Jakarta Sans', sans-serif; overscroll-behavior: none; }
+    button { font-family: inherit; cursor: pointer; border: none; background: none; }
+    input { font-family: inherit; }
+    ::-webkit-scrollbar { width: 4px; }
+    ::-webkit-scrollbar-thumb { background: #CBD5E1; border-radius: 4px; }
+    @keyframes fadeUp  { from { opacity:0; transform:translateY(14px); } to { opacity:1; transform:translateY(0); } }
+    @keyframes pop     { 0%{transform:scale(.85);opacity:0;} 100%{transform:scale(1);opacity:1;} }
+    @keyframes spin    { to { transform:rotate(360deg); } }
+    @keyframes pulse   { 0%,100%{opacity:1;} 50%{opacity:.4;} }
+    .fade-up { animation: fadeUp .35s ease both; }
+    .pop     { animation: pop .25s ease both; }
+    .spin    { animation: spin 1s linear infinite; }
+    .pulse   { animation: pulse 1.4s ease infinite; }
+  </style>
+</head>
+<body>
+  <div id="root">
+    <div style="display:flex;flex-direction:column;align-items:center;justify-content:center;height:100vh;background:#EFF6FF;gap:14px;">
+      <div style="font-size:48px;">🏍️</div>
+      <div style="font-size:18px;font-weight:800;color:#1D4ED8;">BayanGo Rider</div>
+      <div style="font-size:13px;color:#93C5FD;">Naglo-load...</div>
+    </div>
+  </div>
+
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.23.2/babel.min.js"></script>
+
+  <script type="text/babel">
+    const { useState, useEffect, useCallback } = React;
+
+    const FIREBASE_CONFIG = {
+      apiKey:            "AIzaSyC0AQ3rkH-fhxlThobjDDtrvxttAfFLXTE",
+      authDomain:        "bayango-315c6.firebaseapp.com",
+      projectId:         "bayango-315c6",
+      storageBucket:     "bayango-315c6.firebasestorage.app",
+      messagingSenderId: "199013441811",
+      appId:             "1:199013441811:web:315a38f03ddc9b676e3ae6",
+    };
+
+    const fmt   = n => "₱" + Number(n).toLocaleString("en-PH", { minimumFractionDigits: 0 });
+    const isToday = ts => {
+      if (!ts) return false;
+      const d = ts.toDate ? ts.toDate() : new Date(ts);
+      const t = new Date();
+      return d.getFullYear() === t.getFullYear() && d.getMonth() === t.getMonth() && d.getDate() === t.getDate();
+    };
+
+    /* ── Firebase init ── */
+    let _db = null, _auth = null, _fns = null, _authFns = null;
+    async function initFirebase() {
+      if (_db && _auth) return { db:_db, fns:_fns, auth:_auth, authFns:_authFns };
+      const { initializeApp, getApps } = await import("https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js");
+      const { getFirestore, collection, onSnapshot, query, where, doc, updateDoc, serverTimestamp }
+        = await import("https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js");
+      const { getAuth, signInWithPopup, signInWithRedirect, GoogleAuthProvider, onAuthStateChanged, signOut }
+        = await import("https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js");
+      const app = getApps().find(a => a.name === "rider") || initializeApp(FIREBASE_CONFIG, "rider");
+      _db = getFirestore(app);
+      _auth = getAuth(app);
+      _fns = { collection, onSnapshot, query, where, doc, updateDoc, serverTimestamp };
+      _authFns = { signInWithPopup, signInWithRedirect, GoogleAuthProvider, onAuthStateChanged, signOut };
+      return { db:_db, fns:_fns, auth:_auth, authFns:_authFns };
+    }
+
+    /* ══════════════════ APP ══════════════════ */
+    function App() {
+      const [user,  setUser]  = useState(null);
+      const [ready, setReady] = useState(false);
+
+      useEffect(() => {
+        let unsub;
+        (async () => {
+          const { auth, authFns } = await initFirebase();
+          unsub = authFns.onAuthStateChanged(auth, u => { setUser(u); setReady(true); });
+        })();
+        return () => unsub?.();
+      }, []);
+
+      const handleLogin = async () => {
+        const { auth, authFns } = await initFirebase();
+        const provider = new authFns.GoogleAuthProvider();
+        try {
+          await authFns.signInWithPopup(auth, provider);
+        } catch (err) {
+          if (err.code === "auth/popup-blocked" || err.code === "auth/popup-closed-by-user") {
+            await authFns.signInWithRedirect(auth, provider);
+          }
+        }
+      };
+
+      const handleLogout = async () => {
+        const { auth, authFns } = await initFirebase();
+        await authFns.signOut(auth);
+      };
+
+      if (!ready) return (
+        <div style={{ display:"flex", flexDirection:"column", alignItems:"center", justifyContent:"center", height:"100vh", background:"#EFF6FF", gap:14 }}>
+          <div className="spin" style={{ fontSize:48 }}>⚙️</div>
+          <div style={{ fontSize:15, fontWeight:800, color:"#1D4ED8" }}>Nagkokonekta...</div>
+        </div>
+      );
+
+      if (!user) return <LoginScreen onLogin={handleLogin} />;
+      return <RiderApp user={user} onLogout={handleLogout} />;
+    }
+
+    /* ══════════════════ LOGIN ══════════════════ */
+    function LoginScreen({ onLogin }) {
+      return (
+        <div style={{ minHeight:"100vh", background:"linear-gradient(160deg,#1E3A8A,#1D4ED8,#3B82F6)", display:"flex", flexDirection:"column", alignItems:"center", justifyContent:"center", gap:28, padding:24 }}>
+          <div className="fade-up" style={{ textAlign:"center", color:"#fff" }}>
+            <div style={{ fontSize:72, marginBottom:14 }}>🏍️</div>
+            <h1 style={{ fontSize:34, fontWeight:800, letterSpacing:"-.02em" }}>BayanGo Rider</h1>
+            <p style={{ fontSize:14, opacity:.75, marginTop:6 }}>Delivery Partner App</p>
+          </div>
+          <button className="fade-up" onClick={onLogin} style={{
+            background:"#fff", border:"none", padding:"15px 28px", borderRadius:100,
+            fontSize:16, fontWeight:700, color:"#1D4ED8", display:"flex", alignItems:"center", gap:12,
+            boxShadow:"0 8px 32px rgba(0,0,0,.2)", animationDelay:".1s"
+          }}>
+            <img src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg" alt="Google" style={{width:22,height:22}} />
+            Sign in with Google
+          </button>
+          <p className="fade-up" style={{ color:"rgba(255,255,255,.55)", fontSize:12, animationDelay:".2s", textAlign:"center", lineHeight:1.6 }}>
+            Para sa mga BayanGo delivery riders lamang.
+          </p>
+        </div>
+      );
+    }
+
+    /* ══════════════════ RIDER APP ══════════════════ */
+    function RiderApp({ user, onLogout }) {
+      const [tab,             setTab]             = useState("available");
+      const [availableOrders, setAvailableOrders] = useState([]);
+      const [myOrders,        setMyOrders]        = useState([]);
+      const [claiming,        setClaiming]        = useState(null);
+      const [delivering,      setDelivering]      = useState(null);
+      const [toast,           setToast]           = useState(null);
+
+      useEffect(() => {
+        let unsubAvail, unsubMine;
+        (async () => {
+          const { db, fns } = await initFirebase();
+          const { collection, onSnapshot, query, where } = fns;
+
+          /* Available: status=="buying", no rider yet */
+          unsubAvail = onSnapshot(
+            query(collection(db, "orders"), where("status", "==", "buying")),
+            snap => setAvailableOrders(
+              snap.docs.map(d => ({ id:d.id, ...d.data() })).filter(o => !o.riderId)
+            ),
+            err => console.error("Available orders error:", err.code)
+          );
+
+          /* My orders: assigned to this rider */
+          unsubMine = onSnapshot(
+            query(collection(db, "orders"), where("riderId", "==", user.uid)),
+            snap => setMyOrders(snap.docs.map(d => ({ id:d.id, ...d.data() }))),
+            err => console.error("My orders error:", err.code)
+          );
+        })();
+        return () => { unsubAvail?.(); unsubMine?.(); };
+      }, [user.uid]);
+
+      const showToast = msg => { setToast(msg); setTimeout(() => setToast(null), 3000); };
+
+      const acceptOrder = async (orderId) => {
+        setClaiming(orderId);
+        try {
+          const { db, fns } = await initFirebase();
+          await fns.updateDoc(fns.doc(db, "orders", orderId), {
+            riderId:    user.uid,
+            riderName:  user.displayName || user.email,
+            riderPhoto: user.photoURL || null,
+            status:     "otw",
+            acceptedAt: fns.serverTimestamp(),
+          });
+          showToast("✅ Na-accept! Pumunta ka na sa pick-up point.");
+          setTab("deliveries");
+        } catch (err) {
+          showToast("⚠️ Error: " + (err.code || err.message));
+        } finally {
+          setClaiming(null);
+        }
+      };
+
+      const markDelivered = async (orderId) => {
+        setDelivering(orderId);
+        try {
+          const { db, fns } = await initFirebase();
+          await fns.updateDoc(fns.doc(db, "orders", orderId), {
+            status:      "delivered",
+            deliveredAt: fns.serverTimestamp(),
+          });
+          showToast("🎉 Na-deliver na! Good job!");
+        } catch (err) {
+          showToast("⚠️ Error: " + (err.code || err.message));
+        } finally {
+          setDelivering(null);
+        }
+      };
+
+      const activeOrders    = myOrders.filter(o => o.status === "otw");
+      const completedOrders = myOrders.filter(o => o.status === "delivered");
+      const todayEarnings   = completedOrders.filter(o => isToday(o.deliveredAt)).reduce((s,o) => s + (o.deliveryFee||0), 0);
+      const totalEarnings   = completedOrders.reduce((s,o) => s + (o.deliveryFee||0), 0);
+      const weekEarnings    = completedOrders.filter(o => {
+        if (!o.deliveredAt) return false;
+        const d = o.deliveredAt.toDate ? o.deliveredAt.toDate() : new Date(o.deliveredAt);
+        const diff = (new Date() - d) / 86400000;
+        return diff <= 7;
+      }).reduce((s,o) => s + (o.deliveryFee||0), 0);
+
+      return (
+        <div style={{ maxWidth:480, margin:"0 auto", minHeight:"100vh", background:"#EFF6FF", paddingBottom:74 }}>
+
+          {/* ── Header ── */}
+          <div style={{
+            background:"linear-gradient(145deg,#1E3A8A,#1D4ED8,#2563EB)",
+            padding:"env(safe-area-inset-top,0px) 20px 0",
+            paddingTop:`calc(env(safe-area-inset-top,0px) + 18px)`,
+            color:"#fff",
+          }}>
+            <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:16 }}>
+              <div>
+                <div style={{ fontSize:10, opacity:.65, letterSpacing:".12em", textTransform:"uppercase" }}>BayanGo Rider</div>
+                <div style={{ fontSize:20, fontWeight:800, marginTop:2 }}>
+                  🏍️ {user.displayName?.split(" ")[0] || "Rider"}
+                </div>
+              </div>
+              <button onClick={onLogout} style={{ color:"#93C5FD", fontSize:12, fontWeight:700, textDecoration:"underline" }}>
+                Log Out
+              </button>
+            </div>
+
+            {/* Earnings stats */}
+            <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr 1fr", gap:8, paddingBottom:18 }}>
+              {[
+                { label:"Ngayon",   value: fmt(todayEarnings),  icon:"📅" },
+                { label:"7 Araw",   value: fmt(weekEarnings),   icon:"📆" },
+                { label:"Kabuuan",  value: fmt(totalEarnings),  icon:"💰" },
+              ].map(s => (
+                <div key={s.label} style={{ background:"rgba(255,255,255,.13)", borderRadius:14, padding:"11px 10px", textAlign:"center", backdropFilter:"blur(6px)" }}>
+                  <div style={{ fontSize:20, marginBottom:2 }}>{s.icon}</div>
+                  <div style={{ fontSize:15, fontWeight:800, lineHeight:1.1 }}>{s.value}</div>
+                  <div style={{ fontSize:10, opacity:.75, marginTop:2 }}>{s.label}</div>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* ── Tab Content ── */}
+          <div>
+            {tab === "available"  && <AvailableTab  orders={availableOrders} onAccept={acceptOrder} claiming={claiming} />}
+            {tab === "deliveries" && <DeliveriesTab active={activeOrders} completed={completedOrders} onDeliver={markDelivered} delivering={delivering} />}
+            {tab === "earnings"   && <EarningsTab   completed={completedOrders} today={todayEarnings} week={weekEarnings} total={totalEarnings} />}
+          </div>
+
+          {/* ── Bottom Nav ── */}
+          <div style={{
+            position:"fixed", bottom:0, left:"50%", transform:"translateX(-50%)",
+            width:"100%", maxWidth:480, background:"#fff",
+            borderTop:"1px solid #E2E8F0",
+            display:"flex",
+            paddingBottom:"env(safe-area-inset-bottom,0px)",
+            boxShadow:"0 -4px 20px rgba(0,0,0,.07)",
+          }}>
+            {[
+              { key:"available",  icon:"📦", label:"Available", badge: availableOrders.length },
+              { key:"deliveries", icon:"🏍️", label:"Deliveries", badge: activeOrders.length },
+              { key:"earnings",   icon:"💰", label:"Earnings" },
+            ].map(t => (
+              <button key={t.key} onClick={() => setTab(t.key)} style={{
+                flex:1, padding:"10px 0 8px", display:"flex", flexDirection:"column", alignItems:"center", gap:3,
+                color: tab === t.key ? "#1D4ED8" : "#94A3B8",
+                borderTop: tab === t.key ? "2px solid #1D4ED8" : "2px solid transparent",
+                position:"relative", transition:"color .15s",
+              }}>
+                <span style={{ fontSize:22 }}>{t.icon}</span>
+                <span style={{ fontSize:10, fontWeight:700 }}>{t.label}</span>
+                {t.badge > 0 && (
+                  <span style={{
+                    position:"absolute", top:6, right:"calc(50% - 18px)",
+                    background:"#EF4444", color:"#fff", borderRadius:10,
+                    fontSize:10, fontWeight:800, padding:"1px 6px", minWidth:17, textAlign:"center",
+                  }}>{t.badge}</span>
+                )}
+              </button>
+            ))}
+          </div>
+
+          {/* ── Toast ── */}
+          {toast && (
+            <div className="pop" style={{
+              position:"fixed", top:70, left:"50%", transform:"translateX(-50%)", zIndex:999,
+              background:"#1E293B", color:"#fff", padding:"12px 20px", borderRadius:14,
+              fontSize:13, fontWeight:700, boxShadow:"0 4px 20px rgba(0,0,0,.3)",
+              whiteSpace:"nowrap",
+            }}>{toast}</div>
+          )}
+        </div>
+      );
+    }
+
+    /* ══════════════════ AVAILABLE TAB ══════════════════ */
+    function AvailableTab({ orders, onAccept, claiming }) {
+      if (orders.length === 0) return (
+        <div style={{ textAlign:"center", padding:"60px 20px", color:"#94A3B8" }}>
+          <div style={{ fontSize:52, marginBottom:12 }}>📭</div>
+          <div style={{ fontSize:15, fontWeight:700, color:"#64748B" }}>Walang available na orders</div>
+          <div style={{ fontSize:13, marginTop:6 }}>Hintayin ang bagong orders mula sa admin</div>
+        </div>
+      );
+
+      return (
+        <div style={{ padding:"14px 16px" }}>
+          <div style={{ fontSize:12, fontWeight:700, color:"#64748B", marginBottom:12, textTransform:"uppercase", letterSpacing:".08em" }}>
+            {orders.length} Available Order{orders.length > 1 ? "s" : ""}
+          </div>
+          {orders.map((order, i) => {
+            const ts = order.createdAt?.toDate ? order.createdAt.toDate() : new Date(order.createdAt || 0);
+            const regularItems = (order.items || []).filter(it => !it.isCustom);
+            const customItems  = (order.items || []).filter(it => it.isCustom);
+            return (
+              <div key={order.id} className="fade-up" style={{
+                background:"#fff", borderRadius:20, padding:"18px", marginBottom:12,
+                boxShadow:"0 2px 12px rgba(29,78,216,.08)",
+                border:"1px solid #DBEAFE",
+                animationDelay:`${i*.06}s`,
+              }}>
+                {/* Earnings badge */}
+                <div style={{ display:"flex", justifyContent:"space-between", alignItems:"flex-start", marginBottom:12 }}>
+                  <div>
+                    <div style={{ fontSize:12, color:"#64748B", marginBottom:2 }}>
+                      🕐 {ts.toLocaleTimeString("en-PH", { hour:"2-digit", minute:"2-digit" })} · {ts.toLocaleDateString("en-PH")}
+                    </div>
+                    <div style={{ fontSize:16, fontWeight:800, color:"#1E293B" }}>{order.customer?.name}</div>
+                    <div style={{ fontSize:13, color:"#64748B", marginTop:2 }}>📱 {order.customer?.phone}</div>
+                  </div>
+                  <div style={{ textAlign:"right" }}>
+                    <div style={{ fontSize:11, color:"#64748B" }}>Kita mo</div>
+                    <div style={{ fontSize:22, fontWeight:800, color:"#1D4ED8" }}>{fmt(order.deliveryFee || 0)}</div>
+                  </div>
+                </div>
+
+                {/* Address */}
+                <div style={{ background:"#F0F9FF", borderRadius:12, padding:"10px 14px", marginBottom:12 }}>
+                  <div style={{ fontSize:11, fontWeight:700, color:"#0369A1", marginBottom:3 }}>📍 DELIVERY ADDRESS</div>
+                  <div style={{ fontSize:13, color:"#1E293B", fontWeight:600 }}>{order.customer?.address}</div>
+                  <div style={{ fontSize:12, color:"#64748B", marginTop:2 }}>Zone: {order.zone}</div>
+                </div>
+
+                {/* Items */}
+                <div style={{ marginBottom:14 }}>
+                  <div style={{ fontSize:11, fontWeight:700, color:"#64748B", marginBottom:6 }}>ITEMS PARA I-DELIVER</div>
+                  {regularItems.map(it => (
+                    <div key={it.id} style={{ fontSize:13, color:"#374151", padding:"3px 0", display:"flex", gap:6 }}>
+                      <span>{it.img}</span>
+                      <span>{it.name} × {it.qty} {it.unit}</span>
+                    </div>
+                  ))}
+                  {customItems.map(it => (
+                    <div key={it.id} style={{ fontSize:13, color:"#374151", padding:"3px 0", display:"flex", gap:6 }}>
+                      <span>📝</span>
+                      <span>{it.name} ({it.unit})</span>
+                    </div>
+                  ))}
+                </div>
+
+                {/* Accept button */}
+                <button onClick={() => onAccept(order.id)} disabled={!!claiming} style={{
+                  width:"100%", padding:"14px", borderRadius:14,
+                  background: claiming === order.id ? "#E2E8F0" : "linear-gradient(135deg,#1D4ED8,#3B82F6)",
+                  color: claiming === order.id ? "#94A3B8" : "#fff",
+                  fontSize:15, fontWeight:800,
+                  boxShadow: claiming ? "none" : "0 4px 16px rgba(29,78,216,.35)",
+                  transition:"all .2s",
+                }}>
+                  {claiming === order.id
+                    ? <span className="pulse">Tinatanggap...</span>
+                    : `🏍️ Tanggapin — ${fmt(order.deliveryFee || 0)}`}
+                </button>
+              </div>
+            );
+          })}
+        </div>
+      );
+    }
+
+    /* ══════════════════ DELIVERIES TAB ══════════════════ */
+    function DeliveriesTab({ active, completed, onDeliver, delivering }) {
+      return (
+        <div style={{ padding:"14px 16px" }}>
+          {/* Active deliveries */}
+          {active.length > 0 && (
+            <>
+              <div style={{ fontSize:12, fontWeight:700, color:"#64748B", marginBottom:10, textTransform:"uppercase", letterSpacing:".08em" }}>
+                🏍️ Active ({active.length})
+              </div>
+              {active.map(order => {
+                const regularItems = (order.items || []).filter(it => !it.isCustom);
+                const customItems  = (order.items || []).filter(it => it.isCustom);
+                return (
+                  <div key={order.id} className="fade-up" style={{
+                    background:"#fff", borderRadius:20, padding:"18px", marginBottom:12,
+                    boxShadow:"0 2px 16px rgba(29,78,216,.12)",
+                    border:"2px solid #BFDBFE",
+                  }}>
+                    <div style={{ display:"flex", justifyContent:"space-between", alignItems:"flex-start", marginBottom:10 }}>
+                      <div>
+                        <div style={{ fontSize:16, fontWeight:800, color:"#1E293B" }}>{order.customer?.name}</div>
+                        <div style={{ fontSize:13, color:"#64748B", marginTop:2 }}>📱 {order.customer?.phone}</div>
+                      </div>
+                      <div style={{ background:"#DBEAFE", color:"#1D4ED8", borderRadius:20, padding:"5px 12px", fontSize:12, fontWeight:700 }}>
+                        🏍️ OTW
+                      </div>
+                    </div>
+
+                    <div style={{ background:"#F0F9FF", borderRadius:12, padding:"10px 14px", marginBottom:10 }}>
+                      <div style={{ fontSize:11, fontWeight:700, color:"#0369A1", marginBottom:3 }}>📍 I-DELIVER DITO</div>
+                      <div style={{ fontSize:14, color:"#1E293B", fontWeight:700 }}>{order.customer?.address}</div>
+                      <div style={{ fontSize:12, color:"#64748B", marginTop:2 }}>Zone: {order.zone}</div>
+                    </div>
+
+                    <div style={{ marginBottom:12 }}>
+                      {regularItems.map(it => (
+                        <div key={it.id} style={{ fontSize:13, color:"#374151", padding:"2px 0" }}>
+                          {it.img} {it.name} × {it.qty} {it.unit}
+                        </div>
+                      ))}
+                      {customItems.map(it => (
+                        <div key={it.id} style={{ fontSize:13, color:"#374151", padding:"2px 0" }}>
+                          📝 {it.name} ({it.unit})
+                        </div>
+                      ))}
+                    </div>
+
+                    <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:12 }}>
+                      <div style={{ fontSize:12, color:"#64748B" }}>Kita mo sa delivery na ito</div>
+                      <div style={{ fontSize:18, fontWeight:800, color:"#1D4ED8" }}>{fmt(order.deliveryFee || 0)}</div>
+                    </div>
+
+                    <button onClick={() => onDeliver(order.id)} disabled={delivering === order.id} style={{
+                      width:"100%", padding:"14px", borderRadius:14,
+                      background: delivering === order.id ? "#E2E8F0" : "linear-gradient(135deg,#059669,#10B981)",
+                      color: delivering === order.id ? "#94A3B8" : "#fff",
+                      fontSize:15, fontWeight:800,
+                      boxShadow: delivering ? "none" : "0 4px 16px rgba(5,150,105,.35)",
+                    }}>
+                      {delivering === order.id ? <span className="pulse">Ina-update...</span> : "✅ Na-deliver na!"}
+                    </button>
+                  </div>
+                );
+              })}
+            </>
+          )}
+
+          {/* Completed deliveries */}
+          {completed.length > 0 && (
+            <>
+              <div style={{ fontSize:12, fontWeight:700, color:"#64748B", margin:"16px 0 10px", textTransform:"uppercase", letterSpacing:".08em" }}>
+                ✅ Mga Na-deliver ({completed.length})
+              </div>
+              {completed.slice(0, 20).map(order => {
+                const ts = order.deliveredAt?.toDate ? order.deliveredAt.toDate() : new Date(order.deliveredAt || 0);
+                return (
+                  <div key={order.id} className="fade-up" style={{
+                    background:"#fff", borderRadius:16, padding:"14px 16px", marginBottom:8,
+                    border:"1px solid #E2E8F0", display:"flex", alignItems:"center", gap:12,
+                  }}>
+                    <div style={{ width:44, height:44, borderRadius:12, background:"#DCFCE7", display:"flex", alignItems:"center", justifyContent:"center", fontSize:20, flexShrink:0 }}>✅</div>
+                    <div style={{ flex:1, minWidth:0 }}>
+                      <div style={{ fontSize:14, fontWeight:700, color:"#1E293B", overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>
+                        {order.customer?.name}
+                      </div>
+                      <div style={{ fontSize:12, color:"#94A3B8", marginTop:2 }}>
+                        {ts.toLocaleDateString("en-PH")} {ts.toLocaleTimeString("en-PH",{hour:"2-digit",minute:"2-digit"})}
+                      </div>
+                    </div>
+                    <div style={{ fontSize:16, fontWeight:800, color:"#059669" }}>{fmt(order.deliveryFee || 0)}</div>
+                  </div>
+                );
+              })}
+            </>
+          )}
+
+          {active.length === 0 && completed.length === 0 && (
+            <div style={{ textAlign:"center", padding:"60px 20px", color:"#94A3B8" }}>
+              <div style={{ fontSize:52, marginBottom:12 }}>🏍️</div>
+              <div style={{ fontSize:15, fontWeight:700, color:"#64748B" }}>Walang deliveries pa</div>
+              <div style={{ fontSize:13, marginTop:6 }}>Pumunta sa Available tab para kumuha ng order</div>
+            </div>
+          )}
+        </div>
+      );
+    }
+
+    /* ══════════════════ EARNINGS TAB ══════════════════ */
+    function EarningsTab({ completed, today, week, total }) {
+      const byDate = completed.reduce((acc, o) => {
+        const ts = o.deliveredAt?.toDate ? o.deliveredAt.toDate() : new Date(o.deliveredAt || 0);
+        const key = ts.toLocaleDateString("en-PH", { month:"short", day:"numeric", year:"numeric" });
+        if (!acc[key]) acc[key] = { date:key, orders:0, earnings:0 };
+        acc[key].orders++;
+        acc[key].earnings += o.deliveryFee || 0;
+        return acc;
+      }, {});
+      const days = Object.values(byDate).sort((a,b) => new Date(b.date) - new Date(a.date));
+
+      return (
+        <div style={{ padding:"14px 16px" }}>
+          {/* Summary cards */}
+          <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:10, marginBottom:20 }}>
+            {[
+              { label:"Ngayon",      value: fmt(today),           icon:"📅", color:"#DBEAFE", tcolor:"#1D4ED8" },
+              { label:"7 Araw",      value: fmt(week),            icon:"📆", color:"#EDE9FE", tcolor:"#7C3AED" },
+              { label:"Kabuuang Kita",value: fmt(total),          icon:"💰", color:"#DCFCE7", tcolor:"#059669" },
+              { label:"Deliveries",  value: completed.length,     icon:"✅", color:"#FEF3C7", tcolor:"#D97706" },
+            ].map(s => (
+              <div key={s.label} style={{ background:"#fff", borderRadius:18, padding:"16px", border:`1px solid ${s.color}`, boxShadow:"0 1px 4px rgba(0,0,0,.05)" }}>
+                <div style={{ fontSize:24, marginBottom:8 }}>{s.icon}</div>
+                <div style={{ fontSize:22, fontWeight:800, color:s.tcolor }}>{s.value}</div>
+                <div style={{ fontSize:11, fontWeight:600, color:"#94A3B8", marginTop:4 }}>{s.label}</div>
+              </div>
+            ))}
+          </div>
+
+          {/* Daily breakdown */}
+          {days.length > 0 && (
+            <>
+              <div style={{ fontSize:12, fontWeight:700, color:"#64748B", marginBottom:10, textTransform:"uppercase", letterSpacing:".08em" }}>
+                Breakdown per Araw
+              </div>
+              {days.map((d, i) => (
+                <div key={d.date} className="fade-up" style={{
+                  background:"#fff", borderRadius:14, padding:"14px 16px", marginBottom:8,
+                  border:"1px solid #E2E8F0", display:"flex", justifyContent:"space-between", alignItems:"center",
+                  animationDelay:`${i*.04}s`,
+                }}>
+                  <div>
+                    <div style={{ fontSize:14, fontWeight:700, color:"#1E293B" }}>{d.date}</div>
+                    <div style={{ fontSize:12, color:"#94A3B8", marginTop:2 }}>{d.orders} delivery{d.orders > 1 ? "ies" : ""}</div>
+                  </div>
+                  <div style={{ fontSize:18, fontWeight:800, color:"#1D4ED8" }}>{fmt(d.earnings)}</div>
+                </div>
+              ))}
+            </>
+          )}
+
+          {completed.length === 0 && (
+            <div style={{ textAlign:"center", padding:"40px 20px", color:"#94A3B8" }}>
+              <div style={{ fontSize:52, marginBottom:12 }}>💰</div>
+              <div style={{ fontSize:15, fontWeight:700, color:"#64748B" }}>Wala pang kita</div>
+              <div style={{ fontSize:13, marginTop:6 }}>Mag-deliver para magsimulang kumita!</div>
+            </div>
+          )}
+        </div>
+      );
+    }
+
+    ReactDOM.createRoot(document.getElementById("root")).render(<App />);
+  </script>
+</body>
+</html>

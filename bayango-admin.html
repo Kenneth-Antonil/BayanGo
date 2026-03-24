@@ -309,11 +309,35 @@
         delivered: { label:"Delivered", icon:"✅", bg:"#DCFCE7", color:"#166534", next:null },
       };
 
+      const deliveredOrders = orders.filter(o => o.status === "delivered");
+      const totalRevenue = deliveredOrders.reduce((s,o) => s + (o.serviceFee||0), 0);
+      const todayStr = new Date().toLocaleDateString("en-PH");
+      const todayOrders = orders.filter(o => {
+        const d = o.createdAt?.toDate ? o.createdAt.toDate() : new Date(o.createdAt||0);
+        return d.toLocaleDateString("en-PH") === todayStr;
+      });
+      const activeRiders = [...new Set(orders.filter(o => o.status === "otw" && o.riderId).map(o => o.riderId))].length;
+
       return (
         <div style={{ maxWidth:640, margin:"0 auto", minHeight:"100vh", background:"#F8FAF8", paddingBottom:40 }}>
 
+          {/* ── Sales Summary ── */}
+          <div style={{ padding:"18px 20px 10px", display:"grid", gridTemplateColumns:"repeat(3,1fr)", gap:10 }}>
+            {[
+              { label:"Service Fee Revenue", value:`₱${totalRevenue.toLocaleString("en-PH",{minimumFractionDigits:2,maximumFractionDigits:2})}`, icon:"💰", color:"#166534", bg:"#F0FDF4" },
+              { label:"Today's Orders",       value:todayOrders.length,                                                                                icon:"📅", color:"#1D4ED8", bg:"#EFF6FF" },
+              { label:"Active Riders",         value:activeRiders,                                                                                     icon:"🏍️", color:"#7C3AED", bg:"#F5F3FF" },
+            ].map(s => (
+              <div key={s.label} style={{ background:s.bg, borderRadius:14, padding:"14px 12px", textAlign:"center", boxShadow:"0 1px 4px rgba(0,0,0,.06)" }}>
+                <div style={{ fontSize:20 }}>{s.icon}</div>
+                <div style={{ fontSize:s.label==="Service Fee Revenue"?14:24, fontWeight:800, color:s.color, lineHeight:1.2, marginTop:2 }}>{s.value}</div>
+                <div style={{ fontSize:10, fontWeight:600, color:"#888", marginTop:2 }}>{s.label}</div>
+              </div>
+            ))}
+          </div>
+
           {/* ── Stats Row ── */}
-          <div style={{ padding:"18px 20px 10px", display:"grid", gridTemplateColumns:"repeat(4,1fr)", gap:10 }}>
+          <div style={{ padding:"4px 20px 10px", display:"grid", gridTemplateColumns:"repeat(4,1fr)", gap:10 }}>
             {[
               { key:"pending",   label:"Pending",   icon:"⏳", color:"#F59E0B" },
               { key:"buying",    label:"Buying",    icon:"🛒", color:"#3B82F6" },
@@ -365,7 +389,10 @@
                       <div style={{ padding:"4px 12px", borderRadius:20, fontSize:12, fontWeight:700, background:st.bg, color:st.color, display:"inline-block" }}>
                         {st.icon} {st.label}
                       </div>
-                      <div style={{ fontSize:14, fontWeight:800, color:"#166534", marginTop:6 }}>~{fmt(order.total)}</div>
+                      {order.riderName && (
+                        <div style={{ fontSize:11, fontWeight:600, color:"#7C3AED", marginTop:4 }}>🏍️ {order.riderName}</div>
+                      )}
+                      <div style={{ fontSize:14, fontWeight:800, color:"#166534", marginTop:4 }}>~{fmt(order.total)}</div>
                     </div>
                   </div>
 
@@ -428,6 +455,29 @@
                   <div style={{ fontSize:13, color:"#555", marginTop:2 }}>📍 {selected.customer?.address}</div>
                   <div style={{ fontSize:12, color:"#aaa", marginTop:4 }}>Zone: {selected.zone}</div>
                 </div>
+
+                {/* Rider */}
+                {selected.riderId && (
+                  <div style={{ background:"#F5F3FF", borderRadius:14, padding:"14px 16px", marginBottom:14, border:"1px solid #DDD6FE" }}>
+                    <div style={{ fontSize:12, fontWeight:700, color:"#7C3AED", marginBottom:6 }}>RIDER</div>
+                    <div style={{ display:"flex", alignItems:"center", gap:10 }}>
+                      {selected.riderPhoto && <img src={selected.riderPhoto} style={{ width:36, height:36, borderRadius:"50%", objectFit:"cover" }} />}
+                      <div>
+                        <div style={{ fontSize:15, fontWeight:800 }}>{selected.riderName || "—"}</div>
+                        {selected.acceptedAt && (
+                          <div style={{ fontSize:11, color:"#888" }}>
+                            Accepted: {(selected.acceptedAt?.toDate ? selected.acceptedAt.toDate() : new Date(selected.acceptedAt)).toLocaleTimeString("en-PH",{hour:"2-digit",minute:"2-digit"})}
+                          </div>
+                        )}
+                        {selected.deliveredAt && (
+                          <div style={{ fontSize:11, color:"#166534" }}>
+                            Delivered: {(selected.deliveredAt?.toDate ? selected.deliveredAt.toDate() : new Date(selected.deliveredAt)).toLocaleTimeString("en-PH",{hour:"2-digit",minute:"2-digit"})}
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                )}
 
                 {/* Items */}
                 <div style={{ background:"#F9FAFB", borderRadius:14, padding:"14px 16px", marginBottom:14, border:"1px solid #E5E7EB" }}>
