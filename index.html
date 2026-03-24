@@ -49,6 +49,7 @@
   <script src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.23.2/babel.min.js"></script>
   <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
   <script>
     // Init Firebase once here, outside of React/Babel
     const _fbApp = firebase.initializeApp({
@@ -61,6 +62,7 @@
       measurementId:     "G-1EEGFZWB7E",
     });
     const _fbAuth = firebase.auth(_fbApp);
+    const _fbDb   = firebase.firestore(_fbApp);
   </script>
 
   <!-- Capture install prompt before React mounts -->
@@ -385,12 +387,23 @@
         return () => { window.removeEventListener("storage", onStorage); clearInterval(interval); unsubAuth?.(); };
       }, []);
 
-      const addOrder = useCallback((order) => {
+      const addOrder = useCallback(async (order) => {
+        const localOrder = { ...order, id:genId(), createdAt:Date.now() };
+        // Save locally for "My Orders" history
         setOrders(prev => {
-          const updated = [{ ...order, id:genId(), createdAt:Date.now() }, ...prev];
+          const updated = [localOrder, ...prev];
           LS.saveOrders(updated);
           return updated;
         });
+        // Write to Firestore so admin can see it
+        try {
+          await _fbDb.collection("orders").add({
+            ...order,
+            createdAt: firebase.firestore.FieldValue.serverTimestamp(),
+          });
+        } catch (err) {
+          console.error("Firestore write failed:", err);
+        }
       }, []);
 
       const getFriendlyError = (code) => {
@@ -569,18 +582,23 @@
 
     /* ══════════════════ USER APP ══════════════════ */
     function UserApp({ products, orders, onOrder }) {
-      const [activeCat,    setActiveCat]    = useState("isda");
-      const [cart,         setCart]         = useState({});
-      const [showCart,     setShowCart]     = useState(false);
-      const [showCheckout, setShowCheckout] = useState(false);
-      const [showTracker,  setShowTracker]  = useState(null);
-      const [zone,         setZone]         = useState(0);
-      const [name,         setName]         = useState(() => localStorage.getItem("bayango_customer_name") || "");
-      const [phone,        setPhone]        = useState(() => localStorage.getItem("bayango_customer_phone") || "");
-      const [addr,         setAddr]         = useState(() => localStorage.getItem("bayango_customer_addr") || "");
-      const [searchQ,      setSearchQ]      = useState("");
-      const [orderPlaced,  setOrderPlaced]  = useState(false);
-      const [showAI,       setShowAI]       = useState(false);
+      const [activeCat,      setActiveCat]      = useState("isda");
+      const [cart,           setCart]           = useState({});
+      const [showCart,       setShowCart]       = useState(false);
+      const [showCheckout,   setShowCheckout]   = useState(false);
+      const [showTracker,    setShowTracker]    = useState(null);
+      const [zone,           setZone]           = useState(0);
+      const [name,           setName]           = useState(() => localStorage.getItem("bayango_customer_name") || "");
+      const [phone,          setPhone]          = useState(() => localStorage.getItem("bayango_customer_phone") || "");
+      const [addr,           setAddr]           = useState(() => localStorage.getItem("bayango_customer_addr") || "");
+      const [searchQ,        setSearchQ]        = useState("");
+      const [orderPlaced,    setOrderPlaced]    = useState(false);
+      const [showAI,         setShowAI]         = useState(false);
+      const [customItems,    setCustomItems]    = useState([]);
+      const [showCustomList, setShowCustomList] = useState(false);
+      const [newItemName,    setNewItemName]    = useState("");
+      const [newItemQty,     setNewItemQty]     = useState("");
+      const [newItemPrice,   setNewItemPrice]   = useState("");
 
       const cartCount = Object.values(cart).reduce((s,v) => s+v, 0);
       const cartItems = Object.entries(cart)
@@ -588,9 +606,11 @@
         .map(([id,qty]) => ({ ...products.find(p => p.id === +id), qty }))
         .filter(i => i.name);
 
+      const customEstTotal = customItems.reduce((s,i) => s + (i.estPrice || 0), 0);
       const subtotal    = cartItems.reduce((s,i) => s + i.price * i.qty, 0);
       const deliveryFee = DELIVERY_ZONES[zone].fee;
-      const total       = subtotal + deliveryFee + SERVICE_FEE;
+      const total       = subtotal + customEstTotal + deliveryFee + SERVICE_FEE;
+      const totalItemCount = cartCount + customItems.length;
 
       const add = id => setCart(c => ({ ...c, [id]:(c[id]||0)+1 }));
       const rem = id => setCart(c => {
@@ -598,6 +618,21 @@
         if (n[id] > 1) n[id]--; else delete n[id];
         return n;
       });
+
+      const addCustom = () => {
+        if (!newItemName.trim()) return;
+        setCustomItems(prev => [...prev, {
+          id: "cust_" + genId(),
+          name: newItemName.trim(),
+          qty: 1,
+          unit: newItemQty.trim() || "pc",
+          estPrice: parseFloat(newItemPrice) || 0,
+          isCustom: true,
+          img: "📝",
+        }]);
+        setNewItemName(""); setNewItemQty(""); setNewItemPrice("");
+      };
+      const removeCustom = id => setCustomItems(prev => prev.filter(i => i.id !== id));
 
       const filtered = products.filter(p =>
         p.cat === activeCat && (searchQ === "" || p.name.toLowerCase().includes(searchQ.toLowerCase()))
@@ -608,14 +643,21 @@
         localStorage.setItem("bayango_customer_name",  name);
         localStorage.setItem("bayango_customer_phone", phone);
         localStorage.setItem("bayango_customer_addr",  addr);
+        const allItems = [
+          ...cartItems,
+          ...customItems.map(i => ({ ...i, price: i.estPrice })),
+        ];
         onOrder({
-          items:cartItems, subtotal, deliveryFee,
-          serviceFee:SERVICE_FEE, total,
-          zone:DELIVERY_ZONES[zone].label,
-          customer:{ name, phone, address:addr },
-          status:"pending",
+          items: allItems,
+          subtotal, customEstimate: customEstTotal, deliveryFee,
+          serviceFee: SERVICE_FEE, total,
+          zone: DELIVERY_ZONES[zone].label,
+          customer: { name, phone, address: addr },
+          status: "pending",
+          hasCustomItems: customItems.length > 0,
         });
         setCart({});
+        setCustomItems([]);
         setShowCheckout(false);
         setShowCart(false);
         setOrderPlaced(true);
@@ -674,6 +716,30 @@
                 <span style={{ fontSize:16 }}>{cat.icon}</span>{cat.label}
               </button>
             ))}
+          </div>
+
+          {/* ── Custom List Entry ── */}
+          <div style={{ padding:"0 20px 14px" }}>
+            <button onClick={() => setShowCustomList(true)} style={{
+              width:"100%", background:"#F0FDF4", border:"2px dashed #86EFAC", borderRadius:16,
+              padding:"13px 16px", display:"flex", alignItems:"center", gap:12,
+            }}>
+              <span style={{ fontSize:26 }}>📝</span>
+              <div style={{ flex:1, textAlign:"left" }}>
+                <div style={{ fontSize:14, fontWeight:700, color:"#166534" }}>Custom List</div>
+                <div style={{ fontSize:12, color:"#6B7280" }}>
+                  {customItems.length === 0
+                    ? "Dagdag ng items na hindi nasa listahan"
+                    : `${customItems.length} custom item${customItems.length>1?"s":""} • ~${fmt(customEstTotal)}`}
+                </div>
+              </div>
+              <span style={{ fontSize:18, color:"#22C55E", fontWeight:800 }}>
+                {customItems.length > 0 && (
+                  <span style={{ background:"#22C55E", color:"#fff", borderRadius:20, fontSize:11, fontWeight:800, padding:"2px 8px", marginRight:6 }}>{customItems.length}</span>
+                )}
+                ›
+              </span>
+            </button>
           </div>
 
           {/* ── Section Label ── */}
@@ -787,7 +853,7 @@
           )}
 
           {/* ── Floating Cart ── */}
-          {cartCount > 0 && !showCart && (
+          {totalItemCount > 0 && !showCart && (
             <div className="slide-up" style={{
               position:"fixed", bottom:`calc(env(safe-area-inset-bottom,0px) + 20px)`,
               left:"50%", transform:"translateX(-50%)",
@@ -799,9 +865,101 @@
                 color:"#fff", display:"flex", alignItems:"center", justifyContent:"space-between",
                 boxShadow:"0 8px 32px rgba(22,101,52,.38)", fontSize:15, fontWeight:700
               }}>
-                <span>🛒 Basket ({cartCount} items)</span>
-                <span style={{ fontSize:16, fontWeight:800 }}>{fmt(subtotal)}</span>
+                <span>🛒 Basket ({totalItemCount} item{totalItemCount>1?"s":""})</span>
+                <span style={{ fontSize:16, fontWeight:800 }}>~{fmt(subtotal + customEstTotal)}</span>
               </button>
+            </div>
+          )}
+
+          {/* ── Custom List Drawer ── */}
+          {showCustomList && (
+            <div style={{ position:"fixed", inset:0, zIndex:200, background:"rgba(0,0,0,.55)", backdropFilter:"blur(4px)" }}
+              onClick={() => setShowCustomList(false)}>
+              <div className="slide-in" onClick={e => e.stopPropagation()} style={{
+                position:"absolute", right:0, top:0, bottom:0,
+                width:"100%", maxWidth:400, background:"#FAFAFA",
+                display:"flex", flexDirection:"column"
+              }}>
+                <div style={{ padding:"20px 24px", borderBottom:"1px solid #E5E7EB", background:"#fff", display:"flex", alignItems:"center", justifyContent:"space-between" }}>
+                  <div>
+                    <h2 style={{ fontSize:19, fontWeight:800 }}>📝 Custom List</h2>
+                    <p style={{ fontSize:12, color:"#888", marginTop:2 }}>Items na hindi nasa catalog</p>
+                  </div>
+                  <button onClick={() => setShowCustomList(false)} style={{ width:36, height:36, borderRadius:10, background:"#F3F4F6", fontSize:18, display:"flex", alignItems:"center", justifyContent:"center" }}>✕</button>
+                </div>
+
+                {/* Add Item Form */}
+                <div style={{ padding:"16px 24px", borderBottom:"1px solid #E5E7EB", background:"#F9FAFB" }}>
+                  <div style={{ fontSize:12, fontWeight:700, color:"#555", marginBottom:10 }}>Magdagdag ng Item</div>
+                  <input
+                    placeholder="Pangalan ng item (hal. Bagoong, Sukang Iloko...)"
+                    value={newItemName} onChange={e => setNewItemName(e.target.value)}
+                    onKeyDown={e => e.key === "Enter" && addCustom()}
+                    style={{ width:"100%", padding:"11px 14px", borderRadius:10, border:"1.5px solid #E5E7EB", fontSize:13, marginBottom:8, outline:"none", background:"#fff" }}
+                  />
+                  <div style={{ display:"flex", gap:8, marginBottom:10 }}>
+                    <input
+                      placeholder="Quantity (hal. 1 kilo, 2 piraso)"
+                      value={newItemQty} onChange={e => setNewItemQty(e.target.value)}
+                      style={{ flex:1, padding:"11px 14px", borderRadius:10, border:"1.5px solid #E5E7EB", fontSize:13, outline:"none", background:"#fff" }}
+                    />
+                    <input
+                      placeholder="Est. ₱"
+                      value={newItemPrice} onChange={e => setNewItemPrice(e.target.value)}
+                      type="number" min="0"
+                      style={{ width:90, padding:"11px 14px", borderRadius:10, border:"1.5px solid #E5E7EB", fontSize:13, outline:"none", background:"#fff" }}
+                    />
+                  </div>
+                  <button onClick={addCustom} disabled={!newItemName.trim()} style={{
+                    width:"100%", padding:"12px", borderRadius:12,
+                    background: newItemName.trim() ? "#166534" : "#E5E7EB",
+                    color: newItemName.trim() ? "#fff" : "#aaa",
+                    fontSize:14, fontWeight:700,
+                  }}>+ Idagdag sa List</button>
+                </div>
+
+                {/* Items List */}
+                <div style={{ flex:1, overflowY:"auto", padding:"12px 24px" }}>
+                  {customItems.length === 0 ? (
+                    <div style={{ textAlign:"center", padding:"40px 0", color:"#bbb" }}>
+                      <div style={{ fontSize:40, marginBottom:8 }}>📋</div>
+                      <div style={{ fontSize:13, fontWeight:600 }}>Walang custom items pa</div>
+                    </div>
+                  ) : (
+                    customItems.map(item => (
+                      <div key={item.id} className="fade-up" style={{ display:"flex", alignItems:"center", gap:12, padding:"13px 0", borderBottom:"1px solid #F0F0F0" }}>
+                        <div style={{ width:44, height:44, borderRadius:12, fontSize:22, display:"flex", alignItems:"center", justifyContent:"center", background:"#F0FDF4" }}>📝</div>
+                        <div style={{ flex:1 }}>
+                          <div style={{ fontSize:14, fontWeight:700, color:"#111" }}>{item.name}</div>
+                          <div style={{ fontSize:12, color:"#999" }}>{item.unit}</div>
+                        </div>
+                        <div style={{ textAlign:"right" }}>
+                          <div style={{ fontSize:13, fontWeight:800, color:"#166534" }}>~{fmt(item.estPrice)}</div>
+                          <div style={{ fontSize:10, color:"#aaa", fontStyle:"italic" }}>estimate</div>
+                        </div>
+                        <button onClick={() => removeCustom(item.id)} style={{ width:30, height:30, borderRadius:8, background:"#FEF2F2", color:"#EF4444", fontSize:16, display:"flex", alignItems:"center", justifyContent:"center" }}>✕</button>
+                      </div>
+                    ))
+                  )}
+                </div>
+
+                {/* Footer total */}
+                {customItems.length > 0 && (
+                  <div style={{ padding:"16px 24px", background:"#fff", borderTop:"1px solid #E5E7EB" }}>
+                    <div style={{ display:"flex", justifyContent:"space-between", fontSize:13, color:"#888", marginBottom:6 }}>
+                      <span>{customItems.length} custom item{customItems.length>1?"s":""}</span>
+                    </div>
+                    <div style={{ display:"flex", justifyContent:"space-between", fontSize:16, fontWeight:800, color:"#166534" }}>
+                      <span>Estimated Total</span><span>~{fmt(customEstTotal)}</span>
+                    </div>
+                    <button onClick={() => setShowCustomList(false)} style={{
+                      width:"100%", marginTop:12, padding:"14px", borderRadius:14,
+                      background:"linear-gradient(135deg,#166534,#22C55E)", color:"#fff",
+                      fontSize:14, fontWeight:700,
+                    }}>Tapos na ✓</button>
+                  </div>
+                )}
+              </div>
             </div>
           )}
 
@@ -837,9 +995,29 @@
                       <div style={{ fontSize:14, fontWeight:800, color:"#166534", minWidth:58, textAlign:"right" }}>{fmt(item.price*item.qty)}</div>
                     </div>
                   ))}
+                  {customItems.length > 0 && (
+                    <>
+                      <div style={{ padding:"10px 0 6px", fontSize:12, fontWeight:700, color:"#888", display:"flex", alignItems:"center", justifyContent:"space-between" }}>
+                        <span>📝 Custom Items</span>
+                        <button onClick={() => setShowCustomList(true)} style={{ fontSize:11, color:"#166534", fontWeight:700, textDecoration:"underline" }}>I-edit</button>
+                      </div>
+                      {customItems.map(item => (
+                        <div key={item.id} style={{ display:"flex", alignItems:"center", gap:12, padding:"11px 0", borderBottom:"1px solid #F0F0F0" }}>
+                          <div style={{ width:50, height:50, borderRadius:13, fontSize:24, display:"flex", alignItems:"center", justifyContent:"center", background:"#F0FDF4" }}>📝</div>
+                          <div style={{ flex:1 }}>
+                            <div style={{ fontSize:14, fontWeight:700, color:"#111" }}>{item.name}</div>
+                            <div style={{ fontSize:11, color:"#999" }}>{item.unit} • <span style={{ fontStyle:"italic" }}>estimated</span></div>
+                          </div>
+                          <div style={{ fontSize:14, fontWeight:800, color:"#166534", minWidth:58, textAlign:"right" }}>~{fmt(item.estPrice)}</div>
+                        </div>
+                      ))}
+                    </>
+                  )}
                 </div>
                 <div style={{ padding:"18px 24px", background:"#fff", borderTop:"1px solid #E5E7EB" }}>
-                  {[["Subtotal",fmt(subtotal)],["Delivery ("+DELIVERY_ZONES[zone].label+")",fmt(deliveryFee)],["Service Fee",fmt(SERVICE_FEE)]].map(([l,v]) => (
+                  {[["Subtotal (catalog)",fmt(subtotal)],
+                    ...(customEstTotal > 0 ? [["Custom items (est.)", "~"+fmt(customEstTotal)]] : []),
+                    ["Delivery ("+DELIVERY_ZONES[zone].label+")",fmt(deliveryFee)],["Service Fee",fmt(SERVICE_FEE)]].map(([l,v]) => (
                     <div key={l} style={{ display:"flex", justifyContent:"space-between", marginBottom:6, fontSize:13, color:"#777" }}>
                       <span>{l}</span><span style={{ fontWeight:600 }}>{v}</span>
                     </div>
@@ -901,12 +1079,28 @@
                       <span style={{ fontWeight:600 }}>{fmt(i.price*i.qty)}</span>
                     </div>
                   ))}
+                  {customItems.length > 0 && (
+                    <>
+                      <div style={{ fontSize:11, fontWeight:700, color:"#888", padding:"6px 0 2px", marginTop:4, borderTop:"1px dashed #E5E7EB" }}>📝 Custom Items (Estimated)</div>
+                      {customItems.map(i => (
+                        <div key={i.id} style={{ display:"flex", justifyContent:"space-between", padding:"4px 0", fontSize:13, color:"#555" }}>
+                          <span>📝 {i.name} ({i.unit})</span>
+                          <span style={{ fontWeight:600, fontStyle:"italic" }}>~{fmt(i.estPrice)}</span>
+                        </div>
+                      ))}
+                    </>
+                  )}
                   <div style={{ borderTop:"1px solid #E5E7EB", marginTop:8, paddingTop:8, display:"flex", justifyContent:"space-between", fontSize:13, color:"#888" }}>
                     <span>Delivery + Service</span><span style={{ fontWeight:600 }}>{fmt(deliveryFee+SERVICE_FEE)}</span>
                   </div>
                   <div style={{ marginTop:10, paddingTop:10, borderTop:"2px dashed #D1D5DB", display:"flex", justifyContent:"space-between", fontSize:17, fontWeight:800, color:"#111" }}>
-                    <span>Total</span><span>{fmt(total)}</span>
+                    <span>~Total</span><span>~{fmt(total)}</span>
                   </div>
+                  {customItems.length > 0 && (
+                    <div style={{ marginTop:8, fontSize:11, color:"#92400E", background:"#FEF9C3", borderRadius:8, padding:"6px 10px" }}>
+                      ⚠️ Ang total ay approximate dahil may custom items. Ang final na bayad ay depende sa aktwal na presyo.
+                    </div>
+                  )}
                 </div>
 
                 <div style={{ background:"#FEF3C7", borderRadius:12, padding:"12px 14px", marginBottom:18, display:"flex", gap:10 }}>

@@ -188,6 +188,12 @@
         });
       }, []);
 
+      const updateOrderStatus = useCallback(async (orderId, newStatus) => {
+        const { db, fns } = await initFirebase();
+        const { doc, updateDoc } = fns;
+        await updateDoc(doc(db, "orders", orderId), { status: newStatus });
+      }, []);
+
       const handleGoogleLogin = async () => {
         try {
           const { auth, authFns } = await initFirebase();
@@ -240,8 +246,228 @@
             <span style={{color:"#aaa"}}>Admin: <b style={{color:"#fff"}}>{user.displayName || user.email}</b></span>
             <button onClick={handleLogout} style={{ color:"#EF4444", fontWeight:"bold" }}>Sign Out</button>
           </div>
-          <UserApp products={products} orders={orders} onOrder={addOrder} />
+          <AdminDashboard orders={orders} onUpdateStatus={updateOrderStatus} />
         </>
+      );
+    }
+
+    /* ══════════════════ ADMIN DASHBOARD ══════════════════ */
+    function AdminDashboard({ orders, onUpdateStatus }) {
+      const [selected, setSelected] = useState(null);
+      const [updating, setUpdating] = useState(null);
+      const [filterStatus, setFilterStatus] = useState("all");
+      const [searchQ, setSearchQ] = useState("");
+
+      const STATUS_FLOW = ["pending","buying","otw","delivered"];
+
+      const filtered = orders.filter(o => {
+        if (filterStatus !== "all" && o.status !== filterStatus) return false;
+        if (searchQ) {
+          const q = searchQ.toLowerCase();
+          return (
+            o.customer?.name?.toLowerCase().includes(q) ||
+            o.customer?.phone?.includes(q) ||
+            o.items?.some(i => i.name?.toLowerCase().includes(q))
+          );
+        }
+        return true;
+      });
+
+      const counts = {
+        all:       orders.length,
+        pending:   orders.filter(o => o.status === "pending").length,
+        buying:    orders.filter(o => o.status === "buying").length,
+        otw:       orders.filter(o => o.status === "otw").length,
+        delivered: orders.filter(o => o.status === "delivered").length,
+      };
+
+      const advance = async (order) => {
+        const idx = STATUS_FLOW.indexOf(order.status);
+        if (idx < 0 || idx >= STATUS_FLOW.length - 1) return;
+        const next = STATUS_FLOW[idx + 1];
+        setUpdating(order.id);
+        try { await onUpdateStatus(order.id, next); }
+        finally { setUpdating(null); if (selected?.id === order.id) setSelected(s => ({...s, status:next})); }
+      };
+
+      const STATUS_INFO = {
+        pending:   { label:"Pending",   icon:"⏳", bg:"#F3F4F6", color:"#555",    next:"Mark as Buying" },
+        buying:    { label:"Buying",    icon:"🛒", bg:"#FEF3C7", color:"#92400E", next:"Mark as OTW" },
+        otw:       { label:"OTW",       icon:"🏍️", bg:"#DBEAFE", color:"#1D4ED8", next:"Mark Delivered" },
+        delivered: { label:"Delivered", icon:"✅", bg:"#DCFCE7", color:"#166534", next:null },
+      };
+
+      return (
+        <div style={{ maxWidth:640, margin:"0 auto", minHeight:"100vh", background:"#F8FAF8", paddingBottom:40 }}>
+
+          {/* ── Stats Row ── */}
+          <div style={{ padding:"18px 20px 10px", display:"grid", gridTemplateColumns:"repeat(4,1fr)", gap:10 }}>
+            {[
+              { key:"pending",   label:"Pending",   icon:"⏳", color:"#F59E0B" },
+              { key:"buying",    label:"Buying",    icon:"🛒", color:"#3B82F6" },
+              { key:"otw",       label:"OTW",       icon:"🏍️", color:"#8B5CF6" },
+              { key:"delivered", label:"Done",      icon:"✅", color:"#22C55E" },
+            ].map(s => (
+              <div key={s.key} style={{ background:"#fff", borderRadius:14, padding:"12px 10px", textAlign:"center", boxShadow:"0 1px 4px rgba(0,0,0,.06)", border:`2px solid ${filterStatus===s.key?s.color:"transparent"}`, cursor:"pointer" }}
+                onClick={() => setFilterStatus(filterStatus===s.key?"all":s.key)}>
+                <div style={{ fontSize:20 }}>{s.icon}</div>
+                <div style={{ fontSize:22, fontWeight:800, color:s.color, lineHeight:1.2 }}>{counts[s.key]}</div>
+                <div style={{ fontSize:10, fontWeight:600, color:"#888" }}>{s.label}</div>
+              </div>
+            ))}
+          </div>
+
+          {/* ── Search ── */}
+          <div style={{ padding:"6px 20px 14px" }}>
+            <div style={{ background:"#fff", borderRadius:14, padding:"11px 16px", display:"flex", alignItems:"center", gap:10, boxShadow:"0 1px 4px rgba(0,0,0,.07)", border:"1px solid #E9ECEF" }}>
+              <span style={{ fontSize:16, opacity:.4 }}>🔍</span>
+              <input placeholder="Hanapin ang order (pangalan, phone, item)..." value={searchQ}
+                onChange={e => setSearchQ(e.target.value)}
+                style={{ flex:1, border:"none", outline:"none", fontSize:14, background:"transparent" }} />
+              {searchQ && <button onClick={() => setSearchQ("")} style={{ opacity:.4, fontSize:15 }}>✕</button>}
+            </div>
+          </div>
+
+          {/* ── Orders List ── */}
+          <div style={{ padding:"0 20px" }}>
+            {filtered.length === 0 ? (
+              <div style={{ textAlign:"center", padding:"60px 0", color:"#ccc" }}>
+                <div style={{ fontSize:48, marginBottom:10 }}>📭</div>
+                <div style={{ fontSize:14, fontWeight:600 }}>Walang orders</div>
+              </div>
+            ) : filtered.map(order => {
+              const st = STATUS_INFO[order.status] || STATUS_INFO.pending;
+              const ts = order.createdAt?.toDate ? order.createdAt.toDate() : new Date(order.createdAt);
+              const regularItems = order.items?.filter(i => !i.isCustom) || [];
+              const customItems  = order.items?.filter(i => i.isCustom)  || [];
+              return (
+                <div key={order.id} className="fade-up" style={{ background:"#fff", borderRadius:18, padding:"16px", marginBottom:12, boxShadow:"0 2px 8px rgba(0,0,0,.05)", border:"1px solid #F0F0F0" }}>
+                  {/* Header row */}
+                  <div style={{ display:"flex", justifyContent:"space-between", alignItems:"flex-start", marginBottom:10 }}>
+                    <div>
+                      <div style={{ fontSize:15, fontWeight:800, color:"#111" }}>{order.customer?.name || "—"}</div>
+                      <div style={{ fontSize:12, color:"#888", marginTop:1 }}>{order.customer?.phone} • {order.customer?.address}</div>
+                      <div style={{ fontSize:11, color:"#aaa", marginTop:2 }}>{ts.toLocaleDateString("en-PH")} {ts.toLocaleTimeString("en-PH",{hour:"2-digit",minute:"2-digit"})}</div>
+                    </div>
+                    <div style={{ textAlign:"right" }}>
+                      <div style={{ padding:"4px 12px", borderRadius:20, fontSize:12, fontWeight:700, background:st.bg, color:st.color, display:"inline-block" }}>
+                        {st.icon} {st.label}
+                      </div>
+                      <div style={{ fontSize:14, fontWeight:800, color:"#166534", marginTop:6 }}>~{fmt(order.total)}</div>
+                    </div>
+                  </div>
+
+                  {/* Items preview */}
+                  <div style={{ fontSize:12, color:"#555", marginBottom:10, lineHeight:1.6 }}>
+                    {regularItems.map(i => `${i.img||""} ${i.name} ×${i.qty}`).join(" • ")}
+                    {customItems.length > 0 && (
+                      <span style={{ color:"#166534", fontWeight:700 }}>
+                        {regularItems.length > 0 ? " • " : ""}📝 {customItems.map(i=>i.name).join(", ")} <span style={{ fontSize:10, background:"#F0FDF4", padding:"1px 6px", borderRadius:4 }}>custom</span>
+                      </span>
+                    )}
+                  </div>
+
+                  {/* Zone + total */}
+                  <div style={{ fontSize:11, color:"#aaa", marginBottom:12 }}>📍 {order.zone} • Delivery {fmt(order.deliveryFee)} + Service {fmt(order.serviceFee)}</div>
+
+                  {/* Action buttons */}
+                  <div style={{ display:"flex", gap:8 }}>
+                    <button onClick={() => setSelected(order)} style={{
+                      flex:1, padding:"10px", borderRadius:12, background:"#F9FAFB",
+                      border:"1px solid #E5E7EB", fontSize:13, fontWeight:600, color:"#555"
+                    }}>📋 Details</button>
+                    {st.next && (
+                      <button onClick={() => advance(order)} disabled={updating === order.id} style={{
+                        flex:2, padding:"10px", borderRadius:12,
+                        background: updating===order.id ? "#E5E7EB" : "linear-gradient(135deg,#166534,#22C55E)",
+                        color: updating===order.id ? "#aaa" : "#fff",
+                        fontSize:13, fontWeight:700,
+                      }}>
+                        {updating===order.id ? "⏳ Updating..." : `${st.next} →`}
+                      </button>
+                    )}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+
+          {/* ── Order Detail Modal ── */}
+          {selected && (
+            <div style={{ position:"fixed", inset:0, zIndex:300, background:"rgba(0,0,0,.6)", backdropFilter:"blur(4px)", display:"flex", alignItems:"flex-end", justifyContent:"center" }}
+              onClick={() => setSelected(null)}>
+              <div className="slide-up" onClick={e => e.stopPropagation()} style={{
+                width:"100%", maxWidth:540, background:"#fff", borderRadius:"24px 24px 0 0",
+                padding:"24px 22px 36px", maxHeight:"85vh", overflowY:"auto"
+              }}>
+                <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:18 }}>
+                  <div>
+                    <h3 style={{ fontSize:19, fontWeight:800 }}>Order Detail</h3>
+                    <p style={{ fontSize:12, color:"#bbb" }}>#{selected.id?.slice(0,8)}</p>
+                  </div>
+                  <button onClick={() => setSelected(null)} style={{ width:34, height:34, borderRadius:10, background:"#F3F4F6", fontSize:16, display:"flex", alignItems:"center", justifyContent:"center" }}>✕</button>
+                </div>
+
+                {/* Customer */}
+                <div style={{ background:"#F9FAFB", borderRadius:14, padding:"14px 16px", marginBottom:14, border:"1px solid #E5E7EB" }}>
+                  <div style={{ fontSize:12, fontWeight:700, color:"#888", marginBottom:6 }}>CUSTOMER</div>
+                  <div style={{ fontSize:15, fontWeight:800 }}>{selected.customer?.name}</div>
+                  <div style={{ fontSize:13, color:"#555", marginTop:2 }}>{selected.customer?.phone}</div>
+                  <div style={{ fontSize:13, color:"#555", marginTop:2 }}>📍 {selected.customer?.address}</div>
+                  <div style={{ fontSize:12, color:"#aaa", marginTop:4 }}>Zone: {selected.zone}</div>
+                </div>
+
+                {/* Items */}
+                <div style={{ background:"#F9FAFB", borderRadius:14, padding:"14px 16px", marginBottom:14, border:"1px solid #E5E7EB" }}>
+                  <div style={{ fontSize:12, fontWeight:700, color:"#888", marginBottom:10 }}>ITEMS</div>
+                  {selected.items?.filter(i => !i.isCustom).map(i => (
+                    <div key={i.id} style={{ display:"flex", justifyContent:"space-between", padding:"5px 0", fontSize:13, color:"#555", borderBottom:"1px solid #F0F0F0" }}>
+                      <span>{i.img} {i.name} ×{i.qty}</span>
+                      <span style={{ fontWeight:700 }}>{fmt(i.price * i.qty)}</span>
+                    </div>
+                  ))}
+                  {selected.items?.some(i => i.isCustom) && (
+                    <>
+                      <div style={{ fontSize:11, fontWeight:700, color:"#166534", padding:"8px 0 4px", marginTop:4 }}>📝 Custom Items (User-requested)</div>
+                      {selected.items.filter(i => i.isCustom).map(i => (
+                        <div key={i.id} style={{ display:"flex", justifyContent:"space-between", padding:"5px 0", fontSize:13, color:"#555", borderBottom:"1px solid #F0F0F0" }}>
+                          <span>📝 {i.name} ({i.unit})</span>
+                          <span style={{ fontWeight:700, fontStyle:"italic", color:"#888" }}>~{fmt(i.estPrice)}</span>
+                        </div>
+                      ))}
+                    </>
+                  )}
+                  <div style={{ marginTop:10, paddingTop:10, borderTop:"1px solid #E5E7EB", fontSize:13, color:"#888" }}>
+                    <div style={{ display:"flex", justifyContent:"space-between", marginBottom:4 }}>
+                      <span>Delivery</span><span>{fmt(selected.deliveryFee)}</span>
+                    </div>
+                    <div style={{ display:"flex", justifyContent:"space-between" }}>
+                      <span>Service Fee</span><span>{fmt(selected.serviceFee)}</span>
+                    </div>
+                    <div style={{ display:"flex", justifyContent:"space-between", marginTop:8, paddingTop:8, borderTop:"2px dashed #D1D5DB", fontSize:16, fontWeight:800, color:"#111" }}>
+                      <span>~Total</span><span>~{fmt(selected.total)}</span>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Status update */}
+                {STATUS_INFO[selected.status]?.next && (
+                  <button onClick={() => advance(selected)} disabled={updating === selected.id} style={{
+                    width:"100%", padding:"15px", borderRadius:16,
+                    background: updating===selected.id ? "#E5E7EB" : "linear-gradient(135deg,#166534,#22C55E)",
+                    color: updating===selected.id ? "#aaa" : "#fff",
+                    fontSize:15, fontWeight:700,
+                  }}>
+                    {updating===selected.id ? "⏳ Updating..." : `${STATUS_INFO[selected.status].next} →`}
+                  </button>
+                )}
+                {selected.status === "delivered" && (
+                  <div style={{ textAlign:"center", padding:"10px", fontSize:15, fontWeight:700, color:"#166534" }}>✅ Na-deliver na ang order na ito!</div>
+                )}
+              </div>
+            </div>
+          )}
+        </div>
       );
     }
 
