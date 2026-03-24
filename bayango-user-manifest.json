@@ -1,0 +1,22 @@
+{
+  "name": "BayanGo — Binangonan Concierge",
+  "short_name": "BayanGo",
+  "description": "Kami na ang mamamalengke para sa'yo sa Binangonan!",
+  "start_url": "/bayango-user.html",
+  "display": "standalone",
+  "background_color": "#F8FAF8",
+  "theme_color": "#166534",
+  "orientation": "portrait",
+  "icons": [
+    {
+      "src": "https://placehold.co/192x192/166534/ffffff?text=BG",
+      "sizes": "192x192",
+      "type": "image/png"
+    },
+    {
+      "src": "https://placehold.co/512x512/166534/ffffff?text=BG",
+      "sizes": "512x512",
+      "type": "image/png"
+    }
+  ]
+}
