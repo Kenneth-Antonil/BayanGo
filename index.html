@@ -49,7 +49,7 @@
   <script src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.23.2/babel.min.js"></script>
   <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
-  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
   <script>
     // Init Firebase once here, outside of React/Babel
     const _fbApp = firebase.initializeApp({
@@ -60,9 +60,10 @@
       messagingSenderId: "199013441811",
       appId:             "1:199013441811:web:315a38f03ddc9b676e3ae6",
       measurementId:     "G-1EEGFZWB7E",
+      databaseURL:       "https://bayango-315c6-default-rtdb.firebaseio.com",
     });
     const _fbAuth = firebase.auth(_fbApp);
-    const _fbDb   = firebase.firestore(_fbApp);
+    const _fbDb   = firebase.database(_fbApp);
   </script>
 
   <!-- Capture install prompt before React mounts -->
@@ -112,17 +113,7 @@
     const genId = () => Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
 
     /* ══════════════════ STORAGE HELPERS ══════════════════ */
-    const LS = {
-      getProducts: () => {
-        try { return JSON.parse(localStorage.getItem("bayango_products")) || DEFAULT_PRODUCTS; }
-        catch { return DEFAULT_PRODUCTS; }
-      },
-      getOrders: () => {
-        try { return JSON.parse(localStorage.getItem("bayango_orders")) || []; }
-        catch { return []; }
-      },
-      saveOrders: (orders) => localStorage.setItem("bayango_orders", JSON.stringify(orders)),
-    };
+    // LS kept only for device-local prefs (api key, install banner)
 
     /* ══════════════════ FIREBASE AUTH INIT ══════════════════ */
     // _fbApp and _fbAuth are already initialized via <script> tags above
@@ -334,7 +325,7 @@
     /* ══════════════════ MAIN APP ══════════════════ */
     function App() {
       const [products,    setProducts]    = useState([]);
-      const [orders,      setOrders]      = useState(LS.getOrders);
+      const [orders,      setOrders]      = useState([]);
       const [user,        setUser]        = useState(null);
       const [loading,     setLoading]     = useState(true);
       const [authMode,      setAuthMode]      = useState("options");
@@ -351,11 +342,11 @@
         try {
           // Listen for products realtime — public, no auth required
           if (_fbDb) {
-            unsubProducts = _fbDb.collection("products")
-              .onSnapshot(snapshot => {
-                const prods = snapshot.docs.map(d => ({ id: d.id, ...d.data() }));
-                setProducts(prods);
-              }, err => console.error("Products listener error:", err.code));
+            unsubProducts = _fbDb.ref("products").on("value", snap => {
+              const prods = [];
+              snap.forEach(child => prods.push({ id: child.key, ...child.val() }));
+              setProducts(prods);
+            }, err => console.error("Products listener error:", err.code));
           }
 
           _fbAuth.getRedirectResult().catch(err => console.error("Redirect result error:", err));
@@ -365,45 +356,18 @@
             setLoading(false);
 
             // Clean up previous order listener
-            unsubOrders?.();
-            unsubOrders = null;
+            if (unsubOrders) { _fbDb.ref("orders").off(); unsubOrders = null; }
 
             if (currentUser && _fbDb) {
-              // Listen for this user's orders in Firestore for live status updates
-              unsubOrders = _fbDb.collection("orders")
-                .where("uid", "==", currentUser.uid)
-                .onSnapshot(snapshot => {
-                  snapshot.docChanges().forEach(change => {
-                    const data = { id: change.doc.id, ...change.doc.data() };
-                    if (change.type === "added" || change.type === "modified") {
-                      setOrders(prev => {
-                        // Match by Firestore doc id or by customer+createdAt proximity
-                        const idx = prev.findIndex(o => o.firestoreId === data.id);
-                        if (idx >= 0) {
-                          // Update existing
-                          const updated = [...prev];
-                          updated[idx] = { ...updated[idx], status: data.status, firestoreId: data.id };
-                          LS.saveOrders(updated);
-                          return updated;
-                        }
-                        // Tag newly placed orders with firestoreId if not yet linked
-                        const unlinked = prev.findIndex(o =>
-                          !o.firestoreId &&
-                          o.customer?.name === data.customer?.name &&
-                          o.customer?.phone === data.customer?.phone &&
-                          Math.abs((o.createdAt || 0) - (data.createdAt?.toDate?.()?.getTime?.() || 0)) < 30000
-                        );
-                        if (unlinked >= 0) {
-                          const updated = [...prev];
-                          updated[unlinked] = { ...updated[unlinked], status: data.status, firestoreId: data.id };
-                          LS.saveOrders(updated);
-                          return updated;
-                        }
-                        return prev;
-                      });
-                    }
-                  });
-                }, err => console.error("Orders listener error:", err.code));
+              // Listen for this user's orders in RTDB
+              const ordersRef = _fbDb.ref("orders").orderByChild("uid").equalTo(currentUser.uid);
+              unsubOrders = ordersRef.on("value", snap => {
+                const list = [];
+                snap.forEach(child => list.push({ id: child.key, ...child.val() }));
+                setOrders(list.reverse()); // newest first
+              }, err => console.error("Orders listener error:", err.code));
+            } else {
+              setOrders([]);
             }
           });
         } catch (err) {
@@ -412,42 +376,27 @@
           setLoading(false);
         }
 
-        const onStorage = (e) => {
-          if (e.key === "bayango_orders")   setOrders(JSON.parse(e.newValue) || []);
-        };
-        window.addEventListener("storage", onStorage);
-        const interval = setInterval(() => {
-          /* orders-only local sync retained */ 
-        }, 4000);
         return () => {
-          window.removeEventListener("storage", onStorage);
-          clearInterval(interval);
           unsubAuth?.();
-          unsubOrders?.();
-          unsubProducts?.();
+          if (_fbDb) {
+            _fbDb.ref("orders").off();
+            _fbDb.ref("products").off();
+          }
         };
       }, []);
 
       const addOrder = useCallback(async (order) => {
-        const localOrder = { ...order, id:genId(), createdAt:Date.now() };
-        // Save locally for "My Orders" history
-        setOrders(prev => {
-          const updated = [localOrder, ...prev];
-          LS.saveOrders(updated);
-          return updated;
-        });
-        // Write to Firestore so admin can see it (include uid for real-time status sync)
         setSyncError(null);
         try {
-          if (!_fbDb) throw new Error("Firestore not initialized");
+          if (!_fbDb) throw new Error("RTDB not initialized");
           const uid = _fbAuth.currentUser?.uid || null;
-          await _fbDb.collection("orders").add({
+          await _fbDb.ref("orders").push({
             ...order,
             uid,
-            createdAt: new Date(),
+            createdAt: Date.now(),
           });
         } catch (err) {
-          console.error("Firestore write failed:", err.code, err.message);
+          console.error("RTDB write failed:", err.code, err.message);
           setSyncError(err.code || err.message || "sync-failed");
         }
       }, []);
@@ -645,9 +594,20 @@
       const [showCheckout,   setShowCheckout]   = useState(false);
       const [showTracker,    setShowTracker]    = useState(null);
       const [zone,           setZone]           = useState(0);
-      const [name,           setName]           = useState(() => localStorage.getItem("bayango_customer_name") || "");
-      const [phone,          setPhone]          = useState(() => localStorage.getItem("bayango_customer_phone") || "");
-      const [addr,           setAddr]           = useState(() => localStorage.getItem("bayango_customer_addr") || "");
+      const [name,           setName]           = useState("");
+      const [phone,          setPhone]          = useState("");
+      const [addr,           setAddr]           = useState("");
+
+      // Load profile from RTDB when user logs in
+      useEffect(() => {
+        if (!user?.uid || !_fbDb) return;
+        _fbDb.ref("users/" + user.uid + "/profile").once("value").then(snap => {
+          const p = snap.val() || {};
+          if (p.name)  setName(p.name);
+          if (p.phone) setPhone(p.phone);
+          if (p.addr)  setAddr(p.addr);
+        }).catch(err => console.error("Profile load error:", err.code));
+      }, [user?.uid]);
       const [searchQ,        setSearchQ]        = useState("");
       const [orderPlaced,    setOrderPlaced]    = useState(false);
       const [showAI,         setShowAI]         = useState(false);
@@ -701,9 +661,6 @@
 
       const placeOrder = () => {
         if (!name || !phone || !addr) return;
-        localStorage.setItem("bayango_customer_name",  name);
-        localStorage.setItem("bayango_customer_phone", phone);
-        localStorage.setItem("bayango_customer_addr",  addr);
         const allItems = [
           ...cartItems,
           ...customItems.map(i => ({ ...i, price: i.estPrice })),
@@ -1315,29 +1272,36 @@
       // Listen to user's own tickets
       useEffect(() => {
         if (!user?.uid) return;
-        const unsub = _fbDb.collection("support_tickets")
-          .where("uid", "==", user.uid)
-          .orderBy("createdAt", "desc")
-          .onSnapshot(s => setMyTickets(s.docs.map(d => ({ id:d.id, ...d.data() }))),
-            err => console.error("Tickets listener:", err.code));
-        return () => unsub();
+        const ticketsRef = _fbDb.ref("support_tickets").orderByChild("uid").equalTo(user.uid);
+        ticketsRef.on("value", snap => {
+          const list = [];
+          snap.forEach(child => list.push({ id: child.key, ...child.val() }));
+          setMyTickets(list.reverse());
+        }, err => console.error("Tickets listener:", err.code));
+        return () => ticketsRef.off();
       }, [user?.uid]);
 
       // Listen to messages of selected ticket
       useEffect(() => {
         if (!openTicket) { setThreadMsgs([]); return; }
-        const unsub = _fbDb.collection("support_tickets").doc(openTicket.id)
-          .collection("messages").orderBy("createdAt", "asc")
-          .onSnapshot(s => setThreadMsgs(s.docs.map(d => ({ id:d.id, ...d.data() }))),
-            err => console.error("Messages listener:", err.code));
-        return () => unsub();
+        const msgsRef = _fbDb.ref("support_messages/" + openTicket.id).orderByChild("createdAt");
+        msgsRef.on("value", snap => {
+          const list = [];
+          snap.forEach(child => list.push({ id: child.key, ...child.val() }));
+          setThreadMsgs(list);
+        }, err => console.error("Messages listener:", err.code));
+        return () => msgsRef.off();
       }, [openTicket?.id]);
 
       const saveProfile = () => {
-        setName(localName); localStorage.setItem("bayango_customer_name", localName);
-        setPhone(localPhone); localStorage.setItem("bayango_customer_phone", localPhone);
-        setAddr(localAddr); localStorage.setItem("bayango_customer_addr", localAddr);
+        setName(localName); setPhone(localPhone); setAddr(localAddr);
         setEditMode(false);
+        if (user?.uid && _fbDb) {
+          _fbDb.ref("users/" + user.uid + "/profile").set({
+            name: localName, phone: localPhone, addr: localAddr,
+            updatedAt: Date.now(),
+          }).catch(err => console.error("Profile save error:", err.code));
+        }
       };
 
       const sendTicket = async () => {
@@ -1345,23 +1309,23 @@
         setTicketSending(true);
         try {
           const senderName = name || user?.displayName || user?.email || "User";
-          const ref = await _fbDb.collection("support_tickets").add({
+          const newTicketRef = _fbDb.ref("support_tickets").push();
+          const ticketId = newTicketRef.key;
+          await newTicketRef.set({
             uid:       user?.uid || null,
             name:      senderName,
             email:     user?.email || null,
             phone:     phone || null,
             subject:   ticketSubject.trim(),
             status:    "open",
-            createdAt: firebase.firestore.FieldValue.serverTimestamp(),
+            createdAt: Date.now(),
           });
-          const msgs = ref.collection("messages");
-          // User's initial message
-          await msgs.add({ text: ticketMsg.trim(), senderType:"user", senderName, createdAt: firebase.firestore.FieldValue.serverTimestamp() });
-          // Automated bot reply
-          await msgs.add({ text: "Salamat sa iyong mensahe! Natanggap na namin ang iyong concern. Tutugon kami sa lalong madaling panahon. — BayanGo Support 💚", senderType:"bot", senderName:"BayanGo Support", createdAt: firebase.firestore.FieldValue.serverTimestamp() });
+          const msgsRef = _fbDb.ref("support_messages/" + ticketId);
+          await msgsRef.push({ text: ticketMsg.trim(), senderType:"user", senderName, createdAt: Date.now() });
+          await msgsRef.push({ text: "Salamat sa iyong mensahe! Natanggap na namin ang iyong concern. Tutugon kami sa lalong madaling panahon. — BayanGo Support 💚", senderType:"bot", senderName:"BayanGo Support", createdAt: Date.now() + 1 });
           setTicketSubject(""); setTicketMsg("");
           setShowNewForm(false);
-          setOpenTicket({ id: ref.id, subject: ticketSubject.trim(), status:"open" });
+          setOpenTicket({ id: ticketId, subject: ticketSubject.trim(), status:"open" });
         } catch (err) {
           alert("Hindi ma-send ang ticket: " + (err.message || err.code));
         } finally {
@@ -1374,8 +1338,9 @@
         setReplySending(true);
         const senderName = name || user?.displayName || user?.email || "User";
         try {
-          await _fbDb.collection("support_tickets").doc(openTicket.id)
-            .collection("messages").add({ text: replyText.trim(), senderType:"user", senderName, createdAt: firebase.firestore.FieldValue.serverTimestamp() });
+          await _fbDb.ref("support_messages/" + openTicket.id).push({
+            text: replyText.trim(), senderType:"user", senderName, createdAt: Date.now(),
+          });
           setReplyText("");
         } catch (err) {
           alert("Hindi ma-send: " + (err.message || err.code));
