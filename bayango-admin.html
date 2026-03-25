@@ -824,24 +824,51 @@
 
     /* ══════════════════ SUPPORT PANEL ══════════════════ */
     function SupportPanel({ tickets }) {
-      const [selected,    setSelected]    = useState(null);
-      const [filterStatus, setFilterStatus] = useState("all");
-      const [updating,    setUpdating]    = useState(null);
+      const [openTicket,    setOpenTicket]    = useState(null);
+      const [threadMsgs,    setThreadMsgs]    = useState([]);
+      const [filterStatus,  setFilterStatus]  = useState("all");
+      const [statusBusy,    setStatusBusy]    = useState(null);
+      const [replyText,     setReplyText]     = useState("");
+      const [replySending,  setReplySending]  = useState(false);
 
-      const filtered = filterStatus === "all" ? tickets : tickets.filter(t => t.status === filterStatus);
-      const openCount = tickets.filter(t => t.status === "open").length;
+      // Listen to messages of selected ticket
+      useEffect(() => {
+        if (!openTicket) { setThreadMsgs([]); return; }
+        let unsub;
+        initFirebase().then(({ db, fns }) => {
+          unsub = fns.onSnapshot(
+            fns.query(fns.collection(db, "support_tickets", openTicket.id, "messages"), fns.orderBy("createdAt", "asc")),
+            s => setThreadMsgs(s.docs.map(d => ({ id:d.id, ...d.data() }))),
+            err => console.error("Thread listener:", err.code)
+          );
+        });
+        return () => unsub?.();
+      }, [openTicket?.id]);
 
       const markStatus = async (ticket, status) => {
-        setUpdating(ticket.id);
+        setStatusBusy(ticket.id);
         try {
           const { db, fns } = await initFirebase();
           await fns.updateDoc(fns.doc(db, "support_tickets", ticket.id), { status });
-          if (selected?.id === ticket.id) setSelected(s => ({ ...s, status }));
+          if (openTicket?.id === ticket.id) setOpenTicket(t => ({ ...t, status }));
         } catch (err) {
           alert("Error: " + (err.message || err.code));
-        } finally {
-          setUpdating(null);
-        }
+        } finally { setStatusBusy(null); }
+      };
+
+      const sendReply = async () => {
+        if (!replyText.trim() || !openTicket) return;
+        setReplySending(true);
+        try {
+          const { db, fns } = await initFirebase();
+          await fns.addDoc(fns.collection(db, "support_tickets", openTicket.id, "messages"), {
+            text: replyText.trim(), senderType:"admin", senderName:"BayanGo Admin",
+            createdAt: fns.serverTimestamp(),
+          });
+          setReplyText("");
+        } catch (err) {
+          alert("Hindi ma-send: " + (err.message || err.code));
+        } finally { setReplySending(false); }
       };
 
       const ST = {
@@ -849,89 +876,124 @@
         resolved: { bg:"#DCFCE7", color:"#166534", label:"Resolved", icon:"circle-check"  },
         closed:   { bg:"#F3F4F6", color:"#555",    label:"Closed",   icon:"xmark-circle"  },
       };
-
-      const fmtDate = (ts) => {
-        if (!ts) return "—";
-        const d = ts.toDate ? ts.toDate() : new Date(ts);
-        return d.toLocaleDateString("en-PH") + " " + d.toLocaleTimeString("en-PH", { hour:"2-digit", minute:"2-digit" });
-      };
+      const fmtDate = ts => { if(!ts) return "—"; const d=ts.toDate?ts.toDate():new Date(ts); return d.toLocaleDateString("en-PH")+" "+d.toLocaleTimeString("en-PH",{hour:"2-digit",minute:"2-digit"}); };
+      const filtered = filterStatus === "all" ? tickets : tickets.filter(t => t.status === filterStatus);
+      const openCount = tickets.filter(t => t.status === "open").length;
 
       return (
         <div style={{ padding:"0 0 40px" }}>
           {/* Header */}
           <div style={{ background:"linear-gradient(145deg,#1E3A5F,#1D4ED8)", padding:"28px 24px 24px", color:"#fff" }}>
             <div style={{ fontSize:11, opacity:.7, letterSpacing:".1em", textTransform:"uppercase", marginBottom:4 }}>BayanGo Admin</div>
-            <h1 style={{ fontSize:26, fontWeight:800, letterSpacing:"-.02em" }}><Ic n="headset" style={{marginRight:8}} />Support Tickets</h1>
-            <p style={{ fontSize:13, opacity:.75, marginTop:4 }}>{openCount} open ticket{openCount!==1?"s":""}</p>
-          </div>
-
-          {/* Filter */}
-          <div style={{ display:"flex", gap:8, padding:"16px 20px 0", overflowX:"auto" }}>
-            {[
-              { key:"all",      label:`Lahat (${tickets.length})` },
-              { key:"open",     label:`Open (${tickets.filter(t=>t.status==="open").length})` },
-              { key:"resolved", label:`Resolved (${tickets.filter(t=>t.status==="resolved").length})` },
-              { key:"closed",   label:`Closed (${tickets.filter(t=>t.status==="closed").length})` },
-            ].map(f => (
-              <button key={f.key} onClick={() => setFilterStatus(f.key)} style={{
-                padding:"7px 14px", borderRadius:20, fontSize:12, fontWeight:700, whiteSpace:"nowrap",
-                background: filterStatus===f.key ? "#1D4ED8" : "#fff",
-                color:      filterStatus===f.key ? "#fff"    : "#555",
-                border:     filterStatus===f.key ? "none"    : "1px solid #E5E7EB",
-                boxShadow:  filterStatus===f.key ? "0 3px 10px rgba(29,78,216,.3)" : "0 1px 3px rgba(0,0,0,.06)",
-              }}>{f.label}</button>
-            ))}
-          </div>
-
-          <div style={{ padding:"16px 20px 0" }}>
-            {filtered.length === 0 ? (
-              <div style={{ textAlign:"center", padding:"60px 0" }}>
-                <Ic n="inbox" size={48} style={{ color:"#ddd", marginBottom:12, display:"block" }} />
-                <div style={{ fontSize:15, fontWeight:700, color:"#555" }}>Walang tickets</div>
+            {openTicket ? (
+              <div>
+                <button onClick={() => setOpenTicket(null)} style={{ display:"flex", alignItems:"center", gap:6, fontSize:13, fontWeight:700, color:"rgba(255,255,255,.8)", marginBottom:10 }}>
+                  <Ic n="arrow-left" />Bumalik
+                </button>
+                <h1 style={{ fontSize:20, fontWeight:800 }}>{openTicket.subject}</h1>
+                <div style={{ fontSize:12, opacity:.75, marginTop:4 }}>{openTicket.name} {openTicket.phone?"· "+openTicket.phone:""}</div>
               </div>
-            ) : filtered.map(t => {
-              const st = ST[t.status] || ST.open;
-              return (
-                <div key={t.id} onClick={() => setSelected(selected?.id===t.id ? null : t)} style={{
-                  background:"#fff", borderRadius:16, padding:16, marginBottom:10,
-                  border: selected?.id===t.id ? "2px solid #1D4ED8" : "1px solid #F0F0F0",
-                  boxShadow:"0 2px 8px rgba(0,0,0,.05)", cursor:"pointer",
-                }}>
-                  <div style={{ display:"flex", justifyContent:"space-between", alignItems:"flex-start", marginBottom:8 }}>
-                    <div style={{ flex:1, marginRight:10 }}>
-                      <div style={{ fontSize:14, fontWeight:800, color:"#111" }}>{t.subject}</div>
-                      <div style={{ fontSize:12, color:"#888", marginTop:2 }}>{t.name} {t.phone ? "· " + t.phone : ""} {t.email ? "· " + t.email : ""}</div>
-                    </div>
-                    <div style={{ padding:"4px 10px", borderRadius:20, fontSize:11, fontWeight:700, background:st.bg, color:st.color, display:"flex", alignItems:"center", gap:4, whiteSpace:"nowrap" }}>
-                      <Ic n={st.icon} />{st.label}
-                    </div>
-                  </div>
-                  <div style={{ fontSize:12, color:"#555", marginBottom:8, lineHeight:1.5 }}>{t.message}</div>
-                  <div style={{ fontSize:11, color:"#aaa" }}>{fmtDate(t.createdAt)}</div>
-
-                  {selected?.id === t.id && (
-                    <div style={{ marginTop:14, paddingTop:12, borderTop:"1px dashed #E5E7EB", display:"flex", gap:8 }}>
-                      {t.status !== "resolved" && (
-                        <button onClick={e => { e.stopPropagation(); markStatus(t, "resolved"); }} disabled={updating===t.id} style={{ flex:1, padding:"9px 0", borderRadius:10, background:"linear-gradient(135deg,#166534,#22C55E)", color:"#fff", fontSize:12, fontWeight:700, display:"flex", alignItems:"center", justifyContent:"center", gap:6 }}>
-                          {updating===t.id ? <Ic n="spinner" className="spin" /> : <Ic n="circle-check" />}Mark Resolved
-                        </button>
-                      )}
-                      {t.status !== "closed" && (
-                        <button onClick={e => { e.stopPropagation(); markStatus(t, "closed"); }} disabled={updating===t.id} style={{ flex:1, padding:"9px 0", borderRadius:10, background:"#F3F4F6", color:"#555", fontSize:12, fontWeight:700, display:"flex", alignItems:"center", justifyContent:"center", gap:6 }}>
-                          <Ic n="xmark-circle" />Close Ticket
-                        </button>
-                      )}
-                      {t.status !== "open" && (
-                        <button onClick={e => { e.stopPropagation(); markStatus(t, "open"); }} disabled={updating===t.id} style={{ flex:1, padding:"9px 0", borderRadius:10, background:"#FEF3C7", color:"#92400E", fontSize:12, fontWeight:700, display:"flex", alignItems:"center", justifyContent:"center", gap:6 }}>
-                          <Ic n="envelope-open" />Reopen
-                        </button>
-                      )}
-                    </div>
-                  )}
-                </div>
-              );
-            })}
+            ) : (
+              <>
+                <h1 style={{ fontSize:26, fontWeight:800, letterSpacing:"-.02em" }}><Ic n="headset" style={{marginRight:8}} />Support Tickets</h1>
+                <p style={{ fontSize:13, opacity:.75, marginTop:4 }}>{openCount} open ticket{openCount!==1?"s":""}</p>
+              </>
+            )}
           </div>
+
+          {/* Ticket List */}
+          {!openTicket && <>
+            <div style={{ display:"flex", gap:8, padding:"16px 20px 0", overflowX:"auto" }}>
+              {[
+                { key:"all",      label:`Lahat (${tickets.length})` },
+                { key:"open",     label:`Open (${tickets.filter(t=>t.status==="open").length})` },
+                { key:"resolved", label:`Resolved (${tickets.filter(t=>t.status==="resolved").length})` },
+                { key:"closed",   label:`Closed (${tickets.filter(t=>t.status==="closed").length})` },
+              ].map(f => (
+                <button key={f.key} onClick={() => setFilterStatus(f.key)} style={{ padding:"7px 14px", borderRadius:20, fontSize:12, fontWeight:700, whiteSpace:"nowrap", background:filterStatus===f.key?"#1D4ED8":"#fff", color:filterStatus===f.key?"#fff":"#555", border:filterStatus===f.key?"none":"1px solid #E5E7EB", boxShadow:filterStatus===f.key?"0 3px 10px rgba(29,78,216,.3)":"0 1px 3px rgba(0,0,0,.06)" }}>{f.label}</button>
+              ))}
+            </div>
+            <div style={{ padding:"16px 20px 0" }}>
+              {filtered.length === 0 ? (
+                <div style={{ textAlign:"center", padding:"60px 0" }}>
+                  <Ic n="inbox" size={48} style={{ color:"#ddd", marginBottom:12, display:"block" }} />
+                  <div style={{ fontSize:15, fontWeight:700, color:"#555" }}>Walang tickets</div>
+                </div>
+              ) : filtered.map(t => {
+                const st = ST[t.status] || ST.open;
+                return (
+                  <button key={t.id} onClick={() => setOpenTicket(t)} style={{ width:"100%", textAlign:"left", background:"#fff", borderRadius:16, padding:16, marginBottom:10, border:"1px solid #F0F0F0", boxShadow:"0 2px 8px rgba(0,0,0,.05)", display:"block" }}>
+                    <div style={{ display:"flex", justifyContent:"space-between", alignItems:"flex-start", marginBottom:6 }}>
+                      <div style={{ flex:1, marginRight:10 }}>
+                        <div style={{ fontSize:14, fontWeight:800, color:"#111" }}>{t.subject}</div>
+                        <div style={{ fontSize:12, color:"#888", marginTop:2 }}>{t.name}{t.phone?" · "+t.phone:""}{t.email?" · "+t.email:""}</div>
+                      </div>
+                      <div style={{ padding:"4px 10px", borderRadius:20, fontSize:11, fontWeight:700, background:st.bg, color:st.color, display:"flex", alignItems:"center", gap:4, whiteSpace:"nowrap" }}>
+                        <Ic n={st.icon} />{st.label}
+                      </div>
+                    </div>
+                    <div style={{ fontSize:11, color:"#aaa" }}>{fmtDate(t.createdAt)}</div>
+                    <div style={{ fontSize:12, color:"#1D4ED8", marginTop:6, display:"flex", alignItems:"center", gap:4 }}><Ic n="chevron-right" size={10} />Buksan ang conversation</div>
+                  </button>
+                );
+              })}
+            </div>
+          </>}
+
+          {/* Thread View */}
+          {openTicket && (
+            <div style={{ padding:"16px 20px 0" }}>
+              {/* Status actions */}
+              <div style={{ display:"flex", gap:8, marginBottom:16 }}>
+                {openTicket.status !== "resolved" && (
+                  <button onClick={() => markStatus(openTicket, "resolved")} disabled={statusBusy===openTicket.id} style={{ flex:1, padding:"9px 0", borderRadius:10, background:"linear-gradient(135deg,#166534,#22C55E)", color:"#fff", fontSize:12, fontWeight:700, display:"flex", alignItems:"center", justifyContent:"center", gap:6 }}>
+                    {statusBusy===openTicket.id?<Ic n="spinner" className="spin"/>:<Ic n="circle-check"/>}Mark Resolved
+                  </button>
+                )}
+                {openTicket.status !== "closed" && (
+                  <button onClick={() => markStatus(openTicket, "closed")} disabled={statusBusy===openTicket.id} style={{ flex:1, padding:"9px 0", borderRadius:10, background:"#F3F4F6", color:"#555", fontSize:12, fontWeight:700, display:"flex", alignItems:"center", justifyContent:"center", gap:6 }}>
+                    <Ic n="xmark-circle"/>Close Ticket
+                  </button>
+                )}
+                {openTicket.status !== "open" && (
+                  <button onClick={() => markStatus(openTicket, "open")} disabled={statusBusy===openTicket.id} style={{ flex:1, padding:"9px 0", borderRadius:10, background:"#FEF3C7", color:"#92400E", fontSize:12, fontWeight:700, display:"flex", alignItems:"center", justifyContent:"center", gap:6 }}>
+                    <Ic n="envelope-open"/>Reopen
+                  </button>
+                )}
+              </div>
+
+              {/* Messages */}
+              <div style={{ marginBottom:12 }}>
+                {threadMsgs.map(m => {
+                  const isAdmin = m.senderType === "admin";
+                  const isBot   = m.senderType === "bot";
+                  const isUser  = m.senderType === "user";
+                  return (
+                    <div key={m.id} style={{ display:"flex", flexDirection:"column", alignItems: isAdmin?"flex-end":"flex-start", marginBottom:10 }}>
+                      {!isAdmin && <div style={{ fontSize:10, fontWeight:700, color: isBot?"#3B82F6":"#555", marginBottom:3, paddingLeft:4 }}>{isBot?"🤖 BayanGo Support":"👤 "+m.senderName}</div>}
+                      <div style={{ maxWidth:"80%", padding:"10px 14px", borderRadius: isAdmin?"18px 18px 4px 18px":"18px 18px 18px 4px", background: isAdmin?"linear-gradient(135deg,#1E3A5F,#1D4ED8)":isBot?"#EFF6FF":"#F9FAFB", color: isAdmin?"#fff":"#111", fontSize:13, lineHeight:1.5, boxShadow:"0 1px 4px rgba(0,0,0,.08)" }}>
+                        {m.text}
+                      </div>
+                      <div style={{ fontSize:10, color:"#ccc", marginTop:3, paddingLeft:4, paddingRight:4 }}>{fmtDate(m.createdAt)}</div>
+                    </div>
+                  );
+                })}
+                {threadMsgs.length === 0 && <div style={{ textAlign:"center", padding:"30px 0", fontSize:12, color:"#ccc" }}>Walang messages pa.</div>}
+              </div>
+
+              {/* Reply */}
+              {openTicket.status !== "closed" ? (
+                <div style={{ display:"flex", gap:8, alignItems:"flex-end" }}>
+                  <textarea value={replyText} onChange={e=>setReplyText(e.target.value)} placeholder="I-type ang iyong reply..." rows={2} onKeyDown={e=>{ if(e.key==="Enter"&&!e.shiftKey){e.preventDefault();sendReply();} }} style={{ flex:1, fontSize:13, color:"#111", border:"1px solid #E5E7EB", borderRadius:12, padding:"10px 12px", outline:"none", resize:"none", fontFamily:"inherit", boxSizing:"border-box" }} />
+                  <button onClick={sendReply} disabled={replySending||!replyText.trim()} style={{ width:42, height:42, borderRadius:12, background:replyText.trim()?"linear-gradient(135deg,#1E3A5F,#1D4ED8)":"#E5E7EB", color:replyText.trim()?"#fff":"#aaa", display:"flex", alignItems:"center", justifyContent:"center", flexShrink:0 }}>
+                    {replySending?<Ic n="spinner" className="spin" size={16}/>:<Ic n="paper-plane" size={16}/>}
+                  </button>
+                </div>
+              ) : (
+                <div style={{ textAlign:"center", padding:"12px 0", fontSize:12, color:"#aaa", fontWeight:600 }}>Ang ticket na ito ay sarado na.</div>
+              )}
+            </div>
+          )}
         </div>
       );
     }
