@@ -203,7 +203,19 @@
             const prodsRef = fns.ref(db, "products");
             fns.onValue(prodsRef, snap => {
               const list = [];
-              snap.forEach(c => list.push({ id:c.key, ...c.val() }));
+              snap.forEach(c => {
+                const v = c.val() || {};
+                list.push({
+                  id: c.key,
+                  name: typeof v.name === "string" ? v.name : "",
+                  cat: typeof v.cat === "string" ? v.cat : "isda",
+                  price: Number.isFinite(Number(v.price)) ? Number(v.price) : 0,
+                  unit: typeof v.unit === "string" && v.unit ? v.unit : "kg",
+                  stock: v.stock !== false,
+                  img: typeof v.img === "string" ? v.img : "",
+                  createdAt: Number(v.createdAt || 0),
+                });
+              });
               setProducts(list);
             }, err => console.error("Products snapshot error:", err));
             unsubProducts = () => fns.off(prodsRef);
@@ -281,7 +293,15 @@
 
       const addProduct = useCallback(async (data) => {
         const { db, fns } = await initFirebase();
-        await fns.push(fns.ref(db, "products"), { ...data, createdAt: Date.now() });
+        try {
+          await fns.push(fns.ref(db, "products"), { ...data, createdAt: Date.now() });
+        } catch (err) {
+          const code = String(err?.code || "").toLowerCase();
+          if (code.includes("permission")) {
+            throw new Error("Permission denied: i-check kung naka-login ka at may write access sa Firebase rules.");
+          }
+          throw err;
+        }
       }, []);
 
       const updateProduct = useCallback(async (productId, data) => {
@@ -1389,8 +1409,14 @@
                   <div style={{
                     height:96, display:"flex", alignItems:"center", justifyContent:"center",
                     background:`linear-gradient(135deg,${CATEGORIES.find(c=>c.id===p.cat)?.color}12,${CATEGORIES.find(c=>c.id===p.cat)?.color}06)`,
-                    fontSize:46
-                  }}>{p.img}</div>
+                    fontSize:46,
+                    overflow:"hidden"
+                  }}>
+                    {(typeof p.img === "string" && (p.img.startsWith("http") || p.img.startsWith("/")))
+                      ? <img src={p.img} alt={p.name} style={{ width:"100%", height:"100%", objectFit:"cover" }} />
+                      : (p.img || <Ic n="image" size={28} style={{ color:"#D1D5DB" }} />)
+                    }
+                  </div>
                   <div style={{ padding:"11px 14px 14px" }}>
                     <div style={{ fontSize:13, fontWeight:700, color:"#111", marginBottom:2, lineHeight:1.25 }}>{p.name}</div>
                     <div style={{ fontSize:11, color:"#aaa", marginBottom:10 }}>per {p.unit}</div>
