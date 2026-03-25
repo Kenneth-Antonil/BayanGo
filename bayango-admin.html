@@ -83,7 +83,8 @@
       storageBucket:     "bayango-315c6.firebasestorage.app",
       messagingSenderId: "199013441811",
       appId:             "1:199013441811:web:315a38f03ddc9b676e3ae6",
-      databaseURL:       "https://bayango-315c6-default-rtdb.firebaseio.com",
+      measurementId:     "G-1EEGFZWB7E",
+      databaseURL:       "https://bayango-315c6-default-rtdb.asia-southeast1.firebasedatabase.app",
     };
 
     let _db = null;
@@ -200,14 +201,34 @@
             }, err => console.error("Products snapshot error:", err));
             unsubProducts = () => fns.off(prodsRef);
 
-            // Listen orders realtime
-            const ordersRef = fns.rtdbQuery(fns.ref(db, "orders"), fns.orderByChild("createdAt"));
-            fns.onValue(ordersRef, snap => {
+            // Listen orders realtime (query first, fallback to plain ref if query is denied by rules)
+            const ordersQueryRef = fns.rtdbQuery(fns.ref(db, "orders"), fns.orderByChild("createdAt"));
+            const ordersPlainRef = fns.ref(db, "orders");
+            let usingOrdersFallback = false;
+            const mapAndSortOrders = (snap) => {
               const list = [];
-              snap.forEach(c => { const v = c.val() || {}; list.push({ id:c.key, ...v, status: v.status || "pending" }); });
-              setOrders(list.reverse());
-            }, err => console.error("Orders snapshot error:", err.code, err.message));
-            unsubOrders = () => fns.off(ordersRef);
+              snap.forEach(c => {
+                const v = c.val() || {};
+                list.push({ id:c.key, ...v, status: v.status || "pending" });
+              });
+              list.sort((a, b) => Number(b.createdAt || 0) - Number(a.createdAt || 0));
+              setOrders(list);
+            };
+
+            fns.onValue(ordersQueryRef, mapAndSortOrders, err => {
+              console.error("Orders snapshot error:", err.code, err.message);
+              const code = String(err?.code || "").toLowerCase();
+              if ((code === "permission_denied" || code === "permission-denied") && !usingOrdersFallback) {
+                usingOrdersFallback = true;
+                fns.onValue(ordersPlainRef, mapAndSortOrders, plainErr => {
+                  console.error("Orders fallback snapshot error:", plainErr.code, plainErr.message);
+                });
+              }
+            });
+            unsubOrders = () => {
+              fns.off(ordersQueryRef);
+              if (usingOrdersFallback) fns.off(ordersPlainRef);
+            };
 
             // Listen support tickets realtime
             const ticketsRef = fns.rtdbQuery(fns.ref(db, "support_tickets"), fns.orderByChild("createdAt"));

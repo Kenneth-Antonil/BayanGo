@@ -53,7 +53,8 @@
       storageBucket:     "bayango-315c6.firebasestorage.app",
       messagingSenderId: "199013441811",
       appId:             "1:199013441811:web:315a38f03ddc9b676e3ae6",
-      databaseURL:       "https://bayango-315c6-default-rtdb.firebaseio.com",
+      measurementId:     "G-1EEGFZWB7E",
+      databaseURL:       "https://bayango-315c6-default-rtdb.asia-southeast1.firebasedatabase.app",
     }, "rider");
     const _fbAuth = firebase.auth(RIDER_FB_APP);
     const _fbDb   = firebase.database(RIDER_FB_APP);
@@ -167,17 +168,41 @@
         );
 
         /* My orders: assigned to this rider */
-        const mineRef = _fbDb.ref("orders").orderByChild("riderId").equalTo(user.uid);
-        mineRef.on("value",
+        const mineQueryRef = _fbDb.ref("orders").orderByChild("riderId").equalTo(user.uid);
+        const minePlainRef = _fbDb.ref("orders");
+        let usingMineFallback = false;
+
+        mineQueryRef.on("value",
           snap => {
             const list = [];
             snap.forEach(c => { const v = c.val() || {}; list.push({ id:c.key, ...v, status: v.status || "pending" }); });
             setMyOrders(list);
           },
-          err => console.error("My orders error:", err.code)
+          err => {
+            console.error("My orders error:", err.code);
+            const code = String(err?.code || "").toLowerCase();
+            if ((code === "permission_denied" || code === "permission-denied") && !usingMineFallback) {
+              usingMineFallback = true;
+              minePlainRef.on("value",
+                fullSnap => {
+                  const list = [];
+                  fullSnap.forEach(c => {
+                    const v = c.val() || {};
+                    if (v.riderId === user.uid) list.push({ id:c.key, ...v, status: v.status || "pending" });
+                  });
+                  setMyOrders(list);
+                },
+                fullErr => console.error("My orders fallback error:", fullErr.code)
+              );
+            }
+          }
         );
 
-        return () => { availRef.off(); mineRef.off(); };
+        return () => {
+          availRef.off();
+          mineQueryRef.off();
+          if (usingMineFallback) minePlainRef.off();
+        };
       }, [user.uid]);
 
       const showToast = msg => { setToast(msg); setTimeout(() => setToast(null), 3000); };
