@@ -816,13 +816,17 @@
         const file = e.target.files[0];
         if (!file) return;
         setUploading(true);
+        const timeout = new Promise((_, rej) =>
+          setTimeout(() => rej(new Error("Upload timeout. Subukan ulit.")), 60000)
+        );
         try {
           const st = await initStorage();
           const storageRef = st.ref(st.storage, "products/" + Date.now() + "_" + file.name);
-          await st.uploadBytes(storageRef, file);
-          setImg(await st.getDownloadURL(storageRef));
+          await Promise.race([st.uploadBytes(storageRef, file), timeout]);
+          const url = await Promise.race([st.getDownloadURL(storageRef), timeout]);
+          setImg(url);
         } catch (err) {
-          alert("Upload error: " + (err.message || err.code || "unknown error"));
+          alert("Upload error: " + (err.message || err.code || "Hindi ma-upload ang larawan."));
         } finally {
           setUploading(false);
           try { e.target.value = ""; } catch(_) {}
@@ -950,16 +954,18 @@
 
           </div>
           <div style={{ padding:"12px 22px 44px", borderTop:"1px solid #F0F0F0", background:"#fff" }}>
-            <button onClick={handleSubmit} disabled={saving || !valid} style={{
+            <button onClick={handleSubmit} disabled={saving || uploading || !valid} style={{
               width:"100%", padding:"16px", borderRadius:16, fontSize:15, fontWeight:700,
-              background: (saving || !valid) ? "#D1D5DB" : "linear-gradient(135deg,#166534,#22C55E)",
-              color:      (saving || !valid) ? "#aaa"    : "#fff",
-              boxShadow:  (saving || !valid) ? "none"    : "0 4px 16px rgba(22,101,52,.3)",
+              background: (saving || uploading || !valid) ? "#D1D5DB" : "linear-gradient(135deg,#166534,#22C55E)",
+              color:      (saving || uploading || !valid) ? "#aaa"    : "#fff",
+              boxShadow:  (saving || uploading || !valid) ? "none"    : "0 4px 16px rgba(22,101,52,.3)",
               display:"flex", alignItems:"center", justifyContent:"center", gap:8
             }}>
-              {saving
-                ? <><Ic n="hourglass-half" />Sine-save...</>
-                : <><Ic n="floppy-disk" />{product ? "I-update ang Produkto" : "I-save ang Produkto"}</>
+              {uploading
+                ? <><Ic n="arrow-up-from-bracket" />Ina-upload ang larawan...</>
+                : saving
+                  ? <><Ic n="hourglass-half" />Sine-save...</>
+                  : <><Ic n="floppy-disk" />{product ? "I-update ang Produkto" : "I-save ang Produkto"}</>
               }
             </button>
           </div>
