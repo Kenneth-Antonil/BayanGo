@@ -13,6 +13,7 @@
   <link rel="manifest" href="bayango-user-manifest.json" />
   <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" />
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
   <style>
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
     html, body { height: 100%; background: #F8FAF8; font-family: 'Plus Jakarta Sans', sans-serif; overscroll-behavior: none; }
@@ -50,6 +51,7 @@
   <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
   <script>
     // Init Firebase once here, outside of React/Babel
     const _fbApp = firebase.initializeApp({
@@ -593,6 +595,7 @@
       const [showCart,       setShowCart]       = useState(false);
       const [showCheckout,   setShowCheckout]   = useState(false);
       const [showTracker,    setShowTracker]    = useState(null);
+      const [showRiderMap,   setShowRiderMap]   = useState(null);
       const [zone,           setZone]           = useState(0);
       const [name,           setName]           = useState("");
       const [phone,          setPhone]          = useState("");
@@ -1186,10 +1189,29 @@
                     </div>
                   );
                 })}
+
+                {/* Track Rider Button */}
+                {(liveOrder.status === "buying" || liveOrder.status === "otw") && (
+                  <button onClick={() => { setShowTracker(null); setShowRiderMap(liveOrder); }} style={{
+                    width:"100%", marginTop:18, padding:"14px", borderRadius:14,
+                    background:"linear-gradient(135deg,#1D4ED8,#3B82F6)",
+                    color:"#fff", fontSize:14, fontWeight:800,
+                    display:"flex", alignItems:"center", justifyContent:"center", gap:8,
+                    boxShadow:"0 4px 16px rgba(29,78,216,.35)",
+                  }}>
+                    <Ic n="location-dot" /> Nasaan ang Rider?
+                    <div style={{ width:8, height:8, borderRadius:"50%", background:"#4ADE80", boxShadow:"0 0 6px #4ADE80", marginLeft:4 }} />
+                  </button>
+                )}
               </div>
             </div>
             );
           })()}
+
+          {/* ── Rider Map Modal ── */}
+          {showRiderMap && (
+            <RiderMapModal order={showRiderMap} onClose={() => setShowRiderMap(null)} />
+          )}
 
           {/* ── Success Toast ── */}
           {orderPlaced && (
@@ -1207,7 +1229,7 @@
 
           {/* ── ORDERS PAGE ── */}
           {activePage === "orders" && (
-            <OrdersPage orders={myOrders} onTrack={setShowTracker} />
+            <OrdersPage orders={myOrders} onTrack={setShowTracker} onTrackRider={setShowRiderMap} />
           )}
 
           {activePage === "account" && (
@@ -1572,7 +1594,180 @@
     }
 
     /* ══════════════════ ORDERS PAGE ══════════════════ */
-    function OrdersPage({ orders, onTrack }) {
+    /* ══════════════════ RIDER MAP MODAL ══════════════════ */
+    function RiderMapModal({ order, onClose }) {
+      const mapRef = useRef(null);
+      const mapInstanceRef = useRef(null);
+      const riderMarkerRef = useRef(null);
+      const [riderLoc, setRiderLoc] = useState(null);
+      const [lastUpdate, setLastUpdate] = useState(null);
+
+      // Binangonan center as default
+      const BINANG_CENTER = [14.4584, 121.1971];
+
+      useEffect(() => {
+        if (!order?.riderId) return;
+        const locRef = _fbDb.ref("rider_locations/" + order.riderId);
+        locRef.on("value", snap => {
+          const val = snap.val();
+          if (val && val.lat && val.lng) {
+            setRiderLoc(val);
+            setLastUpdate(val.updatedAt);
+          }
+        });
+        return () => locRef.off();
+      }, [order?.riderId]);
+
+      useEffect(() => {
+        if (!mapRef.current || mapInstanceRef.current) return;
+
+        const map = L.map(mapRef.current, {
+          center: BINANG_CENTER,
+          zoom: 15,
+          zoomControl: false,
+        });
+        L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
+          attribution: '&copy; OpenStreetMap',
+          maxZoom: 19,
+        }).addTo(map);
+        L.control.zoom({ position: "bottomright" }).addTo(map);
+        mapInstanceRef.current = map;
+
+        setTimeout(() => map.invalidateSize(), 200);
+
+        return () => {
+          map.remove();
+          mapInstanceRef.current = null;
+          riderMarkerRef.current = null;
+        };
+      }, []);
+
+      // Update rider marker when location changes
+      useEffect(() => {
+        const map = mapInstanceRef.current;
+        if (!map || !riderLoc) return;
+
+        const pos = [riderLoc.lat, riderLoc.lng];
+
+        if (!riderMarkerRef.current) {
+          const riderIcon = L.divIcon({
+            html: '<div style="width:42px;height:42px;border-radius:50%;background:linear-gradient(135deg,#1D4ED8,#3B82F6);display:flex;align-items:center;justify-content:center;color:#fff;font-size:20px;box-shadow:0 4px 16px rgba(29,78,216,.5);border:3px solid #fff;"><i class="fa-solid fa-motorcycle"></i></div>',
+            className: '',
+            iconSize: [42, 42],
+            iconAnchor: [21, 21],
+          });
+          riderMarkerRef.current = L.marker(pos, { icon: riderIcon }).addTo(map);
+          riderMarkerRef.current.bindPopup(
+            `<b>${order.riderName || "Rider"}</b><br/>Papunta sa'yo!`
+          );
+
+          // Also add a circle for accuracy
+          L.circle(pos, {
+            radius: riderLoc.accuracy || 50,
+            color: "#3B82F6",
+            fillColor: "#3B82F6",
+            fillOpacity: 0.1,
+            weight: 1,
+          }).addTo(map);
+
+          map.setView(pos, 16);
+        } else {
+          riderMarkerRef.current.setLatLng(pos);
+          map.panTo(pos);
+        }
+      }, [riderLoc]);
+
+      const secAgo = lastUpdate ? Math.round((Date.now() - lastUpdate) / 1000) : null;
+
+      return (
+        <div style={{ position:"fixed", inset:0, zIndex:400, background:"rgba(0,0,0,.7)", backdropFilter:"blur(6px)", display:"flex", flexDirection:"column" }}
+          onClick={onClose}>
+          <div onClick={e => e.stopPropagation()} style={{
+            flex:1, display:"flex", flexDirection:"column", maxWidth:480, width:"100%", margin:"0 auto",
+          }}>
+            {/* Header */}
+            <div style={{
+              background:"linear-gradient(135deg,#1D4ED8,#3B82F6)",
+              padding:"calc(env(safe-area-inset-top,0px) + 14px) 20px 14px",
+              color:"#fff", display:"flex", alignItems:"center", justifyContent:"space-between",
+            }}>
+              <div>
+                <div style={{ fontSize:16, fontWeight:800, display:"flex", alignItems:"center", gap:8 }}>
+                  <Ic n="location-dot" /> Nasaan ang Rider?
+                </div>
+                {order.riderName && (
+                  <div style={{ fontSize:12, opacity:.8, marginTop:3, display:"flex", alignItems:"center", gap:6 }}>
+                    {order.riderPhoto && <img src={order.riderPhoto} style={{ width:18, height:18, borderRadius:"50%", objectFit:"cover" }} />}
+                    <Ic n="motorcycle" style={{marginRight:2}} />{order.riderName}
+                  </div>
+                )}
+              </div>
+              <button onClick={onClose} style={{ width:34, height:34, borderRadius:10, background:"rgba(255,255,255,.2)", color:"#fff", fontSize:16, display:"flex", alignItems:"center", justifyContent:"center" }}>
+                <Ic n="xmark" />
+              </button>
+            </div>
+
+            {/* Status bar */}
+            <div style={{
+              background:"#fff", padding:"10px 20px", borderBottom:"1px solid #E5E7EB",
+              display:"flex", alignItems:"center", justifyContent:"space-between",
+            }}>
+              {riderLoc ? (
+                <>
+                  <div style={{ display:"flex", alignItems:"center", gap:8 }}>
+                    <div style={{ width:10, height:10, borderRadius:"50%", background:"#22C55E", boxShadow:"0 0 8px #22C55E" }} />
+                    <span style={{ fontSize:13, fontWeight:700, color:"#166534" }}>Live Tracking</span>
+                  </div>
+                  <span style={{ fontSize:11, color:"#888" }}>
+                    {secAgo != null && secAgo < 60
+                      ? `${secAgo}s ago`
+                      : secAgo != null
+                        ? `${Math.round(secAgo/60)}m ago`
+                        : ""}
+                  </span>
+                </>
+              ) : (
+                <>
+                  <div style={{ display:"flex", alignItems:"center", gap:8 }}>
+                    <Ic n="satellite-dish" className="pulse" style={{ color:"#F59E0B" }} />
+                    <span style={{ fontSize:13, fontWeight:600, color:"#92400E" }}>
+                      {order.riderId ? "Hinihintay ang GPS ng rider..." : "Wala pang rider na nag-accept"}
+                    </span>
+                  </div>
+                </>
+              )}
+            </div>
+
+            {/* Map */}
+            <div ref={mapRef} style={{ flex:1, minHeight:300, background:"#E5E7EB" }} />
+
+            {/* Footer */}
+            <div style={{
+              background:"#fff", padding:"14px 20px", paddingBottom:"calc(env(safe-area-inset-bottom,0px) + 14px)",
+              borderTop:"1px solid #E5E7EB",
+            }}>
+              <div style={{ display:"flex", alignItems:"center", gap:10 }}>
+                <div style={{
+                  width:40, height:40, borderRadius:12, flexShrink:0,
+                  background: order.status==="otw" ? "#DBEAFE" : "#FEF3C7",
+                  display:"flex", alignItems:"center", justifyContent:"center",
+                }}>
+                  <Ic n={order.status==="otw"?"motorcycle":"cart-shopping"} style={{ color: order.status==="otw"?"#1D4ED8":"#92400E" }} />
+                </div>
+                <div style={{ flex:1 }}>
+                  <div style={{ fontSize:14, fontWeight:800, color:"#111" }}>
+                    {order.status==="otw" ? "Papunta na sa'yo!" : order.status==="buying" ? "Binibili pa sa palengke" : ORDER_STATUSES.find(s=>s.key===order.status)?.desc}
+                  </div>
+                  <div style={{ fontSize:12, color:"#888", marginTop:1 }}>{order.customer?.address}</div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      );
+    }
+
+    function OrdersPage({ orders, onTrack, onTrackRider }) {
       const active    = orders.filter(o => o.status !== "delivered");
       const completed = orders.filter(o => o.status === "delivered");
 
@@ -1587,54 +1782,73 @@
         const st = ST_COLOR[o.status] || ST_COLOR.pending;
         const ts = o.createdAt ? (o.createdAt.toDate ? o.createdAt.toDate() : new Date(o.createdAt)) : new Date();
         const idx = ORDER_STATUSES.findIndex(s => s.key === o.status);
+        const canTrackRider = o.status === "buying" || o.status === "otw";
         return (
-          <button onClick={() => onTrack(o)} style={{
-            width:"100%", textAlign:"left", background:"#fff", borderRadius:18,
-            padding:"16px", marginBottom:12, border:"1px solid #F0F0F0",
-            boxShadow:"0 2px 8px rgba(0,0,0,.05)", display:"block",
-          }}>
-            {/* Top row */}
-            <div style={{ display:"flex", justifyContent:"space-between", alignItems:"flex-start", marginBottom:12 }}>
-              <div style={{ flex:1, marginRight:12 }}>
-                <div style={{ fontSize:13, fontWeight:800, color:"#111", overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>
-                  {o.items?.map(i=>i.name).join(", ") || "—"}
+          <div style={{ marginBottom:12 }}>
+            <button onClick={() => onTrack(o)} style={{
+              width:"100%", textAlign:"left", background:"#fff",
+              borderRadius: canTrackRider ? "18px 18px 0 0" : 18,
+              padding:"16px", border:"1px solid #F0F0F0",
+              borderBottom: canTrackRider ? "none" : undefined,
+              boxShadow: canTrackRider ? "none" : "0 2px 8px rgba(0,0,0,.05)", display:"block",
+            }}>
+              {/* Top row */}
+              <div style={{ display:"flex", justifyContent:"space-between", alignItems:"flex-start", marginBottom:12 }}>
+                <div style={{ flex:1, marginRight:12 }}>
+                  <div style={{ fontSize:13, fontWeight:800, color:"#111", overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>
+                    {o.items?.map(i=>i.name).join(", ") || "—"}
+                  </div>
+                  <div style={{ fontSize:11, color:"#aaa", marginTop:2 }}>
+                    {ts.toLocaleDateString("en-PH")} {ts.toLocaleTimeString("en-PH",{hour:"2-digit",minute:"2-digit"})}
+                  </div>
                 </div>
-                <div style={{ fontSize:11, color:"#aaa", marginTop:2 }}>
-                  {ts.toLocaleDateString("en-PH")} {ts.toLocaleTimeString("en-PH",{hour:"2-digit",minute:"2-digit"})}
+                <div style={{ padding:"5px 12px", borderRadius:20, fontSize:12, fontWeight:700, whiteSpace:"nowrap", background:st.bg, color:st.color, display:"flex", alignItems:"center", gap:5 }}>
+                  <Ic n={st.icon} />{st.label}
                 </div>
               </div>
-              <div style={{ padding:"5px 12px", borderRadius:20, fontSize:12, fontWeight:700, whiteSpace:"nowrap", background:st.bg, color:st.color, display:"flex", alignItems:"center", gap:5 }}>
-                <Ic n={st.icon} />{st.label}
+
+              {/* Progress bar */}
+              <div style={{ display:"flex", gap:4, marginBottom:12 }}>
+                {ORDER_STATUSES.map((s, i) => (
+                  <div key={s.key} style={{
+                    flex:1, height:4, borderRadius:4,
+                    background: i <= idx ? "#22C55E" : "#E5E7EB",
+                    transition:"background .3s",
+                  }} />
+                ))}
               </div>
-            </div>
 
-            {/* Progress bar */}
-            <div style={{ display:"flex", gap:4, marginBottom:12 }}>
-              {ORDER_STATUSES.map((s, i) => (
-                <div key={s.key} style={{
-                  flex:1, height:4, borderRadius:4,
-                  background: i <= idx ? "#22C55E" : "#E5E7EB",
-                  transition:"background .3s",
-                }} />
-              ))}
-            </div>
+              {/* Steps */}
+              <div style={{ display:"flex", justifyContent:"space-between" }}>
+                {ORDER_STATUSES.map((s, i) => (
+                  <div key={s.key} style={{ textAlign:"center", flex:1 }}>
+                    <div style={{ fontSize:16, opacity: i <= idx ? 1 : 0.25 }}><Ic n={s.icon} /></div>
+                    <div style={{ fontSize:9, fontWeight:700, color: i <= idx ? "#166534" : "#ccc", marginTop:2 }}>{s.label}</div>
+                  </div>
+                ))}
+              </div>
 
-            {/* Steps */}
-            <div style={{ display:"flex", justifyContent:"space-between" }}>
-              {ORDER_STATUSES.map((s, i) => (
-                <div key={s.key} style={{ textAlign:"center", flex:1 }}>
-                  <div style={{ fontSize:16, opacity: i <= idx ? 1 : 0.25 }}><Ic n={s.icon} /></div>
-                  <div style={{ fontSize:9, fontWeight:700, color: i <= idx ? "#166534" : "#ccc", marginTop:2 }}>{s.label}</div>
-                </div>
-              ))}
-            </div>
+              {/* Footer */}
+              <div style={{ marginTop:12, paddingTop:10, borderTop:"1px dashed #E5E7EB", display:"flex", justifyContent:"space-between", alignItems:"center" }}>
+                <div style={{ fontSize:12, color:"#888" }}>{o.customer?.address}</div>
+                <div style={{ fontSize:14, fontWeight:800, color:"#166534" }}>~{fmt(o.total)}</div>
+              </div>
+            </button>
 
-            {/* Footer */}
-            <div style={{ marginTop:12, paddingTop:10, borderTop:"1px dashed #E5E7EB", display:"flex", justifyContent:"space-between", alignItems:"center" }}>
-              <div style={{ fontSize:12, color:"#888" }}>{o.customer?.address}</div>
-              <div style={{ fontSize:14, fontWeight:800, color:"#166534" }}>~{fmt(o.total)}</div>
-            </div>
-          </button>
+            {/* Track Rider button */}
+            {canTrackRider && (
+              <button onClick={() => onTrackRider(o)} style={{
+                width:"100%", padding:"12px", borderRadius:"0 0 18px 18px",
+                background:"linear-gradient(135deg,#1D4ED8,#3B82F6)", color:"#fff",
+                fontSize:13, fontWeight:800, display:"flex", alignItems:"center", justifyContent:"center", gap:8,
+                boxShadow:"0 2px 8px rgba(29,78,216,.25)",
+              }}>
+                <Ic n="location-dot" />
+                Nasaan ang Rider?
+                <div style={{ width:8, height:8, borderRadius:"50%", background:"#4ADE80", boxShadow:"0 0 6px #4ADE80" }} />
+              </button>
+            )}
+          </div>
         );
       };
 
