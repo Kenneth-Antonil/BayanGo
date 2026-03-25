@@ -627,14 +627,21 @@
           if (isRealDoc) await onUpdate(editProd.id, data);
           else           await onAdd(data);
           closeModal();
+        } catch (err) {
+          alert("Hindi ma-save ang produkto:\n" + (err.message || err.code || "Unknown error"));
         } finally { setSaving(false); }
       };
 
       const handleDelete = async () => {
         if (!delProd || delBusy) return;
+        if (typeof delProd.id !== "string") {
+          alert("Hindi ma-delete ang default na produkto.\n\nI-edit at i-save muna para ma-add sa database, tapos pwede nang i-delete.");
+          setDelProd(null);
+          return;
+        }
         setDelBusy(true);
         try {
-          if (typeof delProd.id === "string") await onDelete(delProd.id);
+          await onDelete(delProd.id);
           setDelProd(null);
         } catch (err) {
           alert("Hindi ma-delete: " + (err.message || err.code || "unknown error"));
