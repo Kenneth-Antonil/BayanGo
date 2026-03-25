@@ -696,21 +696,21 @@
       const activeOrders = myOrders.filter(o => o.status !== "delivered");
 
       return (
-        <div style={{ maxWidth:480, margin:"0 auto", paddingBottom:80, background:"#F8FAF8", minHeight:"100vh", paddingTop:"calc(56px + env(safe-area-inset-top,0px))" }}>
+        <div style={{ maxWidth:480, margin:"0 auto", paddingBottom:80, background:"#F8FAF8", minHeight:"100vh", paddingTop:"calc(60px + env(safe-area-inset-top,0px))" }}>
 
           {/* ── Slim Header ── */}
           <div style={{
             position:"fixed", top:0, left:0, right:0, zIndex:200,
             maxWidth:480, margin:"0 auto",
-            background:"#fff",
-            borderBottom:"1px solid #F0F0F0",
+            background:"linear-gradient(180deg, #166534 0%, #14532D 100%)",
+            borderBottom:"1px solid rgba(255,255,255,.14)",
             paddingTop:"env(safe-area-inset-top,0px)",
             paddingLeft:16, paddingRight:16,
             display:"flex", alignItems:"center", justifyContent:"space-between",
-            height:"calc(56px + env(safe-area-inset-top,0px))",
-            boxShadow:"0 1px 8px rgba(0,0,0,.07)",
+            height:"calc(60px + env(safe-area-inset-top,0px))",
+            boxShadow:"0 4px 14px rgba(22,101,52,.28)",
           }}>
-            <img src="https://i.imgur.com/MfhVlCm.png" style={{ height:34, objectFit:"contain" }} />
+            <img src="https://i.imgur.com/tMk73Mg.png" style={{ height:40, objectFit:"contain" }} />
             <button onClick={() => setActivePage("account")} style={{
               width:38, height:38, borderRadius:"50%", overflow:"hidden",
               border: activePage==="account" ? "2.5px solid #166534" : "2.5px solid #E5E7EB",
