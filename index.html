@@ -340,6 +340,7 @@
 
       useEffect(() => {
         let unsubAuth, unsubOrders, unsubProducts;
+        let usingOrdersFallback = false;
         const timeout = setTimeout(() => setLoading(false), 8000);
         try {
           // Listen for products realtime — public, no auth required
@@ -358,16 +359,40 @@
             setLoading(false);
 
             // Clean up previous order listener
-            if (unsubOrders) { _fbDb.ref("orders").off(); unsubOrders = null; }
+            if (unsubOrders) {
+              _fbDb.ref("orders").off();
+              unsubOrders = null;
+            }
+            usingOrdersFallback = false;
 
             if (currentUser && _fbDb) {
               // Listen for this user's orders in RTDB
-              const ordersRef = _fbDb.ref("orders").orderByChild("uid").equalTo(currentUser.uid);
-              unsubOrders = ordersRef.on("value", snap => {
+              const mapAndSort = (snap) => {
                 const list = [];
-                snap.forEach(child => list.push({ id: child.key, ...child.val() }));
-                setOrders(list.reverse()); // newest first
-              }, err => console.error("Orders listener error:", err.code));
+                snap.forEach(child => {
+                  const order = { id: child.key, ...child.val() };
+                  const ownerUid = order?.uid || order?.userId || null;
+                  if (usingOrdersFallback) {
+                    if (ownerUid === currentUser.uid) list.push(order);
+                  } else {
+                    list.push(order);
+                  }
+                });
+                setOrders(list.sort((a,b) => (b?.createdAt || 0) - (a?.createdAt || 0))); // newest first
+              };
+
+              const ordersQueryRef = _fbDb.ref("orders").orderByChild("uid").equalTo(currentUser.uid);
+              const ordersPlainRef = _fbDb.ref("orders");
+
+              unsubOrders = ordersQueryRef.on("value", mapAndSort, err => {
+                console.error("Orders listener error:", err.code);
+                if (usingOrdersFallback) return;
+                usingOrdersFallback = true;
+                _fbDb.ref("orders").off();
+                unsubOrders = ordersPlainRef.on("value", mapAndSort, fullErr => {
+                  console.error("Orders fallback listener error:", fullErr.code);
+                });
+              });
             } else {
               setOrders([]);
             }
@@ -395,6 +420,8 @@
           await _fbDb.ref("orders").push({
             ...order,
             uid,
+            userId: uid,
+            userEmail: _fbAuth.currentUser?.email || null,
             status: order?.status || "pending",
             createdAt: order?.createdAt || Date.now(),
           });
