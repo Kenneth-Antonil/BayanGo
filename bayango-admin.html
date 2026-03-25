@@ -74,6 +74,13 @@
 
     const SERVICE_FEE = 20;
     const fmt = n => "₱" + Number(n).toLocaleString("en-PH", { minimumFractionDigits:0 });
+    const isImageSrc = (value) =>
+      typeof value === "string" &&
+      /^(https?:\/\/|blob:|data:image\/)/i.test(value);
+    const orderItemImage = (item) => {
+      const possible = [item?.img, item?.image, item?.imageUrl, item?.photo, item?.photoURL];
+      return possible.find(isImageSrc) || "";
+    };
 
     /* ══════════════════ FIREBASE INIT (AUTH + FIRESTORE) ══════════════════ */
     const FIREBASE_CONFIG = {
@@ -507,11 +514,24 @@
                   </div>
 
                   {/* Items preview */}
-                  <div style={{ fontSize:12, color:"#555", marginBottom:10, lineHeight:1.6 }}>
-                    {regularItems.map(i => `${i.img||""} ${i.name} ×${i.qty}`).join(" • ")}
+                  <div style={{ marginBottom:10 }}>
+                    <div style={{ display:"flex", flexWrap:"wrap", gap:8 }}>
+                      {regularItems.map(i => {
+                        const imgSrc = orderItemImage(i);
+                        return (
+                          <div key={i.id || `${i.name}-${i.qty}`} style={{ display:"inline-flex", alignItems:"center", gap:6, padding:"4px 8px", borderRadius:999, background:"#F8FAFC", border:"1px solid #E2E8F0", fontSize:12, color:"#475569" }}>
+                            {imgSrc
+                              ? <img src={imgSrc} alt={i.name} style={{ width:22, height:22, borderRadius:6, objectFit:"cover", border:"1px solid #E5E7EB" }} />
+                              : <Ic n="bag-shopping" style={{ color:"#94A3B8" }} />
+                            }
+                            <span>{i.name} ×{i.qty}</span>
+                          </div>
+                        );
+                      })}
+                    </div>
                     {customItems.length > 0 && (
-                      <span style={{ color:"#166534", fontWeight:700 }}>
-                        {regularItems.length > 0 ? " • " : ""}<Ic n="note-sticky" style={{ marginRight:4 }} />{customItems.map(i=>i.name).join(", ")} <span style={{ fontSize:10, background:"#F0FDF4", padding:"1px 6px", borderRadius:4 }}>custom</span>
+                      <span style={{ color:"#166534", fontWeight:700, fontSize:12, display:"inline-block", marginTop:8 }}>
+                        <Ic n="note-sticky" style={{ marginRight:4 }} />{customItems.map(i=>i.name).join(", ")} <span style={{ fontSize:10, background:"#F0FDF4", padding:"1px 6px", borderRadius:4 }}>custom</span>
                       </span>
                     )}
                   </div>
@@ -593,8 +613,14 @@
                 <div style={{ background:"#F9FAFB", borderRadius:14, padding:"14px 16px", marginBottom:14, border:"1px solid #E5E7EB" }}>
                   <div style={{ fontSize:12, fontWeight:700, color:"#888", marginBottom:10 }}>ITEMS</div>
                   {selected.items?.filter(i => !i.isCustom).map(i => (
-                    <div key={i.id} style={{ display:"flex", justifyContent:"space-between", padding:"5px 0", fontSize:13, color:"#555", borderBottom:"1px solid #F0F0F0" }}>
-                      <span>{i.img} {i.name} ×{i.qty}</span>
+                    <div key={i.id} style={{ display:"flex", justifyContent:"space-between", padding:"5px 0", fontSize:13, color:"#555", borderBottom:"1px solid #F0F0F0", gap:10 }}>
+                      <span style={{ display:"inline-flex", alignItems:"center", gap:7 }}>
+                        {orderItemImage(i)
+                          ? <img src={orderItemImage(i)} alt={i.name} style={{ width:24, height:24, borderRadius:6, objectFit:"cover", border:"1px solid #E5E7EB" }} />
+                          : <Ic n="bag-shopping" style={{ color:"#94A3B8" }} />
+                        }
+                        {i.name} ×{i.qty}
+                      </span>
                       <span style={{ fontWeight:700 }}>{fmt(i.price * i.qty)}</span>
                     </div>
                   ))}
