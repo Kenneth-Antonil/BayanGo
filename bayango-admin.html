@@ -806,10 +806,11 @@
           await st.uploadBytes(storageRef, file);
           setImg(await st.getDownloadURL(storageRef));
         } catch (err) {
-          alert("Upload error: " + err.message);
+          alert("Upload error: " + (err.message || err.code || "unknown error"));
+        } finally {
+          setUploading(false);
+          try { e.target.value = ""; } catch(_) {}
         }
-        setUploading(false);
-        e.target.value = "";
       };
 
       const handleSubmit = () => {
