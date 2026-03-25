@@ -621,7 +621,7 @@
             <span style={{opacity:0.9}}>Hello, {user.displayName || user.email.split('@')[0]}</span>
             <button onClick={handleLogout} style={{ color:"#BBF7D0", textDecoration:"underline", fontSize:12, fontWeight:700 }}>Log Out</button>
           </div>
-          <UserApp products={products} orders={orders} onOrder={addOrder} />
+          <UserApp products={products} orders={orders} onOrder={addOrder} user={user} onLogout={handleLogout} />
           <InstallBanner />
           {syncError && (
             <div className="pop" style={{
@@ -643,7 +643,7 @@
     }
 
     /* ══════════════════ USER APP ══════════════════ */
-    function UserApp({ products, orders, onOrder }) {
+    function UserApp({ products, orders, onOrder, user, onLogout }) {
       const [activeCat,      setActiveCat]      = useState("isda");
       const [cart,           setCart]           = useState({});
       const [showCart,       setShowCart]       = useState(false);
@@ -1248,6 +1248,11 @@
             <OrdersPage orders={myOrders} onTrack={setShowTracker} />
           )}
 
+          {activePage === "account" && (
+            <AccountPage user={user} orders={myOrders} name={name} phone={phone} addr={addr}
+              setName={setName} setPhone={setPhone} setAddr={setAddr} onLogout={onLogout} />
+          )}
+
           {/* ── Bottom Nav ── */}
           <div style={{
             position:"fixed", bottom:0, left:0, right:0,
@@ -1257,8 +1262,9 @@
             boxShadow:"0 -4px 20px rgba(0,0,0,.07)", zIndex:150,
           }}>
             {[
-              { key:"shop",   icon:"cart-shopping", label:"Tindahan" },
-              { key:"orders", icon:"box",            label:"Orders", badge: activeOrders.length },
+              { key:"shop",    icon:"cart-shopping", label:"Tindahan" },
+              { key:"orders",  icon:"box",           label:"Orders", badge: activeOrders.length },
+              { key:"account", icon:"circle-user",   label:"Account" },
             ].map(t => (
               <button key={t.key} onClick={() => setActivePage(t.key)} style={{
                 flex:1, padding:"11px 0 9px", display:"flex", flexDirection:"column", alignItems:"center", gap:3,
@@ -1279,6 +1285,274 @@
             ))}
           </div>
 
+        </div>
+      );
+    }
+
+    /* ══════════════════ ACCOUNT PAGE ══════════════════ */
+    function AccountPage({ user, orders, name, phone, addr, setName, setPhone, setAddr, onLogout }) {
+      const [editMode,      setEditMode]      = useState(false);
+      const [localName,     setLocalName]     = useState(name);
+      const [localPhone,    setLocalPhone]    = useState(phone);
+      const [localAddr,     setLocalAddr]     = useState(addr);
+      const [activeSection, setActiveSection] = useState("info"); // info | history | support
+      const [ticketSubject, setTicketSubject] = useState("");
+      const [ticketMsg,     setTicketMsg]     = useState("");
+      const [ticketSending, setTicketSending] = useState(false);
+      const [ticketSent,    setTicketSent]    = useState(false);
+
+      const saveProfile = () => {
+        setName(localName); localStorage.setItem("bayango_customer_name", localName);
+        setPhone(localPhone); localStorage.setItem("bayango_customer_phone", localPhone);
+        setAddr(localAddr); localStorage.setItem("bayango_customer_addr", localAddr);
+        setEditMode(false);
+      };
+
+      const sendTicket = async () => {
+        if (!ticketSubject.trim() || !ticketMsg.trim()) return;
+        setTicketSending(true);
+        try {
+          await _fbDb.collection("support_tickets").add({
+            uid:       user?.uid || null,
+            name:      name || user?.displayName || user?.email || "Anonymous",
+            email:     user?.email || null,
+            phone:     phone || null,
+            subject:   ticketSubject.trim(),
+            message:   ticketMsg.trim(),
+            status:    "open",
+            createdAt: firebase.firestore.FieldValue.serverTimestamp(),
+          });
+          setTicketSent(true);
+          setTicketSubject(""); setTicketMsg("");
+          setTimeout(() => setTicketSent(false), 5000);
+        } catch (err) {
+          alert("Hindi ma-send ang ticket: " + (err.message || err.code));
+        } finally {
+          setTicketSending(false);
+        }
+      };
+
+      const initials = (user?.displayName || user?.email || "?")
+        .split(" ").map(w => w[0]).join("").toUpperCase().slice(0,2);
+
+      const deliveredOrders = orders.filter(o => o.status === "delivered");
+      const activeOrders    = orders.filter(o => o.status !== "delivered");
+
+      const ST_COLOR = {
+        pending:   { bg:"#F3F4F6", color:"#555",    label:"Pending",   icon:"hourglass-half" },
+        buying:    { bg:"#FEF3C7", color:"#92400E",  label:"Buying",    icon:"cart-shopping"  },
+        otw:       { bg:"#DBEAFE", color:"#1D4ED8",  label:"OTW",       icon:"motorcycle"     },
+        delivered: { bg:"#DCFCE7", color:"#166534",  label:"Delivered", icon:"circle-check"   },
+      };
+
+      const SECTIONS = [
+        { key:"info",    label:"Profile",  icon:"user" },
+        { key:"history", label:"Kasaysayan", icon:"clock-rotate-left" },
+        { key:"support", label:"Support",  icon:"headset" },
+      ];
+
+      return (
+        <div style={{ paddingBottom:90 }}>
+          {/* Header */}
+          <div style={{
+            background:"linear-gradient(145deg,#0D5C2E,#166534)",
+            padding:"env(safe-area-inset-top,0px) 24px 28px",
+            paddingTop:"calc(env(safe-area-inset-top,0px) + 28px)",
+            color:"#fff",
+          }}>
+            <div style={{ fontSize:11, opacity:.7, letterSpacing:".1em", textTransform:"uppercase", marginBottom:16 }}>BayanGo</div>
+            <div style={{ display:"flex", alignItems:"center", gap:16 }}>
+              {user?.photoURL
+                ? <img src={user.photoURL} style={{ width:64, height:64, borderRadius:"50%", border:"3px solid rgba(255,255,255,.3)" }} />
+                : <div style={{ width:64, height:64, borderRadius:"50%", background:"rgba(255,255,255,.2)", display:"flex", alignItems:"center", justifyContent:"center", fontSize:22, fontWeight:800, border:"3px solid rgba(255,255,255,.3)" }}>{initials}</div>
+              }
+              <div>
+                <div style={{ fontSize:20, fontWeight:800, letterSpacing:"-.01em" }}>{name || user?.displayName || "BayanGo User"}</div>
+                <div style={{ fontSize:12, opacity:.75, marginTop:2 }}>{user?.email}</div>
+                <div style={{ fontSize:11, opacity:.6, marginTop:4 }}>
+                  <Ic n="box" style={{marginRight:4}} />{orders.length} orders · <Ic n="circle-check" style={{marginLeft:4, marginRight:4}} />{deliveredOrders.length} delivered
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Section Tabs */}
+          <div style={{ display:"flex", background:"#fff", borderBottom:"1px solid #E5E7EB", padding:"0 16px" }}>
+            {SECTIONS.map(s => (
+              <button key={s.key} onClick={() => setActiveSection(s.key)} style={{
+                flex:1, padding:"13px 4px", fontSize:12, fontWeight:700,
+                color: activeSection===s.key ? "#166534" : "#94A3B8",
+                borderBottom: activeSection===s.key ? "3px solid #22C55E" : "3px solid transparent",
+                display:"flex", alignItems:"center", justifyContent:"center", gap:5,
+              }}>
+                <Ic n={s.icon} size={13} />{s.label}
+              </button>
+            ))}
+          </div>
+
+          <div style={{ padding:"20px 20px 0" }}>
+
+            {/* ── Profile Info ── */}
+            {activeSection === "info" && (
+              <div>
+                <div style={{ background:"#fff", borderRadius:18, padding:20, boxShadow:"0 2px 8px rgba(0,0,0,.05)", border:"1px solid #F0F0F0", marginBottom:16 }}>
+                  <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:16 }}>
+                    <span style={{ fontSize:14, fontWeight:800, color:"#111" }}><Ic n="user" style={{marginRight:8, color:"#166534"}} />Aking Impormasyon</span>
+                    {!editMode && (
+                      <button onClick={() => { setLocalName(name); setLocalPhone(phone); setLocalAddr(addr); setEditMode(true); }} style={{ fontSize:12, fontWeight:700, color:"#166534", display:"flex", alignItems:"center", gap:5 }}>
+                        <Ic n="pen-to-square" />I-edit
+                      </button>
+                    )}
+                  </div>
+
+                  {[
+                    { icon:"envelope",       label:"Email",        val: user?.email,  editable:false },
+                    { icon:"user",           label:"Pangalan",     val: editMode ? null : (name||"—"),  editable:true, state: localName,  set: setLocalName,  placeholder:"Ilagay ang iyong pangalan" },
+                    { icon:"phone",          label:"Telepono",     val: editMode ? null : (phone||"—"), editable:true, state: localPhone, set: setLocalPhone, placeholder:"09XXXXXXXXX" },
+                    { icon:"location-dot",   label:"Address",      val: editMode ? null : (addr||"—"),  editable:true, state: localAddr,  set: setLocalAddr,  placeholder:"Bahay, Barangay, Lungsod" },
+                  ].map(f => (
+                    <div key={f.label} style={{ display:"flex", alignItems: editMode && f.editable ? "flex-start" : "center", gap:12, padding:"10px 0", borderBottom:"1px solid #F8F8F8" }}>
+                      <div style={{ width:32, height:32, borderRadius:10, background:"#F0FDF4", display:"flex", alignItems:"center", justifyContent:"center", flexShrink:0 }}>
+                        <Ic n={f.icon} size={13} style={{ color:"#166534" }} />
+                      </div>
+                      <div style={{ flex:1 }}>
+                        <div style={{ fontSize:10, color:"#aaa", fontWeight:600, textTransform:"uppercase", letterSpacing:".06em", marginBottom:2 }}>{f.label}</div>
+                        {editMode && f.editable
+                          ? <input value={f.state} onChange={e=>f.set(e.target.value)} placeholder={f.placeholder} style={{ width:"100%", fontSize:14, fontWeight:600, color:"#111", border:"1px solid #D1FAE5", borderRadius:8, padding:"6px 10px", outline:"none", background:"#F0FDF4", boxSizing:"border-box" }} />
+                          : <div style={{ fontSize:14, fontWeight:600, color:"#111" }}>{f.val}</div>
+                        }
+                      </div>
+                    </div>
+                  ))}
+
+                  {editMode && (
+                    <div style={{ display:"flex", gap:10, marginTop:16 }}>
+                      <button onClick={() => setEditMode(false)} style={{ flex:1, padding:"11px 0", borderRadius:12, background:"#F3F4F6", fontSize:13, fontWeight:700, color:"#555" }}>Kanselahin</button>
+                      <button onClick={saveProfile} style={{ flex:2, padding:"11px 0", borderRadius:12, background:"linear-gradient(135deg,#166534,#22C55E)", fontSize:13, fontWeight:700, color:"#fff", boxShadow:"0 3px 12px rgba(22,101,52,.3)" }}>
+                        <Ic n="floppy-disk" style={{marginRight:6}} />I-save ang Profile
+                      </button>
+                    </div>
+                  )}
+                </div>
+
+                <button onClick={onLogout} style={{ width:"100%", padding:"13px 0", borderRadius:14, background:"#FEF2F2", fontSize:13, fontWeight:700, color:"#EF4444", display:"flex", alignItems:"center", justifyContent:"center", gap:8 }}>
+                  <Ic n="right-from-bracket" />Mag-Log Out
+                </button>
+              </div>
+            )}
+
+            {/* ── Order History ── */}
+            {activeSection === "history" && (
+              <div>
+                {orders.length === 0 ? (
+                  <div style={{ textAlign:"center", padding:"60px 0", color:"#ccc" }}>
+                    <Ic n="box-open" size={48} style={{ color:"#ddd", marginBottom:12, display:"block" }} />
+                    <div style={{ fontSize:15, fontWeight:700, color:"#555" }}>Wala pang orders</div>
+                    <div style={{ fontSize:13, color:"#aaa", marginTop:6 }}>Pumunta sa Tindahan para mag-order!</div>
+                  </div>
+                ) : (
+                  <>
+                    {activeOrders.length > 0 && (
+                      <>
+                        <div style={{ fontSize:11, fontWeight:700, color:"#EF4444", marginBottom:10, textTransform:"uppercase", letterSpacing:".08em" }}>
+                          <Ic n="circle" style={{marginRight:4}} />Active ({activeOrders.length})
+                        </div>
+                        {activeOrders.map(o => {
+                          const st = ST_COLOR[o.status] || ST_COLOR.pending;
+                          const ts = o.createdAt ? (o.createdAt.toDate ? o.createdAt.toDate() : new Date(o.createdAt)) : new Date();
+                          return (
+                            <div key={o.id} style={{ background:"#fff", borderRadius:16, padding:16, marginBottom:10, border:"1px solid #F0F0F0", boxShadow:"0 2px 8px rgba(0,0,0,.05)" }}>
+                              <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:8 }}>
+                                <div style={{ fontSize:13, fontWeight:800, color:"#111", flex:1, overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap", marginRight:10 }}>{o.items?.map(i=>i.name).join(", ")||"—"}</div>
+                                <div style={{ padding:"4px 10px", borderRadius:20, fontSize:11, fontWeight:700, background:st.bg, color:st.color, display:"flex", alignItems:"center", gap:4, whiteSpace:"nowrap" }}><Ic n={st.icon} />{st.label}</div>
+                              </div>
+                              <div style={{ display:"flex", justifyContent:"space-between", fontSize:12, color:"#aaa" }}>
+                                <span>{ts.toLocaleDateString("en-PH")} {ts.toLocaleTimeString("en-PH",{hour:"2-digit",minute:"2-digit"})}</span>
+                                <span style={{ fontWeight:700, color:"#166534" }}>~{fmt(o.total)}</span>
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </>
+                    )}
+                    {deliveredOrders.length > 0 && (
+                      <>
+                        <div style={{ fontSize:11, fontWeight:700, color:"#94A3B8", margin:`${activeOrders.length>0?16:0}px 0 10px`, textTransform:"uppercase", letterSpacing:".08em" }}>
+                          <Ic n="circle-check" style={{marginRight:4}} />Nadeliver na ({deliveredOrders.length})
+                        </div>
+                        {deliveredOrders.map(o => {
+                          const ts = o.createdAt ? (o.createdAt.toDate ? o.createdAt.toDate() : new Date(o.createdAt)) : new Date();
+                          return (
+                            <div key={o.id} style={{ background:"#fff", borderRadius:16, padding:16, marginBottom:10, border:"1px solid #F0F0F0", boxShadow:"0 2px 8px rgba(0,0,0,.05)" }}>
+                              <div style={{ fontSize:13, fontWeight:800, color:"#111", marginBottom:6, overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>{o.items?.map(i=>i.name).join(", ")||"—"}</div>
+                              <div style={{ display:"flex", justifyContent:"space-between", fontSize:12, color:"#aaa" }}>
+                                <span>{ts.toLocaleDateString("en-PH")} {ts.toLocaleTimeString("en-PH",{hour:"2-digit",minute:"2-digit"})}</span>
+                                <span style={{ fontWeight:700, color:"#166534" }}>~{fmt(o.total)}</span>
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </>
+                    )}
+                  </>
+                )}
+              </div>
+            )}
+
+            {/* ── Contact Support ── */}
+            {activeSection === "support" && (
+              <div>
+                <div style={{ background:"linear-gradient(135deg,#EFF6FF,#DBEAFE)", borderRadius:16, padding:16, marginBottom:20, display:"flex", gap:12, alignItems:"flex-start" }}>
+                  <Ic n="circle-info" size={20} style={{ color:"#3B82F6", flexShrink:0, marginTop:2 }} />
+                  <div style={{ fontSize:13, color:"#1D4ED8", fontWeight:600 }}>May concern ka ba? I-fill out ang form at tutugon kami sa lalong madaling panahon.</div>
+                </div>
+
+                {ticketSent && (
+                  <div style={{ background:"#F0FDF4", border:"1px solid #86EFAC", borderRadius:14, padding:14, marginBottom:16, display:"flex", gap:10, alignItems:"center" }}>
+                    <Ic n="circle-check" style={{ color:"#22C55E", fontSize:20 }} />
+                    <div style={{ fontSize:13, fontWeight:700, color:"#166534" }}>Na-send na ang iyong ticket! Makikita ng admin ang iyong concern.</div>
+                  </div>
+                )}
+
+                <div style={{ background:"#fff", borderRadius:18, padding:20, boxShadow:"0 2px 8px rgba(0,0,0,.05)", border:"1px solid #F0F0F0" }}>
+                  <div style={{ fontSize:14, fontWeight:800, color:"#111", marginBottom:16 }}>
+                    <Ic n="headset" style={{ marginRight:8, color:"#166534" }} />Mag-Contact ng Support
+                  </div>
+
+                  {[
+                    { label:"Paksa ng Concern", val:ticketSubject, set:setTicketSubject, placeholder:"Hal: Hindi dumating ang order ko", tag:"input" },
+                    { label:"Detalye ng Concern", val:ticketMsg,     set:setTicketMsg,     placeholder:"Ilagay ang buong detalye ng iyong concern dito...", tag:"textarea" },
+                  ].map(f => (
+                    <div key={f.label} style={{ marginBottom:14 }}>
+                      <div style={{ fontSize:11, fontWeight:700, color:"#555", textTransform:"uppercase", letterSpacing:".06em", marginBottom:6 }}>{f.label}</div>
+                      {f.tag === "textarea"
+                        ? <textarea value={f.val} onChange={e=>f.set(e.target.value)} placeholder={f.placeholder} rows={4} style={{ width:"100%", fontSize:14, color:"#111", border:"1px solid #E5E7EB", borderRadius:10, padding:"10px 12px", outline:"none", resize:"vertical", fontFamily:"inherit", boxSizing:"border-box" }} />
+                        : <input value={f.val} onChange={e=>f.set(e.target.value)} placeholder={f.placeholder} style={{ width:"100%", fontSize:14, color:"#111", border:"1px solid #E5E7EB", borderRadius:10, padding:"10px 12px", outline:"none", boxSizing:"border-box" }} />
+                      }
+                    </div>
+                  ))}
+
+                  <button
+                    onClick={sendTicket}
+                    disabled={ticketSending || !ticketSubject.trim() || !ticketMsg.trim()}
+                    style={{
+                      width:"100%", padding:"13px 0", borderRadius:12,
+                      background: (!ticketSubject.trim() || !ticketMsg.trim()) ? "#E5E7EB" : "linear-gradient(135deg,#166534,#22C55E)",
+                      color: (!ticketSubject.trim() || !ticketMsg.trim()) ? "#aaa" : "#fff",
+                      fontSize:14, fontWeight:700,
+                      display:"flex", alignItems:"center", justifyContent:"center", gap:8,
+                      boxShadow: (!ticketSubject.trim() || !ticketMsg.trim()) ? "none" : "0 3px 12px rgba(22,101,52,.3)",
+                    }}>
+                    {ticketSending
+                      ? <><Ic n="spinner" className="spin" />Nagse-send...</>
+                      : <><Ic n="paper-plane" />Ipadala ang Ticket</>
+                    }
+                  </button>
+                </div>
+              </div>
+            )}
+
+          </div>
         </div>
       );
     }
