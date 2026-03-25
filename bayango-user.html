@@ -1,0 +1,2495 @@
+<!DOCTYPE html>
+<html lang="tl">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <title>BayanGo — Binangonan Concierge</title>
+  <meta name="description" content="Kami na ang mamamalengke para sa'yo sa Binangonan!" />
+  <meta name="theme-color" content="#166534" />
+  <meta name="mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <meta name="apple-mobile-web-app-title" content="BayanGo" />
+  <link rel="manifest" href="bayango-user-manifest.json" />
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" />
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    html, body { height: 100%; background: #F8FAF8; font-family: 'Plus Jakarta Sans', sans-serif; overscroll-behavior: none; }
+    button { font-family: inherit; cursor: pointer; border: none; background: none; }
+    input, textarea, select { font-family: inherit; }
+    ::-webkit-scrollbar { width: 4px; height: 4px; }
+    ::-webkit-scrollbar-thumb { background: #D1D5DB; border-radius: 4px; }
+    @keyframes fadeUp  { from { opacity:0; transform:translateY(14px); } to { opacity:1; transform:translateY(0); } }
+    @keyframes slideIn { from { transform:translateX(100%); } to { transform:translateX(0); } }
+    @keyframes slideUp { from { transform:translateY(100%); } to { transform:translateY(0); } }
+    @keyframes pop     { 0%{transform:scale(.85);opacity:0;} 100%{transform:scale(1);opacity:1;} }
+    @keyframes spin    { to { transform:rotate(360deg); } }
+    @keyframes pulse   { 0%,100%{opacity:1;} 50%{opacity:.45;} }
+    @keyframes ripple  { 0%{transform:scale(0);opacity:.6;} 100%{transform:scale(2.5);opacity:0;} }
+    @keyframes bannerUp { from { opacity:0; transform:translateY(100%); } to { opacity:1; transform:translateY(0); } }
+    .fade-up  { animation: fadeUp  .38s ease both; }
+    .slide-in { animation: slideIn .28s cubic-bezier(.4,0,.2,1) both; }
+    .slide-up { animation: slideUp .3s cubic-bezier(.4,0,.2,1) both; }
+    .pop      { animation: pop .25s ease both; }
+    .spin     { animation: spin 1s linear infinite; }
+    .ai-pulse { animation: pulse 1.4s ease infinite; }
+  </style>
+</head>
+<body>
+  <div id="root">
+    <div style="display:flex;flex-direction:column;align-items:center;justify-content:center;height:100vh;background:#F8FAF8;gap:14px;">
+      <img src="https://i.imgur.com/MfhVlCm.png" style="height:200px;object-fit:contain;" />
+      <div style="font-size:13px;color:#aaa;">Naglo-load...</div>
+    </div>
+  </div>
+
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.23.2/babel.min.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  <script>
+    // Init Firebase once here, outside of React/Babel
+    const _fbApp = firebase.initializeApp({
+      apiKey:            "AIzaSyC0AQ3rkH-fhxlThobjDDtrvxttAfFLXTE",
+      authDomain:        "bayango-315c6.firebaseapp.com",
+      projectId:         "bayango-315c6",
+      storageBucket:     "bayango-315c6.firebasestorage.app",
+      messagingSenderId: "199013441811",
+      appId:             "1:199013441811:web:315a38f03ddc9b676e3ae6",
+      measurementId:     "G-1EEGFZWB7E",
+      databaseURL:       "https://bayango-315c6-default-rtdb.asia-southeast1.firebasedatabase.app",
+    });
+    const _fbAuth = firebase.auth(_fbApp);
+    const _fbDb   = firebase.database(_fbApp);
+  </script>
+
+  <!-- Capture install prompt before React mounts -->
+  <script>
+    window._deferredInstallPrompt = null;
+    window.addEventListener('beforeinstallprompt', (e) => {
+      e.preventDefault();
+      window._deferredInstallPrompt = e;
+    });
+  </script>
+
+  <script type="text/babel">
+    const { useState, useEffect, useCallback, useRef } = React;
+
+    /* ══════════════════ CONSTANTS ══════════════════ */
+    const Ic = ({ n, style, size, className }) => (
+      <i className={`fa-solid fa-${n}${className ? ' '+className : ''}`} style={{ fontSize:size, lineHeight:1, ...style }} />
+    );
+
+    const CATEGORIES = [
+      { id:"isda",     label:"Isda",          icon:"fish",               color:"#0EA5E9" },
+      { id:"karne",    label:"Karne",          icon:"drumstick-bite",     color:"#EF4444" },
+      { id:"gulay",    label:"Gulay",          icon:"leaf",               color:"#22C55E" },
+      { id:"prutas",   label:"Prutas",         icon:"apple-whole",        color:"#F97316" },
+      { id:"ulam",     label:"Lutong Ulam",    icon:"bowl-food",          color:"#A855F7" },
+      { id:"sari",     label:"Sari-Sari",      icon:"store",              color:"#EC4899" },
+      { id:"gamot",    label:"Gamot",          icon:"pills",              color:"#14B8A6" },
+      { id:"hardware", label:"Hardware",       icon:"screwdriver-wrench", color:"#F59E0B" },
+    ];
+
+    const DEFAULT_PRODUCTS = [];
+
+    const ORDER_STATUSES = [
+      { key:"pending",   label:"Pending",   icon:"hourglass-half", desc:"Nai-receive na ang order mo" },
+      { key:"buying",    label:"Buying",    icon:"cart-shopping",  desc:"Binibili na sa palengke" },
+      { key:"otw",       label:"OTW",       icon:"motorcycle",     desc:"Papunta na sa'yo" },
+      { key:"delivered", label:"Delivered", icon:"circle-check",   desc:"Na-deliver na!" },
+    ];
+
+    const DELIVERY_ZONES = [
+      { label:"Bayan Area",          fee:49 },
+      { label:"Eastridge / Tayuman", fee:65 },
+      { label:"Libis / Pantok",      fee:75 },
+    ];
+
+    const fmt = n => "₱" + Number(n).toLocaleString("en-PH", { minimumFractionDigits:0 });
+    const genId = () => Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
+
+    /* ══════════════════ STORAGE HELPERS ══════════════════ */
+    // LS kept only for device-local prefs (api key, install banner)
+
+    /* ══════════════════ FIREBASE AUTH INIT ══════════════════ */
+    // _fbApp and _fbAuth are already initialized via <script> tags above
+
+    /* ══════════════════ CLAUDE API ══════════════════ */
+    function getApiKey() {
+      let key = localStorage.getItem("bayango_api_key");
+      if (!key) {
+        key = window.prompt("Ilagay ang Anthropic API Key para sa AI Recipe feature:");
+        if (key) localStorage.setItem("bayango_api_key", key.trim());
+      }
+      return key ? key.trim() : null;
+    }
+
+    async function askClaude(system, user) {
+      const apiKey = getApiKey();
+      if (!apiKey) throw new Error("Walang API key.");
+      const res = await fetch("https://api.anthropic.com/v1/messages", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "x-api-key": apiKey,
+          "anthropic-version": "2023-06-01",
+          "anthropic-dangerous-direct-browser-access": "true",
+        },
+        body: JSON.stringify({
+          model: "claude-sonnet-4-20250514",
+          max_tokens: 1000,
+          system,
+          messages: [{ role:"user", content:user }],
+        }),
+      });
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        if (res.status === 401) {
+          localStorage.removeItem("bayango_api_key");
+          throw new Error("Invalid API key. I-clear at subukan ulit.");
+        }
+        throw new Error(err?.error?.message || `HTTP ${res.status}`);
+      }
+      const data = await res.json();
+      return data.content?.map(b => b.text || "").join("") || "";
+    }
+
+    /* ══════════════════ INSTALL BANNER ══════════════════ */
+    function InstallBanner() {
+      const [visible,  setVisible]  = useState(false);
+      const [isIOS,    setIsIOS]    = useState(false);
+      const [showIOSSteps, setShowIOSSteps] = useState(false);
+      const [installed, setInstalled] = useState(false);
+
+      useEffect(() => {
+        // Don't show if already dismissed or in standalone mode
+        const dismissed = localStorage.getItem("bayango_install_dismissed");
+        const isStandalone = window.matchMedia('(display-mode: standalone)').matches
+          || window.navigator.standalone === true;
+
+        if (dismissed || isStandalone) return;
+
+        const ios = /iphone|ipad|ipod/i.test(navigator.userAgent) && !window.MSStream;
+        setIsIOS(ios);
+
+        // Show after a short delay post-login for smoothness
+        const t = setTimeout(() => setVisible(true), 1200);
+        return () => clearTimeout(t);
+      }, []);
+
+      const dismiss = () => {
+        localStorage.setItem("bayango_install_dismissed", "1");
+        setVisible(false);
+      };
+
+      const handleInstall = async () => {
+        if (isIOS) {
+          setShowIOSSteps(v => !v);
+          return;
+        }
+        const prompt = window._deferredInstallPrompt;
+        if (prompt) {
+          prompt.prompt();
+          const { outcome } = await prompt.userChoice;
+          if (outcome === "accepted") {
+            setInstalled(true);
+            setTimeout(dismiss, 1500);
+          }
+        }
+      };
+
+      if (!visible) return null;
+
+      return (
+        <div style={{
+          position: "fixed",
+          bottom: "env(safe-area-inset-bottom, 0px)",
+          left: 0, right: 0,
+          zIndex: 9999,
+          display: "flex",
+          justifyContent: "center",
+          padding: "0 16px 16px",
+          pointerEvents: "none",
+        }}>
+          <div style={{
+            width: "100%", maxWidth: 480,
+            background: "#0D5C2E",
+            borderRadius: 20,
+            overflow: "hidden",
+            boxShadow: "0 -4px 32px rgba(13,92,46,.35), 0 8px 48px rgba(0,0,0,.2)",
+            animation: "bannerUp .45s cubic-bezier(.34,1.56,.64,1) both",
+            animationDelay: ".1s",
+            pointerEvents: "all",
+          }}>
+            {/* Main row */}
+            <div style={{
+              display: "flex", alignItems: "center", gap: 14,
+              padding: "16px 18px",
+            }}>
+              {/* Icon */}
+              <div style={{
+                width: 52, height: 52, flexShrink: 0,
+                borderRadius: 14,
+                background: "rgba(255,255,255,.12)",
+                display: "flex", alignItems: "center", justifyContent: "center",
+                fontSize: 26,
+                border: "1px solid rgba(255,255,255,.15)",
+              }}><Ic n="cart-shopping" size={26} /></div>
+
+              {/* Text */}
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <div style={{ fontSize: 14, fontWeight: 800, color: "#fff", lineHeight: 1.2, marginBottom: 3 }}>
+                  {installed ? <><Ic n="circle-check" style={{marginRight:6}} />Na-install na!</> : "I-download ang BayanGo App"}
+                </div>
+                <div style={{ fontSize: 11, color: "rgba(255,255,255,.65)", lineHeight: 1.45 }}>
+                  {installed
+                    ? "Makikita mo na ito sa iyong home screen."
+                    : "Mas mabilis, mas maganda. I-save sa home screen mo!"}
+                </div>
+              </div>
+
+              {/* Dismiss */}
+              {!installed && (
+                <button onClick={dismiss} style={{
+                  flexShrink: 0,
+                  width: 30, height: 30,
+                  borderRadius: 8,
+                  background: "rgba(255,255,255,.12)",
+                  color: "rgba(255,255,255,.6)",
+                  fontSize: 16,
+                  display: "flex", alignItems: "center", justifyContent: "center",
+                }}><Ic n="xmark" /></button>
+              )}
+            </div>
+
+            {/* Install button */}
+            {!installed && (
+              <div style={{ padding: "0 18px 16px" }}>
+                <button onClick={handleInstall} style={{
+                  width: "100%",
+                  padding: "13px",
+                  borderRadius: 14,
+                  background: "#22C55E",
+                  color: "#fff",
+                  fontSize: 14, fontWeight: 800,
+                  display: "flex", alignItems: "center", justifyContent: "center", gap: 8,
+                  boxShadow: "0 4px 20px rgba(34,197,94,.4)",
+                  transition: "transform .15s, box-shadow .15s",
+                }}>
+                  {isIOS ? <><Ic n="mobile-screen" style={{marginRight:6}} />Paano I-install (iOS)</> : <><Ic n="download" style={{marginRight:6}} />I-install ang App</>}
+                </button>
+
+                {/* iOS steps */}
+                {isIOS && showIOSSteps && (
+                  <div style={{
+                    marginTop: 12,
+                    background: "rgba(255,255,255,.09)",
+                    borderRadius: 12,
+                    padding: "14px 16px",
+                    border: "1px solid rgba(255,255,255,.12)",
+                    animation: "fadeUp .3s ease both",
+                  }}>
+                    {[
+                      { icon: "arrow-up-from-bracket", text: 'I-tap ang "Share" button sa ibaba ng Safari' },
+                      { icon: "list",                  text: 'Hanapin ang "Add to Home Screen"' },
+                      { icon: "circle-check",          text: 'I-tap ang "Add" sa kanang itaas' },
+                    ].map((step, i) => (
+                      <div key={i} style={{
+                        display: "flex", alignItems: "flex-start", gap: 10,
+                        marginBottom: i < 2 ? 10 : 0,
+                      }}>
+                        <div style={{
+                          width: 28, height: 28, borderRadius: 8, flexShrink: 0,
+                          background: "#22C55E",
+                          display: "flex", alignItems: "center", justifyContent: "center",
+                          fontSize: 14, fontWeight: 800, color: "#fff",
+                        }}>{i + 1}</div>
+                        <div style={{ fontSize: 12, color: "rgba(255,255,255,.8)", lineHeight: 1.5, paddingTop: 4 }}>
+                          <Ic n={step.icon} style={{marginRight:5}} />{step.text}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+        </div>
+      );
+    }
+
+    /* ══════════════════ MAIN APP ══════════════════ */
+    function App() {
+      const [products,    setProducts]    = useState([]);
+      const [orders,      setOrders]      = useState([]);
+      const [user,        setUser]        = useState(null);
+      const [loading,     setLoading]     = useState(true);
+      const [authMode,      setAuthMode]      = useState("options");
+      const [authEmail,     setAuthEmail]     = useState("");
+      const [authPassword,  setAuthPassword]  = useState("");
+      const [authConfirm,   setAuthConfirm]   = useState("");
+      const [authError,     setAuthError]     = useState("");
+      const [authLoading,   setAuthLoading]   = useState(false);
+      const [syncError,     setSyncError]     = useState(null);
+
+      useEffect(() => {
+        let unsubAuth, unsubOrders, unsubProducts;
+        let usingOrdersFallback = false;
+        const timeout = setTimeout(() => setLoading(false), 8000);
+
+        const bindProducts = () => {
+          if (!_fbDb) return;
+          _fbDb.ref("products").off();
+          unsubProducts = _fbDb.ref("products").on("value", snap => {
+            const prods = [];
+            snap.forEach(child => {
+              const raw = child.val() || {};
+              if (raw.active === false) return;
+              prods.push({ id: child.key, ...raw });
+            });
+            setProducts(prods);
+          }, err => {
+            console.error("Products listener error:", err.code);
+          });
+        };
+
+        try {
+          bindProducts();
+          _fbAuth.getRedirectResult().catch(err => console.error("Redirect result error:", err));
+          unsubAuth = _fbAuth.onAuthStateChanged(currentUser => {
+            clearTimeout(timeout);
+            setUser(currentUser);
+            setLoading(false);
+
+            // Rebind products after auth changes (important when products read requires auth)
+            bindProducts();
+
+            // Clean up previous order listener
+            if (unsubOrders) {
+              _fbDb.ref("orders").off();
+              unsubOrders = null;
+            }
+            usingOrdersFallback = false;
+
+            if (currentUser && _fbDb) {
+              // Listen for this user's orders in RTDB
+              const mapAndSort = (snap) => {
+                const list = [];
+                snap.forEach(child => {
+                  const order = { id: child.key, ...child.val() };
+                  const ownerUid = order?.uid || order?.userId || null;
+                  if (usingOrdersFallback) {
+                    if (ownerUid === currentUser.uid) list.push(order);
+                  } else {
+                    list.push(order);
+                  }
+                });
+                setOrders(list.sort((a,b) => (b?.createdAt || 0) - (a?.createdAt || 0))); // newest first
+              };
+
+              const ordersQueryRef = _fbDb.ref("orders").orderByChild("uid").equalTo(currentUser.uid);
+              const ordersPlainRef = _fbDb.ref("orders");
+
+              unsubOrders = ordersQueryRef.on("value", mapAndSort, err => {
+                console.error("Orders listener error:", err.code);
+                if (usingOrdersFallback) return;
+                usingOrdersFallback = true;
+                _fbDb.ref("orders").off();
+                unsubOrders = ordersPlainRef.on("value", mapAndSort, fullErr => {
+                  console.error("Orders fallback listener error:", fullErr.code);
+                });
+              });
+            } else {
+              setOrders([]);
+            }
+          });
+        } catch (err) {
+          console.error("Firebase error:", err);
+          clearTimeout(timeout);
+          setLoading(false);
+        }
+
+        return () => {
+          unsubAuth?.();
+          if (_fbDb) {
+            _fbDb.ref("orders").off();
+            _fbDb.ref("products").off();
+          }
+        };
+      }, []);
+
+      const addOrder = useCallback(async (order) => {
+        setSyncError(null);
+        try {
+          if (!_fbDb) throw new Error("RTDB not initialized");
+          const uid = _fbAuth.currentUser?.uid || null;
+          await _fbDb.ref("orders").push({
+            ...order,
+            uid,
+            userId: uid,
+            userEmail: _fbAuth.currentUser?.email || null,
+            status: order?.status || "pending",
+            createdAt: order?.createdAt || Date.now(),
+          });
+        } catch (err) {
+          console.error("RTDB write failed:", err.code, err.message);
+          setSyncError(err.code || err.message || "sync-failed");
+        }
+      }, []);
+
+      const getFriendlyError = (code) => {
+        const map = {
+          'auth/user-not-found':     'Walang account na may email na ito.',
+          'auth/wrong-password':     'Mali ang password.',
+          'auth/invalid-credential': 'Mali ang email o password.',
+          'auth/email-already-in-use': 'Ginagamit na ang email na ito.',
+          'auth/weak-password':      'Masyadong mahina ang password (min. 6 characters).',
+          'auth/invalid-email':      'Hindi valid ang email address.',
+          'auth/too-many-requests':  'Napakaraming pagtatangka. Subukan ulit mamaya.',
+          'auth/popup-blocked':      'Nablock ang popup. Subukan ulit.',
+        };
+        return map[code] || 'May error. Subukan ulit.';
+      };
+
+      const handleGoogleLogin = async () => {
+        try {
+          const provider = new firebase.auth.GoogleAuthProvider();
+          await _fbAuth.signInWithPopup(provider);
+        } catch (error) {
+          if (
+            error.code === 'auth/popup-blocked' ||
+            error.code === 'auth/popup-closed-by-user' ||
+            error.code === 'auth/cancelled-popup-request'
+          ) {
+            try {
+              const provider = new firebase.auth.GoogleAuthProvider();
+              await _fbAuth.signInWithRedirect(provider);
+            } catch (err2) {
+              alert("Error sa pag-login: " + err2.message);
+            }
+          } else {
+            alert("Error sa pag-login: " + error.message);
+          }
+        }
+      };
+
+      const handleEmailSignIn = async () => {
+        setAuthError("");
+        setAuthLoading(true);
+        try {
+          await _fbAuth.signInWithEmailAndPassword(authEmail, authPassword);
+        } catch (error) {
+          setAuthError(getFriendlyError(error.code));
+        } finally {
+          setAuthLoading(false);
+        }
+      };
+
+      const handleEmailSignUp = async () => {
+        setAuthError("");
+        if (authPassword !== authConfirm) {
+          setAuthError("Hindi magkaparehong password.");
+          return;
+        }
+        setAuthLoading(true);
+        try {
+          await _fbAuth.createUserWithEmailAndPassword(authEmail, authPassword);
+        } catch (error) {
+          setAuthError(getFriendlyError(error.code));
+        } finally {
+          setAuthLoading(false);
+        }
+      };
+
+      const handleLogout = async () => {
+        await _fbAuth.signOut();
+      };
+
+      if (loading) return (
+        <div style={{ display:"flex", flexDirection:"column", alignItems:"center", justifyContent:"center", height:"100vh", gap:14 }}>
+          <Ic n="gear" className="spin" size={48} style={{ color:"#166534" }} />
+          <div style={{ fontSize:16, fontWeight:800, color:"#166534" }}>Naglo-load...</div>
+        </div>
+      );
+
+      if (!user) {
+        const inputStyle = {
+          border:"1px solid #E5E7EB", borderRadius:12, padding:"14px 16px",
+          fontSize:15, outline:"none", background:"#fff", width:"100%",
+        };
+        return (
+          <div style={{ minHeight:"100vh", display:"flex", alignItems:"center", justifyContent:"center", flexDirection:"column", gap:20, padding:"20px 24px" }}>
+            <div className="fade-up" style={{ textAlign:"center" }}>
+              <img src="https://i.imgur.com/MfhVlCm.png" style={{ height:180, objectFit:"contain", marginBottom:12 }} />
+              <p style={{ color:"#666", fontSize:15, marginTop:4 }}>Palengke sa'yo. Mag-sign in para makapag-order.</p>
+            </div>
+
+            {authMode === "options" && (
+              <div className="fade-up" style={{ width:"100%", maxWidth:360, display:"flex", flexDirection:"column", gap:12, animationDelay:".1s" }}>
+                <button onClick={handleGoogleLogin} style={{
+                  background:"#fff", border:"1px solid #E5E7EB", padding:"14px 20px", borderRadius:100,
+                  fontSize:15, fontWeight:700, color:"#333", display:"flex", alignItems:"center", justifyContent:"center", gap:12,
+                  boxShadow:"0 4px 12px rgba(0,0,0,0.05)",
+                }}>
+                  <img src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg" alt="Google" style={{width:22, height:22}} />
+                  Sign in with Google
+                </button>
+                <button onClick={() => { setAuthMode("email-signin"); setAuthError(""); }} style={{
+                  background:"#166534", border:"none", padding:"14px 20px", borderRadius:100,
+                  fontSize:15, fontWeight:700, color:"#fff", display:"flex", alignItems:"center", justifyContent:"center", gap:10,
+                  boxShadow:"0 4px 16px rgba(22,101,52,0.3)",
+                }}>
+                  <Ic n="envelope" style={{marginRight:8}} />Sign in with Email
+                </button>
+                <div style={{ textAlign:"center", fontSize:13, color:"#888", marginTop:4 }}>
+                  Wala pang account?{" "}
+                  <button onClick={() => { setAuthMode("email-signup"); setAuthError(""); }} style={{ color:"#166534", fontWeight:700, textDecoration:"underline", fontSize:13 }}>
+                    Mag-sign up
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {(authMode === "email-signin" || authMode === "email-signup") && (
+              <div className="fade-up" style={{ width:"100%", maxWidth:360, display:"flex", flexDirection:"column", gap:12 }}>
+                <h2 style={{ textAlign:"center", fontSize:20, fontWeight:800, color:"#166534", marginBottom:4 }}>
+                  {authMode === "email-signup" ? "Gumawa ng Account" : "Mag-sign in"}
+                </h2>
+
+                {authError && (
+                  <div style={{ background:"#FEF2F2", border:"1px solid #FCA5A5", borderRadius:12, padding:"10px 14px", fontSize:13, color:"#B91C1C" }}>
+                    {authError}
+                  </div>
+                )}
+
+                <input type="email" placeholder="Email address" value={authEmail}
+                  onChange={e => setAuthEmail(e.target.value)} style={inputStyle} />
+                <input type="password" placeholder="Password" value={authPassword}
+                  onChange={e => setAuthPassword(e.target.value)} style={inputStyle} />
+                {authMode === "email-signup" && (
+                  <input type="password" placeholder="Ulitin ang Password" value={authConfirm}
+                    onChange={e => setAuthConfirm(e.target.value)} style={inputStyle} />
+                )}
+
+                <button
+                  onClick={authMode === "email-signup" ? handleEmailSignUp : handleEmailSignIn}
+                  disabled={authLoading}
+                  style={{
+                    background:"#166534", border:"none", padding:"14px", borderRadius:100,
+                    fontSize:15, fontWeight:700, color:"#fff", opacity: authLoading ? 0.7 : 1, marginTop:4,
+                  }}
+                >
+                  {authLoading ? "Loading..." : authMode === "email-signup" ? "Gumawa ng Account" : "Mag-sign in"}
+                </button>
+
+                <div style={{ textAlign:"center", fontSize:13, color:"#888" }}>
+                  {authMode === "email-signup"
+                    ? <>May account na? <button onClick={() => { setAuthMode("email-signin"); setAuthError(""); }} style={{ color:"#166534", fontWeight:700, textDecoration:"underline", fontSize:13 }}>Mag-sign in</button></>
+                    : <>Wala pang account? <button onClick={() => { setAuthMode("email-signup"); setAuthError(""); }} style={{ color:"#166534", fontWeight:700, textDecoration:"underline", fontSize:13 }}>Mag-sign up</button></>
+                  }
+                </div>
+
+                <button onClick={() => { setAuthMode("options"); setAuthError(""); }} style={{ color:"#999", fontSize:13, textAlign:"center", marginTop:2 }}>
+                  <Ic n="arrow-left" style={{marginRight:6}} />Bumalik sa ibang options
+                </button>
+              </div>
+            )}
+          </div>
+        );
+      }
+
+      return (
+        <>
+
+          <UserApp products={products} orders={orders} onOrder={addOrder} user={user} onLogout={handleLogout} />
+          <InstallBanner />
+          {syncError && (
+            <div className="pop" style={{
+              position:"fixed", top:"calc(env(safe-area-inset-top,0px) + 16px)", left:20, right:20, zIndex:9999,
+              background:"#EF4444", color:"#fff", padding:"12px 16px", borderRadius:14,
+              fontSize:13, fontWeight:700, boxShadow:"0 4px 20px rgba(0,0,0,.25)",
+              display:"flex", alignItems:"center", gap:8,
+            }}>
+              <Ic n="triangle-exclamation" />
+              <div>
+                <div>Hindi ma-sync ang order sa admin</div>
+                <div style={{ fontSize:11, fontWeight:400, opacity:0.85, marginTop:2 }}>Error: {syncError}</div>
+              </div>
+              <button onClick={() => setSyncError(null)} style={{ color:"#fff", opacity:.7, fontSize:16, marginLeft:8 }}><Ic n="xmark" /></button>
+            </div>
+          )}
+        </>
+      );
+    }
+
+    /* ══════════════════ USER APP ══════════════════ */
+    function UserApp({ products, orders, onOrder, user, onLogout }) {
+      const [activeCat,      setActiveCat]      = useState("isda");
+      const [cart,           setCart]           = useState({});
+      const [showCart,       setShowCart]       = useState(false);
+      const [showCheckout,   setShowCheckout]   = useState(false);
+      const [showTracker,    setShowTracker]    = useState(null);
+      const [showRiderMap,   setShowRiderMap]   = useState(null);
+      const [zone,           setZone]           = useState(0);
+      const [name,           setName]           = useState("");
+      const [phone,          setPhone]          = useState("");
+      const [addr,           setAddr]           = useState("");
+      const [customerLat,    setCustomerLat]    = useState(null);
+      const [customerLng,    setCustomerLng]    = useState(null);
+
+      // Load profile from RTDB when user logs in
+      useEffect(() => {
+        if (!user?.uid || !_fbDb) return;
+        _fbDb.ref("users/" + user.uid + "/profile").once("value").then(snap => {
+          const p = snap.val() || {};
+          if (p.name)  setName(p.name);
+          if (p.phone) setPhone(p.phone);
+          if (p.addr)  setAddr(p.addr);
+          if (p.lat)   setCustomerLat(p.lat);
+          if (p.lng)   setCustomerLng(p.lng);
+        }).catch(err => console.error("Profile load error:", err.code));
+      }, [user?.uid]);
+      const [searchQ,        setSearchQ]        = useState("");
+      const [orderPlaced,    setOrderPlaced]    = useState(false);
+      const [showAI,         setShowAI]         = useState(false);
+      const getInitialPage = () => {
+        try {
+          const url = new URL(window.location.href);
+          const section = (url.searchParams.get("section") || "").toLowerCase();
+          const hash = (url.hash || "").replace("#", "").toLowerCase();
+          if (section === "rider-tracker" || section === "orders" || hash === "rider-tracker" || hash === "orders") {
+            return "orders";
+          }
+        } catch {}
+        return "shop";
+      };
+      const [activePage,     setActivePage]     = useState(getInitialPage);
+      const [customItems,    setCustomItems]    = useState([]);
+      const [showCustomList, setShowCustomList] = useState(false);
+      const [newItemName,    setNewItemName]    = useState("");
+      const [newItemQty,     setNewItemQty]     = useState("");
+      const [newItemPrice,   setNewItemPrice]   = useState("");
+      const [showLocPicker,  setShowLocPicker]  = useState(false);
+      const [vouchers,       setVouchers]       = useState([]);
+      const [voucherCode,    setVoucherCode]    = useState("");
+      const [appliedVoucher, setAppliedVoucher] = useState(null);
+      const [voucherMsg,     setVoucherMsg]     = useState("");
+
+      const cartCount = Object.values(cart).reduce((s,v) => s+v, 0);
+      const cartItems = Object.entries(cart)
+        .filter(([,q]) => q > 0)
+        .map(([id,qty]) => ({ ...products.find(p => p.id === id || p.id === +id), qty }))
+        .filter(i => i.name);
+
+      const myOrders         = orders;
+      const customEstTotal   = customItems.reduce((s,i) => s + (i.estPrice || 0), 0);
+      const subtotal         = cartItems.reduce((s,i) => s + i.price * i.qty, 0);
+      const itemsTotal       = subtotal + customEstTotal;
+      const deliveryFee      = DELIVERY_ZONES[zone].fee;
+      const serviceFee       = Math.round(itemsTotal * 0.02);
+      const smallOrderFee    = itemsTotal < 100 ? Math.round(itemsTotal * 0.05) : 0;
+      const isFirstTimeUser  = myOrders.length === 0;
+      const freeShipDiscount = isFirstTimeUser ? deliveryFee : 0;
+
+      const computeVoucherDiscount = useCallback((voucher) => {
+        if (!voucher || voucher.active === false) return 0;
+        if (voucher.minOrder > 0 && itemsTotal < voucher.minOrder) return 0;
+        if (voucher.expiresAt && Date.now() > voucher.expiresAt) return 0;
+        if (voucher.type === "percent") return Math.round(itemsTotal * ((voucher.value || 0) / 100));
+        if (voucher.type === "free_shipping") return deliveryFee;
+        return Math.max(0, Number(voucher.value || 0));
+      }, [deliveryFee, itemsTotal]);
+
+      const voucherDiscount = Math.min(computeVoucherDiscount(appliedVoucher), itemsTotal + deliveryFee);
+      const totalDiscount   = freeShipDiscount + voucherDiscount;
+      const total            = Math.max(0, itemsTotal + deliveryFee + serviceFee + smallOrderFee - totalDiscount);
+      const totalItemCount = cartCount + customItems.length;
+
+      const add = id => setCart(c => ({ ...c, [id]:(c[id]||0)+1 }));
+      const rem = id => setCart(c => {
+        const n = { ...c };
+        if (n[id] > 1) n[id]--; else delete n[id];
+        return n;
+      });
+
+      const addCustom = () => {
+        if (!newItemName.trim()) return;
+        setCustomItems(prev => [...prev, {
+          id: "cust_" + genId(),
+          name: newItemName.trim(),
+          qty: 1,
+          unit: newItemQty.trim() || "pc",
+          estPrice: parseFloat(newItemPrice) || 0,
+          isCustom: true,
+          img: null,
+        }]);
+        setNewItemName(""); setNewItemQty(""); setNewItemPrice("");
+      };
+      const removeCustom = id => setCustomItems(prev => prev.filter(i => i.id !== id));
+
+      const filtered = products.filter(p =>
+        p.cat === activeCat && (searchQ === "" || p.name.toLowerCase().includes(searchQ.toLowerCase()))
+      );
+
+      useEffect(() => {
+        if (!_fbDb) return;
+        const ref = _fbDb.ref("vouchers");
+        const onSnap = snap => {
+          const list = [];
+          snap.forEach(c => {
+            const v = c.val() || {};
+            list.push({
+              id: c.key,
+              code: String(v.code || "").toUpperCase(),
+              type: v.type || "fixed",
+              value: Number(v.value || 0),
+              minOrder: Number(v.minOrder || 0),
+              active: v.active !== false,
+              expiresAt: Number(v.expiresAt || 0),
+            });
+          });
+          setVouchers(list);
+        };
+        ref.on("value", onSnap, err => console.error("Vouchers load error:", err.code));
+        return () => ref.off("value", onSnap);
+      }, []);
+
+      useEffect(() => {
+        if (!appliedVoucher) return;
+        const latest = vouchers.find(v => v.id === appliedVoucher.id);
+        if (!latest || computeVoucherDiscount(latest) <= 0) {
+          setAppliedVoucher(null);
+          setVoucherMsg("Tinanggal ang voucher dahil hindi na valid.");
+          return;
+        }
+        setAppliedVoucher(latest);
+      }, [appliedVoucher, vouchers, computeVoucherDiscount]);
+
+      const applyVoucher = () => {
+        const code = voucherCode.trim().toUpperCase();
+        if (!code) {
+          setVoucherMsg("Ilagay muna ang voucher code.");
+          return;
+        }
+        const found = vouchers.find(v => v.code === code);
+        if (!found || found.active === false) {
+          setVoucherMsg("Invalid o inactive ang voucher code.");
+          setAppliedVoucher(null);
+          return;
+        }
+        if (found.expiresAt && Date.now() > found.expiresAt) {
+          setVoucherMsg("Expired na ang voucher na ito.");
+          setAppliedVoucher(null);
+          return;
+        }
+        if (found.minOrder > 0 && itemsTotal < found.minOrder) {
+          setVoucherMsg(`Kulang pa ang order para ma-apply ito. Minimum: ${fmt(found.minOrder)}.`);
+          setAppliedVoucher(null);
+          return;
+        }
+        const discount = computeVoucherDiscount(found);
+        if (discount <= 0) {
+          setVoucherMsg("Hindi applicable ang voucher sa current cart.");
+          setAppliedVoucher(null);
+          return;
+        }
+        setAppliedVoucher(found);
+        setVoucherMsg(`Voucher applied: ${found.code}`);
+      };
+
+      const placeOrder = () => {
+        if (!name || !phone || !addr) return;
+        const allItems = [
+          ...cartItems,
+          ...customItems.map(i => ({ ...i, price: i.estPrice })),
+        ];
+        onOrder({
+          items: allItems,
+          subtotal, customEstimate: customEstTotal, deliveryFee,
+          serviceFee, smallOrderFee,
+          firstTimeFreeShipping: isFirstTimeUser,
+          freeShipDiscount,
+          voucher: appliedVoucher ? {
+            id: appliedVoucher.id,
+            code: appliedVoucher.code,
+            type: appliedVoucher.type,
+            value: appliedVoucher.value,
+            minOrder: appliedVoucher.minOrder || 0,
+            discount: voucherDiscount,
+          } : null,
+          totalDiscount,
+          total,
+          zone: DELIVERY_ZONES[zone].label,
+          customer: { name, phone, address: addr, lat: customerLat, lng: customerLng },
+          status: "pending",
+          hasCustomItems: customItems.length > 0,
+        });
+        setCart({});
+        setCustomItems([]);
+        setVoucherCode("");
+        setAppliedVoucher(null);
+        setVoucherMsg("");
+        setShowCheckout(false);
+        setShowCart(false);
+        setOrderPlaced(true);
+        setTimeout(() => setOrderPlaced(false), 3500);
+      };
+
+      const activeOrders = myOrders.filter(o => o.status !== "delivered");
+
+      useEffect(() => {
+        let url;
+        try {
+          url = new URL(window.location.href);
+        } catch {
+          return;
+        }
+        const section = (url.searchParams.get("section") || "").toLowerCase();
+        const hash = (url.hash || "").replace("#", "").toLowerCase();
+        const wantsRiderTracker = section === "rider-tracker" || hash === "rider-tracker";
+        if (!wantsRiderTracker || showRiderMap || showTracker) return;
+
+        const latestTrackable = myOrders.find(o => o.status === "buying" || o.status === "otw");
+        const latestActive = myOrders.find(o => o.status !== "delivered");
+        const targetOrder = latestTrackable || latestActive;
+
+        setActivePage("orders");
+        if (targetOrder) {
+          if (targetOrder.status === "buying" || targetOrder.status === "otw") {
+            setShowRiderMap(targetOrder);
+          } else {
+            setShowTracker(targetOrder);
+          }
+        }
+      }, [myOrders, showRiderMap, showTracker]);
+
+      return (
+        <div style={{ maxWidth:480, margin:"0 auto", paddingBottom:80, background:"#F8FAF8", minHeight:"100vh", paddingTop:"calc(60px + env(safe-area-inset-top,0px))" }}>
+
+          {/* ── Slim Header ── */}
+          <div style={{
+            position:"fixed", top:0, left:0, right:0, zIndex:200,
+            maxWidth:480, margin:"0 auto",
+            background:"linear-gradient(180deg, #166534 0%, #14532D 100%)",
+            borderBottom:"1px solid rgba(255,255,255,.14)",
+            paddingTop:"env(safe-area-inset-top,0px)",
+            paddingLeft:16, paddingRight:16,
+            display:"flex", alignItems:"center", justifyContent:"space-between",
+            height:"calc(60px + env(safe-area-inset-top,0px))",
+            boxShadow:"0 4px 14px rgba(22,101,52,.28)",
+          }}>
+            <img src="https://i.imgur.com/tMk73Mg.png" style={{ height:40, objectFit:"contain" }} />
+            <button onClick={() => setActivePage("account")} style={{
+              width:38, height:38, borderRadius:"50%", overflow:"hidden",
+              border: activePage==="account" ? "2.5px solid #166534" : "2.5px solid #E5E7EB",
+              padding:0, flexShrink:0, background:"#F0FDF4",
+              display:"flex", alignItems:"center", justifyContent:"center",
+            }}>
+              {user?.photoURL
+                ? <img src={user.photoURL} style={{ width:"100%", height:"100%", objectFit:"cover" }} />
+                : <span style={{ fontSize:15, fontWeight:800, color:"#166534" }}>
+                    {(name||user?.displayName||"U").charAt(0).toUpperCase()}
+                  </span>
+              }
+            </button>
+          </div>
+
+          {/* ── SHOP PAGE ── */}
+          {activePage === "shop" && <>
+
+
+
+          {/* ── Search ── */}
+          <div style={{ padding:"16px 20px 0" }}>
+            <div style={{ background:"#fff", borderRadius:16, padding:"12px 16px", display:"flex", alignItems:"center", gap:10, boxShadow:"0 1px 4px rgba(0,0,0,.07)", border:"1px solid #E9ECEF" }}>
+              <Ic n="magnifying-glass" size={17} style={{ opacity:.35 }} />
+              <input placeholder="Maghanap ng produkto..." value={searchQ}
+                onChange={e => setSearchQ(e.target.value)}
+                style={{ flex:1, border:"none", outline:"none", fontSize:15, fontWeight:500, background:"transparent", color:"#111" }} />
+              {searchQ && <button onClick={() => setSearchQ("")} style={{ opacity:.4, fontSize:16 }}><Ic n="xmark" /></button>}
+            </div>
+          </div>
+
+          {/* ── Categories ── */}
+          <div style={{ display:"flex", gap:8, padding:"14px 20px", overflowX:"auto", scrollbarWidth:"none" }}>
+            {CATEGORIES.map(cat => (
+              <button key={cat.id} onClick={() => setActiveCat(cat.id)} style={{
+                padding:"10px 18px", borderRadius:30, whiteSpace:"nowrap",
+                fontSize:13, fontWeight:700, display:"flex", alignItems:"center", gap:6,
+                background: activeCat===cat.id ? cat.color : "#fff",
+                color: activeCat===cat.id ? "#fff" : "#555",
+                boxShadow: activeCat===cat.id ? `0 4px 14px ${cat.color}40` : "0 1px 3px rgba(0,0,0,.06)",
+                border: activeCat===cat.id ? "none" : "1px solid #E5E7EB",
+                transition:"all .22s ease",
+                transform: activeCat===cat.id ? "scale(1.04)" : "scale(1)"
+              }}>
+                <Ic n={cat.icon} size={14} />{cat.label}
+              </button>
+            ))}
+          </div>
+
+          {/* ── Custom List Entry ── */}
+          <div style={{ padding:"0 20px 14px" }}>
+            <button onClick={() => setShowCustomList(true)} style={{
+              width:"100%", background:"#F0FDF4", border:"2px dashed #86EFAC", borderRadius:16,
+              padding:"13px 16px", display:"flex", alignItems:"center", gap:12,
+            }}>
+              <Ic n="list-check" size={26} style={{ color:"#22C55E" }} />
+              <div style={{ flex:1, textAlign:"left" }}>
+                <div style={{ fontSize:14, fontWeight:700, color:"#166534" }}>Custom List</div>
+                <div style={{ fontSize:12, color:"#6B7280" }}>
+                  {customItems.length === 0
+                    ? "Dagdag ng items na hindi nasa listahan"
+                    : `${customItems.length} custom item${customItems.length>1?"s":""} • ~${fmt(customEstTotal)}`}
+                </div>
+              </div>
+              <span style={{ fontSize:18, color:"#22C55E", fontWeight:800 }}>
+                {customItems.length > 0 && (
+                  <span style={{ background:"#22C55E", color:"#fff", borderRadius:20, fontSize:11, fontWeight:800, padding:"2px 8px", marginRight:6 }}>{customItems.length}</span>
+                )}
+                ›
+              </span>
+            </button>
+          </div>
+
+          {/* ── Section Label ── */}
+          <div style={{ padding:"0 20px 10px", display:"flex", justifyContent:"space-between", alignItems:"center" }}>
+            <h2 style={{ fontSize:15, fontWeight:800, color:"#111", display:"flex", alignItems:"center", gap:6 }}>
+              <Ic n={CATEGORIES.find(c=>c.id===activeCat)?.icon} style={{color:CATEGORIES.find(c=>c.id===activeCat)?.color}} />
+              {CATEGORIES.find(c=>c.id===activeCat)?.label}
+            </h2>
+            <span style={{ fontSize:12, color:"#999", fontWeight:500 }}>{filtered.length} items</span>
+          </div>
+
+          {/* ── Products Grid ── */}
+          <div style={{ padding:"0 20px 16px" }}>
+            <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:12 }}>
+              {filtered.map((p, i) => (
+                <div key={p.id} className="fade-up" style={{
+                  animationDelay:`${i*.05}s`,
+                  background:"#fff", borderRadius:18, overflow:"hidden",
+                  border:"1px solid #F0F0F0", boxShadow:"0 2px 8px rgba(0,0,0,.04)",
+                  opacity:p.stock?1:.5, position:"relative"
+                }}>
+                  {!p.stock && (
+                    <div style={{
+                      position:"absolute", top:10, right:10, background:"#EF4444",
+                      color:"#fff", fontSize:9, fontWeight:800, padding:"3px 8px",
+                      borderRadius:6, zIndex:2, letterSpacing:".04em"
+                    }}>SOLD OUT</div>
+                  )}
+                  <div style={{
+                    height:96, overflow:"hidden",
+                    background:`linear-gradient(135deg,${CATEGORIES.find(c=>c.id===p.cat)?.color}12,${CATEGORIES.find(c=>c.id===p.cat)?.color}06)`,
+                    display:"flex", alignItems:"center", justifyContent:"center"
+                  }}>
+                    {p.img && p.img.startsWith("http")
+                      ? <img src={p.img} alt={p.name} style={{width:"100%",height:"100%",objectFit:"cover"}} onError={e=>{e.target.style.display="none";e.target.nextSibling.style.display="flex";}} />
+                      : null}
+                    <div style={{display:p.img&&p.img.startsWith("http")?"none":"flex",alignItems:"center",justifyContent:"center",width:"100%",height:"100%"}}>
+                      <Ic n={CATEGORIES.find(c=>c.id===p.cat)?.icon} size={40} style={{color:CATEGORIES.find(c=>c.id===p.cat)?.color,opacity:.5}} />
+                    </div>
+                  </div>
+                  <div style={{ padding:"11px 14px 14px" }}>
+                    <div style={{ fontSize:13, fontWeight:700, color:"#111", marginBottom:2, lineHeight:1.25 }}>{p.name}</div>
+                    <div style={{ fontSize:11, color:"#aaa", marginBottom:10 }}>per {p.unit}</div>
+                    <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between" }}>
+                      <span style={{ fontSize:17, fontWeight:800, color:"#166534" }}>{fmt(p.price)}</span>
+                      {p.stock && (
+                        cart[p.id] ? (
+                          <div style={{ display:"flex", alignItems:"center", gap:5 }}>
+                            <button onClick={() => rem(p.id)} style={{ width:28, height:28, borderRadius:8, background:"#F3F4F6", fontSize:16, fontWeight:700, color:"#555", display:"flex", alignItems:"center", justifyContent:"center" }}>−</button>
+                            <span style={{ fontSize:14, fontWeight:800, minWidth:16, textAlign:"center" }}>{cart[p.id]}</span>
+                            <button onClick={() => add(p.id)} style={{ width:28, height:28, borderRadius:8, background:"#22C55E", fontSize:16, fontWeight:700, color:"#fff", display:"flex", alignItems:"center", justifyContent:"center" }}>+</button>
+                          </div>
+                        ) : (
+                          <button onClick={() => add(p.id)} style={{
+                            width:34, height:34, borderRadius:10, background:"#22C55E",
+                            color:"#fff", fontSize:20, display:"flex", alignItems:"center", justifyContent:"center",
+                            boxShadow:"0 3px 10px #22C55E40"
+                          }}>+</button>
+                        )
+                      )}
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+            {filtered.length === 0 && (
+              <div style={{ textAlign:"center", padding:"50px 0", color:"#bbb" }}>
+                <Ic n="face-meh" size={48} style={{ color:"#bbb", marginBottom:10, display:"block" }} />
+                <div style={{ fontSize:14, fontWeight:600 }}>Walang makitang produkto</div>
+              </div>
+            )}
+          </div>
+
+          {/* ── AI FAB ── */}
+          {cartItems.length > 0 && (
+            <div style={{ position:"fixed", bottom:90, right:20, zIndex:90 }}>
+              <button onClick={() => setShowAI(true)} style={{
+                width:56, height:56, borderRadius:16,
+                background:"linear-gradient(135deg,#7C3AED,#A855F7)",
+                color:"#fff", fontSize:26, display:"flex", alignItems:"center", justifyContent:"center",
+                boxShadow:"0 6px 24px rgba(124,58,237,.45)"
+              }}><Ic n="robot" size={24} /></button>
+              <div style={{
+                position:"absolute", top:-8, right:-4,
+                background:"#22C55E", color:"#fff", borderRadius:10,
+                fontSize:8, fontWeight:800, padding:"2px 6px", whiteSpace:"nowrap", letterSpacing:".03em"
+              }}>AI Recipe</div>
+            </div>
+          )}
+
+          {/* ── Floating Cart ── */}
+          {totalItemCount > 0 && !showCart && (
+            <div className="slide-up" style={{
+              position:"fixed", bottom:`calc(env(safe-area-inset-bottom,0px) + 76px)`,
+              left:20, right:20,
+              zIndex:100
+            }}>
+              <button onClick={() => setShowCart(true)} style={{
+                width:"100%", padding:"15px 24px", borderRadius:18,
+                background:"linear-gradient(135deg,#166534,#22C55E)",
+                color:"#fff", display:"flex", alignItems:"center", justifyContent:"space-between",
+                boxShadow:"0 8px 32px rgba(22,101,52,.38)", fontSize:15, fontWeight:700
+              }}>
+                <span><Ic n="basket-shopping" style={{marginRight:6}} />Basket ({totalItemCount} item{totalItemCount>1?"s":""})</span>
+                <span style={{ fontSize:16, fontWeight:800 }}>~{fmt(subtotal + customEstTotal)}</span>
+              </button>
+            </div>
+          )}
+
+          {/* ── Custom List Drawer ── */}
+          {showCustomList && (
+            <div style={{ position:"fixed", inset:0, zIndex:200, background:"rgba(0,0,0,.55)", backdropFilter:"blur(4px)" }}
+              onClick={() => setShowCustomList(false)}>
+              <div className="slide-in" onClick={e => e.stopPropagation()} style={{
+                position:"absolute", right:0, top:0, bottom:0,
+                width:"100%", maxWidth:400, background:"#FAFAFA",
+                display:"flex", flexDirection:"column"
+              }}>
+                <div style={{ padding:"20px 24px", borderBottom:"1px solid #E5E7EB", background:"#fff", display:"flex", alignItems:"center", justifyContent:"space-between" }}>
+                  <div>
+                    <h2 style={{ fontSize:19, fontWeight:800 }}><Ic n="list-check" style={{marginRight:6}} />Custom List</h2>
+                    <p style={{ fontSize:12, color:"#888", marginTop:2 }}>Items na hindi nasa catalog</p>
+                  </div>
+                  <button onClick={() => setShowCustomList(false)} style={{ width:36, height:36, borderRadius:10, background:"#F3F4F6", fontSize:18, display:"flex", alignItems:"center", justifyContent:"center" }}><Ic n="xmark" /></button>
+                </div>
+
+                {/* Add Item Form */}
+                <div style={{ padding:"16px 24px", borderBottom:"1px solid #E5E7EB", background:"#F9FAFB" }}>
+                  <div style={{ fontSize:12, fontWeight:700, color:"#555", marginBottom:10 }}>Magdagdag ng Item</div>
+                  <input
+                    placeholder="Pangalan ng item (hal. Bagoong, Sukang Iloko...)"
+                    value={newItemName} onChange={e => setNewItemName(e.target.value)}
+                    onKeyDown={e => e.key === "Enter" && addCustom()}
+                    style={{ width:"100%", padding:"11px 14px", borderRadius:10, border:"1.5px solid #E5E7EB", fontSize:13, marginBottom:8, outline:"none", background:"#fff" }}
+                  />
+                  <div style={{ display:"flex", gap:8, marginBottom:10 }}>
+                    <input
+                      placeholder="Quantity (hal. 1 kilo, 2 piraso)"
+                      value={newItemQty} onChange={e => setNewItemQty(e.target.value)}
+                      style={{ flex:1, padding:"11px 14px", borderRadius:10, border:"1.5px solid #E5E7EB", fontSize:13, outline:"none", background:"#fff" }}
+                    />
+                    <input
+                      placeholder="Est. ₱"
+                      value={newItemPrice} onChange={e => setNewItemPrice(e.target.value)}
+                      type="number" min="0"
+                      style={{ width:90, padding:"11px 14px", borderRadius:10, border:"1.5px solid #E5E7EB", fontSize:13, outline:"none", background:"#fff" }}
+                    />
+                  </div>
+                  <button onClick={addCustom} disabled={!newItemName.trim()} style={{
+                    width:"100%", padding:"12px", borderRadius:12,
+                    background: newItemName.trim() ? "#166534" : "#E5E7EB",
+                    color: newItemName.trim() ? "#fff" : "#aaa",
+                    fontSize:14, fontWeight:700,
+                  }}>+ Idagdag sa List</button>
+                </div>
+
+                {/* Items List */}
+                <div style={{ flex:1, overflowY:"auto", padding:"12px 24px" }}>
+                  {customItems.length === 0 ? (
+                    <div style={{ textAlign:"center", padding:"40px 0", color:"#bbb" }}>
+                      <Ic n="clipboard" size={40} style={{ color:"#bbb", marginBottom:8, display:"block" }} />
+                      <div style={{ fontSize:13, fontWeight:600 }}>Walang custom items pa</div>
+                    </div>
+                  ) : (
+                    customItems.map(item => (
+                      <div key={item.id} className="fade-up" style={{ display:"flex", alignItems:"center", gap:12, padding:"13px 0", borderBottom:"1px solid #F0F0F0" }}>
+                        <div style={{ width:44, height:44, borderRadius:12, display:"flex", alignItems:"center", justifyContent:"center", background:"#F0FDF4" }}><Ic n="pen-to-square" size={22} style={{color:"#22C55E"}} /></div>
+                        <div style={{ flex:1 }}>
+                          <div style={{ fontSize:14, fontWeight:700, color:"#111" }}>{item.name}</div>
+                          <div style={{ fontSize:12, color:"#999" }}>{item.unit}</div>
+                        </div>
+                        <div style={{ textAlign:"right" }}>
+                          <div style={{ fontSize:13, fontWeight:800, color:"#166534" }}>~{fmt(item.estPrice)}</div>
+                          <div style={{ fontSize:10, color:"#aaa", fontStyle:"italic" }}>estimate</div>
+                        </div>
+                        <button onClick={() => removeCustom(item.id)} style={{ width:30, height:30, borderRadius:8, background:"#FEF2F2", color:"#EF4444", fontSize:16, display:"flex", alignItems:"center", justifyContent:"center" }}><Ic n="xmark" /></button>
+                      </div>
+                    ))
+                  )}
+                </div>
+
+                {/* Footer total */}
+                {customItems.length > 0 && (
+                  <div style={{ padding:"16px 24px", background:"#fff", borderTop:"1px solid #E5E7EB" }}>
+                    <div style={{ display:"flex", justifyContent:"space-between", fontSize:13, color:"#888", marginBottom:6 }}>
+                      <span>{customItems.length} custom item{customItems.length>1?"s":""}</span>
+                    </div>
+                    <div style={{ display:"flex", justifyContent:"space-between", fontSize:16, fontWeight:800, color:"#166534" }}>
+                      <span>Estimated Total</span><span>~{fmt(customEstTotal)}</span>
+                    </div>
+                    <button onClick={() => setShowCustomList(false)} style={{
+                      width:"100%", marginTop:12, padding:"14px", borderRadius:14,
+                      background:"linear-gradient(135deg,#166534,#22C55E)", color:"#fff",
+                      fontSize:14, fontWeight:700,
+                    }}>Tapos na <Ic n="check" style={{marginLeft:4}} /></button>
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
+
+          {/* ── AI Modal ── */}
+          {showAI && <AIRecipeModal cartItems={cartItems} onClose={() => setShowAI(false)} />}
+
+          {/* ── Cart Drawer ── */}
+          {showCart && (
+            <div style={{ position:"fixed", inset:0, zIndex:200, background:"rgba(0,0,0,.55)", backdropFilter:"blur(4px)" }}
+              onClick={() => setShowCart(false)}>
+              <div className="slide-in" onClick={e => e.stopPropagation()} style={{
+                position:"absolute", right:0, top:0, bottom:0,
+                width:"100%", maxWidth:420, background:"#FAFAFA",
+                display:"flex", flexDirection:"column"
+              }}>
+                <div style={{ padding:"calc(env(safe-area-inset-top,0px) + 20px) 24px 20px", borderBottom:"1px solid #E5E7EB", display:"flex", alignItems:"center", justifyContent:"space-between", background:"#fff" }}>
+                  <h2 style={{ fontSize:19, fontWeight:800 }}><Ic n="basket-shopping" style={{marginRight:6}} />Your Basket</h2>
+                  <button onClick={() => setShowCart(false)} style={{ width:36, height:36, borderRadius:10, background:"#F3F4F6", fontSize:18, display:"flex", alignItems:"center", justifyContent:"center" }}><Ic n="xmark" /></button>
+                </div>
+                <div style={{ flex:1, overflowY:"auto", padding:"12px 24px" }}>
+                  {cartItems.map(item => (
+                    <div key={item.id} className="fade-up" style={{ display:"flex", alignItems:"center", gap:12, padding:"13px 0", borderBottom:"1px solid #F0F0F0" }}>
+                      <div style={{ width:50, height:50, borderRadius:13, overflow:"hidden", background:"#F0FDF4", display:"flex", alignItems:"center", justifyContent:"center" }}>
+                        {item.img && item.img.startsWith("http")
+                          ? <img src={item.img} alt={item.name} style={{width:"100%",height:"100%",objectFit:"cover"}} />
+                          : <Ic n={CATEGORIES.find(c=>c.id===item.cat)?.icon||"cube"} size={22} style={{color:CATEGORIES.find(c=>c.id===item.cat)?.color||"#999"}} />}
+                      </div>
+                      <div style={{ flex:1 }}>
+                        <div style={{ fontSize:14, fontWeight:700, color:"#111" }}>{item.name}</div>
+                        <div style={{ fontSize:12, color:"#999" }}>{fmt(item.price)} / {item.unit}</div>
+                      </div>
+                      <div style={{ display:"flex", alignItems:"center", gap:7 }}>
+                        <button onClick={() => rem(item.id)} style={{ width:30, height:30, borderRadius:8, background:"#F3F4F6", fontSize:16, fontWeight:700, color:"#666", display:"flex", alignItems:"center", justifyContent:"center" }}>−</button>
+                        <span style={{ fontSize:14, fontWeight:800, minWidth:20, textAlign:"center" }}>{item.qty}</span>
+                        <button onClick={() => add(item.id)} style={{ width:30, height:30, borderRadius:8, background:"#22C55E", fontSize:16, fontWeight:700, color:"#fff", display:"flex", alignItems:"center", justifyContent:"center" }}>+</button>
+                      </div>
+                      <div style={{ fontSize:14, fontWeight:800, color:"#166534", minWidth:58, textAlign:"right" }}>{fmt(item.price*item.qty)}</div>
+                    </div>
+                  ))}
+                  {customItems.length > 0 && (
+                    <>
+                      <div style={{ padding:"10px 0 6px", fontSize:12, fontWeight:700, color:"#888", display:"flex", alignItems:"center", justifyContent:"space-between" }}>
+                        <span><Ic n="list-check" style={{marginRight:5}} />Custom Items</span>
+                        <button onClick={() => setShowCustomList(true)} style={{ fontSize:11, color:"#166534", fontWeight:700, textDecoration:"underline" }}>I-edit</button>
+                      </div>
+                      {customItems.map(item => (
+                        <div key={item.id} style={{ display:"flex", alignItems:"center", gap:12, padding:"11px 0", borderBottom:"1px solid #F0F0F0" }}>
+                          <div style={{ width:50, height:50, borderRadius:13, display:"flex", alignItems:"center", justifyContent:"center", background:"#F0FDF4" }}><Ic n="pen-to-square" size={22} style={{color:"#22C55E"}} /></div>
+                          <div style={{ flex:1 }}>
+                            <div style={{ fontSize:14, fontWeight:700, color:"#111" }}>{item.name}</div>
+                            <div style={{ fontSize:11, color:"#999" }}>{item.unit} • <span style={{ fontStyle:"italic" }}>estimated</span></div>
+                          </div>
+                          <div style={{ fontSize:14, fontWeight:800, color:"#166534", minWidth:58, textAlign:"right" }}>~{fmt(item.estPrice)}</div>
+                        </div>
+                      ))}
+                    </>
+                  )}
+                </div>
+                <div style={{ padding:"18px 24px", paddingBottom:"calc(env(safe-area-inset-bottom,0px) + 18px)", background:"#fff", borderTop:"1px solid #E5E7EB" }}>
+                  {[["Subtotal (catalog)",fmt(subtotal)],
+                    ...(customEstTotal > 0 ? [["Custom items (est.)", "~"+fmt(customEstTotal)]] : []),
+                    ["Delivery ("+DELIVERY_ZONES[zone].label+")",fmt(deliveryFee)],
+                    ["Service Fee (2%)",fmt(serviceFee)],
+                    ...(smallOrderFee > 0 ? [["Small Order Fee (5%)",fmt(smallOrderFee)]] : []),
+                    ...(isFirstTimeUser ? [["First Order Free Shipping","-"+fmt(freeShipDiscount)]] : []),
+                    ...(appliedVoucher && voucherDiscount > 0 ? [[`Voucher (${appliedVoucher.code})`,"-"+fmt(voucherDiscount)]] : [])
+                  ].map(([l,v]) => (
+                    <div key={l} style={{ display:"flex", justifyContent:"space-between", marginBottom:6, fontSize:13, color:"#777" }}>
+                      <span>{l}</span><span style={{ fontWeight:600 }}>{v}</span>
+                    </div>
+                  ))}
+                  <div style={{ display:"flex", justifyContent:"space-between", paddingTop:12, borderTop:"2px dashed #E5E7EB", fontSize:17, fontWeight:800, color:"#111" }}>
+                    <span>Total</span><span>{fmt(total)}</span>
+                  </div>
+                  <button onClick={() => { setShowCart(false); setShowCheckout(true); }} style={{
+                    width:"100%", marginTop:14, padding:"15px", borderRadius:16,
+                    background:"linear-gradient(135deg,#166534,#22C55E)", color:"#fff",
+                    fontSize:15, fontWeight:700, boxShadow:"0 4px 16px rgba(22,101,52,.3)"
+                  }}>Proceed to Checkout →</button>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* ── Checkout Modal ── */}
+          {showCheckout && (
+            <div style={{ position:"fixed", inset:0, zIndex:300, background:"rgba(0,0,0,.65)", backdropFilter:"blur(6px)", display:"flex", alignItems:"flex-end", justifyContent:"center" }}>
+              <div className="slide-up" style={{ width:"100%", maxWidth:480, background:"#fff", borderRadius:"24px 24px 0 0", padding:"26px 24px", paddingBottom:"calc(env(safe-area-inset-bottom,0px) + 36px)", maxHeight:"92dvh", overflowY:"auto" }}>
+                <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:22 }}>
+                  <h2 style={{ fontSize:21, fontWeight:800 }}><Ic n="receipt" style={{marginRight:6}} />Checkout</h2>
+                  <button onClick={() => setShowCheckout(false)} style={{ width:36, height:36, borderRadius:10, background:"#F3F4F6", fontSize:18, display:"flex", alignItems:"center", justifyContent:"center" }}><Ic n="xmark" /></button>
+                </div>
+
+                <label style={{ fontSize:12, fontWeight:700, color:"#666", display:"block", marginBottom:8 }}><Ic n="location-dot" style={{marginRight:5}} />Delivery Area</label>
+                <div style={{ display:"flex", gap:8, marginBottom:20 }}>
+                  {DELIVERY_ZONES.map((z,i) => (
+                    <button key={i} onClick={() => setZone(i)} style={{
+                      flex:1, padding:"12px 6px", borderRadius:12, textAlign:"center",
+                      border:zone===i?"2px solid #22C55E":"1px solid #E5E7EB",
+                      background:zone===i?"#F0FDF4":"#fff", transition:"all .2s"
+                    }}>
+                      <div style={{ fontSize:12, fontWeight:700, color:zone===i?"#166534":"#333", lineHeight:1.3 }}>{z.label}</div>
+                      <div style={{ fontSize:11, color:"#aaa", marginTop:3 }}>{fmt(z.fee)}</div>
+                    </button>
+                  ))}
+                </div>
+
+                {[
+                  { lbl:"Pangalan", val:name, set:setName, ph:"Juan Dela Cruz" },
+                  { lbl:"Phone",    val:phone, set:setPhone, ph:"09XX XXX XXXX" },
+                  { lbl:"Address",  val:addr,  set:setAddr,  ph:"House/Lot, Street, Barangay" },
+                ].map(({ lbl, val, set, ph }) => (
+                  <div key={lbl} style={{ marginBottom:14 }}>
+                    <label style={{ fontSize:12, fontWeight:700, color:"#666", display:"block", marginBottom:6 }}>{lbl}</label>
+                    <input value={val} onChange={e => set(e.target.value)} placeholder={ph}
+                      style={{ width:"100%", padding:"13px 16px", borderRadius:12, fontSize:14, border:"1.5px solid #E5E7EB", outline:"none", transition:"border .2s" }}
+                      onFocus={e => e.target.style.borderColor="#22C55E"}
+                      onBlur={e  => e.target.style.borderColor="#E5E7EB"} />
+                  </div>
+                ))}
+
+                {/* Pin Location Button */}
+                <div style={{ marginBottom:18 }}>
+                  <label style={{ fontSize:12, fontWeight:700, color:"#666", display:"block", marginBottom:8 }}>
+                    <Ic n="map-pin" style={{marginRight:5}} />Exact na Lokasyon (para sa rider)
+                  </label>
+                  <button onClick={() => setShowLocPicker(true)} style={{
+                    width:"100%", padding:"14px 16px", borderRadius:14,
+                    background: customerLat ? "#F0FDF4" : "#FFF7ED",
+                    border: customerLat ? "2px solid #BBF7D0" : "2px dashed #FED7AA",
+                    display:"flex", alignItems:"center", gap:12, textAlign:"left",
+                  }}>
+                    <div style={{
+                      width:42, height:42, borderRadius:12, flexShrink:0,
+                      background: customerLat ? "#22C55E" : "#F59E0B",
+                      display:"flex", alignItems:"center", justifyContent:"center",
+                      color:"#fff", fontSize:18,
+                    }}>
+                      <Ic n={customerLat ? "location-dot" : "map-pin"} />
+                    </div>
+                    <div style={{ flex:1 }}>
+                      {customerLat ? (
+                        <>
+                          <div style={{ fontSize:14, fontWeight:700, color:"#166534" }}>
+                            <Ic n="circle-check" style={{marginRight:4}} />Naka-pin na ang location!
+                          </div>
+                          <div style={{ fontSize:11, color:"#888", marginTop:2 }}>
+                            {customerLat.toFixed(5)}, {customerLng.toFixed(5)} — I-tap para baguhin
+                          </div>
+                        </>
+                      ) : (
+                        <>
+                          <div style={{ fontSize:14, fontWeight:700, color:"#92400E" }}>
+                            I-pin ang exact location mo
+                          </div>
+                          <div style={{ fontSize:11, color:"#888", marginTop:2 }}>
+                            Para alam ng rider kung saan ka exactly
+                          </div>
+                        </>
+                      )}
+                    </div>
+                    <Ic n="chevron-right" style={{ color:"#aaa", fontSize:14 }} />
+                  </button>
+                </div>
+
+                {/* Location Picker Modal */}
+                {showLocPicker && (
+                  <LocationPicker
+                    lat={customerLat} lng={customerLng}
+                    onPick={(lat, lng) => { setCustomerLat(lat); setCustomerLng(lng); }}
+                    onClose={() => setShowLocPicker(false)}
+                  />
+                )}
+
+                <div style={{ marginBottom:16 }}>
+                  <label style={{ fontSize:12, fontWeight:700, color:"#666", display:"block", marginBottom:6 }}>
+                    <Ic n="ticket" style={{marginRight:5}} />Voucher Code
+                  </label>
+                  <div style={{ display:"flex", gap:8 }}>
+                    <input value={voucherCode} onChange={e => setVoucherCode(e.target.value.toUpperCase())} placeholder="Hal. BAYAN20"
+                      style={{ flex:1, padding:"13px 14px", borderRadius:12, border:"1.5px solid #E5E7EB", outline:"none", fontSize:14 }} />
+                    <button onClick={applyVoucher} style={{
+                      padding:"0 16px", borderRadius:12, background:"#166534", color:"#fff", fontWeight:700, fontSize:13
+                    }}>Apply</button>
+                  </div>
+                  {voucherMsg && (
+                    <div style={{ marginTop:6, fontSize:11, color: appliedVoucher ? "#166534" : "#B45309" }}>{voucherMsg}</div>
+                  )}
+                  {isFirstTimeUser && (
+                    <div style={{ marginTop:6, fontSize:11, color:"#166534", background:"#F0FDF4", borderRadius:8, padding:"6px 8px" }}>
+                      <Ic n="circle-check" style={{marginRight:4}} />Automatic FREE Shipping sa first order mo.
+                    </div>
+                  )}
+                </div>
+
+                <div style={{ background:"#F9FAFB", borderRadius:14, padding:"14px 16px", marginBottom:16, border:"1px solid #E5E7EB" }}>
+                  {cartItems.map(i => (
+                    <div key={i.id} style={{ display:"flex", justifyContent:"space-between", padding:"5px 0", fontSize:13, color:"#555" }}>
+                      <span>{i.name} ×{i.qty}</span>
+                      <span style={{ fontWeight:600 }}>{fmt(i.price*i.qty)}</span>
+                    </div>
+                  ))}
+                  {customItems.length > 0 && (
+                    <>
+                      <div style={{ fontSize:11, fontWeight:700, color:"#888", padding:"6px 0 2px", marginTop:4, borderTop:"1px dashed #E5E7EB" }}><Ic n="list-check" style={{marginRight:4}} />Custom Items (Estimated)</div>
+                      {customItems.map(i => (
+                        <div key={i.id} style={{ display:"flex", justifyContent:"space-between", padding:"4px 0", fontSize:13, color:"#555" }}>
+                          <span><Ic n="pen-to-square" style={{marginRight:4}} />{i.name} ({i.unit})</span>
+                          <span style={{ fontWeight:600, fontStyle:"italic" }}>~{fmt(i.estPrice)}</span>
+                        </div>
+                      ))}
+                    </>
+                  )}
+                  <div style={{ borderTop:"1px solid #E5E7EB", marginTop:8, paddingTop:8, fontSize:13, color:"#888" }}>
+                    <div style={{ display:"flex", justifyContent:"space-between", marginBottom:4 }}>
+                      <span>Delivery ({DELIVERY_ZONES[zone].label})</span><span style={{ fontWeight:600 }}>{fmt(deliveryFee)}</span>
+                    </div>
+                    <div style={{ display:"flex", justifyContent:"space-between", marginBottom: smallOrderFee > 0 ? 4 : 0 }}>
+                      <span>Service Fee (2%)</span><span style={{ fontWeight:600 }}>{fmt(serviceFee)}</span>
+                    </div>
+                    {smallOrderFee > 0 && (
+                      <div style={{ display:"flex", justifyContent:"space-between" }}>
+                        <span style={{ color:"#D97706" }}><Ic n="triangle-exclamation" style={{marginRight:4}} />Small Order Fee (5%)</span><span style={{ fontWeight:600, color:"#D97706" }}>{fmt(smallOrderFee)}</span>
+                      </div>
+                    )}
+                    {isFirstTimeUser && (
+                      <div style={{ display:"flex", justifyContent:"space-between", marginTop:4 }}>
+                        <span style={{ color:"#166534" }}><Ic n="gift" style={{marginRight:4}} />First Order Free Shipping</span>
+                        <span style={{ fontWeight:600, color:"#166534" }}>-{fmt(freeShipDiscount)}</span>
+                      </div>
+                    )}
+                    {appliedVoucher && voucherDiscount > 0 && (
+                      <div style={{ display:"flex", justifyContent:"space-between", marginTop:4 }}>
+                        <span style={{ color:"#166534" }}><Ic n="ticket" style={{marginRight:4}} />Voucher ({appliedVoucher.code})</span>
+                        <span style={{ fontWeight:600, color:"#166534" }}>-{fmt(voucherDiscount)}</span>
+                      </div>
+                    )}
+                  </div>
+                  <div style={{ marginTop:10, paddingTop:10, borderTop:"2px dashed #D1D5DB", display:"flex", justifyContent:"space-between", fontSize:17, fontWeight:800, color:"#111" }}>
+                    <span>~Total</span><span>~{fmt(total)}</span>
+                  </div>
+                  {customItems.length > 0 && (
+                    <div style={{ marginTop:8, fontSize:11, color:"#92400E", background:"#FEF9C3", borderRadius:8, padding:"6px 10px" }}>
+                      <Ic n="triangle-exclamation" style={{marginRight:4}} />Ang total ay approximate dahil may custom items. Ang final na bayad ay depende sa aktwal na presyo.
+                    </div>
+                  )}
+                </div>
+
+                <div style={{ background:"#FEF3C7", borderRadius:12, padding:"12px 14px", marginBottom:18, display:"flex", gap:10 }}>
+                  <Ic n="credit-card" size={18} style={{ color:"#92400E", marginTop:1 }} />
+                  <div style={{ fontSize:12, color:"#92400E", lineHeight:1.5 }}>
+                    <strong>GCash o COD</strong> — Pag-deliver ng order, pwede kang magbayad via GCash o Cash on Delivery.
+                  </div>
+                </div>
+
+                <button onClick={placeOrder} disabled={!name||!phone||!addr} style={{
+                  width:"100%", padding:"17px", borderRadius:16,
+                  background:(!name||!phone||!addr)?"#D1D5DB":"linear-gradient(135deg,#166534,#22C55E)",
+                  color:"#fff", fontSize:16, fontWeight:700,
+                  boxShadow:(!name||!phone||!addr)?"none":"0 4px 20px rgba(22,101,52,.35)",
+                  transition:"all .2s"
+                }}>Mag-Order Na! <Ic n="bag-shopping" style={{marginLeft:6}} /></button>
+              </div>
+            </div>
+          )}
+
+          {/* ── Order Tracker Modal ── */}
+          {showTracker && (() => {
+            // Always read live status from orders state (so admin updates are reflected)
+            const liveOrder = orders.find(o => o.id === showTracker.id) || showTracker;
+            return (
+            <div style={{ position:"fixed", inset:0, zIndex:300, background:"rgba(0,0,0,.55)", backdropFilter:"blur(4px)", display:"flex", alignItems:"center", justifyContent:"center", padding:20 }}
+              onClick={() => setShowTracker(null)}>
+              <div className="pop" onClick={e => e.stopPropagation()} style={{ width:"100%", maxWidth:370, background:"#fff", borderRadius:24, padding:"28px 22px", boxShadow:"0 20px 60px rgba(0,0,0,.14)" }}>
+                <div style={{ display:"flex", justifyContent:"space-between", alignItems:"flex-start", marginBottom:20 }}>
+                  <div>
+                    <h3 style={{ fontSize:19, fontWeight:800 }}>Order Tracker</h3>
+                    <p style={{ fontSize:12, color:"#bbb", marginTop:2 }}>#{liveOrder.id?.slice(0,8)}</p>
+                  </div>
+                  <button onClick={() => setShowTracker(null)} style={{ width:34, height:34, borderRadius:10, background:"#F3F4F6", fontSize:16, display:"flex", alignItems:"center", justifyContent:"center" }}><Ic n="xmark" /></button>
+                </div>
+                {ORDER_STATUSES.map((s,i) => {
+                  const idx     = ORDER_STATUSES.findIndex(st => st.key === liveOrder.status);
+                  const active  = i <= idx;
+                  const current = i === idx;
+                  return (
+                    <div key={s.key} style={{ display:"flex", gap:14 }}>
+                      <div style={{ display:"flex", flexDirection:"column", alignItems:"center" }}>
+                        <div style={{
+                          width:40, height:40, borderRadius:12, fontSize:20,
+                          display:"flex", alignItems:"center", justifyContent:"center",
+                          background:active?"#22C55E":"#F3F4F6", color:active?"#fff":"#ccc",
+                          boxShadow:current?"0 0 0 4px #BBF7D0":"none", transition:"all .3s"
+                        }}><Ic n={s.icon} size={18} /></div>
+                        {i < 3 && <div style={{ width:3, height:32, background:active&&i<idx?"#22C55E":"#E5E7EB", borderRadius:3 }} />}
+                      </div>
+                      <div style={{ paddingTop:4, paddingBottom:i<3?14:0 }}>
+                        <div style={{ fontSize:14, fontWeight:700, color:active?"#111":"#ccc" }}>{s.label}</div>
+                        <div style={{ fontSize:11, color:"#aaa" }}>{s.desc}</div>
+                      </div>
+                    </div>
+                  );
+                })}
+
+                {/* Track Rider Button */}
+                {(liveOrder.status === "buying" || liveOrder.status === "otw") && (
+                  <button onClick={() => { setShowTracker(null); setShowRiderMap(liveOrder); }} style={{
+                    width:"100%", marginTop:18, padding:"14px", borderRadius:14,
+                    background:"linear-gradient(135deg,#1D4ED8,#3B82F6)",
+                    color:"#fff", fontSize:14, fontWeight:800,
+                    display:"flex", alignItems:"center", justifyContent:"center", gap:8,
+                    boxShadow:"0 4px 16px rgba(29,78,216,.35)",
+                  }}>
+                    <Ic n="location-dot" /> Nasaan ang Rider?
+                    <div style={{ width:8, height:8, borderRadius:"50%", background:"#4ADE80", boxShadow:"0 0 6px #4ADE80", marginLeft:4 }} />
+                  </button>
+                )}
+              </div>
+            </div>
+            );
+          })()}
+
+          {/* ── Rider Map Modal ── */}
+          {showRiderMap && (
+            <RiderMapModal order={showRiderMap} onClose={() => setShowRiderMap(null)} />
+          )}
+
+          {/* ── Success Toast ── */}
+          {orderPlaced && (
+            <div className="pop" style={{
+              position:"fixed", top:"calc(env(safe-area-inset-top,0px) + 16px)", left:20, right:20, zIndex:500,
+              background:"#166534", color:"#fff", padding:"14px 20px", borderRadius:16,
+              fontSize:14, fontWeight:700, boxShadow:"0 8px 32px rgba(0,0,0,.22)",
+              display:"flex", alignItems:"center", gap:10
+            }}>
+              <Ic n="circle-check" size={22} /> Order placed! Salamat, mare/pare!
+            </div>
+          )}
+
+          </> /* end shop page */}
+
+          {/* ── ORDERS PAGE ── */}
+          {activePage === "orders" && (
+            <OrdersPage orders={myOrders} onTrack={setShowTracker} onTrackRider={setShowRiderMap} />
+          )}
+
+          {activePage === "account" && (
+            <AccountPage user={user} orders={myOrders} name={name} phone={phone} addr={addr}
+              setName={setName} setPhone={setPhone} setAddr={setAddr} onLogout={onLogout}
+              customerLat={customerLat} customerLng={customerLng} />
+          )}
+
+          {/* ── Bottom Nav ── */}
+          <div style={{
+            position:"fixed", bottom:0, left:0, right:0,
+            maxWidth:480, margin:"0 auto",
+            background:"#fff", borderTop:"1px solid #E5E7EB",
+            display:"flex", paddingBottom:"env(safe-area-inset-bottom,0px)",
+            boxShadow:"0 -4px 20px rgba(0,0,0,.07)", zIndex:150,
+          }}>
+            {[
+              { key:"shop",    icon:"cart-shopping", label:"Tindahan" },
+              { key:"orders",  icon:"box",           label:"Orders", badge: activeOrders.length },
+            ].map(t => (
+              <button key={t.key} onClick={() => setActivePage(t.key)} style={{
+                flex:1, padding:"11px 0 9px", display:"flex", flexDirection:"column", alignItems:"center", gap:3,
+                color: activePage===t.key ? "#166534" : "#94A3B8",
+                borderTop: activePage===t.key ? "2px solid #166534" : "2px solid transparent",
+                position:"relative",
+              }}>
+                <Ic n={t.icon} size={22} />
+                <span style={{ fontSize:10, fontWeight:700 }}>{t.label}</span>
+                {t.badge > 0 && (
+                  <span style={{
+                    position:"absolute", top:6, right:"calc(50% - 18px)",
+                    background:"#EF4444", color:"#fff", borderRadius:10,
+                    fontSize:10, fontWeight:800, padding:"1px 6px", minWidth:17, textAlign:"center",
+                  }}>{t.badge}</span>
+                )}
+              </button>
+            ))}
+          </div>
+
+        </div>
+      );
+    }
+
+    /* ══════════════════ ACCOUNT PAGE ══════════════════ */
+    function AccountPage({ user, orders, name, phone, addr, setName, setPhone, setAddr, onLogout, customerLat, customerLng }) {
+      const [editMode,      setEditMode]      = useState(false);
+      const [localName,     setLocalName]     = useState(name);
+      const [localPhone,    setLocalPhone]    = useState(phone);
+      const [localAddr,     setLocalAddr]     = useState(addr);
+      const [activeSection, setActiveSection] = useState("info");
+
+      // Support
+      const [myTickets,     setMyTickets]     = useState([]);
+      const [openTicket,    setOpenTicket]    = useState(null);
+      const [threadMsgs,    setThreadMsgs]    = useState([]);
+      const [ticketSubject, setTicketSubject] = useState("");
+      const [ticketMsg,     setTicketMsg]     = useState("");
+      const [ticketSending, setTicketSending] = useState(false);
+      const [showNewForm,   setShowNewForm]   = useState(false);
+      const [replyText,     setReplyText]     = useState("");
+      const [replySending,  setReplySending]  = useState(false);
+
+      // Listen to user's own tickets
+      useEffect(() => {
+        if (!user?.uid) return;
+        const ticketsRef = _fbDb.ref("support_tickets").orderByChild("uid").equalTo(user.uid);
+        ticketsRef.on("value", snap => {
+          const list = [];
+          snap.forEach(child => list.push({ id: child.key, ...child.val() }));
+          setMyTickets(list.reverse());
+        }, err => console.error("Tickets listener:", err.code));
+        return () => ticketsRef.off();
+      }, [user?.uid]);
+
+      // Listen to messages of selected ticket
+      useEffect(() => {
+        if (!openTicket) { setThreadMsgs([]); return; }
+        const msgsRef = _fbDb.ref("support_messages/" + openTicket.id).orderByChild("createdAt");
+        msgsRef.on("value", snap => {
+          const list = [];
+          snap.forEach(child => list.push({ id: child.key, ...child.val() }));
+          setThreadMsgs(list);
+        }, err => console.error("Messages listener:", err.code));
+        return () => msgsRef.off();
+      }, [openTicket?.id]);
+
+      const saveProfile = () => {
+        setName(localName); setPhone(localPhone); setAddr(localAddr);
+        setEditMode(false);
+        if (user?.uid && _fbDb) {
+          _fbDb.ref("users/" + user.uid + "/profile").set({
+            name: localName, phone: localPhone, addr: localAddr,
+            lat: customerLat || null, lng: customerLng || null,
+            updatedAt: Date.now(),
+          }).catch(err => console.error("Profile save error:", err.code));
+        }
+      };
+
+      const sendTicket = async () => {
+        if (!ticketSubject.trim() || !ticketMsg.trim()) return;
+        setTicketSending(true);
+        try {
+          const senderName = name || user?.displayName || user?.email || "User";
+          const newTicketRef = _fbDb.ref("support_tickets").push();
+          const ticketId = newTicketRef.key;
+          await newTicketRef.set({
+            uid:       user?.uid || null,
+            name:      senderName,
+            email:     user?.email || null,
+            phone:     phone || null,
+            subject:   ticketSubject.trim(),
+            status:    "open",
+            createdAt: Date.now(),
+          });
+          const msgsRef = _fbDb.ref("support_messages/" + ticketId);
+          await msgsRef.push({ text: ticketMsg.trim(), senderType:"user", senderName, createdAt: Date.now() });
+          await msgsRef.push({ text: "Salamat sa iyong mensahe! Natanggap na namin ang iyong concern. Tutugon kami sa lalong madaling panahon. — BayanGo Support 💚", senderType:"bot", senderName:"BayanGo Support", createdAt: Date.now() + 1 });
+          setTicketSubject(""); setTicketMsg("");
+          setShowNewForm(false);
+          setOpenTicket({ id: ticketId, subject: ticketSubject.trim(), status:"open" });
+        } catch (err) {
+          alert("Hindi ma-send ang ticket: " + (err.message || err.code));
+        } finally {
+          setTicketSending(false);
+        }
+      };
+
+      const sendReply = async () => {
+        if (!replyText.trim() || !openTicket) return;
+        setReplySending(true);
+        const senderName = name || user?.displayName || user?.email || "User";
+        try {
+          await _fbDb.ref("support_messages/" + openTicket.id).push({
+            text: replyText.trim(), senderType:"user", senderName, createdAt: Date.now(),
+          });
+          setReplyText("");
+        } catch (err) {
+          alert("Hindi ma-send: " + (err.message || err.code));
+        } finally {
+          setReplySending(false);
+        }
+      };
+
+      const initials = (user?.displayName || user?.email || "?")
+        .split(" ").map(w => w[0]).join("").toUpperCase().slice(0,2);
+      const deliveredOrders = orders.filter(o => o.status === "delivered");
+      const activeOrders    = orders.filter(o => o.status !== "delivered");
+      const ST_COLOR = {
+        pending:   { bg:"#F3F4F6", color:"#555",    label:"Pending",   icon:"hourglass-half" },
+        buying:    { bg:"#FEF3C7", color:"#92400E",  label:"Buying",    icon:"cart-shopping"  },
+        otw:       { bg:"#DBEAFE", color:"#1D4ED8",  label:"OTW",       icon:"motorcycle"     },
+        delivered: { bg:"#DCFCE7", color:"#166534",  label:"Delivered", icon:"circle-check"   },
+      };
+      const ST_TICKET = {
+        open:     { bg:"#FEF3C7", color:"#92400E", label:"Open"     },
+        resolved: { bg:"#DCFCE7", color:"#166534", label:"Resolved" },
+        closed:   { bg:"#F3F4F6", color:"#555",    label:"Closed"   },
+      };
+      const fmtTs = ts => { if(!ts) return ""; const d = ts.toDate?ts.toDate():new Date(ts); return d.toLocaleDateString("en-PH")+" "+d.toLocaleTimeString("en-PH",{hour:"2-digit",minute:"2-digit"}); };
+      const SECTIONS = [
+        { key:"info",    label:"Profile",    icon:"user" },
+        { key:"history", label:"Kasaysayan", icon:"clock-rotate-left" },
+        { key:"support", label:"Support",    icon:"headset", badge: myTickets.filter(t=>t.status==="open").length },
+      ];
+
+      return (
+        <div style={{ paddingBottom:90 }}>
+
+          {/* Section Tabs */}
+          <div style={{ display:"flex", background:"#fff", borderBottom:"1px solid #E5E7EB", padding:"0 16px" }}>
+            {SECTIONS.map(s => (
+              <button key={s.key} onClick={() => { setActiveSection(s.key); setOpenTicket(null); setShowNewForm(false); }} style={{ flex:1, padding:"13px 4px", fontSize:12, fontWeight:700, color: activeSection===s.key ? "#166534" : "#94A3B8", borderBottom: activeSection===s.key ? "3px solid #22C55E" : "3px solid transparent", display:"flex", alignItems:"center", justifyContent:"center", gap:5, position:"relative" }}>
+                <Ic n={s.icon} size={13} />{s.label}
+                {s.badge > 0 && <span style={{ position:"absolute", top:6, right:8, background:"#EF4444", color:"#fff", borderRadius:10, fontSize:9, fontWeight:800, padding:"1px 5px" }}>{s.badge}</span>}
+              </button>
+            ))}
+          </div>
+
+          <div style={{ padding:"20px 20px 0" }}>
+
+            {/* ── Profile ── */}
+            {activeSection === "info" && (
+              <div>
+                <div style={{ background:"#fff", borderRadius:18, padding:20, boxShadow:"0 2px 8px rgba(0,0,0,.05)", border:"1px solid #F0F0F0", marginBottom:16 }}>
+                  <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:16 }}>
+                    <span style={{ fontSize:14, fontWeight:800, color:"#111" }}><Ic n="user" style={{marginRight:8,color:"#166534"}} />Aking Impormasyon</span>
+                    {!editMode && <button onClick={() => { setLocalName(name); setLocalPhone(phone); setLocalAddr(addr); setEditMode(true); }} style={{ fontSize:12, fontWeight:700, color:"#166534", display:"flex", alignItems:"center", gap:5 }}><Ic n="pen-to-square" />I-edit</button>}
+                  </div>
+                  {[
+                    { icon:"envelope",     label:"Email",    val: user?.email,  editable:false },
+                    { icon:"user",         label:"Pangalan", val: editMode?null:(name||"—"),  editable:true, state:localName,  set:setLocalName,  placeholder:"Ilagay ang iyong pangalan" },
+                    { icon:"phone",        label:"Telepono", val: editMode?null:(phone||"—"), editable:true, state:localPhone, set:setLocalPhone, placeholder:"09XXXXXXXXX" },
+                    { icon:"location-dot", label:"Address",  val: editMode?null:(addr||"—"),  editable:true, state:localAddr,  set:setLocalAddr,  placeholder:"Bahay, Barangay, Lungsod" },
+                  ].map(f => (
+                    <div key={f.label} style={{ display:"flex", alignItems:editMode&&f.editable?"flex-start":"center", gap:12, padding:"10px 0", borderBottom:"1px solid #F8F8F8" }}>
+                      <div style={{ width:32, height:32, borderRadius:10, background:"#F0FDF4", display:"flex", alignItems:"center", justifyContent:"center", flexShrink:0 }}><Ic n={f.icon} size={13} style={{ color:"#166534" }} /></div>
+                      <div style={{ flex:1 }}>
+                        <div style={{ fontSize:10, color:"#aaa", fontWeight:600, textTransform:"uppercase", letterSpacing:".06em", marginBottom:2 }}>{f.label}</div>
+                        {editMode && f.editable
+                          ? <input value={f.state} onChange={e=>f.set(e.target.value)} placeholder={f.placeholder} style={{ width:"100%", fontSize:14, fontWeight:600, color:"#111", border:"1px solid #D1FAE5", borderRadius:8, padding:"6px 10px", outline:"none", background:"#F0FDF4", boxSizing:"border-box" }} />
+                          : <div style={{ fontSize:14, fontWeight:600, color:"#111" }}>{f.val}</div>}
+                      </div>
+                    </div>
+                  ))}
+                  {editMode && (
+                    <div style={{ display:"flex", gap:10, marginTop:16 }}>
+                      <button onClick={() => setEditMode(false)} style={{ flex:1, padding:"11px 0", borderRadius:12, background:"#F3F4F6", fontSize:13, fontWeight:700, color:"#555" }}>Kanselahin</button>
+                      <button onClick={saveProfile} style={{ flex:2, padding:"11px 0", borderRadius:12, background:"linear-gradient(135deg,#166534,#22C55E)", fontSize:13, fontWeight:700, color:"#fff" }}><Ic n="floppy-disk" style={{marginRight:6}} />I-save</button>
+                    </div>
+                  )}
+                </div>
+                <button onClick={onLogout} style={{ width:"100%", marginTop:12, padding:"13px 0", borderRadius:14, background:"#FEF2F2", fontSize:13, fontWeight:700, color:"#EF4444", display:"flex", alignItems:"center", justifyContent:"center", gap:8 }}>
+                  <Ic n="right-from-bracket" />Mag-Log Out
+                </button>
+
+              </div>
+            )}
+
+            {/* ── Order History ── */}
+            {activeSection === "history" && (
+              <div>
+                {orders.length === 0 ? (
+                  <div style={{ textAlign:"center", padding:"60px 0" }}>
+                    <Ic n="box-open" size={48} style={{ color:"#ddd", marginBottom:12, display:"block" }} />
+                    <div style={{ fontSize:15, fontWeight:700, color:"#555" }}>Wala pang orders</div>
+                    <div style={{ fontSize:13, color:"#aaa", marginTop:6 }}>Pumunta sa Tindahan para mag-order!</div>
+                  </div>
+                ) : <>
+                  {activeOrders.length > 0 && <>
+                    <div style={{ fontSize:11, fontWeight:700, color:"#EF4444", marginBottom:10, textTransform:"uppercase", letterSpacing:".08em" }}><Ic n="circle" style={{marginRight:4}} />Active ({activeOrders.length})</div>
+                    {activeOrders.map(o => { const st=ST_COLOR[o.status]||ST_COLOR.pending; const ts=o.createdAt?(o.createdAt.toDate?o.createdAt.toDate():new Date(o.createdAt)):new Date(); return (
+                      <div key={o.id} style={{ background:"#fff", borderRadius:16, padding:16, marginBottom:10, border:"1px solid #F0F0F0", boxShadow:"0 2px 8px rgba(0,0,0,.05)" }}>
+                        <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:8 }}>
+                          <div style={{ fontSize:13, fontWeight:800, color:"#111", flex:1, overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap", marginRight:10 }}>{o.items?.map(i=>i.name).join(", ")||"—"}</div>
+                          <div style={{ padding:"4px 10px", borderRadius:20, fontSize:11, fontWeight:700, background:st.bg, color:st.color, display:"flex", alignItems:"center", gap:4, whiteSpace:"nowrap" }}><Ic n={st.icon} />{st.label}</div>
+                        </div>
+                        <div style={{ display:"flex", justifyContent:"space-between", fontSize:12, color:"#aaa" }}><span>{ts.toLocaleDateString("en-PH")} {ts.toLocaleTimeString("en-PH",{hour:"2-digit",minute:"2-digit"})}</span><span style={{ fontWeight:700, color:"#166534" }}>~{fmt(o.total)}</span></div>
+                      </div>
+                    ); })}
+                  </>}
+                  {deliveredOrders.length > 0 && <>
+                    <div style={{ fontSize:11, fontWeight:700, color:"#94A3B8", margin:`${activeOrders.length>0?16:0}px 0 10px`, textTransform:"uppercase", letterSpacing:".08em" }}><Ic n="circle-check" style={{marginRight:4}} />Nadeliver na ({deliveredOrders.length})</div>
+                    {deliveredOrders.map(o => { const ts=o.createdAt?(o.createdAt.toDate?o.createdAt.toDate():new Date(o.createdAt)):new Date(); return (
+                      <div key={o.id} style={{ background:"#fff", borderRadius:16, padding:16, marginBottom:10, border:"1px solid #F0F0F0", boxShadow:"0 2px 8px rgba(0,0,0,.05)" }}>
+                        <div style={{ fontSize:13, fontWeight:800, color:"#111", marginBottom:6, overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>{o.items?.map(i=>i.name).join(", ")||"—"}</div>
+                        <div style={{ display:"flex", justifyContent:"space-between", fontSize:12, color:"#aaa" }}><span>{ts.toLocaleDateString("en-PH")} {ts.toLocaleTimeString("en-PH",{hour:"2-digit",minute:"2-digit"})}</span><span style={{ fontWeight:700, color:"#166534" }}>~{fmt(o.total)}</span></div>
+                      </div>
+                    ); })}
+                  </>}
+                </>}
+              </div>
+            )}
+
+            {/* ── Support ── */}
+            {activeSection === "support" && !openTicket && !showNewForm && (
+              <div>
+                <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:16 }}>
+                  <span style={{ fontSize:14, fontWeight:800, color:"#111" }}><Ic n="headset" style={{marginRight:8,color:"#166534"}} />Aking Tickets</span>
+                  <button onClick={() => setShowNewForm(true)} style={{ padding:"8px 14px", borderRadius:20, background:"linear-gradient(135deg,#166534,#22C55E)", color:"#fff", fontSize:12, fontWeight:700, display:"flex", alignItems:"center", gap:6, boxShadow:"0 3px 10px rgba(22,101,52,.25)" }}>
+                    <Ic n="plus" />Bagong Ticket
+                  </button>
+                </div>
+                {myTickets.length === 0 ? (
+                  <div style={{ textAlign:"center", padding:"50px 0" }}>
+                    <Ic n="inbox" size={48} style={{ color:"#ddd", marginBottom:12, display:"block" }} />
+                    <div style={{ fontSize:14, fontWeight:700, color:"#555" }}>Wala pang tickets</div>
+                    <div style={{ fontSize:12, color:"#aaa", marginTop:6 }}>I-tap ang "Bagong Ticket" kung may concern ka.</div>
+                  </div>
+                ) : myTickets.map(t => {
+                  const st = ST_TICKET[t.status] || ST_TICKET.open;
+                  return (
+                    <button key={t.id} onClick={() => setOpenTicket(t)} style={{ width:"100%", textAlign:"left", background:"#fff", borderRadius:16, padding:16, marginBottom:10, border:"1px solid #F0F0F0", boxShadow:"0 2px 8px rgba(0,0,0,.05)", display:"block" }}>
+                      <div style={{ display:"flex", justifyContent:"space-between", alignItems:"flex-start" }}>
+                        <div style={{ fontSize:14, fontWeight:800, color:"#111", flex:1, marginRight:10 }}>{t.subject}</div>
+                        <div style={{ padding:"3px 10px", borderRadius:20, fontSize:11, fontWeight:700, background:st.bg, color:st.color, whiteSpace:"nowrap" }}>{st.label}</div>
+                      </div>
+                      <div style={{ fontSize:11, color:"#aaa", marginTop:6 }}>{fmtTs(t.createdAt)}</div>
+                      <div style={{ fontSize:12, color:"#166534", marginTop:4, display:"flex", alignItems:"center", gap:4 }}><Ic n="chevron-right" size={10} />Buksan ang conversation</div>
+                    </button>
+                  );
+                })}
+              </div>
+            )}
+
+            {/* ── New Ticket Form ── */}
+            {activeSection === "support" && showNewForm && (
+              <div>
+                <button onClick={() => setShowNewForm(false)} style={{ display:"flex", alignItems:"center", gap:6, fontSize:13, fontWeight:700, color:"#166534", marginBottom:16 }}>
+                  <Ic n="arrow-left" />Bumalik
+                </button>
+                <div style={{ background:"#fff", borderRadius:18, padding:20, boxShadow:"0 2px 8px rgba(0,0,0,.05)", border:"1px solid #F0F0F0" }}>
+                  <div style={{ fontSize:14, fontWeight:800, color:"#111", marginBottom:16 }}><Ic n="headset" style={{marginRight:8,color:"#166534"}} />Bagong Support Ticket</div>
+                  <div style={{ marginBottom:14 }}>
+                    <div style={{ fontSize:11, fontWeight:700, color:"#555", textTransform:"uppercase", letterSpacing:".06em", marginBottom:6 }}>Paksa ng Concern</div>
+                    <input value={ticketSubject} onChange={e=>setTicketSubject(e.target.value)} placeholder="Hal: Hindi dumating ang order ko" style={{ width:"100%", fontSize:14, color:"#111", border:"1px solid #E5E7EB", borderRadius:10, padding:"10px 12px", outline:"none", boxSizing:"border-box" }} />
+                  </div>
+                  <div style={{ marginBottom:16 }}>
+                    <div style={{ fontSize:11, fontWeight:700, color:"#555", textTransform:"uppercase", letterSpacing:".06em", marginBottom:6 }}>Detalye ng Concern</div>
+                    <textarea value={ticketMsg} onChange={e=>setTicketMsg(e.target.value)} placeholder="Ilagay ang buong detalye ng iyong concern dito..." rows={4} style={{ width:"100%", fontSize:14, color:"#111", border:"1px solid #E5E7EB", borderRadius:10, padding:"10px 12px", outline:"none", resize:"vertical", fontFamily:"inherit", boxSizing:"border-box" }} />
+                  </div>
+                  <button onClick={sendTicket} disabled={ticketSending || !ticketSubject.trim() || !ticketMsg.trim()} style={{ width:"100%", padding:"13px 0", borderRadius:12, background:(!ticketSubject.trim()||!ticketMsg.trim())?"#E5E7EB":"linear-gradient(135deg,#166534,#22C55E)", color:(!ticketSubject.trim()||!ticketMsg.trim())?"#aaa":"#fff", fontSize:14, fontWeight:700, display:"flex", alignItems:"center", justifyContent:"center", gap:8 }}>
+                    {ticketSending ? <><Ic n="spinner" className="spin" />Nagse-send...</> : <><Ic n="paper-plane" />Ipadala ang Ticket</>}
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {/* ── Thread View ── */}
+            {activeSection === "support" && openTicket && (
+              <div>
+                <button onClick={() => setOpenTicket(null)} style={{ display:"flex", alignItems:"center", gap:6, fontSize:13, fontWeight:700, color:"#166534", marginBottom:16 }}>
+                  <Ic n="arrow-left" />Bumalik sa Tickets
+                </button>
+                <div style={{ background:"#fff", borderRadius:16, padding:14, marginBottom:12, border:"1px solid #F0F0F0" }}>
+                  <div style={{ fontSize:14, fontWeight:800, color:"#111" }}>{openTicket.subject}</div>
+                  <div style={{ fontSize:11, color:"#aaa", marginTop:4 }}>
+                    {(() => { const st=ST_TICKET[openTicket.status]||ST_TICKET.open; return <span style={{ padding:"2px 8px", borderRadius:10, background:st.bg, color:st.color, fontWeight:700 }}>{st.label}</span>; })()}
+                  </div>
+                </div>
+
+                {/* Messages */}
+                <div style={{ marginBottom:12 }}>
+                  {threadMsgs.map(m => {
+                    const isUser  = m.senderType === "user";
+                    const isBot   = m.senderType === "bot";
+                    const isAdmin = m.senderType === "admin";
+                    return (
+                      <div key={m.id} style={{ display:"flex", flexDirection:"column", alignItems: isUser?"flex-end":"flex-start", marginBottom:10 }}>
+                        {!isUser && <div style={{ fontSize:10, fontWeight:700, color: isBot?"#3B82F6":"#166534", marginBottom:3, paddingLeft:4 }}>{isBot ? "🤖 BayanGo Support" : "👤 Admin"}</div>}
+                        <div style={{
+                          maxWidth:"80%", padding:"10px 14px", borderRadius: isUser?"18px 18px 4px 18px":"18px 18px 18px 4px",
+                          background: isUser?"linear-gradient(135deg,#166534,#22C55E)":isBot?"#EFF6FF":"#F0FDF4",
+                          color: isUser?"#fff":"#111",
+                          fontSize:13, lineHeight:1.5,
+                          boxShadow:"0 1px 4px rgba(0,0,0,.08)",
+                        }}>
+                          {m.text}
+                        </div>
+                        <div style={{ fontSize:10, color:"#ccc", marginTop:3, paddingLeft:4, paddingRight:4 }}>{fmtTs(m.createdAt)}</div>
+                      </div>
+                    );
+                  })}
+                  {threadMsgs.length === 0 && <div style={{ textAlign:"center", padding:"20px 0", fontSize:12, color:"#ccc" }}>Walang messages pa.</div>}
+                </div>
+
+                {/* Reply box */}
+                {openTicket.status !== "closed" && (
+                  <div style={{ display:"flex", gap:8, alignItems:"flex-end" }}>
+                    <textarea value={replyText} onChange={e=>setReplyText(e.target.value)} placeholder="Isulat ang iyong reply..." rows={2} onKeyDown={e=>{ if(e.key==="Enter"&&!e.shiftKey){e.preventDefault();sendReply();} }} style={{ flex:1, fontSize:13, color:"#111", border:"1px solid #E5E7EB", borderRadius:12, padding:"10px 12px", outline:"none", resize:"none", fontFamily:"inherit", boxSizing:"border-box" }} />
+                    <button onClick={sendReply} disabled={replySending||!replyText.trim()} style={{ width:42, height:42, borderRadius:12, background: replyText.trim()?"linear-gradient(135deg,#166534,#22C55E)":"#E5E7EB", color: replyText.trim()?"#fff":"#aaa", display:"flex", alignItems:"center", justifyContent:"center", flexShrink:0 }}>
+                      {replySending ? <Ic n="spinner" className="spin" size={16} /> : <Ic n="paper-plane" size={16} />}
+                    </button>
+                  </div>
+                )}
+                {openTicket.status === "closed" && (
+                  <div style={{ textAlign:"center", padding:"12px 0", fontSize:12, color:"#aaa", fontWeight:600 }}>Ang ticket na ito ay sarado na.</div>
+                )}
+              </div>
+            )}
+
+          </div>
+        </div>
+      );
+    }
+
+    /* ══════════════════ ORDERS PAGE ══════════════════ */
+    /* ══════════════════ LOCATION PICKER ══════════════════ */
+    function LocationPicker({ lat, lng, onPick, onClose }) {
+      const mapRef = useRef(null);
+      const mapInstanceRef = useRef(null);
+      const markerRef = useRef(null);
+      const [detecting, setDetecting] = useState(false);
+
+      const BINANG_CENTER = [14.4584, 121.1971];
+      const initialPos = (lat && lng) ? [lat, lng] : BINANG_CENTER;
+
+      const pinIcon = L.divIcon({
+        html: '<div style="display:flex;flex-direction:column;align-items:center;"><div style="width:36px;height:36px;border-radius:50%;background:linear-gradient(135deg,#166534,#22C55E);display:flex;align-items:center;justify-content:center;color:#fff;font-size:16px;box-shadow:0 4px 16px rgba(22,101,52,.45);border:3px solid #fff;"><i class="fa-solid fa-house"></i></div><div style="width:3px;height:10px;background:#166534;margin-top:-2px;border-radius:0 0 2px 2px;"></div></div>',
+        className: '',
+        iconSize: [36, 48],
+        iconAnchor: [18, 48],
+      });
+
+      useEffect(() => {
+        if (!mapRef.current || mapInstanceRef.current) return;
+
+        const map = L.map(mapRef.current, {
+          center: initialPos,
+          zoom: (lat && lng) ? 17 : 15,
+          zoomControl: false,
+        });
+        L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
+          attribution: '&copy; OpenStreetMap',
+          maxZoom: 19,
+        }).addTo(map);
+        L.control.zoom({ position: "bottomright" }).addTo(map);
+
+        const marker = L.marker(initialPos, { icon: pinIcon, draggable: true }).addTo(map);
+        marker.bindPopup("I-drag ako sa tamang lokasyon!").openPopup();
+        markerRef.current = marker;
+        mapInstanceRef.current = map;
+
+        // Tap on map to move pin
+        map.on("click", (e) => {
+          marker.setLatLng(e.latlng);
+        });
+
+        setTimeout(() => map.invalidateSize(), 200);
+
+        return () => {
+          map.remove();
+          mapInstanceRef.current = null;
+          markerRef.current = null;
+        };
+      }, []);
+
+      const detectLocation = () => {
+        if (!navigator.geolocation) return;
+        setDetecting(true);
+        navigator.geolocation.getCurrentPosition(
+          (pos) => {
+            const latlng = [pos.coords.latitude, pos.coords.longitude];
+            if (markerRef.current && mapInstanceRef.current) {
+              markerRef.current.setLatLng(latlng);
+              mapInstanceRef.current.setView(latlng, 17);
+            }
+            setDetecting(false);
+          },
+          (err) => {
+            alert("Hindi ma-detect ang location: " + err.message);
+            setDetecting(false);
+          },
+          { enableHighAccuracy: true, timeout: 15000 }
+        );
+      };
+
+      const confirmPin = () => {
+        if (markerRef.current) {
+          const pos = markerRef.current.getLatLng();
+          onPick(pos.lat, pos.lng);
+        }
+        onClose();
+      };
+
+      return (
+        <div style={{ position:"fixed", inset:0, zIndex:500, background:"rgba(0,0,0,.7)", backdropFilter:"blur(6px)", display:"flex", flexDirection:"column" }}>
+          <div style={{ flex:1, display:"flex", flexDirection:"column", maxWidth:480, width:"100%", margin:"0 auto" }}>
+            {/* Header */}
+            <div style={{
+              background:"linear-gradient(135deg,#166534,#22C55E)",
+              padding:"calc(env(safe-area-inset-top,0px) + 14px) 20px 14px",
+              color:"#fff", display:"flex", alignItems:"center", justifyContent:"space-between",
+            }}>
+              <div>
+                <div style={{ fontSize:16, fontWeight:800, display:"flex", alignItems:"center", gap:8 }}>
+                  <Ic n="map-pin" /> I-pin ang Lokasyon Mo
+                </div>
+                <div style={{ fontSize:12, opacity:.8, marginTop:3 }}>I-drag ang pin o i-tap ang mapa</div>
+              </div>
+              <button onClick={onClose} style={{ width:34, height:34, borderRadius:10, background:"rgba(255,255,255,.2)", color:"#fff", fontSize:16, display:"flex", alignItems:"center", justifyContent:"center" }}>
+                <Ic n="xmark" />
+              </button>
+            </div>
+
+            {/* Map */}
+            <div ref={mapRef} style={{ flex:1, minHeight:300, background:"#E5E7EB" }} />
+
+            {/* Bottom controls */}
+            <div style={{
+              background:"#fff", padding:"16px 20px", paddingBottom:"calc(env(safe-area-inset-bottom,0px) + 16px)",
+              display:"flex", flexDirection:"column", gap:10,
+            }}>
+              <button onClick={detectLocation} disabled={detecting} style={{
+                width:"100%", padding:"13px", borderRadius:12,
+                background:"#F0FDF4", border:"2px solid #BBF7D0",
+                color:"#166534", fontSize:14, fontWeight:700,
+                display:"flex", alignItems:"center", justifyContent:"center", gap:8,
+              }}>
+                {detecting
+                  ? <><Ic n="spinner" className="spin" /> Hinahanap ang location mo...</>
+                  : <><Ic n="crosshairs" /> Gamitin ang GPS Ko</>
+                }
+              </button>
+              <button onClick={confirmPin} style={{
+                width:"100%", padding:"15px", borderRadius:14,
+                background:"linear-gradient(135deg,#166534,#22C55E)", color:"#fff",
+                fontSize:15, fontWeight:800,
+                display:"flex", alignItems:"center", justifyContent:"center", gap:8,
+                boxShadow:"0 4px 16px rgba(22,101,52,.35)",
+              }}>
+                <Ic n="circle-check" /> I-confirm ang Location
+              </button>
+            </div>
+          </div>
+        </div>
+      );
+    }
+
+    /* ══════════════════ RIDER MAP MODAL ══════════════════ */
+    function RiderMapModal({ order, onClose }) {
+      const mapRef = useRef(null);
+      const mapInstanceRef = useRef(null);
+      const riderMarkerRef = useRef(null);
+      const [riderLoc, setRiderLoc] = useState(null);
+      const [lastUpdate, setLastUpdate] = useState(null);
+      const [mapError, setMapError] = useState("");
+
+      // Binangonan center as default
+      const BINANG_CENTER = [14.4584, 121.1971];
+      const toNum = (v) => {
+        const n = Number(v);
+        return Number.isFinite(n) ? n : null;
+      };
+
+      useEffect(() => {
+        if (!order?.riderId) return;
+        const locRef = _fbDb.ref("rider_locations/" + order.riderId);
+        locRef.on("value", snap => {
+          const val = snap.val();
+          if (val && val.lat && val.lng) {
+            setRiderLoc(val);
+            setLastUpdate(val.updatedAt);
+          }
+        });
+        return () => locRef.off();
+      }, [order?.riderId]);
+
+      useEffect(() => {
+        if (!mapRef.current || mapInstanceRef.current) return;
+        if (typeof L === "undefined" || !L?.map) {
+          setMapError("Hindi available ang mapa ngayon. Pakisubukan ulit mamaya.");
+          return;
+        }
+
+        const map = L.map(mapRef.current, {
+          center: BINANG_CENTER,
+          zoom: 15,
+          zoomControl: false,
+        });
+        L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
+          attribution: '&copy; OpenStreetMap',
+          maxZoom: 19,
+        }).addTo(map);
+        L.control.zoom({ position: "bottomright" }).addTo(map);
+        mapInstanceRef.current = map;
+
+        // Add customer pin if available
+        const custLat = toNum(order?.customer?.lat);
+        const custLng = toNum(order?.customer?.lng);
+        if (custLat != null && custLng != null) {
+          const custIcon = L.divIcon({
+            html: '<div style="display:flex;flex-direction:column;align-items:center;"><div style="width:36px;height:36px;border-radius:50%;background:linear-gradient(135deg,#166534,#22C55E);display:flex;align-items:center;justify-content:center;color:#fff;font-size:16px;box-shadow:0 4px 16px rgba(22,101,52,.45);border:3px solid #fff;"><i class="fa-solid fa-house"></i></div><div style="width:3px;height:10px;background:#166534;margin-top:-2px;border-radius:0 0 2px 2px;"></div></div>',
+            className: '',
+            iconSize: [36, 48],
+            iconAnchor: [18, 48],
+          });
+          L.marker([custLat, custLng], { icon: custIcon }).addTo(map)
+            .bindPopup(`<b>${order.customer?.name || "Customer"}</b><br/>${order.customer?.address || ""}`);
+          map.setView([custLat, custLng], 16);
+        }
+
+        setTimeout(() => map.invalidateSize(), 200);
+
+        return () => {
+          map.remove();
+          mapInstanceRef.current = null;
+          riderMarkerRef.current = null;
+        };
+      }, []);
+
+      // Update rider marker when location changes
+      useEffect(() => {
+        const map = mapInstanceRef.current;
+        if (!map || !riderLoc) return;
+
+        const riderLat = toNum(riderLoc?.lat);
+        const riderLng = toNum(riderLoc?.lng);
+        if (riderLat == null || riderLng == null) return;
+        const pos = [riderLat, riderLng];
+
+        if (!riderMarkerRef.current) {
+          const riderIcon = L.divIcon({
+            html: '<div style="width:42px;height:42px;border-radius:50%;background:linear-gradient(135deg,#1D4ED8,#3B82F6);display:flex;align-items:center;justify-content:center;color:#fff;font-size:20px;box-shadow:0 4px 16px rgba(29,78,216,.5);border:3px solid #fff;"><i class="fa-solid fa-motorcycle"></i></div>',
+            className: '',
+            iconSize: [42, 42],
+            iconAnchor: [21, 21],
+          });
+          riderMarkerRef.current = L.marker(pos, { icon: riderIcon }).addTo(map);
+          riderMarkerRef.current.bindPopup(
+            `<b>${order.riderName || "Rider"}</b><br/>Papunta sa'yo!`
+          );
+
+          // Fit bounds to show both rider and customer pin
+          const custLat = toNum(order?.customer?.lat);
+          const custLng = toNum(order?.customer?.lng);
+          if (custLat != null && custLng != null) {
+            map.fitBounds([pos, [custLat, custLng]], { padding: [50, 50] });
+          } else {
+            map.setView(pos, 16);
+          }
+        } else {
+          riderMarkerRef.current.setLatLng(pos);
+        }
+      }, [riderLoc]);
+
+      const secAgo = lastUpdate ? Math.round((Date.now() - lastUpdate) / 1000) : null;
+
+      return (
+        <div style={{ position:"fixed", inset:0, zIndex:400, background:"rgba(0,0,0,.7)", backdropFilter:"blur(6px)", display:"flex", flexDirection:"column" }}
+          onClick={onClose}>
+          <div onClick={e => e.stopPropagation()} style={{
+            flex:1, display:"flex", flexDirection:"column", maxWidth:480, width:"100%", margin:"0 auto",
+          }}>
+            {/* Header */}
+            <div style={{
+              background:"linear-gradient(135deg,#1D4ED8,#3B82F6)",
+              padding:"calc(env(safe-area-inset-top,0px) + 14px) 20px 14px",
+              color:"#fff", display:"flex", alignItems:"center", justifyContent:"space-between",
+            }}>
+              <div>
+                <div style={{ fontSize:16, fontWeight:800, display:"flex", alignItems:"center", gap:8 }}>
+                  <Ic n="location-dot" /> Nasaan ang Rider?
+                </div>
+                {order.riderName && (
+                  <div style={{ fontSize:12, opacity:.8, marginTop:3, display:"flex", alignItems:"center", gap:6 }}>
+                    {order.riderPhoto && <img src={order.riderPhoto} style={{ width:18, height:18, borderRadius:"50%", objectFit:"cover" }} />}
+                    <Ic n="motorcycle" style={{marginRight:2}} />{order.riderName}
+                  </div>
+                )}
+              </div>
+              <button onClick={onClose} style={{ width:34, height:34, borderRadius:10, background:"rgba(255,255,255,.2)", color:"#fff", fontSize:16, display:"flex", alignItems:"center", justifyContent:"center" }}>
+                <Ic n="xmark" />
+              </button>
+            </div>
+
+            {/* Status bar */}
+            <div style={{
+              background:"#fff", padding:"10px 20px", borderBottom:"1px solid #E5E7EB",
+              display:"flex", alignItems:"center", justifyContent:"space-between",
+            }}>
+              {riderLoc ? (
+                <>
+                  <div style={{ display:"flex", alignItems:"center", gap:8 }}>
+                    <div style={{ width:10, height:10, borderRadius:"50%", background:"#22C55E", boxShadow:"0 0 8px #22C55E" }} />
+                    <span style={{ fontSize:13, fontWeight:700, color:"#166534" }}>Live Tracking</span>
+                  </div>
+                  <span style={{ fontSize:11, color:"#888" }}>
+                    {secAgo != null && secAgo < 60
+                      ? `${secAgo}s ago`
+                      : secAgo != null
+                        ? `${Math.round(secAgo/60)}m ago`
+                        : ""}
+                  </span>
+                </>
+              ) : (
+                <>
+                  <div style={{ display:"flex", alignItems:"center", gap:8 }}>
+                    <Ic n="satellite-dish" className="pulse" style={{ color:"#F59E0B" }} />
+                    <span style={{ fontSize:13, fontWeight:600, color:"#92400E" }}>
+                      {order.riderId ? "Hinihintay ang GPS ng rider..." : "Wala pang rider na nag-accept"}
+                    </span>
+                  </div>
+                </>
+              )}
+            </div>
+
+            {/* Map */}
+            <div style={{ position:"relative", flex:1, minHeight:300, background:"#E5E7EB" }}>
+              <div ref={mapRef} style={{ position:"absolute", inset:0 }} />
+              {mapError && (
+                <div style={{
+                  position:"absolute", inset:0, background:"#F8FAFC",
+                  display:"flex", alignItems:"center", justifyContent:"center",
+                  textAlign:"center", padding:"20px 24px", color:"#64748B", fontSize:13, fontWeight:600
+                }}>
+                  <div>
+                    <div style={{ fontSize:20, marginBottom:6 }}><Ic n="triangle-exclamation" /></div>
+                    {mapError}
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* Footer */}
+            <div style={{
+              background:"#fff", padding:"14px 20px", paddingBottom:"calc(env(safe-area-inset-bottom,0px) + 14px)",
+              borderTop:"1px solid #E5E7EB",
+            }}>
+              <div style={{ display:"flex", alignItems:"center", gap:10 }}>
+                <div style={{
+                  width:40, height:40, borderRadius:12, flexShrink:0,
+                  background: order.status==="otw" ? "#DBEAFE" : "#FEF3C7",
+                  display:"flex", alignItems:"center", justifyContent:"center",
+                }}>
+                  <Ic n={order.status==="otw"?"motorcycle":"cart-shopping"} style={{ color: order.status==="otw"?"#1D4ED8":"#92400E" }} />
+                </div>
+                <div style={{ flex:1 }}>
+                  <div style={{ fontSize:14, fontWeight:800, color:"#111" }}>
+                    {order.status==="otw" ? "Papunta na sa'yo!" : order.status==="buying" ? "Binibili pa sa palengke" : ORDER_STATUSES.find(s=>s.key===order.status)?.desc}
+                  </div>
+                  <div style={{ fontSize:12, color:"#888", marginTop:1 }}>{order.customer?.address}</div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      );
+    }
+
+    function OrdersPage({ orders, onTrack, onTrackRider }) {
+      const active    = orders.filter(o => o.status !== "delivered");
+      const completed = orders.filter(o => o.status === "delivered");
+      const [ordersView, setOrdersView] = useState("active");
+
+      const ST_COLOR = {
+        pending:   { bg:"#F3F4F6", color:"#555",    label:"Pending",   icon:"hourglass-half" },
+        buying:    { bg:"#FEF3C7", color:"#92400E", label:"Buying",    icon:"cart-shopping" },
+        otw:       { bg:"#DBEAFE", color:"#1D4ED8", label:"OTW",       icon:"motorcycle" },
+        delivered: { bg:"#DCFCE7", color:"#166534", label:"Delivered", icon:"circle-check" },
+      };
+
+      const OrderCard = ({ o }) => {
+        const st = ST_COLOR[o.status] || ST_COLOR.pending;
+        const ts = o.createdAt ? (o.createdAt.toDate ? o.createdAt.toDate() : new Date(o.createdAt)) : new Date();
+        const idx = ORDER_STATUSES.findIndex(s => s.key === o.status);
+        const canTrackRider = o.status === "buying" || o.status === "otw";
+        return (
+          <div style={{ marginBottom:12 }}>
+            <button onClick={() => onTrack(o)} style={{
+              width:"100%", textAlign:"left", background:"#fff",
+              borderRadius: canTrackRider ? "18px 18px 0 0" : 18,
+              padding:"16px", border:"1px solid #F0F0F0",
+              borderBottom: canTrackRider ? "none" : undefined,
+              boxShadow: canTrackRider ? "none" : "0 2px 8px rgba(0,0,0,.05)", display:"block",
+            }}>
+              {/* Top row */}
+              <div style={{ display:"flex", justifyContent:"space-between", alignItems:"flex-start", marginBottom:12 }}>
+                <div style={{ flex:1, marginRight:12 }}>
+                  <div style={{ fontSize:13, fontWeight:800, color:"#111", overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>
+                    {o.items?.map(i=>i.name).join(", ") || "—"}
+                  </div>
+                  <div style={{ fontSize:11, color:"#aaa", marginTop:2 }}>
+                    {ts.toLocaleDateString("en-PH")} {ts.toLocaleTimeString("en-PH",{hour:"2-digit",minute:"2-digit"})}
+                  </div>
+                </div>
+                <div style={{ padding:"5px 12px", borderRadius:20, fontSize:12, fontWeight:700, whiteSpace:"nowrap", background:st.bg, color:st.color, display:"flex", alignItems:"center", gap:5 }}>
+                  <Ic n={st.icon} />{st.label}
+                </div>
+              </div>
+
+              {/* Progress bar */}
+              <div style={{ display:"flex", gap:4, marginBottom:12 }}>
+                {ORDER_STATUSES.map((s, i) => (
+                  <div key={s.key} style={{
+                    flex:1, height:4, borderRadius:4,
+                    background: i <= idx ? "#22C55E" : "#E5E7EB",
+                    transition:"background .3s",
+                  }} />
+                ))}
+              </div>
+
+              {/* Steps */}
+              <div style={{ display:"flex", justifyContent:"space-between" }}>
+                {ORDER_STATUSES.map((s, i) => (
+                  <div key={s.key} style={{ textAlign:"center", flex:1 }}>
+                    <div style={{ fontSize:16, opacity: i <= idx ? 1 : 0.25 }}><Ic n={s.icon} /></div>
+                    <div style={{ fontSize:9, fontWeight:700, color: i <= idx ? "#166534" : "#ccc", marginTop:2 }}>{s.label}</div>
+                  </div>
+                ))}
+              </div>
+
+              {/* Footer */}
+              <div style={{ marginTop:12, paddingTop:10, borderTop:"1px dashed #E5E7EB", display:"flex", justifyContent:"space-between", alignItems:"center" }}>
+                <div style={{ fontSize:12, color:"#888" }}>{o.customer?.address}</div>
+                <div style={{ fontSize:14, fontWeight:800, color:"#166534" }}>~{fmt(o.total)}</div>
+              </div>
+            </button>
+
+            {/* Track Rider button */}
+            {canTrackRider && (
+              <button onClick={() => onTrackRider(o)} style={{
+                width:"100%", padding:"12px", borderRadius:"0 0 18px 18px",
+                background:"linear-gradient(135deg,#1D4ED8,#3B82F6)", color:"#fff",
+                fontSize:13, fontWeight:800, display:"flex", alignItems:"center", justifyContent:"center", gap:8,
+                boxShadow:"0 2px 8px rgba(29,78,216,.25)",
+              }}>
+                <Ic n="location-dot" />
+                Nasaan ang Rider?
+                <div style={{ width:8, height:8, borderRadius:"50%", background:"#4ADE80", boxShadow:"0 0 6px #4ADE80" }} />
+              </button>
+            )}
+          </div>
+        );
+      };
+
+      return (
+        <div style={{ padding:"0 0 20px" }}>
+          <div style={{ padding:"20px 20px 4px" }}>
+            <h2 style={{ fontSize:18, fontWeight:800, color:"#111", margin:0 }}><Ic n="box" style={{marginRight:8,color:"#166534"}} />Ang Orders Ko</h2>
+          </div>
+
+          <div style={{ padding:"20px 20px 0" }}>
+            {orders.length === 0 ? (
+              <div style={{ textAlign:"center", padding:"60px 0", color:"#ccc" }}>
+                <Ic n="envelope-open" size={56} style={{ color:"#ccc", marginBottom:12, display:"block" }} />
+                <div style={{ fontSize:16, fontWeight:700, color:"#555" }}>Wala pang orders</div>
+                <div style={{ fontSize:13, marginTop:6, color:"#aaa" }}>Pumunta sa Tindahan para mag-order!</div>
+              </div>
+            ) : (
+              <>
+                <div style={{
+                  display:"flex", gap:8, marginBottom:14, padding:4,
+                  background:"#F1F5F9", borderRadius:14, border:"1px solid #E2E8F0",
+                }}>
+                  <button onClick={() => setOrdersView("active")} style={{
+                    flex:1, padding:"10px 12px", borderRadius:10, fontSize:12, fontWeight:800,
+                    background:ordersView==="active" ? "#166534" : "transparent",
+                    color:ordersView==="active" ? "#fff" : "#475569",
+                    boxShadow:ordersView==="active" ? "0 2px 8px rgba(22,101,52,.28)" : "none",
+                  }}>
+                    <Ic n="circle" style={{ marginRight:6, color:ordersView==="active" ? "#FCA5A5" : "#EF4444" }} />
+                    Active ({active.length})
+                  </button>
+                  <button onClick={() => setOrdersView("previous")} style={{
+                    flex:1, padding:"10px 12px", borderRadius:10, fontSize:12, fontWeight:800,
+                    background:ordersView==="previous" ? "#1E293B" : "transparent",
+                    color:ordersView==="previous" ? "#fff" : "#475569",
+                    boxShadow:ordersView==="previous" ? "0 2px 8px rgba(30,41,59,.25)" : "none",
+                  }}>
+                    <Ic n="clock-rotate-left" style={{ marginRight:6 }} />
+                    Previous ({completed.length})
+                  </button>
+                </div>
+
+                {ordersView === "active" ? (
+                  active.length > 0 ? (
+                    active.map(o => <OrderCard key={o.id} o={o} />)
+                  ) : (
+                    <div style={{ textAlign:"center", padding:"44px 16px", border:"1px dashed #D1D5DB", borderRadius:16, background:"#fff" }}>
+                      <Ic n="box-open" size={34} style={{ color:"#9CA3AF", marginBottom:10 }} />
+                      <div style={{ fontSize:14, fontWeight:700, color:"#4B5563" }}>Walang active orders</div>
+                      <div style={{ fontSize:12, marginTop:6, color:"#9CA3AF" }}>Kapag may ongoing order ka, dito ito lalabas.</div>
+                    </div>
+                  )
+                ) : (
+                  completed.length > 0 ? (
+                    completed.map(o => <OrderCard key={o.id} o={o} />)
+                  ) : (
+                    <div style={{ textAlign:"center", padding:"44px 16px", border:"1px dashed #D1D5DB", borderRadius:16, background:"#fff" }}>
+                      <Ic n="clock-rotate-left" size={34} style={{ color:"#9CA3AF", marginBottom:10 }} />
+                      <div style={{ fontSize:14, fontWeight:700, color:"#4B5563" }}>Wala pang previous orders</div>
+                      <div style={{ fontSize:12, marginTop:6, color:"#9CA3AF" }}>Dito mapupunta ang mga tapos na order mo.</div>
+                    </div>
+                  )
+                )}
+              </>
+            )}
+          </div>
+        </div>
+      );
+    }
+
+    /* ══════════════════ AI RECIPE MODAL ══════════════════ */
+    function AIRecipeModal({ cartItems, onClose }) {
+      const [loading,  setLoading]  = useState(false);
+      const [recipes,  setRecipes]  = useState(null);
+      const [error,    setError]    = useState(null);
+      const [selected, setSelected] = useState(null);
+
+      const generate = async () => {
+        setLoading(true); setError(null); setRecipes(null); setSelected(null);
+        try {
+          const itemList = cartItems.map(i => `${i.name} (${i.qty} ${i.unit})`).join(", ");
+          const system = `Ikaw ay isang expert na Filipino chef na taga-Rizal.
+Magbibigay ka ng tatlong (3) putahe na recipe gamit ang mga sangkap na nasa basket ng customer.
+Sumagot LAMANG ng valid JSON, walang markdown, walang backtick, walang text bago o pagkatapos.
+Format:
+[{"name":"Pangalan","emoji":"🍳","difficulty":"Madali|Katamtaman|Mahirap","time":"XX minuto","description":"1-2 sentence sa Tagalog","steps":["Hakbang 1","Hakbang 2"],"tip":"Pro tip sa Tagalog"}]`;
+          const raw = await askClaude(system, `Mga sangkap: ${itemList}. Mag-suggest ng 3 putahe.`);
+          setRecipes(JSON.parse(raw.replace(/```json|```/g,"").trim()));
+        } catch(e) {
+          setError("May error sa AI. Subukan ulit!");
+        } finally {
+          setLoading(false);
+        }
+      };
+
+      return (
+        <div style={{ position:"fixed", inset:0, zIndex:400, background:"rgba(0,0,0,.7)", backdropFilter:"blur(8px)", display:"flex", alignItems:"flex-end", justifyContent:"center" }}>
+          <div className="slide-up" style={{ width:"100%", maxWidth:480, background:"#fff", borderRadius:"24px 24px 0 0", padding:"26px 22px 40px", maxHeight:"90vh", overflowY:"auto" }}>
+            <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:8 }}>
+              <div>
+                <h2 style={{ fontSize:21, fontWeight:800 }}><Ic n="robot" style={{marginRight:6}} />Ano Lulutuin?</h2>
+                <p style={{ fontSize:12, color:"#aaa", marginTop:2 }}>AI-powered recipe suggestions</p>
+              </div>
+              <button onClick={onClose} style={{ width:36, height:36, borderRadius:10, background:"#F3F4F6", fontSize:18, display:"flex", alignItems:"center", justifyContent:"center" }}><Ic n="xmark" /></button>
+            </div>
+
+            <div style={{ background:"#F0FDF4", borderRadius:14, padding:"12px 14px", marginBottom:18, border:"1px solid #BBF7D0" }}>
+              <div style={{ fontSize:11, fontWeight:700, color:"#166534", marginBottom:8 }}><Ic n="basket-shopping" style={{marginRight:4}} />Mga sangkap sa basket:</div>
+              <div style={{ display:"flex", flexWrap:"wrap", gap:6 }}>
+                {cartItems.map(i => (
+                  <span key={i.id} style={{ background:"#fff", border:"1px solid #D1FAE5", borderRadius:20, padding:"4px 10px", fontSize:11, fontWeight:700, color:"#166534" }}>
+                    {i.name}
+                  </span>
+                ))}
+              </div>
+            </div>
+
+            {!recipes && (
+              <button onClick={generate} disabled={loading} style={{
+                width:"100%", padding:"16px", borderRadius:16,
+                background:loading?"#E5E7EB":"linear-gradient(135deg,#7C3AED,#A855F7)",
+                color:loading?"#aaa":"#fff", fontSize:15, fontWeight:700,
+                boxShadow:loading?"none":"0 4px 20px rgba(124,58,237,.35)",
+                display:"flex", alignItems:"center", justifyContent:"center", gap:10
+              }}>
+                {loading ? (<><Ic n="gear" className="spin" size={18} style={{marginRight:6}} /><span className="ai-pulse">Nag-iisip si AI...</span></>) : (<><Ic n="wand-magic-sparkles" style={{marginRight:6}} />Mag-suggest ng Recipe</>)}
+              </button>
+            )}
+
+            {error && (
+              <div style={{ background:"#FEF2F2", border:"1px solid #FECACA", borderRadius:12, padding:"12px 14px", marginTop:14, fontSize:13, color:"#DC2626", fontWeight:500 }}>
+                <Ic n="triangle-exclamation" style={{marginRight:4}} />{error} <button onClick={generate} style={{ marginLeft:8, color:"#DC2626", textDecoration:"underline", fontWeight:700 }}>Ulit</button>
+              </div>
+            )}
+
+            {recipes && !selected && (
+              <div style={{ marginTop:8 }}>
+                <p style={{ fontSize:12, color:"#aaa", marginBottom:12, textAlign:"center" }}>Piliin ang gusto mong lutuin:</p>
+                {recipes.map((r,i) => (
+                  <button key={i} onClick={() => setSelected(r)} className="fade-up" style={{
+                    width:"100%", textAlign:"left", background:"#fff", borderRadius:16,
+                    padding:"16px", marginBottom:10, border:"1px solid #E5E7EB",
+                    boxShadow:"0 2px 8px rgba(0,0,0,.04)", animationDelay:`${i*.1}s`
+                  }}>
+                    <div style={{ display:"flex", alignItems:"center", gap:12, marginBottom:8 }}>
+                      <span style={{ fontSize:34 }}>{r.emoji}</span>
+                      <div>
+                        <div style={{ fontSize:15, fontWeight:800, color:"#111" }}>{r.name}</div>
+                        <div style={{ display:"flex", gap:6, marginTop:4 }}>
+                          <span style={{ fontSize:10, fontWeight:700, background:"#F0FDF4", color:"#166534", padding:"2px 8px", borderRadius:6 }}><Ic n="clock" style={{marginRight:3}} />{r.time}</span>
+                          <span style={{ fontSize:10, fontWeight:700, background:"#FEF3C7", color:"#92400E", padding:"2px 8px", borderRadius:6 }}><Ic n="fire" style={{marginRight:3}} />{r.difficulty}</span>
+                        </div>
+                      </div>
+                    </div>
+                    <p style={{ fontSize:12, color:"#777", lineHeight:1.55 }}>{r.description}</p>
+                  </button>
+                ))}
+                <button onClick={() => { setRecipes(null); generate(); }} style={{
+                  width:"100%", padding:"12px", borderRadius:12, background:"#F9FAFB",
+                  border:"1px solid #E5E7EB", fontSize:13, fontWeight:600, color:"#888"
+                }}><Ic n="rotate" style={{marginRight:6}} />Ibang suggestions</button>
+              </div>
+            )}
+
+            {selected && (
+              <div className="fade-up">
+                <button onClick={() => setSelected(null)} style={{ color:"#7C3AED", fontWeight:700, fontSize:13, marginBottom:16, display:"flex", alignItems:"center", gap:4 }}><Ic n="arrow-left" style={{marginRight:4}} />Bumalik</button>
+                <div style={{ textAlign:"center", marginBottom:20 }}>
+                  <div style={{ fontSize:60 }}>{selected.emoji}</div>
+                  <h3 style={{ fontSize:21, fontWeight:800, marginTop:8 }}>{selected.name}</h3>
+                  <div style={{ display:"flex", gap:8, justifyContent:"center", marginTop:8 }}>
+                    <span style={{ fontSize:11, fontWeight:700, background:"#F0FDF4", color:"#166534", padding:"4px 12px", borderRadius:20 }}><Ic n="clock" style={{marginRight:3}} />{selected.time}</span>
+                    <span style={{ fontSize:11, fontWeight:700, background:"#FEF3C7", color:"#92400E", padding:"4px 12px", borderRadius:20 }}><Ic n="fire" style={{marginRight:3}} />{selected.difficulty}</span>
+                  </div>
+                  <p style={{ fontSize:13, color:"#777", lineHeight:1.6, marginTop:12 }}>{selected.description}</p>
+                </div>
+                <div style={{ background:"#F9FAFB", borderRadius:16, padding:"16px", marginBottom:14, border:"1px solid #E5E7EB" }}>
+                  <div style={{ fontSize:12, fontWeight:700, color:"#444", marginBottom:12 }}><Ic n="list-ol" style={{marginRight:4}} />Paraan ng Pagluto:</div>
+                  {selected.steps.map((step,i) => (
+                    <div key={i} style={{ display:"flex", gap:12, marginBottom:12, alignItems:"flex-start" }}>
+                      <div style={{ width:26, height:26, borderRadius:8, background:"#7C3AED", color:"#fff", fontSize:11, fontWeight:800, display:"flex", alignItems:"center", justifyContent:"center", flexShrink:0 }}>{i+1}</div>
+                      <p style={{ fontSize:13, color:"#555", lineHeight:1.55, margin:0, paddingTop:3 }}>{step}</p>
+                    </div>
+                  ))}
+                </div>
+                <div style={{ background:"#FFF7ED", borderRadius:14, padding:"14px 16px", border:"1px solid #FED7AA", display:"flex", gap:10 }}>
+                  <Ic n="lightbulb" size={18} style={{ color:"#EA580C" }} />
+                  <div>
+                    <div style={{ fontSize:11, fontWeight:800, color:"#EA580C", marginBottom:4 }}>Pro Tip</div>
+                    <p style={{ fontSize:12, color:"#9A3412", lineHeight:1.55, margin:0 }}>{selected.tip}</p>
+                  </div>
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+      );
+    }
+
+    ReactDOM.createRoot(document.getElementById("root")).render(<App />);
+  </script>
+</body>
+</html>
