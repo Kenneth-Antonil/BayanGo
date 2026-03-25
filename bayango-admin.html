@@ -855,9 +855,9 @@
                     style={{ flex:1, padding:"10px 14px", borderRadius:10, border:"1.5px solid #E5E7EB", fontSize:13, outline:"none" }}
                     onFocus={e => e.target.style.borderColor="#22C55E"}
                     onBlur={e  => e.target.style.borderColor="#E5E7EB"} />
-                  <button type="button" onClick={() => fileRef.current.click()} disabled={uploading}
-                    style={{ padding:"0 14px", borderRadius:10, border:"1.5px solid #BBF7D0", background:"#F0FDF4", color:"#166534", fontWeight:700, fontSize:12, whiteSpace:"nowrap", flexShrink:0 }}>
-                    {uploading ? "..." : "Upload"}
+                  <button type="button" onClick={() => !uploading && fileRef.current.click()}
+                    style={{ padding:"0 14px", borderRadius:10, border:"1.5px solid #BBF7D0", background:"#F0FDF4", color:"#166534", fontWeight:700, fontSize:12, whiteSpace:"nowrap", flexShrink:0, opacity: uploading ? 0.6 : 1 }}>
+                    {uploading ? "↑..." : "Upload"}
                   </button>
                   <input ref={fileRef} type="file" accept="image/*" onChange={handleFileChange} style={{ display:"none" }} />
                 </div>
@@ -934,18 +934,16 @@
 
           </div>
           <div style={{ padding:"12px 22px 44px", borderTop:"1px solid #F0F0F0", background:"#fff" }}>
-            <button onClick={handleSubmit} disabled={saving || uploading || !valid} style={{
+            <button onClick={handleSubmit} disabled={saving || !valid} style={{
               width:"100%", padding:"16px", borderRadius:16, fontSize:15, fontWeight:700,
-              background: (saving || uploading || !valid) ? "#D1D5DB" : "linear-gradient(135deg,#166534,#22C55E)",
-              color:      (saving || uploading || !valid) ? "#aaa"    : "#fff",
-              boxShadow:  (saving || uploading || !valid) ? "none"    : "0 4px 16px rgba(22,101,52,.3)",
+              background: (saving || !valid) ? "#D1D5DB" : "linear-gradient(135deg,#166534,#22C55E)",
+              color:      (saving || !valid) ? "#aaa"    : "#fff",
+              boxShadow:  (saving || !valid) ? "none"    : "0 4px 16px rgba(22,101,52,.3)",
               display:"flex", alignItems:"center", justifyContent:"center", gap:8
             }}>
               {saving
                 ? <><Ic n="hourglass-half" />Sine-save...</>
-                : uploading
-                  ? <><Ic n="hourglass-half" />Ina-upload ang larawan...</>
-                  : <><Ic n="floppy-disk" />{product ? "I-update ang Produkto" : "I-save ang Produkto"}</>
+                : <><Ic n="floppy-disk" />{product ? "I-update ang Produkto" : "I-save ang Produkto"}</>
               }
             </button>
           </div>
