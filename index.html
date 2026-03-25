@@ -90,28 +90,7 @@
       { id:"hardware", label:"Hardware", icon:"screwdriver-wrench", color:"#F59E0B" },
     ];
 
-    const DEFAULT_PRODUCTS = [
-      { id:1,  name:"Tilapia",          cat:"isda",     price:160, unit:"kg",   img:"https://images.unsplash.com/photo-1588347818481-6b1a3e83c5ef?w=400&fit=crop", stock:true },
-      { id:2,  name:"Galunggong",       cat:"isda",     price:200, unit:"kg",   img:"https://images.unsplash.com/photo-1510130387-6f7cca9b1e8e?w=400&fit=crop", stock:true },
-      { id:3,  name:"Bangus",           cat:"isda",     price:180, unit:"kg",   img:"https://images.unsplash.com/photo-1578507065211-1c4e99a5fd24?w=400&fit=crop", stock:true },
-      { id:4,  name:"Hipon",            cat:"isda",     price:320, unit:"kg",   img:"https://images.unsplash.com/photo-1519708227418-c8fd9a32b7a2?w=400&fit=crop", stock:true },
-      { id:5,  name:"Pusit",            cat:"isda",     price:280, unit:"kg",   img:"https://images.unsplash.com/photo-1565557623262-b51c2513a641?w=400&fit=crop", stock:true },
-      { id:6,  name:"Pork Liempo",      cat:"karne",    price:320, unit:"kg",   img:"https://images.unsplash.com/photo-1432139555190-58524dae6a55?w=400&fit=crop", stock:true },
-      { id:7,  name:"Chicken Whole",    cat:"karne",    price:190, unit:"kg",   img:"https://images.unsplash.com/photo-1548550023-2bdb3c5beed7?w=400&fit=crop", stock:true },
-      { id:8,  name:"Beef Brisket",     cat:"karne",    price:380, unit:"kg",   img:"https://images.unsplash.com/photo-1558030006-43a7e4e1b46d?w=400&fit=crop", stock:true },
-      { id:9,  name:"Ground Pork",      cat:"karne",    price:280, unit:"kg",   img:"https://images.unsplash.com/photo-1607623814075-e51df1bdc82f?w=400&fit=crop", stock:true },
-      { id:10, name:"Kamatis",          cat:"gulay",    price:80,  unit:"kg",   img:"https://images.unsplash.com/photo-1546094096-0df4bcaad337?w=400&fit=crop", stock:true },
-      { id:11, name:"Sibuyas",          cat:"gulay",    price:120, unit:"kg",   img:"https://images.unsplash.com/photo-1587316205036-8db0ce41e0af?w=400&fit=crop", stock:true },
-      { id:12, name:"Bawang",           cat:"gulay",    price:200, unit:"kg",   img:"https://images.unsplash.com/photo-1540148426945-6cf22a6b2383?w=400&fit=crop", stock:true },
-      { id:13, name:"Talong",           cat:"gulay",    price:60,  unit:"kg",   img:"https://images.unsplash.com/photo-1615485290382-441e4aa8dd8c?w=400&fit=crop", stock:true },
-      { id:14, name:"Sili",             cat:"gulay",    price:100, unit:"kg",   img:"https://images.unsplash.com/photo-1588165171080-c89acfa5ee83?w=400&fit=crop", stock:true },
-      { id:15, name:"Pako",             cat:"gulay",    price:40,  unit:"tali", img:"https://images.unsplash.com/photo-1540420773420-3366772f4999?w=400&fit=crop", stock:true },
-      { id:16, name:"Cement (Portland)",cat:"hardware", price:260, unit:"bag",  img:"https://images.unsplash.com/photo-1587825140708-dfaf72ae4b04?w=400&fit=crop", stock:true },
-      { id:17, name:"Hollow Blocks",    cat:"hardware", price:14,  unit:"pc",   img:"https://images.unsplash.com/photo-1517089596392-fb9a9033e05b?w=400&fit=crop", stock:true },
-      { id:18, name:"GI Wire #16",      cat:"hardware", price:85,  unit:"kg",   img:"https://images.unsplash.com/photo-1582719478250-c89cae4dc85b?w=400&fit=crop", stock:true },
-      { id:19, name:"Pako 4\"",         cat:"hardware", price:95,  unit:"kg",   img:"https://images.unsplash.com/photo-1581833971358-2c8b550f87b3?w=400&fit=crop", stock:true },
-      { id:20, name:"Paint Latex White",cat:"hardware", price:450, unit:"gal",  img:"https://images.unsplash.com/photo-1562259949-e8e7689d7828?w=400&fit=crop", stock:true },
-    ];
+    const DEFAULT_PRODUCTS = [];
 
     const ORDER_STATUSES = [
       { key:"pending",   label:"Pending",   icon:"hourglass-half", desc:"Nai-receive na ang order mo" },
@@ -351,7 +330,7 @@
 
     /* ══════════════════ MAIN APP ══════════════════ */
     function App() {
-      const [products,    setProducts]    = useState(LS.getProducts);
+      const [products,    setProducts]    = useState([]);
       const [orders,      setOrders]      = useState(LS.getOrders);
       const [user,        setUser]        = useState(null);
       const [loading,     setLoading]     = useState(true);
@@ -364,9 +343,19 @@
       const [syncError,     setSyncError]     = useState(null);
 
       useEffect(() => {
-        let unsubAuth, unsubOrders;
+        let unsubAuth, unsubOrders, unsubProducts;
         const timeout = setTimeout(() => setLoading(false), 8000);
         try {
+          // Listen for products realtime — public, no auth required
+          if (_fbDb) {
+            unsubProducts = _fbDb.collection("products")
+              .orderBy("createdAt", "desc")
+              .onSnapshot(snapshot => {
+                const prods = snapshot.docs.map(d => ({ id: d.id, ...d.data() }));
+                setProducts(prods);
+              }, err => console.error("Products listener error:", err.code));
+          }
+
           _fbAuth.getRedirectResult().catch(err => console.error("Redirect result error:", err));
           unsubAuth = _fbAuth.onAuthStateChanged(currentUser => {
             clearTimeout(timeout);
@@ -422,19 +411,18 @@
         }
 
         const onStorage = (e) => {
-          if (e.key === "bayango_products") setProducts(JSON.parse(e.newValue) || DEFAULT_PRODUCTS);
           if (e.key === "bayango_orders")   setOrders(JSON.parse(e.newValue) || []);
         };
         window.addEventListener("storage", onStorage);
         const interval = setInterval(() => {
-          const fresh = LS.getProducts();
-          setProducts(p => JSON.stringify(p) !== JSON.stringify(fresh) ? fresh : p);
+          /* orders-only local sync retained */ 
         }, 4000);
         return () => {
           window.removeEventListener("storage", onStorage);
           clearInterval(interval);
           unsubAuth?.();
           unsubOrders?.();
+          unsubProducts?.();
         };
       }, []);
 
