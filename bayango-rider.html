@@ -12,6 +12,7 @@
   <link rel="manifest" href="bayango-rider-manifest.json" />
   <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" />
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
   <style>
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
     html, body { height: 100%; background: #EFF6FF; font-family: 'Plus Jakarta Sans', sans-serif; overscroll-behavior: none; }
@@ -43,6 +44,7 @@
   <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
   <script>
     const RIDER_FB_APP = firebase.initializeApp({
       apiKey:            "AIzaSyC0AQ3rkH-fhxlThobjDDtrvxttAfFLXTE",
@@ -222,6 +224,46 @@
         }
       };
 
+      /* ── GPS Location Sharing ── */
+      const [gpsActive, setGpsActive] = useState(false);
+      const watchIdRef = useRef(null);
+
+      useEffect(() => {
+        const hasActiveDelivery = myOrders.some(o => o.status === "buying" || o.status === "otw");
+
+        if (hasActiveDelivery && !watchIdRef.current && navigator.geolocation) {
+          setGpsActive(true);
+          watchIdRef.current = navigator.geolocation.watchPosition(
+            (pos) => {
+              _fbDb.ref("rider_locations/" + user.uid).set({
+                lat: pos.coords.latitude,
+                lng: pos.coords.longitude,
+                accuracy: pos.coords.accuracy,
+                heading: pos.coords.heading,
+                speed: pos.coords.speed,
+                updatedAt: Date.now(),
+                riderName: user.displayName || user.email,
+                riderPhoto: user.photoURL || null,
+              });
+            },
+            (err) => console.error("GPS error:", err.message),
+            { enableHighAccuracy: true, maximumAge: 5000, timeout: 15000 }
+          );
+        } else if (!hasActiveDelivery && watchIdRef.current) {
+          navigator.geolocation.clearWatch(watchIdRef.current);
+          watchIdRef.current = null;
+          setGpsActive(false);
+          _fbDb.ref("rider_locations/" + user.uid).remove();
+        }
+
+        return () => {
+          if (watchIdRef.current) {
+            navigator.geolocation.clearWatch(watchIdRef.current);
+            watchIdRef.current = null;
+          }
+        };
+      }, [myOrders, user.uid]);
+
       const buyingOrders    = myOrders.filter(o => o.status === "buying");
       const activeOrders    = myOrders.filter(o => o.status === "otw");
       const completedOrders = myOrders.filter(o => o.status === "delivered");
@@ -251,9 +293,17 @@
                   <Ic n="motorcycle" style={{ marginRight:6 }} />{user.displayName?.split(" ")[0] || "Rider"}
                 </div>
               </div>
-              <button onClick={onLogout} style={{ color:"#93C5FD", fontSize:12, fontWeight:700, textDecoration:"underline" }}>
-                Log Out
-              </button>
+              <div style={{ display:"flex", alignItems:"center", gap:10 }}>
+                {gpsActive && (
+                  <div style={{ display:"flex", alignItems:"center", gap:5, background:"rgba(34,197,94,.2)", padding:"4px 10px", borderRadius:20, fontSize:11, fontWeight:700, color:"#4ADE80" }}>
+                    <div style={{ width:8, height:8, borderRadius:"50%", background:"#4ADE80", boxShadow:"0 0 6px #4ADE80" }} className="pulse" />
+                    LIVE GPS
+                  </div>
+                )}
+                <button onClick={onLogout} style={{ color:"#93C5FD", fontSize:12, fontWeight:700, textDecoration:"underline" }}>
+                  Log Out
+                </button>
+              </div>
             </div>
 
             {/* Earnings stats */}
