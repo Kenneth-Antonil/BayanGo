@@ -42,7 +42,7 @@
   <script src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.23.2/babel.min.js"></script>
   <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
-  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
   <script>
     const RIDER_FB_APP = firebase.initializeApp({
       apiKey:            "AIzaSyC0AQ3rkH-fhxlThobjDDtrvxttAfFLXTE",
@@ -53,7 +53,7 @@
       appId:             "1:199013441811:web:315a38f03ddc9b676e3ae6",
     }, "rider");
     const _fbAuth = firebase.auth(RIDER_FB_APP);
-    const _fbDb   = firebase.firestore(RIDER_FB_APP);
+    const _fbDb   = firebase.database(RIDER_FB_APP);
   </script>
 
   <script type="text/babel">
@@ -149,22 +149,28 @@
 
       useEffect(() => {
         /* Available: status=="pending", not yet claimed by any rider */
-        const unsubAvail = _fbDb.collection("orders")
-          .where("status", "==", "pending")
-          .onSnapshot(
-            snap => setAvailableOrders(snap.docs.map(d => ({ id:d.id, ...d.data() })).filter(o => !o.riderId)),
-            err => { console.error("Available orders error:", err.code); setAvailErr(err.code || "permission-denied"); }
-          );
+        const availRef = _fbDb.ref("orders").orderByChild("status").equalTo("pending");
+        availRef.on("value",
+          snap => {
+            const list = [];
+            snap.forEach(c => { const v = c.val(); if (!v.riderId) list.push({ id:c.key, ...v }); });
+            setAvailableOrders(list.reverse());
+          },
+          err => { console.error("Available orders error:", err.code); setAvailErr(err.code || "permission-denied"); }
+        );
 
         /* My orders: assigned to this rider */
-        const unsubMine = _fbDb.collection("orders")
-          .where("riderId", "==", user.uid)
-          .onSnapshot(
-            snap => setMyOrders(snap.docs.map(d => ({ id:d.id, ...d.data() }))),
-            err => console.error("My orders error:", err.code)
-          );
+        const mineRef = _fbDb.ref("orders").orderByChild("riderId").equalTo(user.uid);
+        mineRef.on("value",
+          snap => {
+            const list = [];
+            snap.forEach(c => list.push({ id:c.key, ...c.val() }));
+            setMyOrders(list);
+          },
+          err => console.error("My orders error:", err.code)
+        );
 
-        return () => { unsubAvail(); unsubMine(); };
+        return () => { availRef.off(); mineRef.off(); };
       }, [user.uid]);
 
       const showToast = msg => { setToast(msg); setTimeout(() => setToast(null), 3000); };
@@ -172,12 +178,12 @@
       const acceptOrder = async (orderId) => {
         setClaiming(orderId);
         try {
-          await _fbDb.collection("orders").doc(orderId).update({
+          await _fbDb.ref("orders/" + orderId).update({
             riderId:    user.uid,
             riderName:  user.displayName || user.email,
             riderPhoto: user.photoURL || null,
             status:     "buying",
-            acceptedAt: firebase.firestore.FieldValue.serverTimestamp(),
+            acceptedAt: Date.now(),
           });
           showToast("Na-accept! Pumunta ka na sa tindahan.");
           setTab("deliveries");
@@ -191,9 +197,7 @@
       const markOtw = async (orderId) => {
         setMarkingOtw(orderId);
         try {
-          await _fbDb.collection("orders").doc(orderId).update({
-            status: "otw",
-          });
+          await _fbDb.ref("orders/" + orderId).update({ status: "otw" });
           showToast("OTW na! Mag-ingat sa daan.");
         } catch (err) {
           showToast("Error: " + (err.code || err.message));
@@ -205,9 +209,9 @@
       const markDelivered = async (orderId) => {
         setDelivering(orderId);
         try {
-          await _fbDb.collection("orders").doc(orderId).update({
+          await _fbDb.ref("orders/" + orderId).update({
             status:      "delivered",
-            deliveredAt: firebase.firestore.FieldValue.serverTimestamp(),
+            deliveredAt: Date.now(),
           });
           showToast("Na-deliver na! Good job!");
         } catch (err) {
