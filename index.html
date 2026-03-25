@@ -634,17 +634,17 @@
           <InstallBanner />
           {syncError && (
             <div className="pop" style={{
-              position:"fixed", top:60, left:"50%", transform:"translateX(-50%)", zIndex:9999,
+              position:"fixed", top:"calc(env(safe-area-inset-top,0px) + 16px)", left:"50%", transform:"translateX(-50%)", zIndex:9999,
               background:"#EF4444", color:"#fff", padding:"12px 20px", borderRadius:14,
               fontSize:13, fontWeight:700, boxShadow:"0 4px 20px rgba(0,0,0,.25)",
-              display:"flex", alignItems:"center", gap:8, maxWidth:"calc(100% - 40px)",
+              display:"flex", alignItems:"center", gap:8, maxWidth:"calc(100vw - 40px)", width:"max-content",
             }}>
-              <span>⚠️</span>
+              <Ic n="triangle-exclamation" />
               <div>
                 <div>Hindi ma-sync ang order sa admin</div>
                 <div style={{ fontSize:11, fontWeight:400, opacity:0.85, marginTop:2 }}>Error: {syncError}</div>
               </div>
-              <button onClick={() => setSyncError(null)} style={{ color:"#fff", opacity:.7, fontSize:16, marginLeft:8 }}>✕</button>
+              <button onClick={() => setSyncError(null)} style={{ color:"#fff", opacity:.7, fontSize:16, marginLeft:8 }}><Ic n="xmark" /></button>
             </div>
           )}
         </>
@@ -703,7 +703,7 @@
           unit: newItemQty.trim() || "pc",
           estPrice: parseFloat(newItemPrice) || 0,
           isCustom: true,
-          img: "📝",
+          img: null,
         }]);
         setNewItemName(""); setNewItemQty(""); setNewItemPrice("");
       };
@@ -804,7 +804,7 @@
               width:"100%", background:"#F0FDF4", border:"2px dashed #86EFAC", borderRadius:16,
               padding:"13px 16px", display:"flex", alignItems:"center", gap:12,
             }}>
-              <span style={{ fontSize:26 }}>📝</span>
+              <Ic n="list-check" size={26} style={{ color:"#22C55E" }} />
               <div style={{ flex:1, textAlign:"left" }}>
                 <div style={{ fontSize:14, fontWeight:700, color:"#166534" }}>Custom List</div>
                 <div style={{ fontSize:12, color:"#6B7280" }}>
@@ -940,10 +940,10 @@
               }}>
                 <div style={{ padding:"20px 24px", borderBottom:"1px solid #E5E7EB", background:"#fff", display:"flex", alignItems:"center", justifyContent:"space-between" }}>
                   <div>
-                    <h2 style={{ fontSize:19, fontWeight:800 }}>📝 Custom List</h2>
+                    <h2 style={{ fontSize:19, fontWeight:800 }}><Ic n="list-check" style={{marginRight:6}} />Custom List</h2>
                     <p style={{ fontSize:12, color:"#888", marginTop:2 }}>Items na hindi nasa catalog</p>
                   </div>
-                  <button onClick={() => setShowCustomList(false)} style={{ width:36, height:36, borderRadius:10, background:"#F3F4F6", fontSize:18, display:"flex", alignItems:"center", justifyContent:"center" }}>✕</button>
+                  <button onClick={() => setShowCustomList(false)} style={{ width:36, height:36, borderRadius:10, background:"#F3F4F6", fontSize:18, display:"flex", alignItems:"center", justifyContent:"center" }}><Ic n="xmark" /></button>
                 </div>
 
                 {/* Add Item Form */}
@@ -980,13 +980,13 @@
                 <div style={{ flex:1, overflowY:"auto", padding:"12px 24px" }}>
                   {customItems.length === 0 ? (
                     <div style={{ textAlign:"center", padding:"40px 0", color:"#bbb" }}>
-                      <div style={{ fontSize:40, marginBottom:8 }}>📋</div>
+                      <Ic n="clipboard" size={40} style={{ color:"#bbb", marginBottom:8, display:"block" }} />
                       <div style={{ fontSize:13, fontWeight:600 }}>Walang custom items pa</div>
                     </div>
                   ) : (
                     customItems.map(item => (
                       <div key={item.id} className="fade-up" style={{ display:"flex", alignItems:"center", gap:12, padding:"13px 0", borderBottom:"1px solid #F0F0F0" }}>
-                        <div style={{ width:44, height:44, borderRadius:12, fontSize:22, display:"flex", alignItems:"center", justifyContent:"center", background:"#F0FDF4" }}>📝</div>
+                        <div style={{ width:44, height:44, borderRadius:12, display:"flex", alignItems:"center", justifyContent:"center", background:"#F0FDF4" }}><Ic n="pen-to-square" size={22} style={{color:"#22C55E"}} /></div>
                         <div style={{ flex:1 }}>
                           <div style={{ fontSize:14, fontWeight:700, color:"#111" }}>{item.name}</div>
                           <div style={{ fontSize:12, color:"#999" }}>{item.unit}</div>
@@ -995,7 +995,7 @@
                           <div style={{ fontSize:13, fontWeight:800, color:"#166534" }}>~{fmt(item.estPrice)}</div>
                           <div style={{ fontSize:10, color:"#aaa", fontStyle:"italic" }}>estimate</div>
                         </div>
-                        <button onClick={() => removeCustom(item.id)} style={{ width:30, height:30, borderRadius:8, background:"#FEF2F2", color:"#EF4444", fontSize:16, display:"flex", alignItems:"center", justifyContent:"center" }}>✕</button>
+                        <button onClick={() => removeCustom(item.id)} style={{ width:30, height:30, borderRadius:8, background:"#FEF2F2", color:"#EF4444", fontSize:16, display:"flex", alignItems:"center", justifyContent:"center" }}><Ic n="xmark" /></button>
                       </div>
                     ))
                   )}
@@ -1014,7 +1014,7 @@
                       width:"100%", marginTop:12, padding:"14px", borderRadius:14,
                       background:"linear-gradient(135deg,#166534,#22C55E)", color:"#fff",
                       fontSize:14, fontWeight:700,
-                    }}>Tapos na ✓</button>
+                    }}>Tapos na <Ic n="check" style={{marginLeft:4}} /></button>
                   </div>
                 )}
               </div>
@@ -1030,10 +1030,10 @@
               onClick={() => setShowCart(false)}>
               <div className="slide-in" onClick={e => e.stopPropagation()} style={{
                 position:"absolute", right:0, top:0, bottom:0,
-                width:"100%", maxWidth:400, background:"#FAFAFA",
+                width:"100%", maxWidth:420, background:"#FAFAFA",
                 display:"flex", flexDirection:"column"
               }}>
-                <div style={{ padding:"20px 24px", borderBottom:"1px solid #E5E7EB", display:"flex", alignItems:"center", justifyContent:"space-between", background:"#fff" }}>
+                <div style={{ padding:"calc(env(safe-area-inset-top,0px) + 20px) 24px 20px", borderBottom:"1px solid #E5E7EB", display:"flex", alignItems:"center", justifyContent:"space-between", background:"#fff" }}>
                   <h2 style={{ fontSize:19, fontWeight:800 }}><Ic n="basket-shopping" style={{marginRight:6}} />Your Basket</h2>
                   <button onClick={() => setShowCart(false)} style={{ width:36, height:36, borderRadius:10, background:"#F3F4F6", fontSize:18, display:"flex", alignItems:"center", justifyContent:"center" }}><Ic n="xmark" /></button>
                 </div>
@@ -1060,12 +1060,12 @@
                   {customItems.length > 0 && (
                     <>
                       <div style={{ padding:"10px 0 6px", fontSize:12, fontWeight:700, color:"#888", display:"flex", alignItems:"center", justifyContent:"space-between" }}>
-                        <span>📝 Custom Items</span>
+                        <span><Ic n="list-check" style={{marginRight:5}} />Custom Items</span>
                         <button onClick={() => setShowCustomList(true)} style={{ fontSize:11, color:"#166534", fontWeight:700, textDecoration:"underline" }}>I-edit</button>
                       </div>
                       {customItems.map(item => (
                         <div key={item.id} style={{ display:"flex", alignItems:"center", gap:12, padding:"11px 0", borderBottom:"1px solid #F0F0F0" }}>
-                          <div style={{ width:50, height:50, borderRadius:13, fontSize:24, display:"flex", alignItems:"center", justifyContent:"center", background:"#F0FDF4" }}>📝</div>
+                          <div style={{ width:50, height:50, borderRadius:13, display:"flex", alignItems:"center", justifyContent:"center", background:"#F0FDF4" }}><Ic n="pen-to-square" size={22} style={{color:"#22C55E"}} /></div>
                           <div style={{ flex:1 }}>
                             <div style={{ fontSize:14, fontWeight:700, color:"#111" }}>{item.name}</div>
                             <div style={{ fontSize:11, color:"#999" }}>{item.unit} • <span style={{ fontStyle:"italic" }}>estimated</span></div>
@@ -1076,7 +1076,7 @@
                     </>
                   )}
                 </div>
-                <div style={{ padding:"18px 24px", background:"#fff", borderTop:"1px solid #E5E7EB" }}>
+                <div style={{ padding:"18px 24px", paddingBottom:"calc(env(safe-area-inset-bottom,0px) + 18px)", background:"#fff", borderTop:"1px solid #E5E7EB" }}>
                   {[["Subtotal (catalog)",fmt(subtotal)],
                     ...(customEstTotal > 0 ? [["Custom items (est.)", "~"+fmt(customEstTotal)]] : []),
                     ["Delivery ("+DELIVERY_ZONES[zone].label+")",fmt(deliveryFee)],
@@ -1103,7 +1103,7 @@
           {/* ── Checkout Modal ── */}
           {showCheckout && (
             <div style={{ position:"fixed", inset:0, zIndex:300, background:"rgba(0,0,0,.65)", backdropFilter:"blur(6px)", display:"flex", alignItems:"flex-end", justifyContent:"center" }}>
-              <div className="slide-up" style={{ width:"100%", maxWidth:480, background:"#fff", borderRadius:"24px 24px 0 0", padding:"26px 24px 36px", maxHeight:"92vh", overflowY:"auto" }}>
+              <div className="slide-up" style={{ width:"100%", maxWidth:480, background:"#fff", borderRadius:"24px 24px 0 0", padding:"26px 24px", paddingBottom:"calc(env(safe-area-inset-bottom,0px) + 36px)", maxHeight:"92dvh", overflowY:"auto" }}>
                 <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:22 }}>
                   <h2 style={{ fontSize:21, fontWeight:800 }}><Ic n="receipt" style={{marginRight:6}} />Checkout</h2>
                   <button onClick={() => setShowCheckout(false)} style={{ width:36, height:36, borderRadius:10, background:"#F3F4F6", fontSize:18, display:"flex", alignItems:"center", justifyContent:"center" }}><Ic n="xmark" /></button>
@@ -1146,10 +1146,10 @@
                   ))}
                   {customItems.length > 0 && (
                     <>
-                      <div style={{ fontSize:11, fontWeight:700, color:"#888", padding:"6px 0 2px", marginTop:4, borderTop:"1px dashed #E5E7EB" }}>📝 Custom Items (Estimated)</div>
+                      <div style={{ fontSize:11, fontWeight:700, color:"#888", padding:"6px 0 2px", marginTop:4, borderTop:"1px dashed #E5E7EB" }}><Ic n="list-check" style={{marginRight:4}} />Custom Items (Estimated)</div>
                       {customItems.map(i => (
                         <div key={i.id} style={{ display:"flex", justifyContent:"space-between", padding:"4px 0", fontSize:13, color:"#555" }}>
-                          <span>📝 {i.name} ({i.unit})</span>
+                          <span><Ic n="pen-to-square" style={{marginRight:4}} />{i.name} ({i.unit})</span>
                           <span style={{ fontWeight:600, fontStyle:"italic" }}>~{fmt(i.estPrice)}</span>
                         </div>
                       ))}
@@ -1164,7 +1164,7 @@
                     </div>
                     {smallOrderFee > 0 && (
                       <div style={{ display:"flex", justifyContent:"space-between" }}>
-                        <span style={{ color:"#D97706" }}>⚠️ Small Order Fee (5%)</span><span style={{ fontWeight:600, color:"#D97706" }}>{fmt(smallOrderFee)}</span>
+                        <span style={{ color:"#D97706" }}><Ic n="triangle-exclamation" style={{marginRight:4}} />Small Order Fee (5%)</span><span style={{ fontWeight:600, color:"#D97706" }}>{fmt(smallOrderFee)}</span>
                       </div>
                     )}
                   </div>
@@ -1173,7 +1173,7 @@
                   </div>
                   {customItems.length > 0 && (
                     <div style={{ marginTop:8, fontSize:11, color:"#92400E", background:"#FEF9C3", borderRadius:8, padding:"6px 10px" }}>
-                      ⚠️ Ang total ay approximate dahil may custom items. Ang final na bayad ay depende sa aktwal na presyo.
+                      <Ic n="triangle-exclamation" style={{marginRight:4}} />Ang total ay approximate dahil may custom items. Ang final na bayad ay depende sa aktwal na presyo.
                     </div>
                   )}
                 </div>
@@ -1241,10 +1241,11 @@
           {/* ── Success Toast ── */}
           {orderPlaced && (
             <div className="pop" style={{
-              position:"fixed", top:60, left:"50%", transform:"translateX(-50%)", zIndex:500,
-              background:"#166534", color:"#fff", padding:"15px 26px", borderRadius:16,
+              position:"fixed", top:"calc(env(safe-area-inset-top,0px) + 16px)", left:"50%", transform:"translateX(-50%)", zIndex:500,
+              background:"#166534", color:"#fff", padding:"14px 22px", borderRadius:16,
               fontSize:14, fontWeight:700, boxShadow:"0 8px 32px rgba(0,0,0,.22)",
-              display:"flex", alignItems:"center", gap:10, whiteSpace:"nowrap"
+              display:"flex", alignItems:"center", gap:10,
+              maxWidth:"calc(100vw - 40px)", width:"max-content"
             }}>
               <Ic n="circle-check" size={22} /> Order placed! Salamat, mare/pare!
             </div>
@@ -1266,8 +1267,8 @@
             boxShadow:"0 -4px 20px rgba(0,0,0,.07)", zIndex:150,
           }}>
             {[
-              { key:"shop",   icon:"🛒", label:"Tindahan" },
-              { key:"orders", icon:"📦", label:"Orders", badge: activeOrders.length },
+              { key:"shop",   icon:"cart-shopping", label:"Tindahan" },
+              { key:"orders", icon:"box",            label:"Orders", badge: activeOrders.length },
             ].map(t => (
               <button key={t.key} onClick={() => setActivePage(t.key)} style={{
                 flex:1, padding:"11px 0 9px", display:"flex", flexDirection:"column", alignItems:"center", gap:3,
@@ -1275,7 +1276,7 @@
                 borderTop: activePage===t.key ? "2px solid #166534" : "2px solid transparent",
                 position:"relative",
               }}>
-                <span style={{ fontSize:22 }}>{t.icon}</span>
+                <Ic n={t.icon} size={22} />
                 <span style={{ fontSize:10, fontWeight:700 }}>{t.label}</span>
                 {t.badge > 0 && (
                   <span style={{
@@ -1298,10 +1299,10 @@
       const completed = orders.filter(o => o.status === "delivered");
 
       const ST_COLOR = {
-        pending:   { bg:"#F3F4F6", color:"#555",    label:"Pending",   icon:"⏳" },
-        buying:    { bg:"#FEF3C7", color:"#92400E", label:"Buying",    icon:"🛒" },
-        otw:       { bg:"#DBEAFE", color:"#1D4ED8", label:"OTW",       icon:"🏍️" },
-        delivered: { bg:"#DCFCE7", color:"#166534", label:"Delivered", icon:"✅" },
+        pending:   { bg:"#F3F4F6", color:"#555",    label:"Pending",   icon:"hourglass-half" },
+        buying:    { bg:"#FEF3C7", color:"#92400E", label:"Buying",    icon:"cart-shopping" },
+        otw:       { bg:"#DBEAFE", color:"#1D4ED8", label:"OTW",       icon:"motorcycle" },
+        delivered: { bg:"#DCFCE7", color:"#166534", label:"Delivered", icon:"circle-check" },
       };
 
       const OrderCard = ({ o }) => {
@@ -1324,8 +1325,8 @@
                   {ts.toLocaleDateString("en-PH")} {ts.toLocaleTimeString("en-PH",{hour:"2-digit",minute:"2-digit"})}
                 </div>
               </div>
-              <div style={{ padding:"5px 12px", borderRadius:20, fontSize:12, fontWeight:700, whiteSpace:"nowrap", background:st.bg, color:st.color }}>
-                {st.icon} {st.label}
+              <div style={{ padding:"5px 12px", borderRadius:20, fontSize:12, fontWeight:700, whiteSpace:"nowrap", background:st.bg, color:st.color, display:"flex", alignItems:"center", gap:5 }}>
+                <Ic n={st.icon} />{st.label}
               </div>
             </div>
 
@@ -1344,7 +1345,7 @@
             <div style={{ display:"flex", justifyContent:"space-between" }}>
               {ORDER_STATUSES.map((s, i) => (
                 <div key={s.key} style={{ textAlign:"center", flex:1 }}>
-                  <div style={{ fontSize:16, opacity: i <= idx ? 1 : 0.25 }}>{s.icon}</div>
+                  <div style={{ fontSize:16, opacity: i <= idx ? 1 : 0.25 }}><Ic n={s.icon} /></div>
                   <div style={{ fontSize:9, fontWeight:700, color: i <= idx ? "#166534" : "#ccc", marginTop:2 }}>{s.label}</div>
                 </div>
               ))}
@@ -1369,14 +1370,14 @@
             color:"#fff",
           }}>
             <div style={{ fontSize:11, opacity:.7, letterSpacing:".1em", textTransform:"uppercase", marginBottom:4 }}>BayanGo</div>
-            <h1 style={{ fontSize:28, fontWeight:800, letterSpacing:"-.02em" }}>📦 Ang Orders Ko</h1>
+            <h1 style={{ fontSize:28, fontWeight:800, letterSpacing:"-.02em" }}><Ic n="box" style={{marginRight:8}} />Ang Orders Ko</h1>
             <p style={{ fontSize:13, opacity:.75, marginTop:4 }}>I-tap ang order para makita ang detalye</p>
           </div>
 
           <div style={{ padding:"20px 20px 0" }}>
             {orders.length === 0 ? (
               <div style={{ textAlign:"center", padding:"60px 0", color:"#ccc" }}>
-                <div style={{ fontSize:56, marginBottom:12 }}>📭</div>
+                <Ic n="envelope-open" size={56} style={{ color:"#ccc", marginBottom:12, display:"block" }} />
                 <div style={{ fontSize:16, fontWeight:700, color:"#555" }}>Wala pang orders</div>
                 <div style={{ fontSize:13, marginTop:6, color:"#aaa" }}>Pumunta sa Tindahan para mag-order!</div>
               </div>
@@ -1385,7 +1386,7 @@
                 {active.length > 0 && (
                   <>
                     <div style={{ fontSize:12, fontWeight:700, color:"#166534", marginBottom:10, textTransform:"uppercase", letterSpacing:".08em" }}>
-                      🔴 Active ({active.length})
+                      <Ic n="circle" style={{color:"#EF4444",marginRight:4}} />Active ({active.length})
                     </div>
                     {active.map(o => <OrderCard key={o.id} o={o} />)}
                   </>
@@ -1393,7 +1394,7 @@
                 {completed.length > 0 && (
                   <>
                     <div style={{ fontSize:12, fontWeight:700, color:"#94A3B8", margin:`${active.length>0?16:0}px 0 10px`, textTransform:"uppercase", letterSpacing:".08em" }}>
-                      ✅ Na-deliver na ({completed.length})
+                      <Ic n="circle-check" style={{marginRight:4}} />Na-deliver na ({completed.length})
                     </div>
                     {completed.map(o => <OrderCard key={o.id} o={o} />)}
                   </>
