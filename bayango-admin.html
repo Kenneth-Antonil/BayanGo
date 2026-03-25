@@ -823,8 +823,9 @@
           onClick={onClose}>
           <div className="slide-up" onClick={e => e.stopPropagation()} style={{
             width:"100%", maxWidth:540, background:"#fff", borderRadius:"24px 24px 0 0",
-            padding:"24px 22px 44px", maxHeight:"92vh", overflowY:"auto"
+            maxHeight:"92vh", display:"flex", flexDirection:"column"
           }}>
+          <div style={{ flex:1, overflowY:"auto", padding:"24px 22px 0" }}>
             {/* Header */}
             <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:20 }}>
               <h3 style={{ fontSize:19, fontWeight:800 }}>
@@ -965,7 +966,10 @@
               </div>
             </div>
 
-            {/* Save button */}
+          </div>{/* end scrollable content */}
+
+          {/* Sticky save button */}
+          <div style={{ padding:"14px 22px 34px", borderTop:"1px solid #F3F4F6", background:"#fff", flexShrink:0 }}>
             <button onClick={handleSubmit} disabled={saving || uploading || !valid} style={{
               width:"100%", padding:"16px", borderRadius:16, fontSize:15, fontWeight:700,
               background: (saving || uploading || !valid) ? "#D1D5DB" : "linear-gradient(135deg,#166534,#22C55E)",
@@ -981,7 +985,8 @@
               }
             </button>
           </div>
-        </div>
+          </div>{/* end modal panel */}
+        </div>{/* end backdrop */}
       );
     }
 
