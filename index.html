@@ -2028,6 +2028,7 @@
     function OrdersPage({ orders, onTrack, onTrackRider }) {
       const active    = orders.filter(o => o.status !== "delivered");
       const completed = orders.filter(o => o.status === "delivered");
+      const [ordersView, setOrdersView] = useState("active");
 
       const ST_COLOR = {
         pending:   { bg:"#F3F4F6", color:"#555",    label:"Pending",   icon:"hourglass-half" },
@@ -2125,21 +2126,50 @@
               </div>
             ) : (
               <>
-                {active.length > 0 && (
-                  <>
-                    <div style={{ fontSize:12, fontWeight:700, color:"#166534", marginBottom:10, textTransform:"uppercase", letterSpacing:".08em" }}>
-                      <Ic n="circle" style={{color:"#EF4444",marginRight:4}} />Active ({active.length})
+                <div style={{
+                  display:"flex", gap:8, marginBottom:14, padding:4,
+                  background:"#F1F5F9", borderRadius:14, border:"1px solid #E2E8F0",
+                }}>
+                  <button onClick={() => setOrdersView("active")} style={{
+                    flex:1, padding:"10px 12px", borderRadius:10, fontSize:12, fontWeight:800,
+                    background:ordersView==="active" ? "#166534" : "transparent",
+                    color:ordersView==="active" ? "#fff" : "#475569",
+                    boxShadow:ordersView==="active" ? "0 2px 8px rgba(22,101,52,.28)" : "none",
+                  }}>
+                    <Ic n="circle" style={{ marginRight:6, color:ordersView==="active" ? "#FCA5A5" : "#EF4444" }} />
+                    Active ({active.length})
+                  </button>
+                  <button onClick={() => setOrdersView("previous")} style={{
+                    flex:1, padding:"10px 12px", borderRadius:10, fontSize:12, fontWeight:800,
+                    background:ordersView==="previous" ? "#1E293B" : "transparent",
+                    color:ordersView==="previous" ? "#fff" : "#475569",
+                    boxShadow:ordersView==="previous" ? "0 2px 8px rgba(30,41,59,.25)" : "none",
+                  }}>
+                    <Ic n="clock-rotate-left" style={{ marginRight:6 }} />
+                    Previous ({completed.length})
+                  </button>
+                </div>
+
+                {ordersView === "active" ? (
+                  active.length > 0 ? (
+                    active.map(o => <OrderCard key={o.id} o={o} />)
+                  ) : (
+                    <div style={{ textAlign:"center", padding:"44px 16px", border:"1px dashed #D1D5DB", borderRadius:16, background:"#fff" }}>
+                      <Ic n="box-open" size={34} style={{ color:"#9CA3AF", marginBottom:10 }} />
+                      <div style={{ fontSize:14, fontWeight:700, color:"#4B5563" }}>Walang active orders</div>
+                      <div style={{ fontSize:12, marginTop:6, color:"#9CA3AF" }}>Kapag may ongoing order ka, dito ito lalabas.</div>
                     </div>
-                    {active.map(o => <OrderCard key={o.id} o={o} />)}
-                  </>
-                )}
-                {completed.length > 0 && (
-                  <>
-                    <div style={{ fontSize:12, fontWeight:700, color:"#94A3B8", margin:`${active.length>0?16:0}px 0 10px`, textTransform:"uppercase", letterSpacing:".08em" }}>
-                      <Ic n="circle-check" style={{marginRight:4}} />Na-deliver na ({completed.length})
+                  )
+                ) : (
+                  completed.length > 0 ? (
+                    completed.map(o => <OrderCard key={o.id} o={o} />)
+                  ) : (
+                    <div style={{ textAlign:"center", padding:"44px 16px", border:"1px dashed #D1D5DB", borderRadius:16, background:"#fff" }}>
+                      <Ic n="clock-rotate-left" size={34} style={{ color:"#9CA3AF", marginBottom:10 }} />
+                      <div style={{ fontSize:14, fontWeight:700, color:"#4B5563" }}>Wala pang previous orders</div>
+                      <div style={{ fontSize:12, marginTop:6, color:"#9CA3AF" }}>Dito mapupunta ang mga tapos na order mo.</div>
                     </div>
-                    {completed.map(o => <OrderCard key={o.id} o={o} />)}
-                  </>
+                  )
                 )}
               </>
             )}
