@@ -11,6 +11,7 @@
   <meta name="apple-mobile-web-app-title" content="BayanGo Rider" />
   <link rel="manifest" href="bayango-rider-manifest.json" />
   <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" />
   <style>
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
     html, body { height: 100%; background: #EFF6FF; font-family: 'Plus Jakarta Sans', sans-serif; overscroll-behavior: none; }
@@ -31,7 +32,7 @@
 <body>
   <div id="root">
     <div style="display:flex;flex-direction:column;align-items:center;justify-content:center;height:100vh;background:#EFF6FF;gap:14px;">
-      <div style="font-size:48px;">🏍️</div>
+      <i class="fa-solid fa-motorcycle" style="font-size:48px;color:#1D4ED8;"></i>
       <div style="font-size:18px;font-weight:800;color:#1D4ED8;">BayanGo Rider</div>
       <div style="font-size:13px;color:#93C5FD;">Naglo-load...</div>
     </div>
@@ -58,6 +59,8 @@
 
   <script type="text/babel">
     const { useState, useEffect, useCallback } = React;
+
+    const Ic = ({ n, style, size, className }) => <i className={`fa-solid fa-${n}${className?' '+className:''}`} style={{ fontSize:size, lineHeight:1, ...style }} />;
 
     const fmt = n => "₱" + Number(n).toLocaleString("en-PH", { minimumFractionDigits: 0 });
     const isToday = ts => {
@@ -102,7 +105,7 @@
 
       if (!ready) return (
         <div style={{ display:"flex", flexDirection:"column", alignItems:"center", justifyContent:"center", height:"100vh", background:"#EFF6FF", gap:14 }}>
-          <div className="spin" style={{ fontSize:48 }}>⚙️</div>
+          <Ic n="gear" size={48} className="spin" style={{ color:"#1D4ED8" }} />
           <div style={{ fontSize:15, fontWeight:800, color:"#1D4ED8" }}>Nagkokonekta...</div>
         </div>
       );
@@ -116,7 +119,7 @@
       return (
         <div style={{ minHeight:"100vh", background:"linear-gradient(160deg,#1E3A8A,#1D4ED8,#3B82F6)", display:"flex", flexDirection:"column", alignItems:"center", justifyContent:"center", gap:28, padding:24 }}>
           <div className="fade-up" style={{ textAlign:"center", color:"#fff" }}>
-            <div style={{ fontSize:72, marginBottom:14 }}>🏍️</div>
+            <div style={{ fontSize:72, marginBottom:14 }}><Ic n="motorcycle" style={{ color:"#fff" }} /></div>
             <h1 style={{ fontSize:34, fontWeight:800, letterSpacing:"-.02em" }}>BayanGo Rider</h1>
             <p style={{ fontSize:14, opacity:.75, marginTop:6 }}>Delivery Partner App</p>
           </div>
@@ -178,10 +181,10 @@
             status:     "buying",
             acceptedAt: firebase.firestore.FieldValue.serverTimestamp(),
           });
-          showToast("✅ Na-accept! Pumunta ka na sa tindahan.");
+          showToast("Na-accept! Pumunta ka na sa tindahan.");
           setTab("deliveries");
         } catch (err) {
-          showToast("⚠️ Error: " + (err.code || err.message));
+          showToast("Error: " + (err.code || err.message));
         } finally {
           setClaiming(null);
         }
@@ -193,9 +196,9 @@
           await _fbDb.collection("orders").doc(orderId).update({
             status: "otw",
           });
-          showToast("🏍️ OTW na! Mag-ingat sa daan.");
+          showToast("OTW na! Mag-ingat sa daan.");
         } catch (err) {
-          showToast("⚠️ Error: " + (err.code || err.message));
+          showToast("Error: " + (err.code || err.message));
         } finally {
           setMarkingOtw(null);
         }
@@ -208,9 +211,9 @@
             status:      "delivered",
             deliveredAt: firebase.firestore.FieldValue.serverTimestamp(),
           });
-          showToast("🎉 Na-deliver na! Good job!");
+          showToast("Na-deliver na! Good job!");
         } catch (err) {
-          showToast("⚠️ Error: " + (err.code || err.message));
+          showToast("Error: " + (err.code || err.message));
         } finally {
           setDelivering(null);
         }
@@ -242,7 +245,7 @@
               <div>
                 <div style={{ fontSize:10, opacity:.65, letterSpacing:".12em", textTransform:"uppercase" }}>BayanGo Rider</div>
                 <div style={{ fontSize:20, fontWeight:800, marginTop:2 }}>
-                  🏍️ {user.displayName?.split(" ")[0] || "Rider"}
+                  <Ic n="motorcycle" style={{ marginRight:6 }} />{user.displayName?.split(" ")[0] || "Rider"}
                 </div>
               </div>
               <button onClick={onLogout} style={{ color:"#93C5FD", fontSize:12, fontWeight:700, textDecoration:"underline" }}>
@@ -253,12 +256,12 @@
             {/* Earnings stats */}
             <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr 1fr", gap:8, paddingBottom:18 }}>
               {[
-                { label:"Ngayon",   value: fmt(todayEarnings),  icon:"📅" },
-                { label:"7 Araw",   value: fmt(weekEarnings),   icon:"📆" },
-                { label:"Kabuuan",  value: fmt(totalEarnings),  icon:"💰" },
+                { label:"Ngayon",   value: fmt(todayEarnings),  icon:"calendar-day" },
+                { label:"7 Araw",   value: fmt(weekEarnings),   icon:"calendar-week" },
+                { label:"Kabuuan",  value: fmt(totalEarnings),  icon:"coins" },
               ].map(s => (
                 <div key={s.label} style={{ background:"rgba(255,255,255,.13)", borderRadius:14, padding:"11px 10px", textAlign:"center", backdropFilter:"blur(6px)" }}>
-                  <div style={{ fontSize:20, marginBottom:2 }}>{s.icon}</div>
+                  <div style={{ fontSize:20, marginBottom:2 }}><Ic n={s.icon} /></div>
                   <div style={{ fontSize:15, fontWeight:800, lineHeight:1.1 }}>{s.value}</div>
                   <div style={{ fontSize:10, opacity:.75, marginTop:2 }}>{s.label}</div>
                 </div>
@@ -275,17 +278,17 @@
 
           {/* ── Bottom Nav ── */}
           <div style={{
-            position:"fixed", bottom:0, left:"50%", transform:"translateX(-50%)",
-            width:"100%", maxWidth:480, background:"#fff",
+            position:"fixed", bottom:0, left:0, right:0,
+            maxWidth:480, margin:"0 auto", background:"#fff",
             borderTop:"1px solid #E2E8F0",
             display:"flex",
             paddingBottom:"env(safe-area-inset-bottom,0px)",
             boxShadow:"0 -4px 20px rgba(0,0,0,.07)",
           }}>
             {[
-              { key:"available",  icon:"📦", label:"Available", badge: availableOrders.length },
-              { key:"deliveries", icon:"🏍️", label:"Deliveries", badge: buyingOrders.length + activeOrders.length },
-              { key:"earnings",   icon:"💰", label:"Earnings" },
+              { key:"available",  icon:"box",        label:"Available",  badge: availableOrders.length },
+              { key:"deliveries", icon:"motorcycle", label:"Deliveries", badge: buyingOrders.length + activeOrders.length },
+              { key:"earnings",   icon:"coins",      label:"Earnings" },
             ].map(t => (
               <button key={t.key} onClick={() => setTab(t.key)} style={{
                 flex:1, padding:"10px 0 8px", display:"flex", flexDirection:"column", alignItems:"center", gap:3,
@@ -293,7 +296,7 @@
                 borderTop: tab === t.key ? "2px solid #1D4ED8" : "2px solid transparent",
                 position:"relative", transition:"color .15s",
               }}>
-                <span style={{ fontSize:22 }}>{t.icon}</span>
+                <Ic n={t.icon} size={22} />
                 <span style={{ fontSize:10, fontWeight:700 }}>{t.label}</span>
                 {t.badge > 0 && (
                   <span style={{
@@ -309,10 +312,9 @@
           {/* ── Toast ── */}
           {toast && (
             <div className="pop" style={{
-              position:"fixed", top:70, left:"50%", transform:"translateX(-50%)", zIndex:999,
+              position:"fixed", top:`calc(env(safe-area-inset-top,0px) + 16px)`, left:20, right:20, zIndex:999,
               background:"#1E293B", color:"#fff", padding:"12px 20px", borderRadius:14,
               fontSize:13, fontWeight:700, boxShadow:"0 4px 20px rgba(0,0,0,.3)",
-              whiteSpace:"nowrap",
             }}>{toast}</div>
           )}
         </div>
@@ -323,7 +325,7 @@
     function AvailableTab({ orders, onAccept, claiming, availErr }) {
       if (availErr) return (
         <div style={{ textAlign:"center", padding:"60px 20px", color:"#94A3B8" }}>
-          <div style={{ fontSize:52, marginBottom:12 }}>⚠️</div>
+          <Ic n="triangle-exclamation" size={52} style={{ marginBottom:12, color:"#EF4444" }} />
           <div style={{ fontSize:15, fontWeight:700, color:"#EF4444" }}>Hindi ma-load ang orders</div>
           <div style={{ fontSize:12, marginTop:6, color:"#94A3B8" }}>{availErr}</div>
           <div style={{ fontSize:12, marginTop:8, color:"#94A3B8" }}>I-check ang Firestore security rules.</div>
@@ -331,7 +333,7 @@
       );
       if (orders.length === 0) return (
         <div style={{ textAlign:"center", padding:"60px 20px", color:"#94A3B8" }}>
-          <div style={{ fontSize:52, marginBottom:12 }}>📭</div>
+          <Ic n="inbox" size={52} style={{ marginBottom:12, color:"#94A3B8" }} />
           <div style={{ fontSize:15, fontWeight:700, color:"#64748B" }}>Walang available na orders</div>
           <div style={{ fontSize:13, marginTop:6 }}>Hintayin ang bagong orders</div>
         </div>
@@ -357,10 +359,10 @@
                 <div style={{ display:"flex", justifyContent:"space-between", alignItems:"flex-start", marginBottom:12 }}>
                   <div>
                     <div style={{ fontSize:12, color:"#64748B", marginBottom:2 }}>
-                      🕐 {ts.toLocaleTimeString("en-PH", { hour:"2-digit", minute:"2-digit" })} · {ts.toLocaleDateString("en-PH")}
+                      <Ic n="clock" style={{ marginRight:4 }} />{ts.toLocaleTimeString("en-PH", { hour:"2-digit", minute:"2-digit" })} · {ts.toLocaleDateString("en-PH")}
                     </div>
                     <div style={{ fontSize:16, fontWeight:800, color:"#1E293B" }}>{order.customer?.name}</div>
-                    <div style={{ fontSize:13, color:"#64748B", marginTop:2 }}>📱 {order.customer?.phone}</div>
+                    <div style={{ fontSize:13, color:"#64748B", marginTop:2 }}><Ic n="mobile-screen" style={{ marginRight:4 }} />{order.customer?.phone}</div>
                   </div>
                   <div style={{ textAlign:"right" }}>
                     <div style={{ fontSize:11, color:"#64748B" }}>Kita mo</div>
@@ -370,7 +372,7 @@
 
                 {/* Address */}
                 <div style={{ background:"#F0F9FF", borderRadius:12, padding:"10px 14px", marginBottom:12 }}>
-                  <div style={{ fontSize:11, fontWeight:700, color:"#0369A1", marginBottom:3 }}>📍 DELIVERY ADDRESS</div>
+                  <div style={{ fontSize:11, fontWeight:700, color:"#0369A1", marginBottom:3 }}><Ic n="location-dot" style={{ marginRight:4 }} />DELIVERY ADDRESS</div>
                   <div style={{ fontSize:13, color:"#1E293B", fontWeight:600 }}>{order.customer?.address}</div>
                   <div style={{ fontSize:12, color:"#64748B", marginTop:2 }}>Zone: {order.zone}</div>
                 </div>
@@ -386,7 +388,7 @@
                   ))}
                   {customItems.map(it => (
                     <div key={it.id} style={{ fontSize:13, color:"#374151", padding:"3px 0", display:"flex", gap:6 }}>
-                      <span>📝</span>
+                      <Ic n="note-sticky" style={{ marginRight:4 }} />
                       <span>{it.name} ({it.unit})</span>
                     </div>
                   ))}
@@ -403,7 +405,7 @@
                 }}>
                   {claiming === order.id
                     ? <span className="pulse">Tinatanggap...</span>
-                    : `🛒 Tanggapin — ${fmt(order.deliveryFee || 0)}`}
+                    : <><Ic n="cart-shopping" style={{ marginRight:6 }} />Tanggapin — {fmt(order.deliveryFee || 0)}</>}
                 </button>
               </div>
             );
@@ -422,14 +424,14 @@
             <div style={{ display:"flex", justifyContent:"space-between", alignItems:"flex-start", marginBottom:10 }}>
               <div>
                 <div style={{ fontSize:16, fontWeight:800, color:"#1E293B" }}>{order.customer?.name}</div>
-                <div style={{ fontSize:13, color:"#64748B", marginTop:2 }}>📱 {order.customer?.phone}</div>
+                <div style={{ fontSize:13, color:"#64748B", marginTop:2 }}><Ic n="mobile-screen" style={{ marginRight:4 }} />{order.customer?.phone}</div>
               </div>
               <div style={{ background:badgeBg, color:badgeColor, borderRadius:20, padding:"5px 12px", fontSize:12, fontWeight:700 }}>
                 {statusBadge}
               </div>
             </div>
             <div style={{ background:"#F0F9FF", borderRadius:12, padding:"10px 14px", marginBottom:10 }}>
-              <div style={{ fontSize:11, fontWeight:700, color:"#0369A1", marginBottom:3 }}>📍 I-DELIVER DITO</div>
+              <div style={{ fontSize:11, fontWeight:700, color:"#0369A1", marginBottom:3 }}><Ic n="location-dot" style={{ marginRight:4 }} />I-DELIVER DITO</div>
               <div style={{ fontSize:14, color:"#1E293B", fontWeight:700 }}>{order.customer?.address}</div>
               <div style={{ fontSize:12, color:"#64748B", marginTop:2 }}>Zone: {order.zone}</div>
             </div>
@@ -438,7 +440,7 @@
                 <div key={it.id} style={{ fontSize:13, color:"#374151", padding:"2px 0" }}>{it.img} {it.name} × {it.qty} {it.unit}</div>
               ))}
               {customItems.map(it => (
-                <div key={it.id} style={{ fontSize:13, color:"#374151", padding:"2px 0" }}>📝 {it.name} ({it.unit})</div>
+                <div key={it.id} style={{ fontSize:13, color:"#374151", padding:"2px 0" }}><Ic n="note-sticky" style={{ marginRight:4 }} />{it.name} ({it.unit})</div>
               ))}
             </div>
             <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:12 }}>
@@ -456,11 +458,11 @@
           {buying.length > 0 && (
             <>
               <div style={{ fontSize:12, fontWeight:700, color:"#64748B", marginBottom:10, textTransform:"uppercase", letterSpacing:".08em" }}>
-                🛒 Binibili ({buying.length})
+                <Ic n="cart-shopping" style={{ marginRight:6 }} />Binibili ({buying.length})
               </div>
               {buying.map(order => (
                 <OrderCard key={order.id} order={order}
-                  statusBadge="🛒 Buying" badgeBg="#FEF3C7" badgeColor="#92400E"
+                  statusBadge={<><Ic n="cart-shopping" style={{ marginRight:4 }} />Buying</>} badgeBg="#FEF3C7" badgeColor="#92400E"
                   actionBtn={
                     <button onClick={() => onOtw(order.id)} disabled={markingOtw === order.id} style={{
                       width:"100%", padding:"14px", borderRadius:14,
@@ -468,7 +470,7 @@
                       color: markingOtw === order.id ? "#94A3B8" : "#fff",
                       fontSize:15, fontWeight:800,
                     }}>
-                      {markingOtw === order.id ? <span className="pulse">Ina-update...</span> : "🏍️ Tapos na! OTW na ako!"}
+                      {markingOtw === order.id ? <span className="pulse">Ina-update...</span> : <><Ic n="motorcycle" style={{ marginRight:6 }} />Tapos na! OTW na ako!</>}
                     </button>
                   }
                 />
@@ -480,11 +482,11 @@
           {active.length > 0 && (
             <>
               <div style={{ fontSize:12, fontWeight:700, color:"#64748B", marginBottom:10, marginTop: buying.length > 0 ? 16 : 0, textTransform:"uppercase", letterSpacing:".08em" }}>
-                🏍️ OTW ({active.length})
+                <Ic n="motorcycle" style={{ marginRight:6 }} />OTW ({active.length})
               </div>
               {active.map(order => (
                 <OrderCard key={order.id} order={order}
-                  statusBadge="🏍️ OTW" badgeBg="#DBEAFE" badgeColor="#1D4ED8"
+                  statusBadge={<><Ic n="motorcycle" style={{ marginRight:4 }} />OTW</>} badgeBg="#DBEAFE" badgeColor="#1D4ED8"
                   actionBtn={
                     <button onClick={() => onDeliver(order.id)} disabled={delivering === order.id} style={{
                       width:"100%", padding:"14px", borderRadius:14,
@@ -493,7 +495,7 @@
                       fontSize:15, fontWeight:800,
                       boxShadow: delivering ? "none" : "0 4px 16px rgba(5,150,105,.35)",
                     }}>
-                      {delivering === order.id ? <span className="pulse">Ina-update...</span> : "✅ Na-deliver na!"}
+                      {delivering === order.id ? <span className="pulse">Ina-update...</span> : <><Ic n="circle-check" style={{ marginRight:6 }} />Na-deliver na!</>}
                     </button>
                   }
                 />
@@ -505,7 +507,7 @@
           {completed.length > 0 && (
             <>
               <div style={{ fontSize:12, fontWeight:700, color:"#64748B", margin:"16px 0 10px", textTransform:"uppercase", letterSpacing:".08em" }}>
-                ✅ Mga Na-deliver ({completed.length})
+                <Ic n="circle-check" style={{ marginRight:6 }} />Mga Na-deliver ({completed.length})
               </div>
               {completed.slice(0, 20).map(order => {
                 const ts = order.deliveredAt?.toDate ? order.deliveredAt.toDate() : new Date(order.deliveredAt || 0);
@@ -514,7 +516,7 @@
                     background:"#fff", borderRadius:16, padding:"14px 16px", marginBottom:8,
                     border:"1px solid #E2E8F0", display:"flex", alignItems:"center", gap:12,
                   }}>
-                    <div style={{ width:44, height:44, borderRadius:12, background:"#DCFCE7", display:"flex", alignItems:"center", justifyContent:"center", fontSize:20, flexShrink:0 }}>✅</div>
+                    <div style={{ width:44, height:44, borderRadius:12, background:"#DCFCE7", display:"flex", alignItems:"center", justifyContent:"center", flexShrink:0 }}><Ic n="circle-check" size={20} style={{ color:"#059669" }} /></div>
                     <div style={{ flex:1, minWidth:0 }}>
                       <div style={{ fontSize:14, fontWeight:700, color:"#1E293B", overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>
                         {order.customer?.name}
@@ -532,7 +534,7 @@
 
           {buying.length === 0 && active.length === 0 && completed.length === 0 && (
             <div style={{ textAlign:"center", padding:"60px 20px", color:"#94A3B8" }}>
-              <div style={{ fontSize:52, marginBottom:12 }}>🏍️</div>
+              <Ic n="motorcycle" size={52} style={{ marginBottom:12, color:"#94A3B8" }} />
               <div style={{ fontSize:15, fontWeight:700, color:"#64748B" }}>Walang deliveries pa</div>
               <div style={{ fontSize:13, marginTop:6 }}>Pumunta sa Available tab para kumuha ng order</div>
             </div>
@@ -558,13 +560,13 @@
           {/* Summary cards */}
           <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:10, marginBottom:20 }}>
             {[
-              { label:"Ngayon",      value: fmt(today),           icon:"📅", color:"#DBEAFE", tcolor:"#1D4ED8" },
-              { label:"7 Araw",      value: fmt(week),            icon:"📆", color:"#EDE9FE", tcolor:"#7C3AED" },
-              { label:"Kabuuang Kita",value: fmt(total),          icon:"💰", color:"#DCFCE7", tcolor:"#059669" },
-              { label:"Deliveries",  value: completed.length,     icon:"✅", color:"#FEF3C7", tcolor:"#D97706" },
+              { label:"Ngayon",       value: fmt(today),       icon:"calendar-day",  color:"#DBEAFE", tcolor:"#1D4ED8" },
+              { label:"7 Araw",       value: fmt(week),        icon:"calendar-week", color:"#EDE9FE", tcolor:"#7C3AED" },
+              { label:"Kabuuang Kita",value: fmt(total),       icon:"coins",         color:"#DCFCE7", tcolor:"#059669" },
+              { label:"Deliveries",   value: completed.length, icon:"circle-check",  color:"#FEF3C7", tcolor:"#D97706" },
             ].map(s => (
               <div key={s.label} style={{ background:"#fff", borderRadius:18, padding:"16px", border:`1px solid ${s.color}`, boxShadow:"0 1px 4px rgba(0,0,0,.05)" }}>
-                <div style={{ fontSize:24, marginBottom:8 }}>{s.icon}</div>
+                <div style={{ marginBottom:8 }}><Ic n={s.icon} size={24} style={{ color:s.tcolor }} /></div>
                 <div style={{ fontSize:22, fontWeight:800, color:s.tcolor }}>{s.value}</div>
                 <div style={{ fontSize:11, fontWeight:600, color:"#94A3B8", marginTop:4 }}>{s.label}</div>
               </div>
@@ -595,7 +597,7 @@
 
           {completed.length === 0 && (
             <div style={{ textAlign:"center", padding:"40px 20px", color:"#94A3B8" }}>
-              <div style={{ fontSize:52, marginBottom:12 }}>💰</div>
+              <Ic n="coins" size={52} style={{ marginBottom:12, color:"#94A3B8" }} />
               <div style={{ fontSize:15, fontWeight:700, color:"#64748B" }}>Wala pang kita</div>
               <div style={{ fontSize:13, marginTop:6 }}>Mag-deliver para magsimulang kumita!</div>
             </div>
