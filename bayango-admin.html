@@ -108,22 +108,27 @@
     let _fns = null;
     let _auth = null;
     let _authFns = null;
+    let _storage = null;
+    let _storageFns = null;
 
     async function initFirebase() {
-      if (_db && _auth) return { db: _db, fns: _fns, auth: _auth, authFns: _authFns };
-      
+      if (_db && _auth) return { db: _db, fns: _fns, auth: _auth, authFns: _authFns, storage: _storage, storageFns: _storageFns };
+
       const { initializeApp } = await import("https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js");
       const { getFirestore, collection, addDoc, onSnapshot, query, orderBy, doc, updateDoc, deleteDoc, serverTimestamp, getDocs } = await import("https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js");
       const { getAuth, signInWithPopup, GoogleAuthProvider, onAuthStateChanged, signOut } = await import("https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js");
-      
+      const { getStorage, ref, uploadBytes, getDownloadURL } = await import("https://www.gstatic.com/firebasejs/10.12.0/firebase-storage.js");
+
       const app = initializeApp(FIREBASE_CONFIG);
-      _db  = getFirestore(app);
-      _auth = getAuth(app);
-      
-      _fns = { collection, addDoc, onSnapshot, query, orderBy, doc, updateDoc, deleteDoc, serverTimestamp, getDocs };
-      _authFns = { signInWithPopup, GoogleAuthProvider, onAuthStateChanged, signOut };
-      
-      return { db: _db, fns: _fns, auth: _auth, authFns: _authFns };
+      _db      = getFirestore(app);
+      _auth    = getAuth(app);
+      _storage = getStorage(app);
+
+      _fns        = { collection, addDoc, onSnapshot, query, orderBy, doc, updateDoc, deleteDoc, serverTimestamp, getDocs };
+      _authFns    = { signInWithPopup, GoogleAuthProvider, onAuthStateChanged, signOut };
+      _storageFns = { ref, uploadBytes, getDownloadURL };
+
+      return { db: _db, fns: _fns, auth: _auth, authFns: _authFns, storage: _storage, storageFns: _storageFns };
     }
 
     /* ══════════════════ CLAUDE API ══════════════════ */
@@ -775,16 +780,38 @@
     /* ══════════════════ PRODUCT MODAL ══════════════════ */
     function ProductModal({ product, onSave, onClose, saving }) {
       const UNITS = ["kg","pc","tali","bag","gal","litro","bundle","dozen","box"];
-      const [name,  setName]  = useState(product?.name  || "");
-      const [cat,   setCat]   = useState(product?.cat   || "isda");
-      const [price, setPrice] = useState(product?.price != null ? String(product.price) : "");
-      const [unit,  setUnit]  = useState(product?.unit  || "kg");
-      const [stock, setStock] = useState(product?.stock !== false);
-      const [img,   setImg]   = useState(product?.img   || "");
+      const [name,      setName]      = useState(product?.name  || "");
+      const [cat,       setCat]       = useState(product?.cat   || "isda");
+      const [price,     setPrice]     = useState(product?.price != null ? String(product.price) : "");
+      const [unit,      setUnit]      = useState(product?.unit  || "kg");
+      const [stock,     setStock]     = useState(product?.stock !== false);
+      const [img,       setImg]       = useState(product?.img   || "");
+      const [uploading, setUploading] = useState(false);
+      const fileRef = useRef(null);
 
       const catObj = CATEGORIES.find(c => c.id === cat);
       const isUrl  = img && (img.startsWith("http") || img.startsWith("/"));
       const valid  = name.trim() && price !== "" && Number(price) >= 0;
+
+      const handleFileChange = async (e) => {
+        const file = e.target.files[0];
+        if (!file) return;
+        if (!file.type.startsWith("image/")) { alert("Image files lang (jpg, png, webp, atbp.)"); return; }
+        setUploading(true);
+        try {
+          const { storage, storageFns } = await initFirebase();
+          const { ref, uploadBytes, getDownloadURL } = storageFns;
+          const storageRef = ref(storage, `products/${Date.now()}_${file.name}`);
+          await uploadBytes(storageRef, file);
+          const url = await getDownloadURL(storageRef);
+          setImg(url);
+        } catch (err) {
+          alert("Upload error: " + err.message);
+        } finally {
+          setUploading(false);
+          e.target.value = "";
+        }
+      };
 
       const handleSubmit = () => {
         if (!valid) return;
@@ -807,25 +834,66 @@
               <button onClick={onClose} style={{ width:34, height:34, borderRadius:10, background:"#F3F4F6", display:"flex", alignItems:"center", justifyContent:"center" }}>✕</button>
             </div>
 
-            {/* Image preview + input */}
-            <div style={{ display:"flex", gap:14, marginBottom:18, alignItems:"center" }}>
-              <div style={{
-                width:72, height:72, borderRadius:16, flexShrink:0, overflow:"hidden",
-                background: catObj ? `linear-gradient(135deg,${catObj.color}20,${catObj.color}08)` : "#F3F4F6",
-                display:"flex", alignItems:"center", justifyContent:"center", fontSize:36,
-                border:"2px dashed #E5E7EB"
-              }}>
-                {img
-                  ? (isUrl ? <img src={img} alt="preview" style={{ width:"100%", height:"100%", objectFit:"cover" }} /> : img)
-                  : <Ic n="image" size={28} style={{ color:"#D1D5DB" }} />
-                }
-              </div>
-              <div style={{ flex:1 }}>
-                <label style={{ fontSize:11, fontWeight:700, color:"#888", display:"block", marginBottom:5 }}>LARAWAN (emoji o URL)</label>
-                <input value={img} onChange={e => setImg(e.target.value)} placeholder="e.g. 🐟 o https://..."
-                  style={{ width:"100%", padding:"10px 14px", borderRadius:10, border:"1.5px solid #E5E7EB", fontSize:14, outline:"none" }}
-                  onFocus={e => e.target.style.borderColor="#22C55E"}
-                  onBlur={e  => e.target.style.borderColor="#E5E7EB"} />
+            {/* Image upload */}
+            <div style={{ marginBottom:18 }}>
+              <label style={{ fontSize:11, fontWeight:700, color:"#888", display:"block", marginBottom:8 }}>LARAWAN</label>
+              <div style={{ display:"flex", gap:12, alignItems:"flex-start" }}>
+
+                {/* Preview box — click to upload */}
+                <div onClick={() => !uploading && fileRef.current?.click()} style={{
+                  width:82, height:82, borderRadius:16, flexShrink:0, overflow:"hidden", cursor:"pointer",
+                  background: catObj ? `linear-gradient(135deg,${catObj.color}20,${catObj.color}08)` : "#F3F4F6",
+                  display:"flex", alignItems:"center", justifyContent:"center", fontSize:36,
+                  border:"2px dashed #D1D5DB", position:"relative"
+                }}>
+                  {uploading ? (
+                    <Ic n="gear" size={30} className="spin" style={{ color:"#22C55E" }} />
+                  ) : img ? (
+                    isUrl
+                      ? <img src={img} alt="preview" style={{ width:"100%", height:"100%", objectFit:"cover" }} />
+                      : img
+                  ) : (
+                    <Ic n="camera" size={28} style={{ color:"#D1D5DB" }} />
+                  )}
+                  {!uploading && !img && (
+                    <div style={{
+                      position:"absolute", bottom:0, left:0, right:0,
+                      background:"rgba(0,0,0,.35)", color:"#fff",
+                      fontSize:8, fontWeight:800, textAlign:"center", padding:"3px 0", letterSpacing:".06em"
+                    }}>UPLOAD</div>
+                  )}
+                </div>
+
+                <div style={{ flex:1 }}>
+                  {/* Upload button */}
+                  <button onClick={() => fileRef.current?.click()} disabled={uploading} style={{
+                    width:"100%", padding:"11px", borderRadius:10, marginBottom:10,
+                    background: uploading ? "#F3F4F6" : "#F0FDF4",
+                    border: "1.5px solid " + (uploading ? "#E5E7EB" : "#BBF7D0"),
+                    color: uploading ? "#aaa" : "#166534",
+                    fontSize:13, fontWeight:700,
+                    display:"flex", alignItems:"center", justifyContent:"center", gap:7
+                  }}>
+                    {uploading
+                      ? <><Ic n="gear" className="spin" />Ina-upload...</>
+                      : <><Ic n="arrow-up-from-bracket" />Pumili ng Larawan</>
+                    }
+                  </button>
+                  <input ref={fileRef} type="file" accept="image/*" onChange={handleFileChange} style={{ display:"none" }} />
+
+                  {/* Divider */}
+                  <div style={{ display:"flex", alignItems:"center", gap:8, marginBottom:10 }}>
+                    <div style={{ flex:1, height:1, background:"#E5E7EB" }} />
+                    <span style={{ fontSize:11, color:"#bbb", fontWeight:600 }}>o i-paste ang URL</span>
+                    <div style={{ flex:1, height:1, background:"#E5E7EB" }} />
+                  </div>
+
+                  {/* URL fallback */}
+                  <input value={img} onChange={e => setImg(e.target.value)} placeholder="https://..."
+                    style={{ width:"100%", padding:"9px 12px", borderRadius:10, border:"1.5px solid #E5E7EB", fontSize:13, outline:"none" }}
+                    onFocus={e => e.target.style.borderColor="#22C55E"}
+                    onBlur={e  => e.target.style.borderColor="#E5E7EB"} />
+                </div>
               </div>
             </div>
 
@@ -898,16 +966,18 @@
             </div>
 
             {/* Save button */}
-            <button onClick={handleSubmit} disabled={saving || !valid} style={{
+            <button onClick={handleSubmit} disabled={saving || uploading || !valid} style={{
               width:"100%", padding:"16px", borderRadius:16, fontSize:15, fontWeight:700,
-              background: (saving || !valid) ? "#D1D5DB" : "linear-gradient(135deg,#166534,#22C55E)",
-              color:      (saving || !valid) ? "#aaa"    : "#fff",
-              boxShadow:  (saving || !valid) ? "none"    : "0 4px 16px rgba(22,101,52,.3)",
+              background: (saving || uploading || !valid) ? "#D1D5DB" : "linear-gradient(135deg,#166534,#22C55E)",
+              color:      (saving || uploading || !valid) ? "#aaa"    : "#fff",
+              boxShadow:  (saving || uploading || !valid) ? "none"    : "0 4px 16px rgba(22,101,52,.3)",
               display:"flex", alignItems:"center", justifyContent:"center", gap:8
             }}>
               {saving
                 ? <><Ic n="hourglass-half" />Sine-save...</>
-                : <><Ic n="floppy-disk" />{product ? "I-update ang Produkto" : "I-save ang Produkto"}</>
+                : uploading
+                  ? <><Ic n="gear" className="spin" />Ina-upload pa ang larawan...</>
+                  : <><Ic n="floppy-disk" />{product ? "I-update ang Produkto" : "I-save ang Produkto"}</>
               }
             </button>
           </div>
