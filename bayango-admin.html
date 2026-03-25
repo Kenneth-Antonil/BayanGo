@@ -135,11 +135,12 @@
     function App() {
       const [products, setProducts] = useState([]);
       const [orders,   setOrders]   = useState([]);
+      const [tickets,  setTickets]  = useState([]);
       const [ready,    setReady]    = useState(false);
       const [user,     setUser]     = useState(null);
 
       useEffect(() => {
-        let unsubOrders, unsubProducts, unsubAuth;
+        let unsubOrders, unsubProducts, unsubTickets, unsubAuth;
         (async () => {
           const { db, fns, auth, authFns } = await initFirebase();
           const { collection, onSnapshot, query, orderBy, getDocs } = fns;
@@ -152,9 +153,11 @@
             // Clean up any previous realtime listeners before re-establishing
             unsubOrders?.();
             unsubProducts?.();
+            unsubTickets?.();
 
             if (!currentUser) {
               setOrders([]);
+              setTickets([]);
               return;
             }
 
@@ -172,9 +175,17 @@
               s => { setOrders(s.docs.map(d => ({ id: d.id, ...d.data() }))); },
               err => console.error("Orders snapshot error:", err.code, err.message)
             );
+
+            // Listen support tickets realtime
+            const tq = query(collection(db, "support_tickets"), orderBy("createdAt", "desc"));
+            unsubTickets = onSnapshot(
+              tq,
+              s => { setTickets(s.docs.map(d => ({ id: d.id, ...d.data() }))); },
+              err => console.error("Tickets snapshot error:", err.code, err.message)
+            );
           });
         })();
-        return () => { unsubOrders?.(); unsubProducts?.(); unsubAuth?.(); };
+        return () => { unsubOrders?.(); unsubProducts?.(); unsubTickets?.(); unsubAuth?.(); };
       }, []);
 
       const addOrder = useCallback(async (order) => {
@@ -266,13 +277,14 @@
             orders={orders} onUpdateStatus={updateOrderStatus}
             products={products} onAddProduct={addProduct}
             onUpdateProduct={updateProduct} onDeleteProduct={deleteProduct}
+            tickets={tickets}
           />
         </>
       );
     }
 
     /* ══════════════════ ADMIN DASHBOARD ══════════════════ */
-    function AdminDashboard({ orders, onUpdateStatus, products, onAddProduct, onUpdateProduct, onDeleteProduct }) {
+    function AdminDashboard({ orders, onUpdateStatus, products, onAddProduct, onUpdateProduct, onDeleteProduct, tickets }) {
       const [tab,          setTab]          = useState("orders");
       const [selected,     setSelected]     = useState(null);
       const [updating,     setUpdating]     = useState(null);
@@ -335,18 +347,26 @@
             {[
               { key:"orders",   label:"Mga Orders",   icon:"receipt" },
               { key:"products", label:"Mga Produkto",  icon:"store" },
+              { key:"support",  label:"Support",       icon:"headset", badge: tickets.filter(t=>t.status==="open").length },
             ].map(t => (
               <button key={t.key} onClick={() => setTab(t.key)} style={{
                 flex:1, padding:"14px 8px", fontSize:13, fontWeight:700,
                 color: tab===t.key ? "#166534" : "#888",
                 borderBottom: tab===t.key ? "3px solid #22C55E" : "3px solid transparent",
                 display:"flex", alignItems:"center", justifyContent:"center", gap:7,
-                transition:"all .2s"
+                transition:"all .2s", position:"relative",
               }}>
                 <Ic n={t.icon} size={14} />{t.label}
+                {t.badge > 0 && (
+                  <span style={{ position:"absolute", top:8, right:8, background:"#EF4444", color:"#fff", borderRadius:10, fontSize:10, fontWeight:800, padding:"1px 6px", minWidth:17, textAlign:"center" }}>{t.badge}</span>
+                )}
               </button>
             ))}
           </div>
+
+          {tab === "support" && (
+            <SupportPanel tickets={tickets} />
+          )}
 
           {tab === "products" && (
             <ProductsPanel
@@ -798,6 +818,120 @@
               </div>
             </div>
           )}
+        </div>
+      );
+    }
+
+    /* ══════════════════ SUPPORT PANEL ══════════════════ */
+    function SupportPanel({ tickets }) {
+      const [selected,    setSelected]    = useState(null);
+      const [filterStatus, setFilterStatus] = useState("all");
+      const [updating,    setUpdating]    = useState(null);
+
+      const filtered = filterStatus === "all" ? tickets : tickets.filter(t => t.status === filterStatus);
+      const openCount = tickets.filter(t => t.status === "open").length;
+
+      const markStatus = async (ticket, status) => {
+        setUpdating(ticket.id);
+        try {
+          const { db, fns } = await initFirebase();
+          await fns.updateDoc(fns.doc(db, "support_tickets", ticket.id), { status });
+          if (selected?.id === ticket.id) setSelected(s => ({ ...s, status }));
+        } catch (err) {
+          alert("Error: " + (err.message || err.code));
+        } finally {
+          setUpdating(null);
+        }
+      };
+
+      const ST = {
+        open:     { bg:"#FEF3C7", color:"#92400E", label:"Open",     icon:"envelope-open" },
+        resolved: { bg:"#DCFCE7", color:"#166534", label:"Resolved", icon:"circle-check"  },
+        closed:   { bg:"#F3F4F6", color:"#555",    label:"Closed",   icon:"xmark-circle"  },
+      };
+
+      const fmtDate = (ts) => {
+        if (!ts) return "—";
+        const d = ts.toDate ? ts.toDate() : new Date(ts);
+        return d.toLocaleDateString("en-PH") + " " + d.toLocaleTimeString("en-PH", { hour:"2-digit", minute:"2-digit" });
+      };
+
+      return (
+        <div style={{ padding:"0 0 40px" }}>
+          {/* Header */}
+          <div style={{ background:"linear-gradient(145deg,#1E3A5F,#1D4ED8)", padding:"28px 24px 24px", color:"#fff" }}>
+            <div style={{ fontSize:11, opacity:.7, letterSpacing:".1em", textTransform:"uppercase", marginBottom:4 }}>BayanGo Admin</div>
+            <h1 style={{ fontSize:26, fontWeight:800, letterSpacing:"-.02em" }}><Ic n="headset" style={{marginRight:8}} />Support Tickets</h1>
+            <p style={{ fontSize:13, opacity:.75, marginTop:4 }}>{openCount} open ticket{openCount!==1?"s":""}</p>
+          </div>
+
+          {/* Filter */}
+          <div style={{ display:"flex", gap:8, padding:"16px 20px 0", overflowX:"auto" }}>
+            {[
+              { key:"all",      label:`Lahat (${tickets.length})` },
+              { key:"open",     label:`Open (${tickets.filter(t=>t.status==="open").length})` },
+              { key:"resolved", label:`Resolved (${tickets.filter(t=>t.status==="resolved").length})` },
+              { key:"closed",   label:`Closed (${tickets.filter(t=>t.status==="closed").length})` },
+            ].map(f => (
+              <button key={f.key} onClick={() => setFilterStatus(f.key)} style={{
+                padding:"7px 14px", borderRadius:20, fontSize:12, fontWeight:700, whiteSpace:"nowrap",
+                background: filterStatus===f.key ? "#1D4ED8" : "#fff",
+                color:      filterStatus===f.key ? "#fff"    : "#555",
+                border:     filterStatus===f.key ? "none"    : "1px solid #E5E7EB",
+                boxShadow:  filterStatus===f.key ? "0 3px 10px rgba(29,78,216,.3)" : "0 1px 3px rgba(0,0,0,.06)",
+              }}>{f.label}</button>
+            ))}
+          </div>
+
+          <div style={{ padding:"16px 20px 0" }}>
+            {filtered.length === 0 ? (
+              <div style={{ textAlign:"center", padding:"60px 0" }}>
+                <Ic n="inbox" size={48} style={{ color:"#ddd", marginBottom:12, display:"block" }} />
+                <div style={{ fontSize:15, fontWeight:700, color:"#555" }}>Walang tickets</div>
+              </div>
+            ) : filtered.map(t => {
+              const st = ST[t.status] || ST.open;
+              return (
+                <div key={t.id} onClick={() => setSelected(selected?.id===t.id ? null : t)} style={{
+                  background:"#fff", borderRadius:16, padding:16, marginBottom:10,
+                  border: selected?.id===t.id ? "2px solid #1D4ED8" : "1px solid #F0F0F0",
+                  boxShadow:"0 2px 8px rgba(0,0,0,.05)", cursor:"pointer",
+                }}>
+                  <div style={{ display:"flex", justifyContent:"space-between", alignItems:"flex-start", marginBottom:8 }}>
+                    <div style={{ flex:1, marginRight:10 }}>
+                      <div style={{ fontSize:14, fontWeight:800, color:"#111" }}>{t.subject}</div>
+                      <div style={{ fontSize:12, color:"#888", marginTop:2 }}>{t.name} {t.phone ? "· " + t.phone : ""} {t.email ? "· " + t.email : ""}</div>
+                    </div>
+                    <div style={{ padding:"4px 10px", borderRadius:20, fontSize:11, fontWeight:700, background:st.bg, color:st.color, display:"flex", alignItems:"center", gap:4, whiteSpace:"nowrap" }}>
+                      <Ic n={st.icon} />{st.label}
+                    </div>
+                  </div>
+                  <div style={{ fontSize:12, color:"#555", marginBottom:8, lineHeight:1.5 }}>{t.message}</div>
+                  <div style={{ fontSize:11, color:"#aaa" }}>{fmtDate(t.createdAt)}</div>
+
+                  {selected?.id === t.id && (
+                    <div style={{ marginTop:14, paddingTop:12, borderTop:"1px dashed #E5E7EB", display:"flex", gap:8 }}>
+                      {t.status !== "resolved" && (
+                        <button onClick={e => { e.stopPropagation(); markStatus(t, "resolved"); }} disabled={updating===t.id} style={{ flex:1, padding:"9px 0", borderRadius:10, background:"linear-gradient(135deg,#166534,#22C55E)", color:"#fff", fontSize:12, fontWeight:700, display:"flex", alignItems:"center", justifyContent:"center", gap:6 }}>
+                          {updating===t.id ? <Ic n="spinner" className="spin" /> : <Ic n="circle-check" />}Mark Resolved
+                        </button>
+                      )}
+                      {t.status !== "closed" && (
+                        <button onClick={e => { e.stopPropagation(); markStatus(t, "closed"); }} disabled={updating===t.id} style={{ flex:1, padding:"9px 0", borderRadius:10, background:"#F3F4F6", color:"#555", fontSize:12, fontWeight:700, display:"flex", alignItems:"center", justifyContent:"center", gap:6 }}>
+                          <Ic n="xmark-circle" />Close Ticket
+                        </button>
+                      )}
+                      {t.status !== "open" && (
+                        <button onClick={e => { e.stopPropagation(); markStatus(t, "open"); }} disabled={updating===t.id} style={{ flex:1, padding:"9px 0", borderRadius:10, background:"#FEF3C7", color:"#92400E", fontSize:12, fontWeight:700, display:"flex", alignItems:"center", justifyContent:"center", gap:6 }}>
+                          <Ic n="envelope-open" />Reopen
+                        </button>
+                      )}
+                    </div>
+                  )}
+                </div>
+              );
+            })}
+          </div>
         </div>
       );
     }
