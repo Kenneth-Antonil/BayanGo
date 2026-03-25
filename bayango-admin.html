@@ -206,7 +206,7 @@
 
       const addProduct = useCallback(async (data) => {
         const { db, fns } = await initFirebase();
-        await fns.addDoc(fns.collection(db, "products"), data);
+        await fns.addDoc(fns.collection(db, "products"), { ...data, createdAt: fns.serverTimestamp() });
       }, []);
 
       const updateProduct = useCallback(async (productId, data) => {
