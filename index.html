@@ -1794,9 +1794,14 @@
       const riderMarkerRef = useRef(null);
       const [riderLoc, setRiderLoc] = useState(null);
       const [lastUpdate, setLastUpdate] = useState(null);
+      const [mapError, setMapError] = useState("");
 
       // Binangonan center as default
       const BINANG_CENTER = [14.4584, 121.1971];
+      const toNum = (v) => {
+        const n = Number(v);
+        return Number.isFinite(n) ? n : null;
+      };
 
       useEffect(() => {
         if (!order?.riderId) return;
@@ -1813,6 +1818,10 @@
 
       useEffect(() => {
         if (!mapRef.current || mapInstanceRef.current) return;
+        if (typeof L === "undefined" || !L?.map) {
+          setMapError("Hindi available ang mapa ngayon. Pakisubukan ulit mamaya.");
+          return;
+        }
 
         const map = L.map(mapRef.current, {
           center: BINANG_CENTER,
@@ -1827,9 +1836,9 @@
         mapInstanceRef.current = map;
 
         // Add customer pin if available
-        const custLat = order.customer?.lat;
-        const custLng = order.customer?.lng;
-        if (custLat && custLng) {
+        const custLat = toNum(order?.customer?.lat);
+        const custLng = toNum(order?.customer?.lng);
+        if (custLat != null && custLng != null) {
           const custIcon = L.divIcon({
             html: '<div style="display:flex;flex-direction:column;align-items:center;"><div style="width:36px;height:36px;border-radius:50%;background:linear-gradient(135deg,#166534,#22C55E);display:flex;align-items:center;justify-content:center;color:#fff;font-size:16px;box-shadow:0 4px 16px rgba(22,101,52,.45);border:3px solid #fff;"><i class="fa-solid fa-house"></i></div><div style="width:3px;height:10px;background:#166534;margin-top:-2px;border-radius:0 0 2px 2px;"></div></div>',
             className: '',
@@ -1855,7 +1864,10 @@
         const map = mapInstanceRef.current;
         if (!map || !riderLoc) return;
 
-        const pos = [riderLoc.lat, riderLoc.lng];
+        const riderLat = toNum(riderLoc?.lat);
+        const riderLng = toNum(riderLoc?.lng);
+        if (riderLat == null || riderLng == null) return;
+        const pos = [riderLat, riderLng];
 
         if (!riderMarkerRef.current) {
           const riderIcon = L.divIcon({
@@ -1870,9 +1882,9 @@
           );
 
           // Fit bounds to show both rider and customer pin
-          const custLat = order.customer?.lat;
-          const custLng = order.customer?.lng;
-          if (custLat && custLng) {
+          const custLat = toNum(order?.customer?.lat);
+          const custLng = toNum(order?.customer?.lng);
+          if (custLat != null && custLng != null) {
             map.fitBounds([pos, [custLat, custLng]], { padding: [50, 50] });
           } else {
             map.setView(pos, 16);
@@ -1944,7 +1956,21 @@
             </div>
 
             {/* Map */}
-            <div ref={mapRef} style={{ flex:1, minHeight:300, background:"#E5E7EB" }} />
+            <div style={{ position:"relative", flex:1, minHeight:300, background:"#E5E7EB" }}>
+              <div ref={mapRef} style={{ position:"absolute", inset:0 }} />
+              {mapError && (
+                <div style={{
+                  position:"absolute", inset:0, background:"#F8FAFC",
+                  display:"flex", alignItems:"center", justifyContent:"center",
+                  textAlign:"center", padding:"20px 24px", color:"#64748B", fontSize:13, fontWeight:600
+                }}>
+                  <div>
+                    <div style={{ fontSize:20, marginBottom:6 }}><Ic n="triangle-exclamation" /></div>
+                    {mapError}
+                  </div>
+                </div>
+              )}
+            </div>
 
             {/* Footer */}
             <div style={{
