@@ -12,6 +12,7 @@
   <meta name="apple-mobile-web-app-title" content="BayanGo" />
   <link rel="manifest" href="bayango-user-manifest.json" />
   <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" />
   <style>
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
     html, body { height: 100%; background: #F8FAF8; font-family: 'Plus Jakarta Sans', sans-serif; overscroll-behavior: none; }
@@ -38,7 +39,7 @@
 <body>
   <div id="root">
     <div style="display:flex;flex-direction:column;align-items:center;justify-content:center;height:100vh;background:#F8FAF8;gap:14px;">
-      <div style="font-size:48px;">🛒</div>
+      <i class="fa-solid fa-cart-shopping" style="font-size:48px;color:#166534;"></i>
       <div style="font-size:20px;font-weight:800;color:#166534;">BayanGo</div>
       <div style="font-size:13px;color:#aaa;">Naglo-load...</div>
     </div>
@@ -78,41 +79,45 @@
     const { useState, useEffect, useCallback, useRef } = React;
 
     /* ══════════════════ CONSTANTS ══════════════════ */
+    const Ic = ({ n, style, size, className }) => (
+      <i className={`fa-solid fa-${n}${className ? ' '+className : ''}`} style={{ fontSize:size, lineHeight:1, ...style }} />
+    );
+
     const CATEGORIES = [
-      { id:"isda",     label:"Isda",     icon:"🐟", color:"#0EA5E9" },
-      { id:"karne",    label:"Karne",    icon:"🥩", color:"#EF4444" },
-      { id:"gulay",    label:"Gulay",    icon:"🥬", color:"#22C55E" },
-      { id:"hardware", label:"Hardware", icon:"🔧", color:"#F59E0B" },
+      { id:"isda",     label:"Isda",     icon:"fish",               color:"#0EA5E9" },
+      { id:"karne",    label:"Karne",    icon:"drumstick-bite",     color:"#EF4444" },
+      { id:"gulay",    label:"Gulay",    icon:"leaf",               color:"#22C55E" },
+      { id:"hardware", label:"Hardware", icon:"screwdriver-wrench", color:"#F59E0B" },
     ];
 
     const DEFAULT_PRODUCTS = [
-      { id:1,  name:"Tilapia",          cat:"isda",     price:160, unit:"kg",   img:"🐟", stock:true },
-      { id:2,  name:"Galunggong",       cat:"isda",     price:200, unit:"kg",   img:"🐠", stock:true },
-      { id:3,  name:"Bangus",           cat:"isda",     price:180, unit:"kg",   img:"🎏", stock:true },
-      { id:4,  name:"Hipon",            cat:"isda",     price:320, unit:"kg",   img:"🦐", stock:true },
-      { id:5,  name:"Pusit",            cat:"isda",     price:280, unit:"kg",   img:"🦑", stock:true },
-      { id:6,  name:"Pork Liempo",      cat:"karne",    price:320, unit:"kg",   img:"🥓", stock:true },
-      { id:7,  name:"Chicken Whole",    cat:"karne",    price:190, unit:"kg",   img:"🍗", stock:true },
-      { id:8,  name:"Beef Brisket",     cat:"karne",    price:380, unit:"kg",   img:"🥩", stock:true },
-      { id:9,  name:"Ground Pork",      cat:"karne",    price:280, unit:"kg",   img:"🍖", stock:true },
-      { id:10, name:"Kamatis",          cat:"gulay",    price:80,  unit:"kg",   img:"🍅", stock:true },
-      { id:11, name:"Sibuyas",          cat:"gulay",    price:120, unit:"kg",   img:"🧅", stock:true },
-      { id:12, name:"Bawang",           cat:"gulay",    price:200, unit:"kg",   img:"🧄", stock:true },
-      { id:13, name:"Talong",           cat:"gulay",    price:60,  unit:"kg",   img:"🍆", stock:true },
-      { id:14, name:"Sili",             cat:"gulay",    price:100, unit:"kg",   img:"🌶️", stock:true },
-      { id:15, name:"Pako",             cat:"gulay",    price:40,  unit:"tali", img:"🌿", stock:true },
-      { id:16, name:"Cement (Portland)",cat:"hardware", price:260, unit:"bag",  img:"🏗️", stock:true },
-      { id:17, name:"Hollow Blocks",    cat:"hardware", price:14,  unit:"pc",   img:"🧱", stock:true },
-      { id:18, name:"GI Wire #16",      cat:"hardware", price:85,  unit:"kg",   img:"🔩", stock:true },
-      { id:19, name:"Pako 4\"",         cat:"hardware", price:95,  unit:"kg",   img:"📌", stock:true },
-      { id:20, name:"Paint Latex White",cat:"hardware", price:450, unit:"gal",  img:"🎨", stock:true },
+      { id:1,  name:"Tilapia",          cat:"isda",     price:160, unit:"kg",   img:"https://images.unsplash.com/photo-1588347818481-6b1a3e83c5ef?w=400&fit=crop", stock:true },
+      { id:2,  name:"Galunggong",       cat:"isda",     price:200, unit:"kg",   img:"https://images.unsplash.com/photo-1510130387-6f7cca9b1e8e?w=400&fit=crop", stock:true },
+      { id:3,  name:"Bangus",           cat:"isda",     price:180, unit:"kg",   img:"https://images.unsplash.com/photo-1578507065211-1c4e99a5fd24?w=400&fit=crop", stock:true },
+      { id:4,  name:"Hipon",            cat:"isda",     price:320, unit:"kg",   img:"https://images.unsplash.com/photo-1519708227418-c8fd9a32b7a2?w=400&fit=crop", stock:true },
+      { id:5,  name:"Pusit",            cat:"isda",     price:280, unit:"kg",   img:"https://images.unsplash.com/photo-1565557623262-b51c2513a641?w=400&fit=crop", stock:true },
+      { id:6,  name:"Pork Liempo",      cat:"karne",    price:320, unit:"kg",   img:"https://images.unsplash.com/photo-1432139555190-58524dae6a55?w=400&fit=crop", stock:true },
+      { id:7,  name:"Chicken Whole",    cat:"karne",    price:190, unit:"kg",   img:"https://images.unsplash.com/photo-1548550023-2bdb3c5beed7?w=400&fit=crop", stock:true },
+      { id:8,  name:"Beef Brisket",     cat:"karne",    price:380, unit:"kg",   img:"https://images.unsplash.com/photo-1558030006-43a7e4e1b46d?w=400&fit=crop", stock:true },
+      { id:9,  name:"Ground Pork",      cat:"karne",    price:280, unit:"kg",   img:"https://images.unsplash.com/photo-1607623814075-e51df1bdc82f?w=400&fit=crop", stock:true },
+      { id:10, name:"Kamatis",          cat:"gulay",    price:80,  unit:"kg",   img:"https://images.unsplash.com/photo-1546094096-0df4bcaad337?w=400&fit=crop", stock:true },
+      { id:11, name:"Sibuyas",          cat:"gulay",    price:120, unit:"kg",   img:"https://images.unsplash.com/photo-1587316205036-8db0ce41e0af?w=400&fit=crop", stock:true },
+      { id:12, name:"Bawang",           cat:"gulay",    price:200, unit:"kg",   img:"https://images.unsplash.com/photo-1540148426945-6cf22a6b2383?w=400&fit=crop", stock:true },
+      { id:13, name:"Talong",           cat:"gulay",    price:60,  unit:"kg",   img:"https://images.unsplash.com/photo-1615485290382-441e4aa8dd8c?w=400&fit=crop", stock:true },
+      { id:14, name:"Sili",             cat:"gulay",    price:100, unit:"kg",   img:"https://images.unsplash.com/photo-1588165171080-c89acfa5ee83?w=400&fit=crop", stock:true },
+      { id:15, name:"Pako",             cat:"gulay",    price:40,  unit:"tali", img:"https://images.unsplash.com/photo-1540420773420-3366772f4999?w=400&fit=crop", stock:true },
+      { id:16, name:"Cement (Portland)",cat:"hardware", price:260, unit:"bag",  img:"https://images.unsplash.com/photo-1587825140708-dfaf72ae4b04?w=400&fit=crop", stock:true },
+      { id:17, name:"Hollow Blocks",    cat:"hardware", price:14,  unit:"pc",   img:"https://images.unsplash.com/photo-1517089596392-fb9a9033e05b?w=400&fit=crop", stock:true },
+      { id:18, name:"GI Wire #16",      cat:"hardware", price:85,  unit:"kg",   img:"https://images.unsplash.com/photo-1582719478250-c89cae4dc85b?w=400&fit=crop", stock:true },
+      { id:19, name:"Pako 4\"",         cat:"hardware", price:95,  unit:"kg",   img:"https://images.unsplash.com/photo-1581833971358-2c8b550f87b3?w=400&fit=crop", stock:true },
+      { id:20, name:"Paint Latex White",cat:"hardware", price:450, unit:"gal",  img:"https://images.unsplash.com/photo-1562259949-e8e7689d7828?w=400&fit=crop", stock:true },
     ];
 
     const ORDER_STATUSES = [
-      { key:"pending",   label:"Pending",   icon:"⏳", desc:"Nai-receive na ang order mo" },
-      { key:"buying",    label:"Buying",    icon:"🛒", desc:"Binibili na sa palengke" },
-      { key:"otw",       label:"OTW",       icon:"🏍️", desc:"Papunta na sa'yo" },
-      { key:"delivered", label:"Delivered", icon:"✅", desc:"Na-deliver na!" },
+      { key:"pending",   label:"Pending",   icon:"hourglass-half", desc:"Nai-receive na ang order mo" },
+      { key:"buying",    label:"Buying",    icon:"cart-shopping",  desc:"Binibili na sa palengke" },
+      { key:"otw",       label:"OTW",       icon:"motorcycle",     desc:"Papunta na sa'yo" },
+      { key:"delivered", label:"Delivered", icon:"circle-check",   desc:"Na-deliver na!" },
     ];
 
     const DELIVERY_ZONES = [
@@ -260,12 +265,12 @@
                 display: "flex", alignItems: "center", justifyContent: "center",
                 fontSize: 26,
                 border: "1px solid rgba(255,255,255,.15)",
-              }}>🛒</div>
+              }}><Ic n="cart-shopping" size={26} /></div>
 
               {/* Text */}
               <div style={{ flex: 1, minWidth: 0 }}>
                 <div style={{ fontSize: 14, fontWeight: 800, color: "#fff", lineHeight: 1.2, marginBottom: 3 }}>
-                  {installed ? "✅ Na-install na!" : "I-download ang BayanGo App"}
+                  {installed ? <><Ic n="circle-check" style={{marginRight:6}} />Na-install na!</> : "I-download ang BayanGo App"}
                 </div>
                 <div style={{ fontSize: 11, color: "rgba(255,255,255,.65)", lineHeight: 1.45 }}>
                   {installed
@@ -284,7 +289,7 @@
                   color: "rgba(255,255,255,.6)",
                   fontSize: 16,
                   display: "flex", alignItems: "center", justifyContent: "center",
-                }}>✕</button>
+                }}><Ic n="xmark" /></button>
               )}
             </div>
 
@@ -302,7 +307,7 @@
                   boxShadow: "0 4px 20px rgba(34,197,94,.4)",
                   transition: "transform .15s, box-shadow .15s",
                 }}>
-                  {isIOS ? "📱 Paano I-install (iOS)" : "⬇️ I-install ang App"}
+                  {isIOS ? <><Ic n="mobile-screen" style={{marginRight:6}} />Paano I-install (iOS)</> : <><Ic n="download" style={{marginRight:6}} />I-install ang App</>}
                 </button>
 
                 {/* iOS steps */}
@@ -316,9 +321,9 @@
                     animation: "fadeUp .3s ease both",
                   }}>
                     {[
-                      { icon: "📤", text: 'I-tap ang "Share" button sa ibaba ng Safari' },
-                      { icon: "📋", text: 'Hanapin ang "Add to Home Screen"' },
-                      { icon: "✅", text: 'I-tap ang "Add" sa kanang itaas' },
+                      { icon: "arrow-up-from-bracket", text: 'I-tap ang "Share" button sa ibaba ng Safari' },
+                      { icon: "list",                  text: 'Hanapin ang "Add to Home Screen"' },
+                      { icon: "circle-check",          text: 'I-tap ang "Add" sa kanang itaas' },
                     ].map((step, i) => (
                       <div key={i} style={{
                         display: "flex", alignItems: "flex-start", gap: 10,
@@ -331,7 +336,7 @@
                           fontSize: 14, fontWeight: 800, color: "#fff",
                         }}>{i + 1}</div>
                         <div style={{ fontSize: 12, color: "rgba(255,255,255,.8)", lineHeight: 1.5, paddingTop: 4 }}>
-                          {step.icon} {step.text}
+                          <Ic n={step.icon} style={{marginRight:5}} />{step.text}
                         </div>
                       </div>
                     ))}
@@ -527,7 +532,7 @@
 
       if (loading) return (
         <div style={{ display:"flex", flexDirection:"column", alignItems:"center", justifyContent:"center", height:"100vh", gap:14 }}>
-          <div className="spin" style={{ fontSize:48 }}>⚙️</div>
+          <Ic n="gear" className="spin" size={48} style={{ color:"#166534" }} />
           <div style={{ fontSize:16, fontWeight:800, color:"#166534" }}>Naglo-load...</div>
         </div>
       );
@@ -540,7 +545,7 @@
         return (
           <div style={{ minHeight:"100vh", display:"flex", alignItems:"center", justifyContent:"center", flexDirection:"column", gap:20, padding:"20px 24px" }}>
             <div className="fade-up" style={{ textAlign:"center" }}>
-              <div style={{ fontSize:64, marginBottom:10 }}>🛒</div>
+              <Ic n="cart-shopping" size={64} style={{ color:"#166534", marginBottom:10, display:"block" }} />
               <h1 style={{ fontSize:32, fontWeight:800, color:"#166534", letterSpacing:"-.02em" }}>BayanGo</h1>
               <p style={{ color:"#666", fontSize:15, marginTop:4 }}>Palengke sa'yo. Mag-sign in para makapag-order.</p>
             </div>
@@ -560,7 +565,7 @@
                   fontSize:15, fontWeight:700, color:"#fff", display:"flex", alignItems:"center", justifyContent:"center", gap:10,
                   boxShadow:"0 4px 16px rgba(22,101,52,0.3)",
                 }}>
-                  ✉️ Sign in with Email
+                  <Ic n="envelope" style={{marginRight:8}} />Sign in with Email
                 </button>
                 <div style={{ textAlign:"center", fontSize:13, color:"#888", marginTop:4 }}>
                   Wala pang account?{" "}
@@ -611,7 +616,7 @@
                 </div>
 
                 <button onClick={() => { setAuthMode("options"); setAuthError(""); }} style={{ color:"#999", fontSize:13, textAlign:"center", marginTop:2 }}>
-                  ← Bumalik sa ibang options
+                  <Ic n="arrow-left" style={{marginRight:6}} />Bumalik sa ibang options
                 </button>
               </div>
             )}
@@ -622,7 +627,7 @@
       return (
         <>
           <div style={{ background:"#166534", color:"#fff", padding:"8px 20px", display:"flex", justifyContent:"space-between", alignItems:"center", fontSize:12, fontWeight:600 }}>
-            <span style={{opacity:0.9}}>👋 Hello, {user.displayName || user.email.split('@')[0]}</span>
+            <span style={{opacity:0.9}}>Hello, {user.displayName || user.email.split('@')[0]}</span>
             <button onClick={handleLogout} style={{ color:"#BBF7D0", textDecoration:"underline", fontSize:12, fontWeight:700 }}>Log Out</button>
           </div>
           <UserApp products={products} orders={orders} onOrder={addOrder} />
@@ -759,7 +764,7 @@
               </div>
               <h1 style={{ fontSize:34, fontWeight:800, letterSpacing:"-.02em", margin:"0 0 6px" }}>BayanGo</h1>
               <p style={{ fontSize:13, opacity:.75, fontWeight:400, lineHeight:1.5 }}>
-                Kami na ang mamamalengke para sa'yo 🛒
+                Kami na ang mamamalengke para sa'yo
               </p>
             </div>
           </div>
@@ -767,11 +772,11 @@
           {/* ── Search ── */}
           <div style={{ padding:"16px 20px 0" }}>
             <div style={{ background:"#fff", borderRadius:16, padding:"12px 16px", display:"flex", alignItems:"center", gap:10, boxShadow:"0 1px 4px rgba(0,0,0,.07)", border:"1px solid #E9ECEF" }}>
-              <span style={{ fontSize:17, opacity:.35 }}>🔍</span>
+              <Ic n="magnifying-glass" size={17} style={{ opacity:.35 }} />
               <input placeholder="Maghanap ng produkto..." value={searchQ}
                 onChange={e => setSearchQ(e.target.value)}
                 style={{ flex:1, border:"none", outline:"none", fontSize:15, fontWeight:500, background:"transparent", color:"#111" }} />
-              {searchQ && <button onClick={() => setSearchQ("")} style={{ opacity:.4, fontSize:16 }}>✕</button>}
+              {searchQ && <button onClick={() => setSearchQ("")} style={{ opacity:.4, fontSize:16 }}><Ic n="xmark" /></button>}
             </div>
           </div>
 
@@ -788,7 +793,7 @@
                 transition:"all .22s ease",
                 transform: activeCat===cat.id ? "scale(1.04)" : "scale(1)"
               }}>
-                <span style={{ fontSize:16 }}>{cat.icon}</span>{cat.label}
+                <Ic n={cat.icon} size={14} />{cat.label}
               </button>
             ))}
           </div>
@@ -819,8 +824,9 @@
 
           {/* ── Section Label ── */}
           <div style={{ padding:"0 20px 10px", display:"flex", justifyContent:"space-between", alignItems:"center" }}>
-            <h2 style={{ fontSize:15, fontWeight:800, color:"#111" }}>
-              {CATEGORIES.find(c=>c.id===activeCat)?.icon} {CATEGORIES.find(c=>c.id===activeCat)?.label}
+            <h2 style={{ fontSize:15, fontWeight:800, color:"#111", display:"flex", alignItems:"center", gap:6 }}>
+              <Ic n={CATEGORIES.find(c=>c.id===activeCat)?.icon} style={{color:CATEGORIES.find(c=>c.id===activeCat)?.color}} />
+              {CATEGORIES.find(c=>c.id===activeCat)?.label}
             </h2>
             <span style={{ fontSize:12, color:"#999", fontWeight:500 }}>{filtered.length} items</span>
           </div>
@@ -843,10 +849,17 @@
                     }}>SOLD OUT</div>
                   )}
                   <div style={{
-                    height:96, display:"flex", alignItems:"center", justifyContent:"center",
+                    height:96, overflow:"hidden",
                     background:`linear-gradient(135deg,${CATEGORIES.find(c=>c.id===p.cat)?.color}12,${CATEGORIES.find(c=>c.id===p.cat)?.color}06)`,
-                    fontSize:46
-                  }}>{p.img}</div>
+                    display:"flex", alignItems:"center", justifyContent:"center"
+                  }}>
+                    {p.img && p.img.startsWith("http")
+                      ? <img src={p.img} alt={p.name} style={{width:"100%",height:"100%",objectFit:"cover"}} onError={e=>{e.target.style.display="none";e.target.nextSibling.style.display="flex";}} />
+                      : null}
+                    <div style={{display:p.img&&p.img.startsWith("http")?"none":"flex",alignItems:"center",justifyContent:"center",width:"100%",height:"100%"}}>
+                      <Ic n={CATEGORIES.find(c=>c.id===p.cat)?.icon} size={40} style={{color:CATEGORIES.find(c=>c.id===p.cat)?.color,opacity:.5}} />
+                    </div>
+                  </div>
                   <div style={{ padding:"11px 14px 14px" }}>
                     <div style={{ fontSize:13, fontWeight:700, color:"#111", marginBottom:2, lineHeight:1.25 }}>{p.name}</div>
                     <div style={{ fontSize:11, color:"#aaa", marginBottom:10 }}>per {p.unit}</div>
@@ -874,7 +887,7 @@
             </div>
             {filtered.length === 0 && (
               <div style={{ textAlign:"center", padding:"50px 0", color:"#bbb" }}>
-                <div style={{ fontSize:48, marginBottom:10 }}>🤷</div>
+                <Ic n="face-meh" size={48} style={{ color:"#bbb", marginBottom:10, display:"block" }} />
                 <div style={{ fontSize:14, fontWeight:600 }}>Walang makitang produkto</div>
               </div>
             )}
@@ -888,7 +901,7 @@
                 background:"linear-gradient(135deg,#7C3AED,#A855F7)",
                 color:"#fff", fontSize:26, display:"flex", alignItems:"center", justifyContent:"center",
                 boxShadow:"0 6px 24px rgba(124,58,237,.45)"
-              }}>🤖</button>
+              }}><Ic n="robot" size={24} /></button>
               <div style={{
                 position:"absolute", top:-8, right:-4,
                 background:"#22C55E", color:"#fff", borderRadius:10,
@@ -910,7 +923,7 @@
                 color:"#fff", display:"flex", alignItems:"center", justifyContent:"space-between",
                 boxShadow:"0 8px 32px rgba(22,101,52,.38)", fontSize:15, fontWeight:700
               }}>
-                <span>🛒 Basket ({totalItemCount} item{totalItemCount>1?"s":""})</span>
+                <span><Ic n="basket-shopping" style={{marginRight:6}} />Basket ({totalItemCount} item{totalItemCount>1?"s":""})</span>
                 <span style={{ fontSize:16, fontWeight:800 }}>~{fmt(subtotal + customEstTotal)}</span>
               </button>
             </div>
@@ -1021,13 +1034,17 @@
                 display:"flex", flexDirection:"column"
               }}>
                 <div style={{ padding:"20px 24px", borderBottom:"1px solid #E5E7EB", display:"flex", alignItems:"center", justifyContent:"space-between", background:"#fff" }}>
-                  <h2 style={{ fontSize:19, fontWeight:800 }}>🧺 Your Basket</h2>
-                  <button onClick={() => setShowCart(false)} style={{ width:36, height:36, borderRadius:10, background:"#F3F4F6", fontSize:18, display:"flex", alignItems:"center", justifyContent:"center" }}>✕</button>
+                  <h2 style={{ fontSize:19, fontWeight:800 }}><Ic n="basket-shopping" style={{marginRight:6}} />Your Basket</h2>
+                  <button onClick={() => setShowCart(false)} style={{ width:36, height:36, borderRadius:10, background:"#F3F4F6", fontSize:18, display:"flex", alignItems:"center", justifyContent:"center" }}><Ic n="xmark" /></button>
                 </div>
                 <div style={{ flex:1, overflowY:"auto", padding:"12px 24px" }}>
                   {cartItems.map(item => (
                     <div key={item.id} className="fade-up" style={{ display:"flex", alignItems:"center", gap:12, padding:"13px 0", borderBottom:"1px solid #F0F0F0" }}>
-                      <div style={{ width:50, height:50, borderRadius:13, fontSize:28, display:"flex", alignItems:"center", justifyContent:"center", background:"#F0FDF4" }}>{item.img}</div>
+                      <div style={{ width:50, height:50, borderRadius:13, overflow:"hidden", background:"#F0FDF4", display:"flex", alignItems:"center", justifyContent:"center" }}>
+                        {item.img && item.img.startsWith("http")
+                          ? <img src={item.img} alt={item.name} style={{width:"100%",height:"100%",objectFit:"cover"}} />
+                          : <Ic n={CATEGORIES.find(c=>c.id===item.cat)?.icon||"cube"} size={22} style={{color:CATEGORIES.find(c=>c.id===item.cat)?.color||"#999"}} />}
+                      </div>
                       <div style={{ flex:1 }}>
                         <div style={{ fontSize:14, fontWeight:700, color:"#111" }}>{item.name}</div>
                         <div style={{ fontSize:12, color:"#999" }}>{fmt(item.price)} / {item.unit}</div>
@@ -1088,11 +1105,11 @@
             <div style={{ position:"fixed", inset:0, zIndex:300, background:"rgba(0,0,0,.65)", backdropFilter:"blur(6px)", display:"flex", alignItems:"flex-end", justifyContent:"center" }}>
               <div className="slide-up" style={{ width:"100%", maxWidth:480, background:"#fff", borderRadius:"24px 24px 0 0", padding:"26px 24px 36px", maxHeight:"92vh", overflowY:"auto" }}>
                 <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:22 }}>
-                  <h2 style={{ fontSize:21, fontWeight:800 }}>📋 Checkout</h2>
-                  <button onClick={() => setShowCheckout(false)} style={{ width:36, height:36, borderRadius:10, background:"#F3F4F6", fontSize:18, display:"flex", alignItems:"center", justifyContent:"center" }}>✕</button>
+                  <h2 style={{ fontSize:21, fontWeight:800 }}><Ic n="receipt" style={{marginRight:6}} />Checkout</h2>
+                  <button onClick={() => setShowCheckout(false)} style={{ width:36, height:36, borderRadius:10, background:"#F3F4F6", fontSize:18, display:"flex", alignItems:"center", justifyContent:"center" }}><Ic n="xmark" /></button>
                 </div>
 
-                <label style={{ fontSize:12, fontWeight:700, color:"#666", display:"block", marginBottom:8 }}>📍 Delivery Area</label>
+                <label style={{ fontSize:12, fontWeight:700, color:"#666", display:"block", marginBottom:8 }}><Ic n="location-dot" style={{marginRight:5}} />Delivery Area</label>
                 <div style={{ display:"flex", gap:8, marginBottom:20 }}>
                   {DELIVERY_ZONES.map((z,i) => (
                     <button key={i} onClick={() => setZone(i)} style={{
@@ -1123,7 +1140,7 @@
                 <div style={{ background:"#F9FAFB", borderRadius:14, padding:"14px 16px", marginBottom:16, border:"1px solid #E5E7EB" }}>
                   {cartItems.map(i => (
                     <div key={i.id} style={{ display:"flex", justifyContent:"space-between", padding:"5px 0", fontSize:13, color:"#555" }}>
-                      <span>{i.img} {i.name} x{i.qty}</span>
+                      <span>{i.name} ×{i.qty}</span>
                       <span style={{ fontWeight:600 }}>{fmt(i.price*i.qty)}</span>
                     </div>
                   ))}
@@ -1162,7 +1179,7 @@
                 </div>
 
                 <div style={{ background:"#FEF3C7", borderRadius:12, padding:"12px 14px", marginBottom:18, display:"flex", gap:10 }}>
-                  <span style={{ fontSize:18 }}>💳</span>
+                  <Ic n="credit-card" size={18} style={{ color:"#92400E", marginTop:1 }} />
                   <div style={{ fontSize:12, color:"#92400E", lineHeight:1.5 }}>
                     <strong>GCash o COD</strong> — Pag-deliver ng order, pwede kang magbayad via GCash o Cash on Delivery.
                   </div>
@@ -1174,7 +1191,7 @@
                   color:"#fff", fontSize:16, fontWeight:700,
                   boxShadow:(!name||!phone||!addr)?"none":"0 4px 20px rgba(22,101,52,.35)",
                   transition:"all .2s"
-                }}>Mag-Order Na! 🎉</button>
+                }}>Mag-Order Na! <Ic n="bag-shopping" style={{marginLeft:6}} /></button>
               </div>
             </div>
           )}
@@ -1192,7 +1209,7 @@
                     <h3 style={{ fontSize:19, fontWeight:800 }}>Order Tracker</h3>
                     <p style={{ fontSize:12, color:"#bbb", marginTop:2 }}>#{liveOrder.id?.slice(0,8)}</p>
                   </div>
-                  <button onClick={() => setShowTracker(null)} style={{ width:34, height:34, borderRadius:10, background:"#F3F4F6", fontSize:16, display:"flex", alignItems:"center", justifyContent:"center" }}>✕</button>
+                  <button onClick={() => setShowTracker(null)} style={{ width:34, height:34, borderRadius:10, background:"#F3F4F6", fontSize:16, display:"flex", alignItems:"center", justifyContent:"center" }}><Ic n="xmark" /></button>
                 </div>
                 {ORDER_STATUSES.map((s,i) => {
                   const idx     = ORDER_STATUSES.findIndex(st => st.key === liveOrder.status);
@@ -1206,7 +1223,7 @@
                           display:"flex", alignItems:"center", justifyContent:"center",
                           background:active?"#22C55E":"#F3F4F6", color:active?"#fff":"#ccc",
                           boxShadow:current?"0 0 0 4px #BBF7D0":"none", transition:"all .3s"
-                        }}>{s.icon}</div>
+                        }}><Ic n={s.icon} size={18} /></div>
                         {i < 3 && <div style={{ width:3, height:32, background:active&&i<idx?"#22C55E":"#E5E7EB", borderRadius:3 }} />}
                       </div>
                       <div style={{ paddingTop:4, paddingBottom:i<3?14:0 }}>
@@ -1229,7 +1246,7 @@
               fontSize:14, fontWeight:700, boxShadow:"0 8px 32px rgba(0,0,0,.22)",
               display:"flex", alignItems:"center", gap:10, whiteSpace:"nowrap"
             }}>
-              <span style={{ fontSize:22 }}>🎉</span> Order placed! Salamat, mare/pare!
+              <Ic n="circle-check" size={22} /> Order placed! Salamat, mare/pare!
             </div>
           )}
 
@@ -1418,18 +1435,18 @@ Format:
           <div className="slide-up" style={{ width:"100%", maxWidth:480, background:"#fff", borderRadius:"24px 24px 0 0", padding:"26px 22px 40px", maxHeight:"90vh", overflowY:"auto" }}>
             <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:8 }}>
               <div>
-                <h2 style={{ fontSize:21, fontWeight:800 }}>🤖 Ano Lulutuin?</h2>
+                <h2 style={{ fontSize:21, fontWeight:800 }}><Ic n="robot" style={{marginRight:6}} />Ano Lulutuin?</h2>
                 <p style={{ fontSize:12, color:"#aaa", marginTop:2 }}>AI-powered recipe suggestions</p>
               </div>
-              <button onClick={onClose} style={{ width:36, height:36, borderRadius:10, background:"#F3F4F6", fontSize:18, display:"flex", alignItems:"center", justifyContent:"center" }}>✕</button>
+              <button onClick={onClose} style={{ width:36, height:36, borderRadius:10, background:"#F3F4F6", fontSize:18, display:"flex", alignItems:"center", justifyContent:"center" }}><Ic n="xmark" /></button>
             </div>
 
             <div style={{ background:"#F0FDF4", borderRadius:14, padding:"12px 14px", marginBottom:18, border:"1px solid #BBF7D0" }}>
-              <div style={{ fontSize:11, fontWeight:700, color:"#166534", marginBottom:8 }}>📋 Mga sangkap sa basket:</div>
+              <div style={{ fontSize:11, fontWeight:700, color:"#166534", marginBottom:8 }}><Ic n="basket-shopping" style={{marginRight:4}} />Mga sangkap sa basket:</div>
               <div style={{ display:"flex", flexWrap:"wrap", gap:6 }}>
                 {cartItems.map(i => (
                   <span key={i.id} style={{ background:"#fff", border:"1px solid #D1FAE5", borderRadius:20, padding:"4px 10px", fontSize:11, fontWeight:700, color:"#166534" }}>
-                    {i.img} {i.name}
+                    {i.name}
                   </span>
                 ))}
               </div>
@@ -1443,13 +1460,13 @@ Format:
                 boxShadow:loading?"none":"0 4px 20px rgba(124,58,237,.35)",
                 display:"flex", alignItems:"center", justifyContent:"center", gap:10
               }}>
-                {loading ? (<><span className="spin" style={{ fontSize:18 }}>⚙️</span><span className="ai-pulse">Nag-iisip si AI...</span></>) : (<><span>✨</span> Mag-suggest ng Recipe</>)}
+                {loading ? (<><Ic n="gear" className="spin" size={18} style={{marginRight:6}} /><span className="ai-pulse">Nag-iisip si AI...</span></>) : (<><Ic n="wand-magic-sparkles" style={{marginRight:6}} />Mag-suggest ng Recipe</>)}
               </button>
             )}
 
             {error && (
               <div style={{ background:"#FEF2F2", border:"1px solid #FECACA", borderRadius:12, padding:"12px 14px", marginTop:14, fontSize:13, color:"#DC2626", fontWeight:500 }}>
-                ⚠️ {error} <button onClick={generate} style={{ marginLeft:8, color:"#DC2626", textDecoration:"underline", fontWeight:700 }}>Ulit</button>
+                <Ic n="triangle-exclamation" style={{marginRight:4}} />{error} <button onClick={generate} style={{ marginLeft:8, color:"#DC2626", textDecoration:"underline", fontWeight:700 }}>Ulit</button>
               </div>
             )}
 
@@ -1467,8 +1484,8 @@ Format:
                       <div>
                         <div style={{ fontSize:15, fontWeight:800, color:"#111" }}>{r.name}</div>
                         <div style={{ display:"flex", gap:6, marginTop:4 }}>
-                          <span style={{ fontSize:10, fontWeight:700, background:"#F0FDF4", color:"#166534", padding:"2px 8px", borderRadius:6 }}>⏱ {r.time}</span>
-                          <span style={{ fontSize:10, fontWeight:700, background:"#FEF3C7", color:"#92400E", padding:"2px 8px", borderRadius:6 }}>🔥 {r.difficulty}</span>
+                          <span style={{ fontSize:10, fontWeight:700, background:"#F0FDF4", color:"#166534", padding:"2px 8px", borderRadius:6 }}><Ic n="clock" style={{marginRight:3}} />{r.time}</span>
+                          <span style={{ fontSize:10, fontWeight:700, background:"#FEF3C7", color:"#92400E", padding:"2px 8px", borderRadius:6 }}><Ic n="fire" style={{marginRight:3}} />{r.difficulty}</span>
                         </div>
                       </div>
                     </div>
@@ -1478,24 +1495,24 @@ Format:
                 <button onClick={() => { setRecipes(null); generate(); }} style={{
                   width:"100%", padding:"12px", borderRadius:12, background:"#F9FAFB",
                   border:"1px solid #E5E7EB", fontSize:13, fontWeight:600, color:"#888"
-                }}>🔄 Ibang suggestions</button>
+                }}><Ic n="rotate" style={{marginRight:6}} />Ibang suggestions</button>
               </div>
             )}
 
             {selected && (
               <div className="fade-up">
-                <button onClick={() => setSelected(null)} style={{ color:"#7C3AED", fontWeight:700, fontSize:13, marginBottom:16, display:"flex", alignItems:"center", gap:4 }}>← Bumalik</button>
+                <button onClick={() => setSelected(null)} style={{ color:"#7C3AED", fontWeight:700, fontSize:13, marginBottom:16, display:"flex", alignItems:"center", gap:4 }}><Ic n="arrow-left" style={{marginRight:4}} />Bumalik</button>
                 <div style={{ textAlign:"center", marginBottom:20 }}>
                   <div style={{ fontSize:60 }}>{selected.emoji}</div>
                   <h3 style={{ fontSize:21, fontWeight:800, marginTop:8 }}>{selected.name}</h3>
                   <div style={{ display:"flex", gap:8, justifyContent:"center", marginTop:8 }}>
-                    <span style={{ fontSize:11, fontWeight:700, background:"#F0FDF4", color:"#166534", padding:"4px 12px", borderRadius:20 }}>⏱ {selected.time}</span>
-                    <span style={{ fontSize:11, fontWeight:700, background:"#FEF3C7", color:"#92400E", padding:"4px 12px", borderRadius:20 }}>🔥 {selected.difficulty}</span>
+                    <span style={{ fontSize:11, fontWeight:700, background:"#F0FDF4", color:"#166534", padding:"4px 12px", borderRadius:20 }}><Ic n="clock" style={{marginRight:3}} />{selected.time}</span>
+                    <span style={{ fontSize:11, fontWeight:700, background:"#FEF3C7", color:"#92400E", padding:"4px 12px", borderRadius:20 }}><Ic n="fire" style={{marginRight:3}} />{selected.difficulty}</span>
                   </div>
                   <p style={{ fontSize:13, color:"#777", lineHeight:1.6, marginTop:12 }}>{selected.description}</p>
                 </div>
                 <div style={{ background:"#F9FAFB", borderRadius:16, padding:"16px", marginBottom:14, border:"1px solid #E5E7EB" }}>
-                  <div style={{ fontSize:12, fontWeight:700, color:"#444", marginBottom:12 }}>📝 Paraan ng Pagluto:</div>
+                  <div style={{ fontSize:12, fontWeight:700, color:"#444", marginBottom:12 }}><Ic n="list-ol" style={{marginRight:4}} />Paraan ng Pagluto:</div>
                   {selected.steps.map((step,i) => (
                     <div key={i} style={{ display:"flex", gap:12, marginBottom:12, alignItems:"flex-start" }}>
                       <div style={{ width:26, height:26, borderRadius:8, background:"#7C3AED", color:"#fff", fontSize:11, fontWeight:800, display:"flex", alignItems:"center", justifyContent:"center", flexShrink:0 }}>{i+1}</div>
@@ -1504,7 +1521,7 @@ Format:
                   ))}
                 </div>
                 <div style={{ background:"#FFF7ED", borderRadius:14, padding:"14px 16px", border:"1px solid #FED7AA", display:"flex", gap:10 }}>
-                  <span style={{ fontSize:18 }}>💡</span>
+                  <Ic n="lightbulb" size={18} style={{ color:"#EA580C" }} />
                   <div>
                     <div style={{ fontSize:11, fontWeight:800, color:"#EA580C", marginBottom:4 }}>Pro Tip</div>
                     <p style={{ fontSize:12, color:"#9A3412", lineHeight:1.55, margin:0 }}>{selected.tip}</p>
