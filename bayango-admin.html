@@ -238,11 +238,13 @@
       }, []);
 
       const updateProduct = useCallback(async (productId, data) => {
+        if (typeof productId !== "string" || !productId) throw new Error("Invalid product ID: " + productId);
         const { db, fns } = await initFirebase();
         await fns.updateDoc(fns.doc(db, "products", productId), data);
       }, []);
 
       const deleteProduct = useCallback(async (productId) => {
+        if (typeof productId !== "string" || !productId) throw new Error("Invalid product ID: " + productId);
         const { db, fns } = await initFirebase();
         await fns.deleteDoc(fns.doc(db, "products", productId));
       }, []);
@@ -620,8 +622,10 @@
       const handleSave = async (data) => {
         setSaving(true);
         try {
-          if (editProd) await onUpdate(editProd.id, data);
-          else          await onAdd(data);
+          // editProd.id must be a Firestore string ID — numeric IDs are DEFAULT_PRODUCTS
+          const isRealDoc = editProd && typeof editProd.id === "string";
+          if (isRealDoc) await onUpdate(editProd.id, data);
+          else           await onAdd(data);
           closeModal();
         } finally { setSaving(false); }
       };
@@ -630,7 +634,7 @@
         if (!delProd || delBusy) return;
         setDelBusy(true);
         try {
-          await onDelete(delProd.id);
+          if (typeof delProd.id === "string") await onDelete(delProd.id);
           setDelProd(null);
         } catch (err) {
           alert("Hindi ma-delete: " + (err.message || err.code || "unknown error"));
