@@ -600,10 +600,10 @@
       const [catFilter,  setCatFilter]  = useState("all");
       const [searchQ,    setSearchQ]    = useState("");
       const [showModal,  setShowModal]  = useState(false);
-      const [editProd,   setEditProd]   = useState(null);
-      const [delConfirm, setDelConfirm] = useState(null);
-      const [deleting,   setDeleting]   = useState(null);
-      const [saving,     setSaving]     = useState(false);
+      const [editProd,  setEditProd]  = useState(null);
+      const [delProd,   setDelProd]   = useState(null);
+      const [delBusy,   setDelBusy]   = useState(false);
+      const [saving,    setSaving]    = useState(false);
 
       const ALL_CATS = [{ id:"all", label:"Lahat", icon:"border-all", color:"#555" }, ...CATEGORIES];
 
@@ -626,10 +626,17 @@
         } finally { setSaving(false); }
       };
 
-      const handleDelete = async (p) => {
-        setDeleting(p.id);
-        try { await onDelete(p.id); setDelConfirm(null); }
-        finally { setDeleting(null); }
+      const handleDelete = async () => {
+        if (!delProd || delBusy) return;
+        setDelBusy(true);
+        try {
+          await onDelete(delProd.id);
+          setDelProd(null);
+        } catch (err) {
+          alert("Hindi ma-delete: " + (err.message || err.code || "unknown error"));
+        } finally {
+          setDelBusy(false);
+        }
       };
 
       return (
@@ -731,7 +738,7 @@
                       width:36, height:36, borderRadius:10, background:"#EFF6FF", border:"1px solid #BFDBFE",
                       display:"flex", alignItems:"center", justifyContent:"center", color:"#1D4ED8"
                     }}><Ic n="pen-to-square" size={14} /></button>
-                    <button onClick={() => setDelConfirm(p)} style={{
+                    <button onClick={() => setDelProd(p)} style={{
                       width:36, height:36, borderRadius:10, background:"#FEF2F2", border:"1px solid #FECACA",
                       display:"flex", alignItems:"center", justifyContent:"center", color:"#DC2626"
                     }}><Ic n="trash" size={14} /></button>
@@ -752,25 +759,30 @@
           )}
 
           {/* Delete Confirm */}
-          {delConfirm && (
+          {delProd && (
             <div style={{ position:"fixed", inset:0, zIndex:400, background:"rgba(0,0,0,.6)", backdropFilter:"blur(4px)", display:"flex", alignItems:"center", justifyContent:"center", padding:20 }}
-              onClick={() => setDelConfirm(null)}>
+              onClick={() => !delBusy && setDelProd(null)}>
               <div className="pop" onClick={e => e.stopPropagation()} style={{
                 width:"100%", maxWidth:340, background:"#fff", borderRadius:20, padding:"26px 22px"
               }}>
                 <div style={{ textAlign:"center", marginBottom:22 }}>
                   <Ic n="trash-can" size={40} style={{ color:"#DC2626", marginBottom:12 }} />
                   <h3 style={{ fontSize:17, fontWeight:800, marginBottom:6 }}>I-delete ang produkto?</h3>
-                  <p style={{ fontSize:13, color:"#888" }}>Hindi na mababalik ang <strong>{delConfirm.name}</strong>.</p>
+                  <p style={{ fontSize:13, color:"#888" }}>Hindi na mababalik ang <strong>{delProd.name}</strong>.</p>
                 </div>
                 <div style={{ display:"flex", gap:10 }}>
-                  <button onClick={() => setDelConfirm(null)} style={{
-                    flex:1, padding:"12px", borderRadius:12, background:"#F3F4F6", fontSize:14, fontWeight:700, color:"#555"
+                  <button onClick={() => setDelProd(null)} disabled={delBusy} style={{
+                    flex:1, padding:"12px", borderRadius:12, background:"#F3F4F6", fontSize:14, fontWeight:700, color:"#555",
+                    opacity: delBusy ? 0.5 : 1
                   }}>Huwag</button>
-                  <button onClick={() => handleDelete(delConfirm)} disabled={!!deleting} style={{
-                    flex:1, padding:"12px", borderRadius:12, background:"#DC2626", color:"#fff", fontSize:14, fontWeight:700
+                  <button onClick={handleDelete} disabled={delBusy} style={{
+                    flex:1, padding:"12px", borderRadius:12, fontSize:14, fontWeight:700, color:"#fff",
+                    background: delBusy ? "#F87171" : "#DC2626"
                   }}>
-                    {deleting ? <><Ic n="hourglass-half" style={{ marginRight:4 }} />Deleting...</> : <><Ic n="trash" style={{ marginRight:4 }} />I-delete</>}
+                    {delBusy
+                      ? <><Ic n="hourglass-half" style={{ marginRight:4 }} />Dine-delete...</>
+                      : <><Ic n="trash" style={{ marginRight:4 }} />I-delete</>
+                    }
                   </button>
                 </div>
               </div>
