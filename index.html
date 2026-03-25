@@ -395,7 +395,8 @@
           await _fbDb.ref("orders").push({
             ...order,
             uid,
-            createdAt: Date.now(),
+            status: order?.status || "pending",
+            createdAt: order?.createdAt || Date.now(),
           });
         } catch (err) {
           console.error("RTDB write failed:", err.code, err.message);

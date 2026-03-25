@@ -204,7 +204,7 @@
             const ordersRef = fns.rtdbQuery(fns.ref(db, "orders"), fns.orderByChild("createdAt"));
             fns.onValue(ordersRef, snap => {
               const list = [];
-              snap.forEach(c => list.push({ id:c.key, ...c.val() }));
+              snap.forEach(c => { const v = c.val() || {}; list.push({ id:c.key, ...v, status: v.status || "pending" }); });
               setOrders(list.reverse());
             }, err => console.error("Orders snapshot error:", err.code, err.message));
             unsubOrders = () => fns.off(ordersRef);
