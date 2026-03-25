@@ -55,29 +55,6 @@
       { id:"hardware", label:"Hardware", icon:"screwdriver-wrench", color:"#F59E0B" },
     ];
 
-    const DEFAULT_PRODUCTS = [
-      { id:1,  name:"Tilapia",          cat:"isda",     price:160, unit:"kg",   img:"🐟", stock:true },
-      { id:2,  name:"Galunggong",       cat:"isda",     price:200, unit:"kg",   img:"🐠", stock:true },
-      { id:3,  name:"Bangus",           cat:"isda",     price:180, unit:"kg",   img:"🎏", stock:true },
-      { id:4,  name:"Hipon",            cat:"isda",     price:320, unit:"kg",   img:"🦐", stock:true },
-      { id:5,  name:"Pusit",            cat:"isda",     price:280, unit:"kg",   img:"🦑", stock:true },
-      { id:6,  name:"Pork Liempo",      cat:"karne",    price:320, unit:"kg",   img:"🥓", stock:true },
-      { id:7,  name:"Chicken Whole",    cat:"karne",    price:190, unit:"kg",   img:"🍗", stock:true },
-      { id:8,  name:"Beef Brisket",     cat:"karne",    price:380, unit:"kg",   img:"🥩", stock:true },
-      { id:9,  name:"Ground Pork",      cat:"karne",    price:280, unit:"kg",   img:"🍖", stock:true },
-      { id:10, name:"Kamatis",          cat:"gulay",    price:80,  unit:"kg",   img:"🍅", stock:true },
-      { id:11, name:"Sibuyas",          cat:"gulay",    price:120, unit:"kg",   img:"🧅", stock:true },
-      { id:12, name:"Bawang",           cat:"gulay",    price:200, unit:"kg",   img:"🧄", stock:true },
-      { id:13, name:"Talong",           cat:"gulay",    price:60,  unit:"kg",   img:"🍆", stock:true },
-      { id:14, name:"Sili",             cat:"gulay",    price:100, unit:"kg",   img:"🌶️", stock:true },
-      { id:15, name:"Pako",             cat:"gulay",    price:40,  unit:"tali", img:"🌿", stock:true },
-      { id:16, name:"Cement (Portland)",cat:"hardware", price:260, unit:"bag",  img:"🏗️", stock:true },
-      { id:17, name:"Hollow Blocks",    cat:"hardware", price:14,  unit:"pc",   img:"🧱", stock:true },
-      { id:18, name:"GI Wire #16",      cat:"hardware", price:85,  unit:"kg",   img:"🔩", stock:true },
-      { id:19, name:"Pako 4\"",         cat:"hardware", price:95,  unit:"kg",   img:"📌", stock:true },
-      { id:20, name:"Paint Latex White",cat:"hardware", price:450, unit:"gal",  img:"🎨", stock:true },
-    ];
-
     const ORDER_STATUSES = [
       { key:"pending",   label:"Pending",   icon:"hourglass-half", desc:"Nai-receive na ang order mo" },
       { key:"buying",    label:"Buying",    icon:"cart-shopping",  desc:"Binibili na sa palengke" },
@@ -601,6 +578,20 @@
       const [delProd,   setDelProd]   = useState(null);
       const [delBusy,   setDelBusy]   = useState(false);
       const [saving,    setSaving]    = useState(false);
+      const [deleteAllBusy, setDeleteAllBusy] = useState(false);
+
+      const handleDeleteAll = async () => {
+        if (deleteAllBusy) return;
+        if (!window.confirm(`I-delete lahat ng ${products.length} produkto? Hindi na ito maibabalik.`)) return;
+        setDeleteAllBusy(true);
+        try {
+          await Promise.all(products.map(p => onDelete(p.id)));
+        } catch (err) {
+          alert("May error sa pag-delete: " + (err.message || err.code || "unknown"));
+        } finally {
+          setDeleteAllBusy(false);
+        }
+      };
 
       const ALL_CATS = [{ id:"all", label:"Lahat", icon:"border-all", color:"#555" }, ...CATEGORIES];
 
@@ -617,7 +608,7 @@
       const handleSave = async (data) => {
         setSaving(true);
         try {
-          // editProd.id must be a Firestore string ID — numeric IDs are DEFAULT_PRODUCTS
+          // editProd.id must be a Firestore string ID
           const isRealDoc = editProd && typeof editProd.id === "string";
           if (isRealDoc) await onUpdate(editProd.id, data);
           else           await onAdd(data);
@@ -629,11 +620,6 @@
 
       const handleDelete = async () => {
         if (!delProd || delBusy) return;
-        if (typeof delProd.id !== "string") {
-          alert("Hindi ma-delete ang default na produkto.\n\nI-edit at i-save muna para ma-add sa database, tapos pwede nang i-delete.");
-          setDelProd(null);
-          return;
-        }
         setDelBusy(true);
         try {
           await onDelete(delProd.id);
@@ -678,18 +664,32 @@
             ))}
           </div>
 
-          {/* Header row */}
           <div style={{ padding:"4px 20px 12px", display:"flex", justifyContent:"space-between", alignItems:"center" }}>
             <span style={{ fontSize:13, color:"#888", fontWeight:600 }}>{filtered.length} produkto</span>
-            <button onClick={openAdd} style={{
-              padding:"9px 16px", borderRadius:12,
-              background:"linear-gradient(135deg,#166534,#22C55E)",
-              color:"#fff", fontSize:13, fontWeight:700,
-              display:"flex", alignItems:"center", gap:7,
-              boxShadow:"0 3px 12px rgba(22,101,52,.3)"
-            }}>
-              <Ic n="plus" />Dagdag na Produkto
-            </button>
+            <div style={{ display:"flex", gap:8 }}>
+              {products.length > 0 && (
+                <button onClick={handleDeleteAll} disabled={deleteAllBusy} style={{
+                  padding:"9px 16px", borderRadius:12,
+                  background: deleteAllBusy ? "#ccc" : "linear-gradient(135deg,#991b1b,#ef4444)",
+                  color:"#fff", fontSize:13, fontWeight:700,
+                  display:"flex", alignItems:"center", gap:7,
+                  boxShadow:"0 3px 12px rgba(153,27,27,.3)",
+                  opacity: deleteAllBusy ? .7 : 1
+                }}>
+                  <Ic n={deleteAllBusy ? "spinner" : "trash"} className={deleteAllBusy ? "spin" : ""} />
+                  {deleteAllBusy ? "Dine-delete..." : "Delete Lahat"}
+                </button>
+              )}
+              <button onClick={openAdd} style={{
+                padding:"9px 16px", borderRadius:12,
+                background:"linear-gradient(135deg,#166534,#22C55E)",
+                color:"#fff", fontSize:13, fontWeight:700,
+                display:"flex", alignItems:"center", gap:7,
+                boxShadow:"0 3px 12px rgba(22,101,52,.3)"
+              }}>
+                <Ic n="plus" />Dagdag na Produkto
+              </button>
+            </div>
           </div>
 
           {/* Product list */}
