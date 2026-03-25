@@ -83,6 +83,7 @@
       storageBucket:     "bayango-315c6.firebasestorage.app",
       messagingSenderId: "199013441811",
       appId:             "1:199013441811:web:315a38f03ddc9b676e3ae6",
+      databaseURL:       "https://bayango-315c6-default-rtdb.firebaseio.com",
     };
 
     let _db = null;
@@ -96,14 +97,14 @@
       if (_db && _auth) return { db: _db, fns: _fns, auth: _auth, authFns: _authFns };
 
       const { initializeApp } = await import("https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js");
-      const { getFirestore, collection, addDoc, onSnapshot, query, orderBy, doc, updateDoc, deleteDoc, serverTimestamp, getDocs } = await import("https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js");
+      const { getDatabase, ref, push, set, update, remove, onValue, off, query: rtdbQuery, orderByChild, equalTo } = await import("https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js");
       const { getAuth, signInWithPopup, GoogleAuthProvider, onAuthStateChanged, signOut } = await import("https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js");
 
       _app  = initializeApp(FIREBASE_CONFIG);
-      _db   = getFirestore(_app);
+      _db   = getDatabase(_app);
       _auth = getAuth(_app);
       
-      _fns = { collection, addDoc, onSnapshot, query, orderBy, doc, updateDoc, deleteDoc, serverTimestamp, getDocs };
+      _fns = { ref, push, set, update, remove, onValue, off, rtdbQuery, orderByChild, equalTo };
       _authFns = { signInWithPopup, GoogleAuthProvider, onAuthStateChanged, signOut };
       
       return { db: _db, fns: _fns, auth: _auth, authFns: _authFns };
@@ -162,27 +163,31 @@
             }
 
             // Listen products realtime
-            unsubProducts = onSnapshot(
-              collection(db, "products"),
-              s => { setProducts(s.docs.map(d => ({ id: d.id, ...d.data() }))); },
-              err => console.error("Products snapshot error:", err)
-            );
+            const prodsRef = fns.ref(db, "products");
+            fns.onValue(prodsRef, snap => {
+              const list = [];
+              snap.forEach(c => list.push({ id:c.key, ...c.val() }));
+              setProducts(list);
+            }, err => console.error("Products snapshot error:", err));
+            unsubProducts = () => fns.off(prodsRef);
 
-            // Listen orders realtime — only after user is authenticated
-            const q = query(collection(db, "orders"), orderBy("createdAt", "desc"));
-            unsubOrders = onSnapshot(
-              q,
-              s => { setOrders(s.docs.map(d => ({ id: d.id, ...d.data() }))); },
-              err => console.error("Orders snapshot error:", err.code, err.message)
-            );
+            // Listen orders realtime
+            const ordersRef = fns.rtdbQuery(fns.ref(db, "orders"), fns.orderByChild("createdAt"));
+            fns.onValue(ordersRef, snap => {
+              const list = [];
+              snap.forEach(c => list.push({ id:c.key, ...c.val() }));
+              setOrders(list.reverse());
+            }, err => console.error("Orders snapshot error:", err.code, err.message));
+            unsubOrders = () => fns.off(ordersRef);
 
             // Listen support tickets realtime
-            const tq = query(collection(db, "support_tickets"), orderBy("createdAt", "desc"));
-            unsubTickets = onSnapshot(
-              tq,
-              s => { setTickets(s.docs.map(d => ({ id: d.id, ...d.data() }))); },
-              err => console.error("Tickets snapshot error:", err.code, err.message)
-            );
+            const ticketsRef = fns.rtdbQuery(fns.ref(db, "support_tickets"), fns.orderByChild("createdAt"));
+            fns.onValue(ticketsRef, snap => {
+              const list = [];
+              snap.forEach(c => list.push({ id:c.key, ...c.val() }));
+              setTickets(list.reverse());
+            }, err => console.error("Tickets snapshot error:", err.code, err.message));
+            unsubTickets = () => fns.off(ticketsRef);
           });
         })();
         return () => { unsubOrders?.(); unsubProducts?.(); unsubTickets?.(); unsubAuth?.(); };
@@ -190,18 +195,16 @@
 
       const addOrder = useCallback(async (order) => {
         const { db, fns } = await initFirebase();
-        const { collection, addDoc, serverTimestamp } = fns;
-        await addDoc(collection(db, "orders"), {
+        await fns.push(fns.ref(db, "orders"), {
           ...order,
           status: "pending",
-          createdAt: serverTimestamp(),
+          createdAt: Date.now(),
         });
       }, []);
 
       const updateOrderStatus = useCallback(async (orderId, newStatus) => {
         const { db, fns } = await initFirebase();
-        const { doc, updateDoc } = fns;
-        await updateDoc(doc(db, "orders", orderId), { status: newStatus });
+        await fns.update(fns.ref(db, "orders/" + orderId), { status: newStatus });
       }, []);
 
       const handleGoogleLogin = async () => {
@@ -221,19 +224,19 @@
 
       const addProduct = useCallback(async (data) => {
         const { db, fns } = await initFirebase();
-        await fns.addDoc(fns.collection(db, "products"), { ...data, createdAt: fns.serverTimestamp() });
+        await fns.push(fns.ref(db, "products"), { ...data, createdAt: Date.now() });
       }, []);
 
       const updateProduct = useCallback(async (productId, data) => {
         if (typeof productId !== "string" || !productId) throw new Error("Invalid product ID: " + productId);
         const { db, fns } = await initFirebase();
-        await fns.updateDoc(fns.doc(db, "products", productId), data);
+        await fns.update(fns.ref(db, "products/" + productId), data);
       }, []);
 
       const deleteProduct = useCallback(async (productId) => {
         if (typeof productId !== "string" || !productId) throw new Error("Invalid product ID: " + productId);
         const { db, fns } = await initFirebase();
-        await fns.deleteDoc(fns.doc(db, "products", productId));
+        await fns.remove(fns.ref(db, "products/" + productId));
       }, []);
 
       // Show loading state while Firebase connects
@@ -833,22 +836,23 @@
       // Listen to messages of selected ticket
       useEffect(() => {
         if (!openTicket) { setThreadMsgs([]); return; }
-        let unsub;
+        let msgsRef;
         initFirebase().then(({ db, fns }) => {
-          unsub = fns.onSnapshot(
-            fns.query(fns.collection(db, "support_tickets", openTicket.id, "messages"), fns.orderBy("createdAt", "asc")),
-            s => setThreadMsgs(s.docs.map(d => ({ id:d.id, ...d.data() }))),
-            err => console.error("Thread listener:", err.code)
-          );
+          msgsRef = fns.rtdbQuery(fns.ref(db, "support_messages/" + openTicket.id), fns.orderByChild("createdAt"));
+          fns.onValue(msgsRef, snap => {
+            const list = [];
+            snap.forEach(c => list.push({ id:c.key, ...c.val() }));
+            setThreadMsgs(list);
+          }, err => console.error("Thread listener:", err.code));
         });
-        return () => unsub?.();
+        return () => { if (msgsRef) { initFirebase().then(({ fns }) => fns.off(msgsRef)); } };
       }, [openTicket?.id]);
 
       const markStatus = async (ticket, status) => {
         setStatusBusy(ticket.id);
         try {
           const { db, fns } = await initFirebase();
-          await fns.updateDoc(fns.doc(db, "support_tickets", ticket.id), { status });
+          await fns.update(fns.ref(db, "support_tickets/" + ticket.id), { status });
           if (openTicket?.id === ticket.id) setOpenTicket(t => ({ ...t, status }));
         } catch (err) {
           alert("Error: " + (err.message || err.code));
@@ -860,9 +864,9 @@
         setReplySending(true);
         try {
           const { db, fns } = await initFirebase();
-          await fns.addDoc(fns.collection(db, "support_tickets", openTicket.id, "messages"), {
+          await fns.push(fns.ref(db, "support_messages/" + openTicket.id), {
             text: replyText.trim(), senderType:"admin", senderName:"BayanGo Admin",
-            createdAt: fns.serverTimestamp(),
+            createdAt: Date.now(),
           });
           setReplyText("");
         } catch (err) {
@@ -875,7 +879,7 @@
         resolved: { bg:"#DCFCE7", color:"#166534", label:"Resolved", icon:"circle-check"  },
         closed:   { bg:"#F3F4F6", color:"#555",    label:"Closed",   icon:"xmark-circle"  },
       };
-      const fmtDate = ts => { if(!ts) return "—"; const d=ts.toDate?ts.toDate():new Date(ts); return d.toLocaleDateString("en-PH")+" "+d.toLocaleTimeString("en-PH",{hour:"2-digit",minute:"2-digit"}); };
+      const fmtDate = ts => { if(!ts) return "—"; const d=new Date(ts); return d.toLocaleDateString("en-PH")+" "+d.toLocaleTimeString("en-PH",{hour:"2-digit",minute:"2-digit"}); };
       const filtered = filterStatus === "all" ? tickets : tickets.filter(t => t.status === filterStatus);
       const openCount = tickets.filter(t => t.status === "open").length;
 
@@ -1183,9 +1187,9 @@
       const [showCheckout, setShowCheckout] = useState(false);
       const [showTracker,  setShowTracker]  = useState(null);
       const [zone,         setZone]         = useState(0);
-      const [name,         setName]         = useState(() => localStorage.getItem("bayango_customer_name") || "");
-      const [phone,        setPhone]        = useState(() => localStorage.getItem("bayango_customer_phone") || "");
-      const [addr,         setAddr]         = useState(() => localStorage.getItem("bayango_customer_addr") || "");
+      const [name,         setName]         = useState("");
+      const [phone,        setPhone]        = useState("");
+      const [addr,         setAddr]         = useState("");
       const [searchQ,      setSearchQ]      = useState("");
       const [orderPlaced,  setOrderPlaced]  = useState(false);
       const [showAI,       setShowAI]       = useState(false);
@@ -1213,9 +1217,7 @@
 
       const placeOrder = async () => {
         if (!name || !phone || !addr) return;
-        localStorage.setItem("bayango_customer_name",  name);
-        localStorage.setItem("bayango_customer_phone", phone);
-        localStorage.setItem("bayango_customer_addr",  addr);
+
         await onOrder({
           items:cartItems, subtotal, deliveryFee,
           serviceFee:SERVICE_FEE, total,
