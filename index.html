@@ -664,6 +664,10 @@
       const [newItemQty,     setNewItemQty]     = useState("");
       const [newItemPrice,   setNewItemPrice]   = useState("");
       const [showLocPicker,  setShowLocPicker]  = useState(false);
+      const [vouchers,       setVouchers]       = useState([]);
+      const [voucherCode,    setVoucherCode]    = useState("");
+      const [appliedVoucher, setAppliedVoucher] = useState(null);
+      const [voucherMsg,     setVoucherMsg]     = useState("");
 
       const cartCount = Object.values(cart).reduce((s,v) => s+v, 0);
       const cartItems = Object.entries(cart)
@@ -671,13 +675,28 @@
         .map(([id,qty]) => ({ ...products.find(p => p.id === id || p.id === +id), qty }))
         .filter(i => i.name);
 
-      const customEstTotal  = customItems.reduce((s,i) => s + (i.estPrice || 0), 0);
-      const subtotal        = cartItems.reduce((s,i) => s + i.price * i.qty, 0);
-      const itemsTotal      = subtotal + customEstTotal;
-      const deliveryFee     = DELIVERY_ZONES[zone].fee;
-      const serviceFee      = Math.round(itemsTotal * 0.02);
-      const smallOrderFee   = itemsTotal < 100 ? Math.round(itemsTotal * 0.05) : 0;
-      const total           = itemsTotal + deliveryFee + serviceFee + smallOrderFee;
+      const myOrders         = orders;
+      const customEstTotal   = customItems.reduce((s,i) => s + (i.estPrice || 0), 0);
+      const subtotal         = cartItems.reduce((s,i) => s + i.price * i.qty, 0);
+      const itemsTotal       = subtotal + customEstTotal;
+      const deliveryFee      = DELIVERY_ZONES[zone].fee;
+      const serviceFee       = Math.round(itemsTotal * 0.02);
+      const smallOrderFee    = itemsTotal < 100 ? Math.round(itemsTotal * 0.05) : 0;
+      const isFirstTimeUser  = myOrders.length === 0;
+      const freeShipDiscount = isFirstTimeUser ? deliveryFee : 0;
+
+      const computeVoucherDiscount = useCallback((voucher) => {
+        if (!voucher || voucher.active === false) return 0;
+        if (voucher.minOrder > 0 && itemsTotal < voucher.minOrder) return 0;
+        if (voucher.expiresAt && Date.now() > voucher.expiresAt) return 0;
+        if (voucher.type === "percent") return Math.round(itemsTotal * ((voucher.value || 0) / 100));
+        if (voucher.type === "free_shipping") return deliveryFee;
+        return Math.max(0, Number(voucher.value || 0));
+      }, [deliveryFee, itemsTotal]);
+
+      const voucherDiscount = Math.min(computeVoucherDiscount(appliedVoucher), itemsTotal + deliveryFee);
+      const totalDiscount   = freeShipDiscount + voucherDiscount;
+      const total            = Math.max(0, itemsTotal + deliveryFee + serviceFee + smallOrderFee - totalDiscount);
       const totalItemCount = cartCount + customItems.length;
 
       const add = id => setCart(c => ({ ...c, [id]:(c[id]||0)+1 }));
@@ -706,6 +725,72 @@
         p.cat === activeCat && (searchQ === "" || p.name.toLowerCase().includes(searchQ.toLowerCase()))
       );
 
+      useEffect(() => {
+        if (!_fbDb) return;
+        const ref = _fbDb.ref("vouchers");
+        const onSnap = snap => {
+          const list = [];
+          snap.forEach(c => {
+            const v = c.val() || {};
+            list.push({
+              id: c.key,
+              code: String(v.code || "").toUpperCase(),
+              type: v.type || "fixed",
+              value: Number(v.value || 0),
+              minOrder: Number(v.minOrder || 0),
+              active: v.active !== false,
+              expiresAt: Number(v.expiresAt || 0),
+            });
+          });
+          setVouchers(list);
+        };
+        ref.on("value", onSnap, err => console.error("Vouchers load error:", err.code));
+        return () => ref.off("value", onSnap);
+      }, []);
+
+      useEffect(() => {
+        if (!appliedVoucher) return;
+        const latest = vouchers.find(v => v.id === appliedVoucher.id);
+        if (!latest || computeVoucherDiscount(latest) <= 0) {
+          setAppliedVoucher(null);
+          setVoucherMsg("Tinanggal ang voucher dahil hindi na valid.");
+          return;
+        }
+        setAppliedVoucher(latest);
+      }, [appliedVoucher, vouchers, computeVoucherDiscount]);
+
+      const applyVoucher = () => {
+        const code = voucherCode.trim().toUpperCase();
+        if (!code) {
+          setVoucherMsg("Ilagay muna ang voucher code.");
+          return;
+        }
+        const found = vouchers.find(v => v.code === code);
+        if (!found || found.active === false) {
+          setVoucherMsg("Invalid o inactive ang voucher code.");
+          setAppliedVoucher(null);
+          return;
+        }
+        if (found.expiresAt && Date.now() > found.expiresAt) {
+          setVoucherMsg("Expired na ang voucher na ito.");
+          setAppliedVoucher(null);
+          return;
+        }
+        if (found.minOrder > 0 && itemsTotal < found.minOrder) {
+          setVoucherMsg(`Kulang pa ang order para ma-apply ito. Minimum: ${fmt(found.minOrder)}.`);
+          setAppliedVoucher(null);
+          return;
+        }
+        const discount = computeVoucherDiscount(found);
+        if (discount <= 0) {
+          setVoucherMsg("Hindi applicable ang voucher sa current cart.");
+          setAppliedVoucher(null);
+          return;
+        }
+        setAppliedVoucher(found);
+        setVoucherMsg(`Voucher applied: ${found.code}`);
+      };
+
       const placeOrder = () => {
         if (!name || !phone || !addr) return;
         const allItems = [
@@ -715,7 +800,19 @@
         onOrder({
           items: allItems,
           subtotal, customEstimate: customEstTotal, deliveryFee,
-          serviceFee, smallOrderFee, total,
+          serviceFee, smallOrderFee,
+          firstTimeFreeShipping: isFirstTimeUser,
+          freeShipDiscount,
+          voucher: appliedVoucher ? {
+            id: appliedVoucher.id,
+            code: appliedVoucher.code,
+            type: appliedVoucher.type,
+            value: appliedVoucher.value,
+            minOrder: appliedVoucher.minOrder || 0,
+            discount: voucherDiscount,
+          } : null,
+          totalDiscount,
+          total,
           zone: DELIVERY_ZONES[zone].label,
           customer: { name, phone, address: addr, lat: customerLat, lng: customerLng },
           status: "pending",
@@ -723,13 +820,14 @@
         });
         setCart({});
         setCustomItems([]);
+        setVoucherCode("");
+        setAppliedVoucher(null);
+        setVoucherMsg("");
         setShowCheckout(false);
         setShowCart(false);
         setOrderPlaced(true);
         setTimeout(() => setOrderPlaced(false), 3500);
       };
-
-      const myOrders = orders;
 
       const activeOrders = myOrders.filter(o => o.status !== "delivered");
 
@@ -1107,7 +1205,9 @@
                     ...(customEstTotal > 0 ? [["Custom items (est.)", "~"+fmt(customEstTotal)]] : []),
                     ["Delivery ("+DELIVERY_ZONES[zone].label+")",fmt(deliveryFee)],
                     ["Service Fee (2%)",fmt(serviceFee)],
-                    ...(smallOrderFee > 0 ? [["Small Order Fee (5%)",fmt(smallOrderFee)]] : [])
+                    ...(smallOrderFee > 0 ? [["Small Order Fee (5%)",fmt(smallOrderFee)]] : []),
+                    ...(isFirstTimeUser ? [["First Order Free Shipping","-"+fmt(freeShipDiscount)]] : []),
+                    ...(appliedVoucher && voucherDiscount > 0 ? [[`Voucher (${appliedVoucher.code})`,"-"+fmt(voucherDiscount)]] : [])
                   ].map(([l,v]) => (
                     <div key={l} style={{ display:"flex", justifyContent:"space-between", marginBottom:6, fontSize:13, color:"#777" }}>
                       <span>{l}</span><span style={{ fontWeight:600 }}>{v}</span>
@@ -1216,6 +1316,27 @@
                   />
                 )}
 
+                <div style={{ marginBottom:16 }}>
+                  <label style={{ fontSize:12, fontWeight:700, color:"#666", display:"block", marginBottom:6 }}>
+                    <Ic n="ticket" style={{marginRight:5}} />Voucher Code
+                  </label>
+                  <div style={{ display:"flex", gap:8 }}>
+                    <input value={voucherCode} onChange={e => setVoucherCode(e.target.value.toUpperCase())} placeholder="Hal. BAYAN20"
+                      style={{ flex:1, padding:"13px 14px", borderRadius:12, border:"1.5px solid #E5E7EB", outline:"none", fontSize:14 }} />
+                    <button onClick={applyVoucher} style={{
+                      padding:"0 16px", borderRadius:12, background:"#166534", color:"#fff", fontWeight:700, fontSize:13
+                    }}>Apply</button>
+                  </div>
+                  {voucherMsg && (
+                    <div style={{ marginTop:6, fontSize:11, color: appliedVoucher ? "#166534" : "#B45309" }}>{voucherMsg}</div>
+                  )}
+                  {isFirstTimeUser && (
+                    <div style={{ marginTop:6, fontSize:11, color:"#166534", background:"#F0FDF4", borderRadius:8, padding:"6px 8px" }}>
+                      <Ic n="circle-check" style={{marginRight:4}} />Automatic FREE Shipping sa first order mo.
+                    </div>
+                  )}
+                </div>
+
                 <div style={{ background:"#F9FAFB", borderRadius:14, padding:"14px 16px", marginBottom:16, border:"1px solid #E5E7EB" }}>
                   {cartItems.map(i => (
                     <div key={i.id} style={{ display:"flex", justifyContent:"space-between", padding:"5px 0", fontSize:13, color:"#555" }}>
@@ -1244,6 +1365,18 @@
                     {smallOrderFee > 0 && (
                       <div style={{ display:"flex", justifyContent:"space-between" }}>
                         <span style={{ color:"#D97706" }}><Ic n="triangle-exclamation" style={{marginRight:4}} />Small Order Fee (5%)</span><span style={{ fontWeight:600, color:"#D97706" }}>{fmt(smallOrderFee)}</span>
+                      </div>
+                    )}
+                    {isFirstTimeUser && (
+                      <div style={{ display:"flex", justifyContent:"space-between", marginTop:4 }}>
+                        <span style={{ color:"#166534" }}><Ic n="gift" style={{marginRight:4}} />First Order Free Shipping</span>
+                        <span style={{ fontWeight:600, color:"#166534" }}>-{fmt(freeShipDiscount)}</span>
+                      </div>
+                    )}
+                    {appliedVoucher && voucherDiscount > 0 && (
+                      <div style={{ display:"flex", justifyContent:"space-between", marginTop:4 }}>
+                        <span style={{ color:"#166534" }}><Ic n="ticket" style={{marginRight:4}} />Voucher ({appliedVoucher.code})</span>
+                        <span style={{ fontWeight:600, color:"#166534" }}>-{fmt(voucherDiscount)}</span>
                       </div>
                     )}
                   </div>
