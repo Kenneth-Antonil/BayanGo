@@ -666,7 +666,7 @@
       const cartCount = Object.values(cart).reduce((s,v) => s+v, 0);
       const cartItems = Object.entries(cart)
         .filter(([,q]) => q > 0)
-        .map(([id,qty]) => ({ ...products.find(p => p.id === +id), qty }))
+        .map(([id,qty]) => ({ ...products.find(p => p.id === id || p.id === +id), qty }))
         .filter(i => i.name);
 
       const customEstTotal  = customItems.reduce((s,i) => s + (i.estPrice || 0), 0);
