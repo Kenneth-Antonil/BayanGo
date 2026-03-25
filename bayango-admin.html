@@ -175,11 +175,12 @@
       const [products, setProducts] = useState([]);
       const [orders,   setOrders]   = useState([]);
       const [tickets,  setTickets]  = useState([]);
+      const [vouchers, setVouchers] = useState([]);
       const [ready,    setReady]    = useState(false);
       const [user,     setUser]     = useState(null);
 
       useEffect(() => {
-        let unsubOrders, unsubProducts, unsubTickets, unsubAuth;
+        let unsubOrders, unsubProducts, unsubTickets, unsubVouchers, unsubAuth;
         (async () => {
           const { db, fns, auth, authFns } = await initFirebase();
           const { onAuthStateChanged } = authFns;
@@ -192,10 +193,12 @@
             unsubOrders?.();
             unsubProducts?.();
             unsubTickets?.();
+            unsubVouchers?.();
 
             if (!currentUser) {
               setOrders([]);
               setTickets([]);
+              setVouchers([]);
               return;
             }
 
@@ -257,9 +260,31 @@
               setTickets(list.reverse());
             }, err => console.error("Tickets snapshot error:", err.code, err.message));
             unsubTickets = () => fns.off(ticketsRef);
+
+            // Listen vouchers realtime
+            const vouchersRef = fns.ref(db, "vouchers");
+            fns.onValue(vouchersRef, snap => {
+              const list = [];
+              snap.forEach(c => {
+                const v = c.val() || {};
+                list.push({
+                  id: c.key,
+                  code: String(v.code || "").toUpperCase(),
+                  type: v.type || "fixed",
+                  value: Number(v.value || 0),
+                  minOrder: Number(v.minOrder || 0),
+                  active: v.active !== false,
+                  expiresAt: Number(v.expiresAt || 0),
+                  createdAt: Number(v.createdAt || 0),
+                });
+              });
+              list.sort((a,b) => Number(b.createdAt || 0) - Number(a.createdAt || 0));
+              setVouchers(list);
+            }, err => console.error("Vouchers snapshot error:", err.code, err.message));
+            unsubVouchers = () => fns.off(vouchersRef);
           });
         })();
-        return () => { unsubOrders?.(); unsubProducts?.(); unsubTickets?.(); unsubAuth?.(); };
+        return () => { unsubOrders?.(); unsubProducts?.(); unsubTickets?.(); unsubVouchers?.(); unsubAuth?.(); };
       }, []);
 
       const addOrder = useCallback(async (order) => {
@@ -316,6 +341,23 @@
         await fns.remove(fns.ref(db, "products/" + productId));
       }, []);
 
+      const addVoucher = useCallback(async (data) => {
+        const { db, fns } = await initFirebase();
+        await fns.push(fns.ref(db, "vouchers"), { ...data, createdAt: Date.now() });
+      }, []);
+
+      const updateVoucher = useCallback(async (voucherId, data) => {
+        if (typeof voucherId !== "string" || !voucherId) throw new Error("Invalid voucher ID: " + voucherId);
+        const { db, fns } = await initFirebase();
+        await fns.update(fns.ref(db, "vouchers/" + voucherId), data);
+      }, []);
+
+      const deleteVoucher = useCallback(async (voucherId) => {
+        if (typeof voucherId !== "string" || !voucherId) throw new Error("Invalid voucher ID: " + voucherId);
+        const { db, fns } = await initFirebase();
+        await fns.remove(fns.ref(db, "vouchers/" + voucherId));
+      }, []);
+
       // Show loading state while Firebase connects
       if (!ready) return (
         <div style={{ minHeight:"100vh", background:"#F8FAF8", display:"flex", alignItems:"center", justifyContent:"center", flexDirection:"column", gap:16 }}>
@@ -357,13 +399,17 @@
             products={products} onAddProduct={addProduct}
             onUpdateProduct={updateProduct} onDeleteProduct={deleteProduct}
             tickets={tickets}
+            vouchers={vouchers}
+            onAddVoucher={addVoucher}
+            onUpdateVoucher={updateVoucher}
+            onDeleteVoucher={deleteVoucher}
           />
         </>
       );
     }
 
     /* ══════════════════ ADMIN DASHBOARD ══════════════════ */
-    function AdminDashboard({ orders, onUpdateStatus, products, onAddProduct, onUpdateProduct, onDeleteProduct, tickets }) {
+    function AdminDashboard({ orders, onUpdateStatus, products, onAddProduct, onUpdateProduct, onDeleteProduct, tickets, vouchers, onAddVoucher, onUpdateVoucher, onDeleteVoucher }) {
       const [tab,          setTab]          = useState("orders");
       const [selected,     setSelected]     = useState(null);
       const [updating,     setUpdating]     = useState(null);
@@ -426,6 +472,7 @@
             {[
               { key:"orders",   label:"Mga Orders",   icon:"receipt" },
               { key:"products", label:"Mga Produkto",  icon:"store" },
+              { key:"vouchers", label:"Vouchers",      icon:"ticket" },
               { key:"support",  label:"Support",       icon:"headset", badge: tickets.filter(t=>t.status==="open").length },
             ].map(t => (
               <button key={t.key} onClick={() => setTab(t.key)} style={{
@@ -453,6 +500,15 @@
               onAdd={onAddProduct}
               onUpdate={onUpdateProduct}
               onDelete={onDeleteProduct}
+            />
+          )}
+
+          {tab === "vouchers" && (
+            <VouchersPanel
+              vouchers={vouchers}
+              onAdd={onAddVoucher}
+              onUpdate={onUpdateVoucher}
+              onDelete={onDeleteVoucher}
             />
           )}
 
@@ -557,7 +613,14 @@
                   </div>
 
                   {/* Zone + total */}
-                  <div style={{ fontSize:11, color:"#aaa", marginBottom:12 }}><Ic n="location-dot" style={{ marginRight:4 }} />{order.zone} • Delivery {fmt(order.deliveryFee)} + Service {fmt(order.serviceFee)}</div>
+                  <div style={{ fontSize:11, color:"#aaa", marginBottom:12 }}>
+                    <Ic n="location-dot" style={{ marginRight:4 }} />{order.zone} • Delivery {fmt(order.deliveryFee)} + Service {fmt(order.serviceFee)}
+                    {(order.firstTimeFreeShipping || order.voucher?.code) && (
+                      <span style={{ color:"#166534", marginLeft:6 }}>
+                        • Discount {fmt(order.totalDiscount || ((order.freeShipDiscount || 0) + (order.voucher?.discount || 0)))}
+                      </span>
+                    )}
+                  </div>
 
                   {/* Action buttons */}
                   <div style={{ display:"flex", gap:8 }}>
@@ -916,6 +979,87 @@
               </div>
             </div>
           )}
+        </div>
+      );
+    }
+
+    /* ══════════════════ VOUCHERS PANEL ══════════════════ */
+    function VouchersPanel({ vouchers, onAdd, onUpdate, onDelete }) {
+      const [code, setCode] = useState("");
+      const [type, setType] = useState("fixed");
+      const [value, setValue] = useState("");
+      const [minOrder, setMinOrder] = useState("");
+      const [expiry, setExpiry] = useState("");
+      const [saving, setSaving] = useState(false);
+
+      const handleAdd = async () => {
+        if (!code.trim()) return alert("Kailangan ng voucher code.");
+        const normalized = code.trim().toUpperCase();
+        if (vouchers.some(v => v.code === normalized)) return alert("May existing voucher na ganyang code.");
+        setSaving(true);
+        try {
+          await onAdd({
+            code: normalized,
+            type,
+            value: Number(value || 0),
+            minOrder: Number(minOrder || 0),
+            active: true,
+            expiresAt: expiry ? new Date(expiry + "T23:59:59").getTime() : 0,
+          });
+          setCode(""); setType("fixed"); setValue(""); setMinOrder(""); setExpiry("");
+        } catch (e) {
+          alert("Failed mag-save ng voucher: " + e.message);
+        } finally {
+          setSaving(false);
+        }
+      };
+
+      return (
+        <div style={{ padding:"18px 20px 24px" }}>
+          <div style={{ background:"#fff", borderRadius:16, padding:14, border:"1px solid #E5E7EB", marginBottom:14 }}>
+            <div style={{ fontSize:14, fontWeight:800, color:"#111", marginBottom:10 }}><Ic n="ticket" style={{marginRight:6, color:"#166534"}} />Gumawa ng Voucher</div>
+            <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:8 }}>
+              <input value={code} onChange={e => setCode(e.target.value.toUpperCase())} placeholder="Code (e.g. BAYAN20)" style={{ padding:"11px 12px", borderRadius:10, border:"1px solid #D1D5DB" }} />
+              <select value={type} onChange={e => setType(e.target.value)} style={{ padding:"11px 12px", borderRadius:10, border:"1px solid #D1D5DB", background:"#fff" }}>
+                <option value="fixed">Fixed Peso Off</option>
+                <option value="percent">Percent Off</option>
+                <option value="free_shipping">Free Shipping</option>
+              </select>
+              <input type="number" min="0" value={value} onChange={e => setValue(e.target.value)} placeholder={type === "percent" ? "Percent (e.g. 10)" : "Value (₱)"} style={{ padding:"11px 12px", borderRadius:10, border:"1px solid #D1D5DB" }} />
+              <input type="number" min="0" value={minOrder} onChange={e => setMinOrder(e.target.value)} placeholder="Min order (₱)" style={{ padding:"11px 12px", borderRadius:10, border:"1px solid #D1D5DB" }} />
+              <input type="date" value={expiry} onChange={e => setExpiry(e.target.value)} style={{ padding:"11px 12px", borderRadius:10, border:"1px solid #D1D5DB", gridColumn:"span 2" }} />
+            </div>
+            <button onClick={handleAdd} disabled={saving} style={{ marginTop:10, width:"100%", padding:"12px", borderRadius:12, background:"#166534", color:"#fff", fontWeight:700 }}>
+              {saving ? "Nagse-save..." : "Create Voucher"}
+            </button>
+          </div>
+
+          <div style={{ display:"grid", gap:10 }}>
+            {vouchers.length === 0 && <div style={{ fontSize:13, color:"#888", textAlign:"center", padding:"30px 0" }}>Walang vouchers pa.</div>}
+            {vouchers.map(v => (
+              <div key={v.id} style={{ background:"#fff", border:"1px solid #E5E7EB", borderRadius:14, padding:"12px 14px", display:"flex", justifyContent:"space-between", gap:10, alignItems:"center" }}>
+                <div>
+                  <div style={{ fontSize:14, fontWeight:800 }}>{v.code}</div>
+                  <div style={{ fontSize:12, color:"#666", marginTop:3 }}>
+                    {v.type === "percent" ? `${v.value}% off` : v.type === "free_shipping" ? "Free shipping" : `${fmt(v.value)} off`} • Min {fmt(v.minOrder || 0)}
+                  </div>
+                  <div style={{ fontSize:11, color:"#999", marginTop:3 }}>
+                    {v.expiresAt ? `Expires: ${new Date(v.expiresAt).toLocaleDateString("en-PH")}` : "No expiry"}
+                  </div>
+                </div>
+                <div style={{ display:"flex", flexDirection:"column", gap:6, alignItems:"flex-end" }}>
+                  <button onClick={() => onUpdate(v.id, { active: !v.active })} style={{
+                    padding:"7px 10px", borderRadius:999, fontSize:11, fontWeight:700,
+                    background: v.active ? "#DCFCE7" : "#F3F4F6",
+                    color: v.active ? "#166534" : "#666"
+                  }}>{v.active ? "Active" : "Inactive"}</button>
+                  <button onClick={() => onDelete(v.id)} style={{ padding:"7px 10px", borderRadius:8, fontSize:11, fontWeight:700, background:"#FEF2F2", color:"#DC2626" }}>
+                    Delete
+                  </button>
+                </div>
+              </div>
+            ))}
+          </div>
         </div>
       );
     }
