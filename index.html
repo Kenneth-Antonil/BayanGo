@@ -600,6 +600,8 @@
       const [name,           setName]           = useState("");
       const [phone,          setPhone]          = useState("");
       const [addr,           setAddr]           = useState("");
+      const [customerLat,    setCustomerLat]    = useState(null);
+      const [customerLng,    setCustomerLng]    = useState(null);
 
       // Load profile from RTDB when user logs in
       useEffect(() => {
@@ -609,6 +611,8 @@
           if (p.name)  setName(p.name);
           if (p.phone) setPhone(p.phone);
           if (p.addr)  setAddr(p.addr);
+          if (p.lat)   setCustomerLat(p.lat);
+          if (p.lng)   setCustomerLng(p.lng);
         }).catch(err => console.error("Profile load error:", err.code));
       }, [user?.uid]);
       const [searchQ,        setSearchQ]        = useState("");
@@ -620,6 +624,7 @@
       const [newItemName,    setNewItemName]    = useState("");
       const [newItemQty,     setNewItemQty]     = useState("");
       const [newItemPrice,   setNewItemPrice]   = useState("");
+      const [showLocPicker,  setShowLocPicker]  = useState(false);
 
       const cartCount = Object.values(cart).reduce((s,v) => s+v, 0);
       const cartItems = Object.entries(cart)
@@ -673,7 +678,7 @@
           subtotal, customEstimate: customEstTotal, deliveryFee,
           serviceFee, smallOrderFee, total,
           zone: DELIVERY_ZONES[zone].label,
-          customer: { name, phone, address: addr },
+          customer: { name, phone, address: addr, lat: customerLat, lng: customerLng },
           status: "pending",
           hasCustomItems: customItems.length > 0,
         });
@@ -1093,6 +1098,59 @@
                   </div>
                 ))}
 
+                {/* Pin Location Button */}
+                <div style={{ marginBottom:18 }}>
+                  <label style={{ fontSize:12, fontWeight:700, color:"#666", display:"block", marginBottom:8 }}>
+                    <Ic n="map-pin" style={{marginRight:5}} />Exact na Lokasyon (para sa rider)
+                  </label>
+                  <button onClick={() => setShowLocPicker(true)} style={{
+                    width:"100%", padding:"14px 16px", borderRadius:14,
+                    background: customerLat ? "#F0FDF4" : "#FFF7ED",
+                    border: customerLat ? "2px solid #BBF7D0" : "2px dashed #FED7AA",
+                    display:"flex", alignItems:"center", gap:12, textAlign:"left",
+                  }}>
+                    <div style={{
+                      width:42, height:42, borderRadius:12, flexShrink:0,
+                      background: customerLat ? "#22C55E" : "#F59E0B",
+                      display:"flex", alignItems:"center", justifyContent:"center",
+                      color:"#fff", fontSize:18,
+                    }}>
+                      <Ic n={customerLat ? "location-dot" : "map-pin"} />
+                    </div>
+                    <div style={{ flex:1 }}>
+                      {customerLat ? (
+                        <>
+                          <div style={{ fontSize:14, fontWeight:700, color:"#166534" }}>
+                            <Ic n="circle-check" style={{marginRight:4}} />Naka-pin na ang location!
+                          </div>
+                          <div style={{ fontSize:11, color:"#888", marginTop:2 }}>
+                            {customerLat.toFixed(5)}, {customerLng.toFixed(5)} — I-tap para baguhin
+                          </div>
+                        </>
+                      ) : (
+                        <>
+                          <div style={{ fontSize:14, fontWeight:700, color:"#92400E" }}>
+                            I-pin ang exact location mo
+                          </div>
+                          <div style={{ fontSize:11, color:"#888", marginTop:2 }}>
+                            Para alam ng rider kung saan ka exactly
+                          </div>
+                        </>
+                      )}
+                    </div>
+                    <Ic n="chevron-right" style={{ color:"#aaa", fontSize:14 }} />
+                  </button>
+                </div>
+
+                {/* Location Picker Modal */}
+                {showLocPicker && (
+                  <LocationPicker
+                    lat={customerLat} lng={customerLng}
+                    onPick={(lat, lng) => { setCustomerLat(lat); setCustomerLng(lng); }}
+                    onClose={() => setShowLocPicker(false)}
+                  />
+                )}
+
                 <div style={{ background:"#F9FAFB", borderRadius:14, padding:"14px 16px", marginBottom:16, border:"1px solid #E5E7EB" }}>
                   {cartItems.map(i => (
                     <div key={i.id} style={{ display:"flex", justifyContent:"space-between", padding:"5px 0", fontSize:13, color:"#555" }}>
@@ -1234,7 +1292,8 @@
 
           {activePage === "account" && (
             <AccountPage user={user} orders={myOrders} name={name} phone={phone} addr={addr}
-              setName={setName} setPhone={setPhone} setAddr={setAddr} onLogout={onLogout} />
+              setName={setName} setPhone={setPhone} setAddr={setAddr} onLogout={onLogout}
+              customerLat={customerLat} customerLng={customerLng} />
           )}
 
           {/* ── Bottom Nav ── */}
@@ -1273,7 +1332,7 @@
     }
 
     /* ══════════════════ ACCOUNT PAGE ══════════════════ */
-    function AccountPage({ user, orders, name, phone, addr, setName, setPhone, setAddr, onLogout }) {
+    function AccountPage({ user, orders, name, phone, addr, setName, setPhone, setAddr, onLogout, customerLat, customerLng }) {
       const [editMode,      setEditMode]      = useState(false);
       const [localName,     setLocalName]     = useState(name);
       const [localPhone,    setLocalPhone]    = useState(phone);
@@ -1321,6 +1380,7 @@
         if (user?.uid && _fbDb) {
           _fbDb.ref("users/" + user.uid + "/profile").set({
             name: localName, phone: localPhone, addr: localAddr,
+            lat: customerLat || null, lng: customerLng || null,
             updatedAt: Date.now(),
           }).catch(err => console.error("Profile save error:", err.code));
         }
@@ -1594,6 +1654,138 @@
     }
 
     /* ══════════════════ ORDERS PAGE ══════════════════ */
+    /* ══════════════════ LOCATION PICKER ══════════════════ */
+    function LocationPicker({ lat, lng, onPick, onClose }) {
+      const mapRef = useRef(null);
+      const mapInstanceRef = useRef(null);
+      const markerRef = useRef(null);
+      const [detecting, setDetecting] = useState(false);
+
+      const BINANG_CENTER = [14.4584, 121.1971];
+      const initialPos = (lat && lng) ? [lat, lng] : BINANG_CENTER;
+
+      const pinIcon = L.divIcon({
+        html: '<div style="display:flex;flex-direction:column;align-items:center;"><div style="width:36px;height:36px;border-radius:50%;background:linear-gradient(135deg,#166534,#22C55E);display:flex;align-items:center;justify-content:center;color:#fff;font-size:16px;box-shadow:0 4px 16px rgba(22,101,52,.45);border:3px solid #fff;"><i class="fa-solid fa-house"></i></div><div style="width:3px;height:10px;background:#166534;margin-top:-2px;border-radius:0 0 2px 2px;"></div></div>',
+        className: '',
+        iconSize: [36, 48],
+        iconAnchor: [18, 48],
+      });
+
+      useEffect(() => {
+        if (!mapRef.current || mapInstanceRef.current) return;
+
+        const map = L.map(mapRef.current, {
+          center: initialPos,
+          zoom: (lat && lng) ? 17 : 15,
+          zoomControl: false,
+        });
+        L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
+          attribution: '&copy; OpenStreetMap',
+          maxZoom: 19,
+        }).addTo(map);
+        L.control.zoom({ position: "bottomright" }).addTo(map);
+
+        const marker = L.marker(initialPos, { icon: pinIcon, draggable: true }).addTo(map);
+        marker.bindPopup("I-drag ako sa tamang lokasyon!").openPopup();
+        markerRef.current = marker;
+        mapInstanceRef.current = map;
+
+        // Tap on map to move pin
+        map.on("click", (e) => {
+          marker.setLatLng(e.latlng);
+        });
+
+        setTimeout(() => map.invalidateSize(), 200);
+
+        return () => {
+          map.remove();
+          mapInstanceRef.current = null;
+          markerRef.current = null;
+        };
+      }, []);
+
+      const detectLocation = () => {
+        if (!navigator.geolocation) return;
+        setDetecting(true);
+        navigator.geolocation.getCurrentPosition(
+          (pos) => {
+            const latlng = [pos.coords.latitude, pos.coords.longitude];
+            if (markerRef.current && mapInstanceRef.current) {
+              markerRef.current.setLatLng(latlng);
+              mapInstanceRef.current.setView(latlng, 17);
+            }
+            setDetecting(false);
+          },
+          (err) => {
+            alert("Hindi ma-detect ang location: " + err.message);
+            setDetecting(false);
+          },
+          { enableHighAccuracy: true, timeout: 15000 }
+        );
+      };
+
+      const confirmPin = () => {
+        if (markerRef.current) {
+          const pos = markerRef.current.getLatLng();
+          onPick(pos.lat, pos.lng);
+        }
+        onClose();
+      };
+
+      return (
+        <div style={{ position:"fixed", inset:0, zIndex:500, background:"rgba(0,0,0,.7)", backdropFilter:"blur(6px)", display:"flex", flexDirection:"column" }}>
+          <div style={{ flex:1, display:"flex", flexDirection:"column", maxWidth:480, width:"100%", margin:"0 auto" }}>
+            {/* Header */}
+            <div style={{
+              background:"linear-gradient(135deg,#166534,#22C55E)",
+              padding:"calc(env(safe-area-inset-top,0px) + 14px) 20px 14px",
+              color:"#fff", display:"flex", alignItems:"center", justifyContent:"space-between",
+            }}>
+              <div>
+                <div style={{ fontSize:16, fontWeight:800, display:"flex", alignItems:"center", gap:8 }}>
+                  <Ic n="map-pin" /> I-pin ang Lokasyon Mo
+                </div>
+                <div style={{ fontSize:12, opacity:.8, marginTop:3 }}>I-drag ang pin o i-tap ang mapa</div>
+              </div>
+              <button onClick={onClose} style={{ width:34, height:34, borderRadius:10, background:"rgba(255,255,255,.2)", color:"#fff", fontSize:16, display:"flex", alignItems:"center", justifyContent:"center" }}>
+                <Ic n="xmark" />
+              </button>
+            </div>
+
+            {/* Map */}
+            <div ref={mapRef} style={{ flex:1, minHeight:300, background:"#E5E7EB" }} />
+
+            {/* Bottom controls */}
+            <div style={{
+              background:"#fff", padding:"16px 20px", paddingBottom:"calc(env(safe-area-inset-bottom,0px) + 16px)",
+              display:"flex", flexDirection:"column", gap:10,
+            }}>
+              <button onClick={detectLocation} disabled={detecting} style={{
+                width:"100%", padding:"13px", borderRadius:12,
+                background:"#F0FDF4", border:"2px solid #BBF7D0",
+                color:"#166534", fontSize:14, fontWeight:700,
+                display:"flex", alignItems:"center", justifyContent:"center", gap:8,
+              }}>
+                {detecting
+                  ? <><Ic n="spinner" className="spin" /> Hinahanap ang location mo...</>
+                  : <><Ic n="crosshairs" /> Gamitin ang GPS Ko</>
+                }
+              </button>
+              <button onClick={confirmPin} style={{
+                width:"100%", padding:"15px", borderRadius:14,
+                background:"linear-gradient(135deg,#166534,#22C55E)", color:"#fff",
+                fontSize:15, fontWeight:800,
+                display:"flex", alignItems:"center", justifyContent:"center", gap:8,
+                boxShadow:"0 4px 16px rgba(22,101,52,.35)",
+              }}>
+                <Ic n="circle-check" /> I-confirm ang Location
+              </button>
+            </div>
+          </div>
+        </div>
+      );
+    }
+
     /* ══════════════════ RIDER MAP MODAL ══════════════════ */
     function RiderMapModal({ order, onClose }) {
       const mapRef = useRef(null);
@@ -1633,6 +1825,21 @@
         L.control.zoom({ position: "bottomright" }).addTo(map);
         mapInstanceRef.current = map;
 
+        // Add customer pin if available
+        const custLat = order.customer?.lat;
+        const custLng = order.customer?.lng;
+        if (custLat && custLng) {
+          const custIcon = L.divIcon({
+            html: '<div style="display:flex;flex-direction:column;align-items:center;"><div style="width:36px;height:36px;border-radius:50%;background:linear-gradient(135deg,#166534,#22C55E);display:flex;align-items:center;justify-content:center;color:#fff;font-size:16px;box-shadow:0 4px 16px rgba(22,101,52,.45);border:3px solid #fff;"><i class="fa-solid fa-house"></i></div><div style="width:3px;height:10px;background:#166534;margin-top:-2px;border-radius:0 0 2px 2px;"></div></div>',
+            className: '',
+            iconSize: [36, 48],
+            iconAnchor: [18, 48],
+          });
+          L.marker([custLat, custLng], { icon: custIcon }).addTo(map)
+            .bindPopup(`<b>${order.customer?.name || "Customer"}</b><br/>${order.customer?.address || ""}`);
+          map.setView([custLat, custLng], 16);
+        }
+
         setTimeout(() => map.invalidateSize(), 200);
 
         return () => {
@@ -1661,19 +1868,16 @@
             `<b>${order.riderName || "Rider"}</b><br/>Papunta sa'yo!`
           );
 
-          // Also add a circle for accuracy
-          L.circle(pos, {
-            radius: riderLoc.accuracy || 50,
-            color: "#3B82F6",
-            fillColor: "#3B82F6",
-            fillOpacity: 0.1,
-            weight: 1,
-          }).addTo(map);
-
-          map.setView(pos, 16);
+          // Fit bounds to show both rider and customer pin
+          const custLat = order.customer?.lat;
+          const custLng = order.customer?.lng;
+          if (custLat && custLng) {
+            map.fitBounds([pos, [custLat, custLng]], { padding: [50, 50] });
+          } else {
+            map.setView(pos, 16);
+          }
         } else {
           riderMarkerRef.current.setLatLng(pos);
-          map.panTo(pos);
         }
       }, [riderLoc]);
 
