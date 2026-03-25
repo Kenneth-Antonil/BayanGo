@@ -349,7 +349,6 @@
           // Listen for products realtime — public, no auth required
           if (_fbDb) {
             unsubProducts = _fbDb.collection("products")
-              .orderBy("createdAt", "desc")
               .onSnapshot(snapshot => {
                 const prods = snapshot.docs.map(d => ({ id: d.id, ...d.data() }));
                 setProducts(prods);
