@@ -60,7 +60,7 @@
   </script>
 
   <script type="text/babel">
-    const { useState, useEffect, useCallback } = React;
+    const { useState, useEffect, useCallback, useRef } = React;
 
     const Ic = ({ n, style, size, className }) => <i className={`fa-solid fa-${n}${className?' '+className:''}`} style={{ fontSize:size, lineHeight:1, ...style }} />;
 
@@ -151,12 +151,16 @@
       const [availErr,        setAvailErr]        = useState(null);
 
       useEffect(() => {
-        /* Available: status=="pending", not yet claimed by any rider */
-        const availRef = _fbDb.ref("orders").orderByChild("status").equalTo("pending");
+        /* Available: treat missing status as pending (legacy orders) */
+        const availRef = _fbDb.ref("orders");
         availRef.on("value",
           snap => {
             const list = [];
-            snap.forEach(c => { const v = c.val(); if (!v.riderId) list.push({ id:c.key, ...v }); });
+            snap.forEach(c => {
+              const v = c.val() || {};
+              const normalizedStatus = v.status || "pending";
+              if (!v.riderId && normalizedStatus === "pending") list.push({ id:c.key, ...v, status: normalizedStatus });
+            });
             setAvailableOrders(list.reverse());
           },
           err => { console.error("Available orders error:", err.code); setAvailErr(err.code || "permission-denied"); }
@@ -167,7 +171,7 @@
         mineRef.on("value",
           snap => {
             const list = [];
-            snap.forEach(c => list.push({ id:c.key, ...c.val() }));
+            snap.forEach(c => { const v = c.val() || {}; list.push({ id:c.key, ...v, status: v.status || "pending" }); });
             setMyOrders(list);
           },
           err => console.error("My orders error:", err.code)
