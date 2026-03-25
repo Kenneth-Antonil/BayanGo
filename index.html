@@ -646,7 +646,18 @@
       const [searchQ,        setSearchQ]        = useState("");
       const [orderPlaced,    setOrderPlaced]    = useState(false);
       const [showAI,         setShowAI]         = useState(false);
-      const [activePage,     setActivePage]     = useState("shop");
+      const getInitialPage = () => {
+        try {
+          const url = new URL(window.location.href);
+          const section = (url.searchParams.get("section") || "").toLowerCase();
+          const hash = (url.hash || "").replace("#", "").toLowerCase();
+          if (section === "rider-tracker" || section === "orders" || hash === "rider-tracker" || hash === "orders") {
+            return "orders";
+          }
+        } catch {}
+        return "shop";
+      };
+      const [activePage,     setActivePage]     = useState(getInitialPage);
       const [customItems,    setCustomItems]    = useState([]);
       const [showCustomList, setShowCustomList] = useState(false);
       const [newItemName,    setNewItemName]    = useState("");
@@ -721,6 +732,32 @@
       const myOrders = orders;
 
       const activeOrders = myOrders.filter(o => o.status !== "delivered");
+
+      useEffect(() => {
+        let url;
+        try {
+          url = new URL(window.location.href);
+        } catch {
+          return;
+        }
+        const section = (url.searchParams.get("section") || "").toLowerCase();
+        const hash = (url.hash || "").replace("#", "").toLowerCase();
+        const wantsRiderTracker = section === "rider-tracker" || hash === "rider-tracker";
+        if (!wantsRiderTracker || showRiderMap || showTracker) return;
+
+        const latestTrackable = myOrders.find(o => o.status === "buying" || o.status === "otw");
+        const latestActive = myOrders.find(o => o.status !== "delivered");
+        const targetOrder = latestTrackable || latestActive;
+
+        setActivePage("orders");
+        if (targetOrder) {
+          if (targetOrder.status === "buying" || targetOrder.status === "otw") {
+            setShowRiderMap(targetOrder);
+          } else {
+            setShowTracker(targetOrder);
+          }
+        }
+      }, [myOrders, showRiderMap, showTracker]);
 
       return (
         <div style={{ maxWidth:480, margin:"0 auto", paddingBottom:80, background:"#F8FAF8", minHeight:"100vh", paddingTop:"calc(60px + env(safe-area-inset-top,0px))" }}>
