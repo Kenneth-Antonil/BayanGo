@@ -682,7 +682,7 @@
         setTimeout(() => setOrderPlaced(false), 3500);
       };
 
-      const myOrders = orders.filter(o => o.customer?.name === name && name !== "");
+      const myOrders = orders;
 
       const activeOrders = myOrders.filter(o => o.status !== "delivered");
 
