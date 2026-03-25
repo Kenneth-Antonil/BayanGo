@@ -152,7 +152,7 @@
 
     /* ══════════════════ MAIN APP ══════════════════ */
     function App() {
-      const [products, setProducts] = useState(DEFAULT_PRODUCTS);
+      const [products, setProducts] = useState([]);
       const [orders,   setOrders]   = useState([]);
       const [ready,    setReady]    = useState(false);
       const [user,     setUser]     = useState(null);
@@ -177,15 +177,10 @@
               return;
             }
 
-            // Load products (fallback to DEFAULT if empty)
-            getDocs(collection(db, "products")).then(snap => {
-              if (!snap.empty) setProducts(snap.docs.map(d => ({ id: d.id, ...d.data() })));
-            }).catch(err => console.error("Products load error:", err));
-
             // Listen products realtime
             unsubProducts = onSnapshot(
               collection(db, "products"),
-              s => { if (!s.empty) setProducts(s.docs.map(d => ({ id: d.id, ...d.data() }))); },
+              s => { setProducts(s.docs.map(d => ({ id: d.id, ...d.data() }))); },
               err => console.error("Products snapshot error:", err)
             );
 
