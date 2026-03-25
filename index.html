@@ -615,10 +615,7 @@
 
       return (
         <>
-          <div style={{ background:"#166534", color:"#fff", padding:"8px 20px", display:"flex", justifyContent:"space-between", alignItems:"center", fontSize:12, fontWeight:600 }}>
-            <span style={{opacity:0.9}}>Hello, {user.displayName || user.email.split('@')[0]}</span>
-            <button onClick={handleLogout} style={{ color:"#BBF7D0", textDecoration:"underline", fontSize:12, fontWeight:700 }}>Log Out</button>
-          </div>
+
           <UserApp products={products} orders={orders} onOrder={addOrder} user={user} onLogout={handleLogout} />
           <InstallBanner />
           {syncError && (
@@ -733,30 +730,40 @@
       const activeOrders = myOrders.filter(o => o.status !== "delivered");
 
       return (
-        <div style={{ maxWidth:480, margin:"0 auto", paddingBottom:80, background:"#F8FAF8", minHeight:"100vh" }}>
+        <div style={{ maxWidth:480, margin:"0 auto", paddingBottom:80, background:"#F8FAF8", minHeight:"100vh", paddingTop:"calc(56px + env(safe-area-inset-top,0px))" }}>
+
+          {/* ── Slim Header ── */}
+          <div style={{
+            position:"fixed", top:0, left:0, right:0, zIndex:200,
+            maxWidth:480, margin:"0 auto",
+            background:"#fff",
+            borderBottom:"1px solid #F0F0F0",
+            paddingTop:"env(safe-area-inset-top,0px)",
+            paddingLeft:16, paddingRight:16,
+            display:"flex", alignItems:"center", justifyContent:"space-between",
+            height:"calc(56px + env(safe-area-inset-top,0px))",
+            boxShadow:"0 1px 8px rgba(0,0,0,.07)",
+          }}>
+            <img src="https://i.imgur.com/MfhVlCm.png" style={{ height:34, objectFit:"contain" }} />
+            <button onClick={() => setActivePage("account")} style={{
+              width:38, height:38, borderRadius:"50%", overflow:"hidden",
+              border: activePage==="account" ? "2.5px solid #166534" : "2.5px solid #E5E7EB",
+              padding:0, flexShrink:0, background:"#F0FDF4",
+              display:"flex", alignItems:"center", justifyContent:"center",
+            }}>
+              {user?.photoURL
+                ? <img src={user.photoURL} style={{ width:"100%", height:"100%", objectFit:"cover" }} />
+                : <span style={{ fontSize:15, fontWeight:800, color:"#166534" }}>
+                    {(name||user?.displayName||"U").charAt(0).toUpperCase()}
+                  </span>
+              }
+            </button>
+          </div>
 
           {/* ── SHOP PAGE ── */}
           {activePage === "shop" && <>
 
-          {/* ── Hero ── */}
-          <div style={{
-            background:"linear-gradient(145deg,#0D5C2E,#166534,#22C55E)",
-            padding:"env(safe-area-inset-top, 16px) 24px 32px",
-            paddingTop:`calc(env(safe-area-inset-top, 0px) + 28px)`,
-            color:"#fff", position:"relative", overflow:"hidden"
-          }}>
-            <div style={{ position:"absolute", top:-50, right:-40, width:180, height:180, borderRadius:"50%", background:"rgba(255,255,255,.07)" }} />
-            <div style={{ position:"absolute", bottom:-30, left:-20, width:120, height:120, borderRadius:"50%", background:"rgba(255,255,255,.04)" }} />
-            <div style={{ position:"relative" }}>
-              <div style={{ fontSize:11, fontWeight:600, opacity:.7, letterSpacing:".1em", textTransform:"uppercase", marginBottom:6 }}>
-                Binangonan Concierge
-              </div>
-              <img src="https://i.imgur.com/tMk73Mg.png" style={{ height:56, objectFit:"contain", margin:"0 0 6px" }} />
-              <p style={{ fontSize:13, opacity:.75, fontWeight:400, lineHeight:1.5 }}>
-                Kami na ang mamamalengke para sa'yo
-              </p>
-            </div>
-          </div>
+
 
           {/* ── Search ── */}
           <div style={{ padding:"16px 20px 0" }}>
@@ -1262,7 +1269,6 @@
             {[
               { key:"shop",    icon:"cart-shopping", label:"Tindahan" },
               { key:"orders",  icon:"box",           label:"Orders", badge: activeOrders.length },
-              { key:"account", icon:"circle-user",   label:"Account" },
             ].map(t => (
               <button key={t.key} onClick={() => setActivePage(t.key)} style={{
                 flex:1, padding:"11px 0 9px", display:"flex", flexDirection:"column", alignItems:"center", gap:3,
@@ -1402,21 +1408,6 @@
 
       return (
         <div style={{ paddingBottom:90 }}>
-          {/* Header */}
-          <div style={{ background:"linear-gradient(145deg,#0D5C2E,#166534)", padding:"env(safe-area-inset-top,0px) 24px 28px", paddingTop:"calc(env(safe-area-inset-top,0px) + 28px)", color:"#fff" }}>
-            <img src="https://i.imgur.com/tMk73Mg.png" style={{ height:44, objectFit:"contain", marginBottom:16 }} />
-            <div style={{ display:"flex", alignItems:"center", gap:16 }}>
-              {user?.photoURL
-                ? <img src={user.photoURL} style={{ width:64, height:64, borderRadius:"50%", border:"3px solid rgba(255,255,255,.3)" }} />
-                : <div style={{ width:64, height:64, borderRadius:"50%", background:"rgba(255,255,255,.2)", display:"flex", alignItems:"center", justifyContent:"center", fontSize:22, fontWeight:800, border:"3px solid rgba(255,255,255,.3)" }}>{initials}</div>
-              }
-              <div>
-                <div style={{ fontSize:20, fontWeight:800 }}>{name || user?.displayName || "BayanGo User"}</div>
-                <div style={{ fontSize:12, opacity:.75, marginTop:2 }}>{user?.email}</div>
-                <div style={{ fontSize:11, opacity:.6, marginTop:4 }}><Ic n="box" style={{marginRight:4}} />{orders.length} orders · <Ic n="circle-check" style={{marginLeft:4,marginRight:4}} />{deliveredOrders.length} delivered</div>
-              </div>
-            </div>
-          </div>
 
           {/* Section Tabs */}
           <div style={{ display:"flex", background:"#fff", borderBottom:"1px solid #E5E7EB", padding:"0 16px" }}>
@@ -1461,9 +1452,10 @@
                     </div>
                   )}
                 </div>
-                <button onClick={onLogout} style={{ width:"100%", padding:"13px 0", borderRadius:14, background:"#FEF2F2", fontSize:13, fontWeight:700, color:"#EF4444", display:"flex", alignItems:"center", justifyContent:"center", gap:8 }}>
+                <button onClick={onLogout} style={{ width:"100%", marginTop:12, padding:"13px 0", borderRadius:14, background:"#FEF2F2", fontSize:13, fontWeight:700, color:"#EF4444", display:"flex", alignItems:"center", justifyContent:"center", gap:8 }}>
                   <Ic n="right-from-bracket" />Mag-Log Out
                 </button>
+
               </div>
             )}
 
@@ -1683,16 +1675,8 @@
 
       return (
         <div style={{ padding:"0 0 20px" }}>
-          {/* Header */}
-          <div style={{
-            background:"linear-gradient(145deg,#0D5C2E,#166534)",
-            padding:"env(safe-area-inset-top, 0px) 24px 24px",
-            paddingTop:`calc(env(safe-area-inset-top, 0px) + 28px)`,
-            color:"#fff",
-          }}>
-            <img src="https://i.imgur.com/tMk73Mg.png" style={{ height:44, objectFit:"contain", marginBottom:4 }} />
-            <h1 style={{ fontSize:28, fontWeight:800, letterSpacing:"-.02em" }}><Ic n="box" style={{marginRight:8}} />Ang Orders Ko</h1>
-            <p style={{ fontSize:13, opacity:.75, marginTop:4 }}>I-tap ang order para makita ang detalye</p>
+          <div style={{ padding:"20px 20px 4px" }}>
+            <h2 style={{ fontSize:18, fontWeight:800, color:"#111", margin:0 }}><Ic n="box" style={{marginRight:8,color:"#166534"}} />Ang Orders Ko</h2>
           </div>
 
           <div style={{ padding:"20px 20px 0" }}>
