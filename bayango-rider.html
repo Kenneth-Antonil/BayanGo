@@ -66,6 +66,13 @@
     const Ic = ({ n, style, size, className }) => <i className={`fa-solid fa-${n}${className?' '+className:''}`} style={{ fontSize:size, lineHeight:1, ...style }} />;
 
     const fmt = n => "₱" + Number(n).toLocaleString("en-PH", { minimumFractionDigits: 0 });
+    const isImageSrc = (value) =>
+      typeof value === "string" &&
+      /^(https?:\/\/|blob:|data:image\/)/i.test(value);
+    const orderItemImage = (item) => {
+      const possible = [item?.img, item?.image, item?.imageUrl, item?.photo, item?.photoURL];
+      return possible.find(isImageSrc) || "";
+    };
     const isToday = ts => {
       if (!ts) return false;
       const d = ts.toDate ? ts.toDate() : new Date(ts);
@@ -461,8 +468,18 @@
                     onChange={e => onToggle(order.id, key, e.target.checked)}
                     style={{ width:18, height:18, accentColor:"#16A34A", cursor:"pointer" }}
                   />
-                  <span style={{ flex:1, fontSize:14, color: checked ? "#94A3B8" : "#334155", textDecoration: checked ? "line-through" : "none" }}>
-                    {it.isCustom ? <><Ic n="note-sticky" style={{ marginRight:4 }} />{it.name} ({it.unit || "qty"})</> : <>{it.img} {it.name} × {it.qty} {it.unit}</>}
+                  <span style={{ flex:1, fontSize:14, color: checked ? "#94A3B8" : "#334155", textDecoration: checked ? "line-through" : "none", display:"inline-flex", alignItems:"center", gap:7 }}>
+                    {it.isCustom ? (
+                      <><Ic n="note-sticky" style={{ marginRight:4 }} />{it.name} ({it.unit || "qty"})</>
+                    ) : (
+                      <>
+                        {orderItemImage(it)
+                          ? <img src={orderItemImage(it)} alt={it.name} style={{ width:26, height:26, borderRadius:6, objectFit:"cover", border:"1px solid #E2E8F0" }} />
+                          : <Ic n="bag-shopping" style={{ color:"#94A3B8" }} />
+                        }
+                        {it.name} × {it.qty} {it.unit}
+                      </>
+                    )}
                   </span>
                 </label>
               );
