@@ -90,24 +90,30 @@
     let _fns = null;
     let _auth = null;
     let _authFns = null;
-
     let _app = null;
+    let _initPromise = null; // singleton guard — prevents duplicate-app errors
 
     async function initFirebase() {
       if (_db && _auth) return { db: _db, fns: _fns, auth: _auth, authFns: _authFns };
+      if (_initPromise) return _initPromise; // already initializing — wait for it
 
-      const { initializeApp } = await import("https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js");
-      const { getDatabase, ref, push, set, update, remove, onValue, off, query: rtdbQuery, orderByChild, equalTo } = await import("https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js");
-      const { getAuth, signInWithPopup, GoogleAuthProvider, onAuthStateChanged, signOut } = await import("https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js");
+      _initPromise = (async () => {
+        const { initializeApp, getApps, getApp } = await import("https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js");
+        const { getDatabase, ref, push, set, update, remove, onValue, off, query: rtdbQuery, orderByChild, equalTo } = await import("https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js");
+        const { getAuth, signInWithPopup, GoogleAuthProvider, onAuthStateChanged, signOut } = await import("https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js");
 
-      _app  = initializeApp(FIREBASE_CONFIG);
-      _db   = getDatabase(_app);
-      _auth = getAuth(_app);
-      
-      _fns = { ref, push, set, update, remove, onValue, off, rtdbQuery, orderByChild, equalTo };
-      _authFns = { signInWithPopup, GoogleAuthProvider, onAuthStateChanged, signOut };
-      
-      return { db: _db, fns: _fns, auth: _auth, authFns: _authFns };
+        // Avoid "duplicate-app" error if already initialized
+        _app  = getApps().length ? getApp() : initializeApp(FIREBASE_CONFIG);
+        _db   = getDatabase(_app, FIREBASE_CONFIG.databaseURL);
+        _auth = getAuth(_app);
+
+        _fns = { ref, push, set, update, remove, onValue, off, rtdbQuery, orderByChild, equalTo };
+        _authFns = { signInWithPopup, GoogleAuthProvider, onAuthStateChanged, signOut };
+
+        return { db: _db, fns: _fns, auth: _auth, authFns: _authFns };
+      })();
+
+      return _initPromise;
     }
 
     async function initStorage() {
