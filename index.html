@@ -914,8 +914,8 @@
           {totalItemCount > 0 && !showCart && (
             <div className="slide-up" style={{
               position:"fixed", bottom:`calc(env(safe-area-inset-bottom,0px) + 76px)`,
-              left:"50%", transform:"translateX(-50%)",
-              zIndex:100, width:"calc(100% - 40px)", maxWidth:440
+              left:20, right:20,
+              zIndex:100
             }}>
               <button onClick={() => setShowCart(true)} style={{
                 width:"100%", padding:"15px 24px", borderRadius:18,
@@ -1259,8 +1259,8 @@
 
           {/* ── Bottom Nav ── */}
           <div style={{
-            position:"fixed", bottom:0, left:"50%", transform:"translateX(-50%)",
-            width:"100%", maxWidth:480,
+            position:"fixed", bottom:0, left:0, right:0,
+            maxWidth:480, margin:"0 auto",
             background:"#fff", borderTop:"1px solid #E5E7EB",
             display:"flex", paddingBottom:"env(safe-area-inset-bottom,0px)",
             boxShadow:"0 -4px 20px rgba(0,0,0,.07)", zIndex:150,
