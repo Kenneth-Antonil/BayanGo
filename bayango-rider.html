@@ -44,6 +44,7 @@
   <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-messaging-compat.js"></script>
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
   <script>
     const RIDER_FB_APP = firebase.initializeApp({
@@ -79,6 +80,64 @@
       const t = new Date();
       return d.getFullYear() === t.getFullYear() && d.getMonth() === t.getMonth() && d.getDate() === t.getDate();
     };
+    const RIDER_NOTIFICATION_SOUND_URL = "https://audio.com/kenneth-antonil/audio/universfield-new-notification-022-370046";
+    async function getPushVapidKey() {
+      try {
+        const snap = await _fbDb.ref("settings/pushVapidKey").once("value");
+        return String(snap.val() || "").trim();
+      } catch (err) {
+        console.error("Unable to read rider push vapid key:", err);
+        return "";
+      }
+    }
+    const sanitizeTokenKey = (token) => encodeURIComponent(String(token || "")).replace(/\./g, "%2E");
+
+    async function enablePushForRider(user, onForegroundNotify) {
+      if (!user?.uid) return;
+      if (!("serviceWorker" in navigator) || !("Notification" in window) || !firebase.messaging) return;
+      try {
+        let permission = Notification.permission;
+        if (permission !== "granted") {
+          permission = await Notification.requestPermission();
+        }
+        if (permission !== "granted") return;
+
+        const swReg = await navigator.serviceWorker.register("/firebase-messaging-sw.js");
+        await navigator.serviceWorker.ready;
+        const messaging = firebase.messaging(RIDER_FB_APP);
+        const vapidKey = await getPushVapidKey();
+        if (!vapidKey) return;
+        const token = await messaging.getToken({ vapidKey, serviceWorkerRegistration: swReg });
+        if (!token) return;
+
+        const tokenKey = sanitizeTokenKey(token);
+        await _fbDb.ref(`push_tokens/${user.uid}/${tokenKey}`).set({
+          token,
+          uid: user.uid,
+          riderEmail: user.email || null,
+          riderName: user.displayName || null,
+          role: "rider",
+          platform: navigator.userAgent || "web",
+          updatedAt: Date.now(),
+          enabled: true,
+        });
+
+        messaging.onMessage((payload) => {
+          const title = payload?.notification?.title || "BayanGo Rider";
+          const body = payload?.notification?.body || "May bagong order.";
+          if (typeof onForegroundNotify === "function") onForegroundNotify({ title, body, payload });
+          if (Notification.permission === "granted") {
+            new Notification(title, {
+              body,
+              icon: "https://i.imgur.com/wL8wcBB.jpeg",
+              data: payload?.data || {},
+            });
+          }
+        });
+      } catch (err) {
+        console.error("Rider push notification setup error:", err);
+      }
+    }
 
     /* ══════════════════ APP ══════════════════ */
     function App() {
@@ -158,20 +217,53 @@
       const [toast,           setToast]           = useState(null);
       const [availErr,        setAvailErr]        = useState(null);
       const [checklistOrder,  setChecklistOrder]  = useState(null);
+      const notificationAudioRef = useRef(null);
+      const lastAvailableOrderIdsRef = useRef(new Set());
+      const pushReadyRef = useRef(false);
+
+      const playNotificationSound = useCallback(() => {
+        if (!notificationAudioRef.current) {
+          notificationAudioRef.current = new Audio(RIDER_NOTIFICATION_SOUND_URL);
+          notificationAudioRef.current.preload = "auto";
+        }
+        const audio = notificationAudioRef.current;
+        audio.currentTime = 0;
+        audio.play().catch((err) => {
+          console.warn("Rider notification sound play failed:", err?.message || err);
+        });
+      }, []);
+
+      useEffect(() => {
+        if (pushReadyRef.current) return;
+        pushReadyRef.current = true;
+        enablePushForRider(user, ({ title, body }) => {
+          playNotificationSound();
+          showToast(`${title}: ${body}`);
+        });
+      }, [user, playNotificationSound]);
 
       useEffect(() => {
         /* Available: treat missing status as pending (legacy orders) */
         const availRef = _fbDb.ref("orders");
         availRef.on("value",
-          snap => {
-            const list = [];
-            snap.forEach(c => {
-              const v = c.val() || {};
-              const normalizedStatus = v.status || "pending";
-              if (!v.riderId && normalizedStatus === "pending") list.push({ id:c.key, ...v, status: normalizedStatus });
-            });
-            setAvailableOrders(list.reverse());
-          },
+            snap => {
+              const list = [];
+              snap.forEach(c => {
+                const v = c.val() || {};
+                const normalizedStatus = v.status || "pending";
+                if (!v.riderId && normalizedStatus === "pending") list.push({ id:c.key, ...v, status: normalizedStatus });
+              });
+              const incomingOrderIds = new Set(list.map(o => o.id));
+              if (lastAvailableOrderIdsRef.current.size > 0) {
+                const hasNewOrder = [...incomingOrderIds].some(id => !lastAvailableOrderIdsRef.current.has(id));
+                if (hasNewOrder) {
+                  playNotificationSound();
+                  showToast("May bagong order! Buksan ang Available tab.");
+                }
+              }
+              lastAvailableOrderIdsRef.current = incomingOrderIds;
+              setAvailableOrders(list.reverse());
+            },
           err => { console.error("Available orders error:", err.code); setAvailErr(err.code || "permission-denied"); }
         );
 
