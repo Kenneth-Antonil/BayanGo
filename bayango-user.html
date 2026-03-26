@@ -227,74 +227,111 @@
     /* ══════════════════ FIREBASE AUTH INIT ══════════════════ */
     // _fbApp and _fbAuth are already initialized via <script> tags above
 
-    /* ══════════════════ INSTALL BANNER ══════════════════ */
-    function InstallBanner() {
-      const [visible, setVisible] = useState(false);
+    /* ══════════════════ INSTALL GATE ══════════════════ */
+    function InstallGate() {
+      const [busy, setBusy] = useState(false);
+      const [errorMsg, setErrorMsg] = useState("");
+      const [canPromptInstall, setCanPromptInstall] = useState(Boolean(window._deferredInstallPrompt));
 
       useEffect(() => {
-        const isStandalone = window.matchMedia('(display-mode: standalone)').matches
-          || window.navigator.standalone === true;
-        if (isStandalone) return;
-
-        const t = setTimeout(() => setVisible(true), 550);
-        return () => clearTimeout(t);
+        const onPromptReady = () => setCanPromptInstall(Boolean(window._deferredInstallPrompt));
+        window.addEventListener("beforeinstallprompt", onPromptReady);
+        return () => window.removeEventListener("beforeinstallprompt", onPromptReady);
       }, []);
 
-      const dismiss = () => setVisible(false);
+      const handleInstall = async () => {
+        setErrorMsg("");
+        const promptEvent = window._deferredInstallPrompt;
+        if (!promptEvent) {
+          setErrorMsg("Hindi pa available ang install prompt. Gamitin ang browser menu at piliin ang Install App o Add to Home Screen.");
+          return;
+        }
 
-      if (!visible) return null;
+        setBusy(true);
+        try {
+          promptEvent.prompt();
+          await promptEvent.userChoice;
+          window._deferredInstallPrompt = null;
+          setCanPromptInstall(false);
+        } catch (err) {
+          setErrorMsg("Hindi ma-open ang install prompt. Subukan ulit.");
+        } finally {
+          setBusy(false);
+        }
+      };
 
       return (
         <div style={{
-          position: "fixed",
-          inset: 0,
-          zIndex: 12000,
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "center",
-          padding: "20px",
-          background: "rgba(3, 12, 6, .45)",
-          backdropFilter: "blur(8px)",
-          WebkitBackdropFilter: "blur(8px)",
+          minHeight:"100vh",
+          padding:"22px 18px calc(env(safe-area-inset-bottom,0px) + 22px)",
+          background:"linear-gradient(165deg,#052e16 0%,#14532d 46%,#166534 100%)",
+          display:"flex",
+          alignItems:"center",
+          justifyContent:"center",
         }}>
-          <div style={{
-            position: "relative",
-            width: "100%",
-            maxWidth: 430,
-            borderRadius: 24,
-            overflow: "hidden",
-            boxShadow: "0 24px 60px rgba(0,0,0,.45)",
-            animation: "pop .22s ease both",
-            border: "1px solid rgba(255,255,255,.22)",
-          }}>
-            <img
-              src="https://i.imgur.com/CsJtRPZ.png"
-              alt="BayanGo promo banner"
-              style={{ width: "100%", display: "block" }}
-            />
+          <div style={{ width:"100%", maxWidth:420, borderRadius:26, background:"#fff", boxShadow:"0 28px 60px rgba(0,0,0,.38)", overflow:"hidden" }}>
+            <div style={{ padding:"18px 18px 8px", background:"linear-gradient(140deg,#166534,#22C55E)", color:"#fff" }}>
+              <div style={{ display:"inline-flex", alignItems:"center", gap:8, borderRadius:999, background:"rgba(255,255,255,.2)", padding:"6px 12px", fontSize:11, fontWeight:700, letterSpacing:".3px" }}>
+                <Ic n="bolt" /> MOBILE APP REQUIRED
+              </div>
+              <h2 style={{ marginTop:14, fontSize:26, lineHeight:1.1, fontWeight:800 }}>I-download ang BayanGo App</h2>
+              <p style={{ marginTop:8, fontSize:13, lineHeight:1.5, opacity:.95 }}>
+                Para sa mas mabilis na checkout at real-time order updates, app-only na ang access.
+              </p>
+            </div>
 
-            <button
-              onClick={dismiss}
-              aria-label="Isara ang banner"
-              style={{
-                position: "absolute",
-                top: 10,
-                right: 10,
-                width: 34,
-                height: 34,
-                borderRadius: 999,
-                background: "rgba(0,0,0,.45)",
-                color: "#fff",
-                border: "1px solid rgba(255,255,255,.55)",
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-                fontSize: 18,
-                fontWeight: 700,
-              }}
-            >
-              <Ic n="xmark" />
-            </button>
+            <div style={{ padding:"16px 16px 18px", display:"grid", gap:12 }}>
+              <div style={{ border:"1px solid #DCFCE7", borderRadius:14, background:"#F0FDF4", padding:"12px 13px", display:"flex", alignItems:"center", gap:10 }}>
+                <div style={{ width:34, height:34, borderRadius:11, background:"#166534", color:"#fff", display:"flex", alignItems:"center", justifyContent:"center" }}>
+                  <Ic n="tag" />
+                </div>
+                <div>
+                  <div style={{ fontSize:11, color:"#15803D", fontWeight:700, letterSpacing:".4px" }}>LIMITED WELCOME PERK</div>
+                  <div style={{ fontSize:15, color:"#14532D", fontWeight:800 }}>FREE DELIVERY SA FIRST ORDER</div>
+                </div>
+              </div>
+
+              <div style={{ border:"1px solid #E5E7EB", borderRadius:14, padding:"12px", display:"grid", gap:10 }}>
+                {[
+                  ["mobile-screen", "Mas stable na order tracking"],
+                  ["bell", "Instant notifications sa status updates"],
+                  ["shield-halved", "Mas secure na account session"],
+                ].map(([icon, text]) => (
+                  <div key={icon} style={{ display:"flex", alignItems:"center", gap:10, fontSize:13, color:"#374151", fontWeight:600 }}>
+                    <span style={{ width:24, textAlign:"center", color:"#166534" }}><Ic n={icon} /></span>
+                    <span>{text}</span>
+                  </div>
+                ))}
+              </div>
+
+              <button onClick={handleInstall} disabled={busy || !canPromptInstall} style={{
+                marginTop:2,
+                width:"100%",
+                borderRadius:14,
+                padding:"14px 16px",
+                background: busy || !canPromptInstall ? "#9CA3AF" : "linear-gradient(135deg,#166534,#22C55E)",
+                color:"#fff",
+                fontSize:14,
+                fontWeight:800,
+                letterSpacing:".2px",
+                boxShadow:"0 12px 24px rgba(22,101,52,.28)",
+              }}>
+                <Ic n="download" style={{ marginRight:8 }} />{busy ? "Ino-open ang install prompt..." : "DOWNLOAD APP NOW"}
+              </button>
+
+              {!canPromptInstall && (
+                <div style={{ fontSize:12, color:"#6B7280", lineHeight:1.5, borderRadius:12, background:"#F9FAFB", border:"1px solid #E5E7EB", padding:"10px 12px" }}>
+                  <Ic n="circle-info" style={{ color:"#166534", marginRight:6 }} />
+                  Buksan ang browser menu at piliin ang <strong>Install App</strong> o <strong>Add to Home Screen</strong>, tapos i-reopen ang BayanGo app.
+                </div>
+              )}
+
+              {errorMsg && (
+                <div style={{ fontSize:12, color:"#B91C1C", background:"#FEF2F2", border:"1px solid #FCA5A5", borderRadius:12, padding:"10px 12px" }}>
+                  <Ic n="triangle-exclamation" style={{ marginRight:6 }} />{errorMsg}
+                </div>
+              )}
+            </div>
           </div>
         </div>
       );
@@ -307,6 +344,7 @@
       const [orders,      setOrders]      = useState([]);
       const [user,        setUser]        = useState(null);
       const [loading,     setLoading]     = useState(true);
+      const [isStandalone, setIsStandalone] = useState(isStandaloneMode());
       const [authMode,      setAuthMode]      = useState("options");
       const [authEmail,     setAuthEmail]     = useState("");
       const [authPassword,  setAuthPassword]  = useState("");
@@ -317,6 +355,17 @@
       const [pushPermission, setPushPermission] = useState(typeof Notification !== "undefined" ? Notification.permission : "default");
       const [pushBusy, setPushBusy] = useState(false);
       const [pushError, setPushError] = useState("");
+
+      useEffect(() => {
+        const syncStandalone = () => setIsStandalone(isStandaloneMode());
+        syncStandalone();
+        window.addEventListener("appinstalled", syncStandalone);
+        document.addEventListener("visibilitychange", syncStandalone);
+        return () => {
+          window.removeEventListener("appinstalled", syncStandalone);
+          document.removeEventListener("visibilitychange", syncStandalone);
+        };
+      }, []);
 
       useEffect(() => {
         let unsubAuth, unsubOrders, unsubProducts, unsubMarketPricing;
@@ -570,6 +619,10 @@
         </div>
       );
 
+      if (!isStandalone) {
+        return <InstallGate />;
+      }
+
       if (!user) {
         const inputStyle = {
           border:"1px solid #E5E7EB", borderRadius:12, padding:"14px 16px",
@@ -660,7 +713,6 @@
         <>
 
           <UserApp products={products} orders={orders} onOrder={addOrder} user={user} onLogout={handleLogout} />
-          <InstallBanner />
           {pushPermission !== "granted" && (
             <div className="pop" style={{
               position:"fixed", bottom:"calc(env(safe-area-inset-bottom,0px) + 16px)", left:16, right:16, zIndex:9998,
@@ -1349,7 +1401,7 @@
                     ["Delivery ("+deliveryMetaLabel+")",fmt(deliveryFee)],
                     ["Service Fee (2%)",fmt(serviceFee)],
                     ...(smallOrderFee > 0 ? [["Small Order Fee (5%)",fmt(smallOrderFee)]] : []),
-                    ...(isFirstTimeUser ? [["First Order Free Shipping","-"+fmt(freeShipDiscount)]] : []),
+                    ...(isFirstTimeUser ? [["FREE DELIVERY SA FIRST ORDER","-"+fmt(freeShipDiscount)]] : []),
                     ...(appliedVoucher && voucherDiscount > 0 ? [[`Voucher (${appliedVoucher.code})`,"-"+fmt(voucherDiscount)]] : [])
                   ].map(([l,v]) => (
                     <div key={l} style={{ display:"flex", justifyContent:"space-between", marginBottom:6, fontSize:13, color:"#777" }}>
@@ -1363,7 +1415,7 @@
                     width:"100%", marginTop:14, padding:"15px", borderRadius:16,
                     background:"linear-gradient(135deg,#166534,#22C55E)", color:"#fff",
                     fontSize:15, fontWeight:700, boxShadow:"0 4px 16px rgba(22,101,52,.3)"
-                  }}>Proceed to Checkout →</button>
+                  }}>Proceed to Checkout</button>
                 </div>
               </div>
             </div>
@@ -1559,7 +1611,7 @@
                     )}
                     {isFirstTimeUser && (
                       <div style={{ display:"flex", justifyContent:"space-between", marginTop:4 }}>
-                        <span style={{ color:"#166534" }}><Ic n="gift" style={{marginRight:4}} />First Order Free Shipping</span>
+                        <span style={{ color:"#166534" }}><Ic n="gift" style={{marginRight:4}} />FREE DELIVERY SA FIRST ORDER</span>
                         <span style={{ fontWeight:600, color:"#166534" }}>-{fmt(freeShipDiscount)}</span>
                       </div>
                     )}
