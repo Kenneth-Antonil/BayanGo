@@ -430,7 +430,7 @@
           const statusLabel = (ORDER_STATUSES.find(s => s.key === newStatus)?.label) || newStatus;
           const tokens = await collectUserTokens(order.uid || order.userId);
           await sendFcmToTokens(tokens, {
-            title: "BayanGo Order Update",
+            title: "Order Update",
             body: `Order #${String(order.id || "").slice(-6)}: ${statusLabel}`,
             data: { type: "order_status", orderId: String(order.id || ""), status: newStatus },
           });
@@ -564,7 +564,7 @@
       const [filterStatus, setFilterStatus] = useState("all");
       const [searchQ,      setSearchQ]      = useState("");
       const [svcJson,      setSvcJson]      = useState(() => localStorage.getItem("bayango_fcm_service_account") || "");
-      const [bTitle,        setBTitle]       = useState("BayanGo Advisory");
+      const [bTitle,        setBTitle]       = useState("Advisory");
       const [bMessage,      setBMessage]     = useState("");
       const [pushBusy,      setPushBusy]     = useState(false);
       const [vapidKey,      setVapidKey]     = useState("");
