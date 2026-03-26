@@ -128,14 +128,18 @@
 
     const sanitizeTokenKey = (token) => encodeURIComponent(String(token || "")).replace(/\./g, "%2E");
 
-    async function enablePushForUser(user) {
+    async function enablePushForUser(user, { requestPermission = true } = {}) {
       if (!user?.uid) return;
       if (!("serviceWorker" in navigator) || !("Notification" in window) || !firebase.messaging) return;
       try {
-        const permission = await Notification.requestPermission();
+        let permission = Notification.permission;
+        if (permission !== "granted" && requestPermission) {
+          permission = await Notification.requestPermission();
+        }
         if (permission !== "granted") return;
 
         const swReg = await navigator.serviceWorker.register("/firebase-messaging-sw.js");
+        await navigator.serviceWorker.ready;
         const messaging = firebase.messaging(_fbApp);
         const vapidKey = await getPushVapidKey();
         if (!vapidKey) return;
@@ -393,6 +397,9 @@
       const [authError,     setAuthError]     = useState("");
       const [authLoading,   setAuthLoading]   = useState(false);
       const [syncError,     setSyncError]     = useState(null);
+      const [pushPermission, setPushPermission] = useState(typeof Notification !== "undefined" ? Notification.permission : "default");
+      const [pushBusy, setPushBusy] = useState(false);
+      const [pushError, setPushError] = useState("");
 
       useEffect(() => {
         let unsubAuth, unsubOrders, unsubProducts;
@@ -434,7 +441,8 @@
             usingOrdersFallback = false;
 
             if (currentUser && _fbDb) {
-              enablePushForUser(currentUser);
+              setPushPermission(typeof Notification !== "undefined" ? Notification.permission : "default");
+              enablePushForUser(currentUser, { requestPermission: false });
               // Listen for this user's orders in RTDB
               const mapAndSort = (snap) => {
                 const list = [];
@@ -464,6 +472,8 @@
               });
             } else {
               setOrders([]);
+              setPushError("");
+              setPushBusy(false);
             }
           });
         } catch (err) {
@@ -568,6 +578,23 @@
         await _fbAuth.signOut();
       };
 
+      const handleEnablePush = async () => {
+        if (!user) return;
+        setPushBusy(true);
+        setPushError("");
+        try {
+          await enablePushForUser(user, { requestPermission: true });
+          setPushPermission(typeof Notification !== "undefined" ? Notification.permission : "default");
+          if (typeof Notification !== "undefined" && Notification.permission !== "granted") {
+            setPushError("Hindi na-allow ang notifications. I-check ang browser/site settings.");
+          }
+        } catch (err) {
+          setPushError(err?.message || "Hindi ma-enable ang push notifications.");
+        } finally {
+          setPushBusy(false);
+        }
+      };
+
       if (loading) return (
         <div style={{ display:"flex", flexDirection:"column", alignItems:"center", justifyContent:"center", height:"100vh", gap:14 }}>
           <Ic n="gear" className="spin" size={48} style={{ color:"#166534" }} />
@@ -666,6 +693,28 @@
 
           <UserApp products={products} orders={orders} onOrder={addOrder} user={user} onLogout={handleLogout} />
           <InstallBanner />
+          {pushPermission !== "granted" && (
+            <div className="pop" style={{
+              position:"fixed", bottom:"calc(env(safe-area-inset-bottom,0px) + 16px)", left:16, right:16, zIndex:9998,
+              background:"#fff", border:"1px solid #D1FAE5", borderRadius:14, boxShadow:"0 8px 24px rgba(0,0,0,.15)",
+              padding:"12px 14px", display:"flex", flexDirection:"column", gap:8,
+            }}>
+              <div style={{ display:"flex", alignItems:"center", gap:8, color:"#166534", fontWeight:800, fontSize:13 }}>
+                <Ic n="bell" />
+                I-enable ang order notifications
+              </div>
+              <div style={{ fontSize:12, color:"#4B5563" }}>
+                Para makatanggap ng update sa order status, i-allow ang notifications sa browser.
+              </div>
+              {pushError && <div style={{ fontSize:11, color:"#B91C1C" }}>{pushError}</div>}
+              <button onClick={handleEnablePush} disabled={pushBusy} style={{
+                background: pushBusy ? "#9CA3AF" : "#166534", color:"#fff", borderRadius:10, padding:"9px 12px",
+                fontSize:12, fontWeight:700,
+              }}>
+                {pushBusy ? "Ina-activate..." : "Enable Notifications"}
+              </button>
+            </div>
+          )}
           {syncError && (
             <div className="pop" style={{
               position:"fixed", top:"calc(env(safe-area-inset-top,0px) + 16px)", left:20, right:20, zIndex:9999,
