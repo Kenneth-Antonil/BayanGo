@@ -31,9 +31,8 @@
     @keyframes pulse   { 0%,100%{opacity:1;} 50%{opacity:.45;} }
     @keyframes ripple  { 0%{transform:scale(0);opacity:.6;} 100%{transform:scale(2.5);opacity:0;} }
     @keyframes bannerUp { from { opacity:0; transform:translateY(100%); } to { opacity:1; transform:translateY(0); } }
-    @keyframes floatY { 0%,100% { transform: translateY(0px); } 50% { transform: translateY(-6px); } }
-    @keyframes rotateGlow { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
-    @keyframes shimmerMove { 0% { transform: translateX(-110%); } 100% { transform: translateX(220%); } }
+    @keyframes dotBounce { 0%,80%,100%{transform:scale(.65);opacity:.35;} 40%{transform:scale(1.1);opacity:1;} }
+    @keyframes splashFadeIn { from{opacity:0;transform:translateY(10px);} to{opacity:1;transform:translateY(0);} }
     .fade-up  { animation: fadeUp  .38s ease both; }
     .slide-in { animation: slideIn .28s cubic-bezier(.4,0,.2,1) both; }
     .slide-up { animation: slideUp .3s cubic-bezier(.4,0,.2,1) both; }
@@ -41,46 +40,41 @@
     .spin     { animation: spin 1s linear infinite; }
     .ai-pulse { animation: pulse 1.4s ease infinite; }
     .splash-shell {
-      display:flex; flex-direction:column; align-items:center; justify-content:center; gap:16px;
-      height:100vh; background:radial-gradient(circle at 20% 10%, #DCFCE7 0%, #F8FAF8 45%, #ECFDF5 100%);
-      position:relative; overflow:hidden; padding:24px;
+      display:flex; flex-direction:column; align-items:center; justify-content:center;
+      height:100vh; background:#fff; gap:0; padding:24px;
     }
-    .splash-shell::before {
-      content:""; position:absolute; width:260px; height:260px; border-radius:999px;
-      background:linear-gradient(120deg, rgba(22,163,74,.16), rgba(34,197,94,.05));
-      filter:blur(4px); top:8%; left:-80px;
+    .splash-logo { width:88px; height:88px; object-fit:contain; animation:splashFadeIn .5s ease both; }
+    .splash-wordmark {
+      font-size:22px; font-weight:900; color:#166534; margin-top:18px; letter-spacing:-.3px;
+      animation:splashFadeIn .5s .1s ease both;
     }
-    .splash-logo-wrap {
-      width:158px; height:158px; border-radius:36px; background:#fff; display:flex; align-items:center; justify-content:center;
-      box-shadow:0 14px 44px rgba(22,101,52,.18), inset 0 1px 0 rgba(255,255,255,.95);
-      position:relative; animation:floatY 2.3s ease-in-out infinite;
+    .splash-tagline {
+      font-size:12px; color:#9CA3AF; margin-top:4px; font-weight:500; letter-spacing:.02em;
+      animation:splashFadeIn .5s .15s ease both;
     }
-    .splash-logo-wrap::before {
-      content:""; position:absolute; inset:-9px; border-radius:42px;
-      border:2px solid rgba(22,101,52,.15); border-top-color:rgba(22,101,52,.45);
-      animation:rotateGlow 3.2s linear infinite;
+    .splash-dots {
+      display:flex; gap:7px; margin-top:44px; animation:splashFadeIn .4s .25s ease both;
     }
-    .splash-logo { height:104px; object-fit:contain; }
+    .splash-dots span {
+      width:8px; height:8px; border-radius:50%; background:#22C55E;
+      animation:dotBounce 1.1s ease-in-out infinite;
+    }
+    .splash-dots span:nth-child(2) { animation-delay:.15s; }
+    .splash-dots span:nth-child(3) { animation-delay:.3s; }
     .splash-caption {
-      font-size:14px; font-weight:700; color:#166534; letter-spacing:.04em;
-      position:relative; overflow:hidden; padding:8px 16px; border-radius:999px;
-      background:rgba(255,255,255,.7); border:1px solid rgba(22,101,52,.12);
-      backdrop-filter:blur(2px);
-    }
-    .splash-caption::after {
-      content:""; position:absolute; top:0; left:0; width:60%; height:100%;
-      background:linear-gradient(100deg, transparent, rgba(255,255,255,.85), transparent);
-      animation:shimmerMove 1.9s ease-in-out infinite;
+      font-size:12px; color:#9CA3AF; margin-top:10px; font-weight:600;
+      animation:splashFadeIn .4s .3s ease both;
     }
   </style>
 </head>
 <body>
   <div id="root">
     <div class="splash-shell">
-      <div class="splash-logo-wrap">
-        <img class="splash-logo" src="https://i.imgur.com/MfhVlCm.png" alt="BayanGo" />
-      </div>
-      <div class="splash-caption">Naglo-load ng BayanGo...</div>
+      <img class="splash-logo" src="https://i.imgur.com/MfhVlCm.png" alt="BayanGo" />
+      <div class="splash-wordmark">BayanGo</div>
+      <div class="splash-tagline">Binangonan Concierge</div>
+      <div class="splash-dots"><span></span><span></span><span></span></div>
+      <div class="splash-caption">Naglo-load...</div>
     </div>
   </div>
 
@@ -265,12 +259,13 @@
     // _fbApp and _fbAuth are already initialized via <script> tags above
 
     /* ══════════════════ INSTALL GATE ══════════════════ */
-    function SplashScreen({ message = "Naglo-load ng BayanGo..." }) {
+    function SplashScreen({ message = "Naglo-load..." }) {
       return (
         <div className="splash-shell">
-          <div className="splash-logo-wrap">
-            <img className="splash-logo" src="https://i.imgur.com/MfhVlCm.png" alt="BayanGo" />
-          </div>
+          <img className="splash-logo" src="https://i.imgur.com/MfhVlCm.png" alt="BayanGo" />
+          <div className="splash-wordmark">BayanGo</div>
+          <div className="splash-tagline">Binangonan Concierge</div>
+          <div className="splash-dots"><span /><span /><span /></div>
           <div className="splash-caption">{message}</div>
         </div>
       );
