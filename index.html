@@ -3,8 +3,8 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
-  <title>BayanGo — Install App</title>
-  <meta name="description" content="Install BayanGo para sa mas mabilis na pabili, order tracking, at promo updates sa Binangonan." />
+  <title>BayanGo — Fresh mula sa Pritil, Hatid sa Pinto Mo</title>
+  <meta name="description" content="Simpleng pamamalengke para sa mga taga-Binangonan at Talim Island. Fresh goods mula sa Pritil, delivered sa pintuan mo." />
   <meta name="theme-color" content="#166534" />
   <meta name="mobile-web-app-capable" content="yes" />
   <meta name="apple-mobile-web-app-capable" content="yes" />
@@ -13,191 +13,592 @@
   <link rel="manifest" href="bayango-user-manifest.json" />
   <link rel="apple-touch-icon" href="https://i.imgur.com/wL8wcBB.jpeg" />
   <link rel="icon" href="https://i.imgur.com/wL8wcBB.jpeg" />
-  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;700;800&display=swap" rel="stylesheet" />
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;700;800;900&display=swap" rel="stylesheet" />
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" />
   <style>
-    * { box-sizing: border-box; margin: 0; padding: 0; }
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
     body {
       font-family: 'Plus Jakarta Sans', sans-serif;
+      background: #F0F5F0;
+      color: #111827;
       min-height: 100vh;
+      -webkit-font-smoothing: antialiased;
+    }
+
+    /* ── Batch Status Bar ── */
+    #batchBar {
+      position: sticky;
+      top: 0;
+      z-index: 100;
+      width: 100%;
+      background: #166534;
       color: #fff;
-      background: radial-gradient(120% 120% at 100% 0%, #22C55E 0%, #166534 45%, #052E16 100%);
       display: flex;
-      justify-content: center;
       align-items: center;
-      padding: 18px;
-    }
-    .card {
-      width: 100%;
-      max-width: 430px;
-      border-radius: 28px;
-      overflow: hidden;
-      background: rgba(255, 255, 255, 0.1);
-      border: 1px solid rgba(255, 255, 255, 0.22);
-      backdrop-filter: blur(10px);
-      box-shadow: 0 24px 60px rgba(0,0,0,.35);
-    }
-    .hero { padding: 24px 20px 10px; text-align: center; }
-    .logo { width: 124px; object-fit: contain; filter: drop-shadow(0 10px 24px rgba(0,0,0,.35)); margin-bottom: 12px; }
-    h1 { font-size: 26px; font-weight: 800; line-height: 1.15; margin-bottom: 8px; }
-    .sub { font-size: 13px; color: rgba(255,255,255,.88); line-height: 1.55; }
-    .perk {
-      margin: 14px 16px 0;
-      border-radius: 14px;
-      border: 1px solid rgba(255,255,255,.24);
-      background: rgba(240, 253, 244, .16);
-      padding: 11px 12px;
-      display: flex;
+      justify-content: center;
       gap: 10px;
-      align-items: center;
+      padding: 10px 16px;
+      font-size: 12px;
+      font-weight: 700;
+      letter-spacing: .02em;
+      min-height: 44px;
     }
-    .perk .icon {
-      width: 32px;
-      height: 32px;
-      border-radius: 10px;
+    #batchBar .batch-pill {
       background: rgba(255,255,255,.22);
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      color: #ECFCCB;
-      font-size: 14px;
-    }
-    .perk .label { font-size: 11px; font-weight: 700; color: rgba(255,255,255,.78); letter-spacing: .3px; }
-    .perk .value { font-size: 14px; font-weight: 800; color: #fff; }
-    .features { padding: 12px 16px 2px; display: grid; gap: 8px; }
-    .feature {
-      padding: 10px 11px;
-      border-radius: 12px;
-      border: 1px solid rgba(255,255,255,.14);
-      background: rgba(255,255,255,.10);
-      font-size: 13px;
-      font-weight: 600;
-      display: flex;
-      align-items: center;
-      gap: 9px;
-    }
-    .feature i { width: 20px; text-align: center; color: #DCFCE7; }
-    .cta-wrap { padding: 16px; display: grid; gap: 10px; }
-    .btn {
-      width: 100%;
-      border: none;
-      border-radius: 14px;
-      padding: 14px 16px;
-      font-size: 15px;
+      border-radius: 20px;
+      padding: 3px 10px;
+      font-size: 11px;
       font-weight: 800;
-      cursor: pointer;
-      transition: transform .15s ease;
+      letter-spacing: .06em;
     }
-    .btn:active { transform: scale(.98); }
-    .btn-install {
+    #batchBar .batch-time {
+      color: #86EFAC;
+      font-weight: 800;
+    }
+    #batchBar.urgent { background: #DC2626; }
+    #batchBar.pm-mode { background: #D97706; }
+
+    /* ── Page wrapper ── */
+    .page {
+      max-width: 430px;
+      margin: 0 auto;
+      background: #fff;
+      min-height: 100vh;
+      overflow: hidden;
+    }
+
+    /* ── Hero ── */
+    .hero {
+      background: linear-gradient(160deg, #052E16 0%, #166534 55%, #22C55E 130%);
+      padding: 36px 24px 40px;
+      text-align: center;
+      position: relative;
+      overflow: hidden;
+    }
+    .hero::before {
+      content: "";
+      position: absolute;
+      inset: 0;
+      background: radial-gradient(circle at 70% 20%, rgba(134,239,172,.18) 0%, transparent 60%);
+    }
+    .hero-logo {
+      width: 110px;
+      object-fit: contain;
+      filter: drop-shadow(0 8px 20px rgba(0,0,0,.3));
+      margin-bottom: 20px;
+      position: relative;
+    }
+    .hero h1 {
+      font-size: 26px;
+      font-weight: 900;
+      line-height: 1.2;
+      color: #fff;
+      margin-bottom: 10px;
+      position: relative;
+      letter-spacing: -.3px;
+    }
+    .hero h1 span { color: #86EFAC; }
+    .hero .sub {
+      font-size: 13.5px;
+      color: rgba(255,255,255,.82);
+      line-height: 1.6;
+      margin-bottom: 28px;
+      position: relative;
+    }
+    .hero-cta {
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      position: relative;
+    }
+    .btn-main {
+      width: 100%;
+      padding: 15px;
+      border-radius: 16px;
+      border: none;
       background: #fff;
       color: #166534;
+      font-family: inherit;
+      font-size: 15px;
+      font-weight: 800;
       display: flex;
-      justify-content: center;
       align-items: center;
+      justify-content: center;
       gap: 9px;
+      cursor: pointer;
+      box-shadow: 0 8px 24px rgba(0,0,0,.22);
+      transition: transform .15s ease, box-shadow .15s ease;
     }
-    .btn-install[disabled] { opacity: .6; cursor: not-allowed; }
-    .steps {
-      margin: 0 16px 12px;
-      border-radius: 14px;
-      background: rgba(0,0,0,.18);
-      border: 1px solid rgba(255,255,255,.13);
+    .btn-main:active { transform: scale(.97); box-shadow: 0 4px 12px rgba(0,0,0,.18); }
+    .btn-main[disabled] { opacity: .6; cursor: not-allowed; }
+    .btn-ghost {
+      width: 100%;
       padding: 12px;
-      display: none;
-      font-size: 12px;
-      line-height: 1.65;
-      color: rgba(255,255,255,.92);
+      border-radius: 14px;
+      border: 1.5px solid rgba(255,255,255,.4);
+      background: transparent;
+      color: rgba(255,255,255,.9);
+      font-family: inherit;
+      font-size: 13px;
+      font-weight: 700;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      cursor: pointer;
+      transition: background .15s;
     }
-    .steps.show { display: block; }
-    .note { text-align: center; font-size: 11px; color: rgba(255,255,255,.78); padding: 0 18px 18px; line-height: 1.5; }
+    .btn-ghost:active { background: rgba(255,255,255,.1); }
+
+    /* ── Free delivery badge ── */
+    .free-badge {
+      margin: -20px 20px 0;
+      border-radius: 16px;
+      background: #fff;
+      border: 1.5px solid #DCFCE7;
+      box-shadow: 0 4px 16px rgba(22,101,52,.12);
+      padding: 14px 16px;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      position: relative;
+      z-index: 2;
+    }
+    .free-badge-icon {
+      width: 44px; height: 44px; border-radius: 14px;
+      background: linear-gradient(135deg,#22C55E,#16A34A);
+      display: flex; align-items: center; justify-content: center;
+      color: #fff; font-size: 20px; flex-shrink: 0;
+    }
+    .free-badge-label { font-size: 11px; font-weight: 700; color: #6B7280; letter-spacing: .04em; text-transform: uppercase; }
+    .free-badge-value { font-size: 15px; font-weight: 800; color: #166534; margin-top: 1px; }
+
+    /* ── Section ── */
+    .section { padding: 28px 20px 0; }
+    .section-title {
+      font-size: 12px;
+      font-weight: 800;
+      color: #9CA3AF;
+      letter-spacing: .1em;
+      text-transform: uppercase;
+      margin-bottom: 14px;
+    }
+
+    /* ── Category Grid ── */
+    .cat-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+    }
+    .cat-card {
+      border-radius: 18px;
+      padding: 18px 14px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 8px;
+      border: 1.5px solid #F3F4F6;
+      background: #FAFAFA;
+      text-decoration: none;
+      transition: transform .15s, box-shadow .15s;
+    }
+    .cat-card:active { transform: scale(.97); }
+    .cat-icon {
+      width: 52px; height: 52px; border-radius: 16px;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 22px; color: #fff;
+    }
+    .cat-label { font-size: 13px; font-weight: 800; color: #1E293B; }
+    .cat-desc  { font-size: 11px; color: #9CA3AF; text-align: center; line-height: 1.4; }
+
+    /* ── Trust Section ── */
+    .trust-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+    .trust-card {
+      border-radius: 16px;
+      padding: 16px 14px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 8px;
+      text-align: center;
+    }
+    .trust-icon { font-size: 26px; }
+    .trust-title { font-size: 13px; font-weight: 800; color: #1E293B; line-height: 1.3; }
+    .trust-sub   { font-size: 11px; color: #6B7280; line-height: 1.45; }
+
+    /* ── Install Guide ── */
+    .install-box {
+      margin: 28px 20px 0;
+      border-radius: 20px;
+      background: #F0FDF4;
+      border: 1.5px solid #DCFCE7;
+      overflow: hidden;
+    }
+    .install-header {
+      background: #166534;
+      color: #fff;
+      padding: 14px 18px;
+      font-size: 14px;
+      font-weight: 800;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .install-tabs {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      border-bottom: 1px solid #DCFCE7;
+    }
+    .install-tab {
+      padding: 10px;
+      font-family: inherit;
+      font-size: 12px;
+      font-weight: 700;
+      background: transparent;
+      border: none;
+      color: #9CA3AF;
+      cursor: pointer;
+      border-bottom: 2px solid transparent;
+      transition: all .15s;
+    }
+    .install-tab.active { color: #166534; border-bottom-color: #22C55E; background: #F0FDF4; }
+    .install-steps { padding: 16px 18px; display: none; }
+    .install-steps.show { display: block; }
+    .install-step {
+      display: flex;
+      align-items: flex-start;
+      gap: 12px;
+      padding: 10px 0;
+      border-bottom: 1px solid #DCFCE7;
+    }
+    .install-step:last-child { border-bottom: none; }
+    .step-num {
+      width: 26px; height: 26px; border-radius: 50%;
+      background: #166534; color: #fff;
+      font-size: 12px; font-weight: 800;
+      display: flex; align-items: center; justify-content: center;
+      flex-shrink: 0; margin-top: 1px;
+    }
+    .step-text { font-size: 13px; color: #374151; line-height: 1.55; }
+    .step-text strong { color: #166534; }
+
+    /* ── Bottom CTA ── */
+    .bottom-cta {
+      margin: 24px 20px 0;
+      padding-bottom: calc(env(safe-area-inset-bottom, 0px) + 32px);
+    }
+    #installBtn2 {
+      width: 100%;
+      padding: 16px;
+      border-radius: 16px;
+      border: none;
+      background: linear-gradient(135deg, #166534, #22C55E);
+      color: #fff;
+      font-family: inherit;
+      font-size: 16px;
+      font-weight: 800;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 10px;
+      cursor: pointer;
+      box-shadow: 0 6px 20px rgba(22,101,52,.38);
+      transition: transform .15s, box-shadow .15s;
+    }
+    #installBtn2:active { transform: scale(.97); box-shadow: 0 3px 10px rgba(22,101,52,.3); }
+    #installBtn2[disabled] { opacity: .6; background: #D1D5DB; box-shadow: none; color: #9CA3AF; cursor: not-allowed; }
+    .help-note {
+      text-align: center;
+      font-size: 11.5px;
+      color: #9CA3AF;
+      margin-top: 12px;
+      line-height: 1.55;
+      padding: 0 8px;
+    }
+
+    /* ── Fade-in animation ── */
+    @keyframes fadeUp {
+      from { opacity: 0; transform: translateY(14px); }
+      to   { opacity: 1; transform: translateY(0); }
+    }
+    .fade-up { animation: fadeUp .45s ease both; }
+    .delay-1 { animation-delay: .08s; }
+    .delay-2 { animation-delay: .16s; }
+    .delay-3 { animation-delay: .24s; }
+    .delay-4 { animation-delay: .32s; }
   </style>
 </head>
 <body>
-  <div class="card">
-    <div class="hero">
-      <img class="logo" src="https://i.imgur.com/MfhVlCm.png" alt="BayanGo" />
-      <h1>I-install ang BayanGo App</h1>
-      <p class="sub">App-only access para sa mas mabilis na checkout, live rider tracking, at instant order updates.</p>
-    </div>
 
-    <div class="perk">
-      <div class="icon"><i class="fa-solid fa-tag"></i></div>
-      <div>
-        <div class="label">WELCOME OFFER</div>
-        <div class="value">FREE DELIVERY SA FIRST ORDER</div>
+  <!-- ── Batch Status Bar ── -->
+  <div id="batchBar">
+    <i class="fa-solid fa-clock"></i>
+    <span id="batchText">Kinukuha ang delivery schedule...</span>
+  </div>
+
+  <div class="page">
+
+    <!-- ── Hero ── -->
+    <div class="hero fade-up">
+      <img class="hero-logo" src="https://i.imgur.com/MfhVlCm.png" alt="BayanGo" />
+      <h1>Fresh mula sa <span>Pritil</span>,<br>Hatid sa Pinto mo!</h1>
+      <p class="sub">Simpleng pamamalengke para sa mga taga-Binangonan at Talim Island.</p>
+      <div class="hero-cta">
+        <button id="installBtn" class="btn-main">
+          <i class="fa-solid fa-download"></i>
+          <span>I-INSTALL ANG APP</span>
+        </button>
+        <button id="learnBtn" class="btn-ghost">
+          <i class="fa-solid fa-circle-question"></i>
+          <span>Paano i-install?</span>
+        </button>
       </div>
     </div>
 
-    <div class="features">
-      <div class="feature"><i class="fa-solid fa-bolt"></i>Mas mabilis mag-load at mag-open</div>
-      <div class="feature"><i class="fa-solid fa-bell"></i>Real-time updates sa bawat order</div>
-      <div class="feature"><i class="fa-solid fa-motorcycle"></i>Mas smooth na rider tracking</div>
+    <!-- ── Free Delivery Badge ── -->
+    <div class="free-badge fade-up delay-1">
+      <div class="free-badge-icon"><i class="fa-solid fa-gift"></i></div>
+      <div>
+        <div class="free-badge-label">Welcome Offer</div>
+        <div class="free-badge-value">FREE DELIVERY sa First Order! 🎉</div>
+      </div>
     </div>
 
-    <div class="cta-wrap">
-      <button id="installBtn" class="btn btn-install"><i class="fa-solid fa-download"></i><span>DOWNLOAD APP NOW</span></button>
+    <!-- ── Category Grid ── -->
+    <div class="section fade-up delay-2">
+      <div class="section-title">Ano ang mabibili?</div>
+      <div class="cat-grid">
+        <div class="cat-card">
+          <div class="cat-icon" style="background:linear-gradient(135deg,#0EA5E9,#0284C7);">
+            <i class="fa-solid fa-fish"></i>
+          </div>
+          <div class="cat-label">Isda</div>
+          <div class="cat-desc">Sariwa mula sa palengke ng Binangonan</div>
+        </div>
+        <div class="cat-card">
+          <div class="cat-icon" style="background:linear-gradient(135deg,#EF4444,#DC2626);">
+            <i class="fa-solid fa-drumstick-bite"></i>
+          </div>
+          <div class="cat-label">Karne</div>
+          <div class="cat-desc">Manok, baboy, at iba pang karne</div>
+        </div>
+        <div class="cat-card">
+          <div class="cat-icon" style="background:linear-gradient(135deg,#22C55E,#16A34A);">
+            <i class="fa-solid fa-leaf"></i>
+          </div>
+          <div class="cat-label">Gulay</div>
+          <div class="cat-desc">Sariwang gulay sa araw-araw</div>
+        </div>
+        <div class="cat-card">
+          <div class="cat-icon" style="background:linear-gradient(135deg,#F97316,#EA580C);">
+            <i class="fa-solid fa-basket-shopping"></i>
+          </div>
+          <div class="cat-label">Grocery</div>
+          <div class="cat-desc">Prutas, sari-sari, gamot, at iba pa</div>
+        </div>
+      </div>
     </div>
 
-    <div id="iosSteps" class="steps">
-      <strong><i class="fa-solid fa-mobile-screen-button"></i> iPhone/iPad install steps:</strong><br />
-      1) I-tap ang <strong>Share</strong> button sa Safari.<br />
-      2) Piliin ang <strong>Add to Home Screen</strong>.<br />
-      3) I-tap ang <strong>Add</strong> para ma-install.
+    <!-- ── Trust Section ── -->
+    <div class="section fade-up delay-3">
+      <div class="section-title">Bakit BayanGo?</div>
+      <div class="trust-grid">
+        <div class="trust-card" style="background:#F0FDF4; border-radius:18px;">
+          <div class="trust-icon">🏝️</div>
+          <div class="trust-title">Mainland &amp; Talim Island</div>
+          <div class="trust-sub">Nagde-deliver kami kahit sa isla — humahabol sa biyahe ng port.</div>
+        </div>
+        <div class="trust-card" style="background:#FFF7ED; border-radius:18px;">
+          <div class="trust-icon">🏷️</div>
+          <div class="trust-title">Presyong Pritil Guaranteed</div>
+          <div class="trust-sub">Palengke ang pinagbibilhan namin. Walang dagdag na presyo sa produkto.</div>
+        </div>
+        <div class="trust-card" style="background:#EFF6FF; border-radius:18px;">
+          <div class="trust-icon">🛵</div>
+          <div class="trust-title">AM &amp; PM Delivery Runs</div>
+          <div class="trust-sub">Dalawang beses sa isang araw. Umaga at hapon.</div>
+        </div>
+        <div class="trust-card" style="background:#F5F3FF; border-radius:18px;">
+          <div class="trust-icon">📍</div>
+          <div class="trust-title">Live Rider Tracking</div>
+          <div class="trust-sub">Alam mo kung nasaan na ang iyong order sa real-time.</div>
+        </div>
+      </div>
     </div>
 
-    <p id="helpNote" class="note">Kapag installed na, auto-open na ang BayanGo sa app mode.</p>
-  </div>
+    <!-- ── PWA Install Guide ── -->
+    <div class="install-box fade-up delay-4">
+      <div class="install-header">
+        <i class="fa-solid fa-mobile-screen-button"></i>
+        Paano I-install ang BayanGo?
+      </div>
+      <div class="install-tabs">
+        <button class="install-tab active" onclick="showTab('android')">
+          <i class="fa-brands fa-android" style="margin-right:5px;"></i>Android
+        </button>
+        <button class="install-tab" onclick="showTab('ios')">
+          <i class="fa-brands fa-apple" style="margin-right:5px;"></i>iPhone / iPad
+        </button>
+      </div>
+
+      <div id="tab-android" class="install-steps show">
+        <div class="install-step">
+          <div class="step-num">1</div>
+          <div class="step-text">Buksan ang page na ito sa <strong>Chrome</strong> browser.</div>
+        </div>
+        <div class="install-step">
+          <div class="step-num">2</div>
+          <div class="step-text">I-tap ang <strong>Install App</strong> button sa ibaba, o i-tap ang tatlong tuldok (<strong>⋮</strong>) sa kanang sulok ng browser.</div>
+        </div>
+        <div class="install-step">
+          <div class="step-num">3</div>
+          <div class="step-text">Piliin ang <strong>"Install App"</strong> o <strong>"Add to Home Screen."</strong></div>
+        </div>
+        <div class="install-step">
+          <div class="step-num">4</div>
+          <div class="step-text">I-tap ang <strong>Install</strong> sa pop-up. Tapos na! Hanapin ang BayanGo icon sa iyong home screen.</div>
+        </div>
+      </div>
+
+      <div id="tab-ios" class="install-steps">
+        <div class="install-step">
+          <div class="step-num">1</div>
+          <div class="step-text">Buksan ang page na ito sa <strong>Safari</strong> browser (hindi gagana sa Chrome sa iPhone).</div>
+        </div>
+        <div class="install-step">
+          <div class="step-num">2</div>
+          <div class="step-text">I-tap ang <strong>Share button</strong> <i class="fa-solid fa-arrow-up-from-bracket" style="color:#166534;"></i> sa ilalim ng screen.</div>
+        </div>
+        <div class="install-step">
+          <div class="step-num">3</div>
+          <div class="step-text">Mag-scroll pababa at piliin ang <strong>"Add to Home Screen."</strong></div>
+        </div>
+        <div class="install-step">
+          <div class="step-num">4</div>
+          <div class="step-text">I-tap ang <strong>Add</strong> sa kanang itaas. Handa na ang BayanGo sa iyong home screen!</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ── Bottom CTA ── -->
+    <div class="bottom-cta">
+      <button id="installBtn2">
+        <i class="fa-solid fa-download"></i>
+        <span>I-INSTALL ANG APP — LIBRE!</span>
+      </button>
+      <p id="helpNote" class="help-note">
+        Kapag installed na, awtomatikong magbubukas ang BayanGo sa full-screen app mode.
+      </p>
+    </div>
+
+  </div><!-- end .page -->
 
   <script>
-    const installBtn = document.getElementById('installBtn');
-    const iosSteps = document.getElementById('iosSteps');
-    const helpNote = document.getElementById('helpNote');
-    let deferredPrompt = null;
-    const isIOS = /iphone|ipad|ipod/i.test(navigator.userAgent) && !window.MSStream;
-
+    // ── Redirect if already installed as PWA ──
     if (window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone === true) {
       window.location.replace('bayango-user.html');
+    }
+
+    // ── Batch Status Bar (dynamic, Philippine Time UTC+8) ──
+    function getBatchStatus() {
+      const phNow = new Date(Date.now() + 8 * 3600 * 1000);
+      const h = phNow.getUTCHours(), m = phNow.getUTCMinutes(), s = phNow.getUTCSeconds();
+      const totalSecs = h * 3600 + m * 60 + s;
+      const AM_CUTOFF = 10 * 3600;  // 10:00 AM
+      const PM_CUTOFF = 15 * 3600;  // 3:00 PM
+      const pad = n => String(n).padStart(2, '0');
+      const secsLeft = secs => {
+        const hh = Math.floor(secs / 3600), mm = Math.floor((secs % 3600) / 60), ss = secs % 60;
+        return hh > 0 ? `${hh}h ${pad(mm)}m` : `${pad(mm)}m ${pad(ss)}s`;
+      };
+      if (totalSecs < AM_CUTOFF) {
+        return { text: `AM Batch — Delivery 11:00 AM · Cut-off sa ${secsLeft(AM_CUTOFF - totalSecs)}`, mode: 'am', urgent: (AM_CUTOFF - totalSecs) < 1800 };
+      } else if (totalSecs < PM_CUTOFF) {
+        return { text: `PM Batch — Delivery 4:00 PM · Cut-off sa ${secsLeft(PM_CUTOFF - totalSecs)}`, mode: 'pm', urgent: (PM_CUTOFF - totalSecs) < 1800 };
+      } else {
+        const secsToTomorrow = (24 * 3600 - totalSecs) + AM_CUTOFF;
+        return { text: `Susunod: AM Batch Bukas — Delivery 11:00 AM · Cut-off sa ${secsLeft(secsToTomorrow)}`, mode: 'am', urgent: false };
+      }
+    }
+
+    const batchBar  = document.getElementById('batchBar');
+    const batchText = document.getElementById('batchText');
+    function updateBatchBar() {
+      const { text, mode, urgent } = getBatchStatus();
+      batchText.textContent = text;
+      batchBar.className = urgent ? 'urgent' : (mode === 'pm' ? 'pm-mode' : '');
+    }
+    updateBatchBar();
+    setInterval(updateBatchBar, 1000);
+
+    // ── Install Guide Tabs ──
+    function showTab(tab) {
+      document.getElementById('tab-android').classList.toggle('show', tab === 'android');
+      document.getElementById('tab-ios').classList.toggle('show', tab === 'ios');
+      document.querySelectorAll('.install-tab').forEach((btn, i) => {
+        btn.classList.toggle('active', (i === 0 && tab === 'android') || (i === 1 && tab === 'ios'));
+      });
+    }
+
+    // ── Detect iOS and pre-select tab ──
+    const isIOS = /iphone|ipad|ipod/i.test(navigator.userAgent) && !window.MSStream;
+    if (isIOS) showTab('ios');
+
+    // ── PWA Install Logic ──
+    let deferredPrompt = null;
+    const helpNote   = document.getElementById('helpNote');
+    const installBtn  = document.getElementById('installBtn');
+    const installBtn2 = document.getElementById('installBtn2');
+
+    function setInstalled() {
+      [installBtn, installBtn2].forEach(btn => {
+        btn.disabled = true;
+        btn.innerHTML = '<i class="fa-solid fa-circle-check"></i><span>INSTALLED. BINUBUKSAN...</span>';
+      });
+      setTimeout(() => window.location.replace('bayango-user.html'), 800);
     }
 
     window.addEventListener('beforeinstallprompt', (e) => {
       e.preventDefault();
       deferredPrompt = e;
-      installBtn.disabled = false;
-      helpNote.textContent = 'Ready na ang install prompt. I-tap ang DOWNLOAD APP NOW.';
+      helpNote.textContent = 'Ready na ang install. I-tap ang I-INSTALL button.';
     });
 
-    window.addEventListener('appinstalled', () => {
-      installBtn.disabled = true;
-      installBtn.innerHTML = '<i class="fa-solid fa-circle-check"></i><span>INSTALLED. OPENING APP...</span>';
-      setTimeout(() => window.location.replace('bayango-user.html'), 800);
-    });
+    window.addEventListener('appinstalled', setInstalled);
 
-    installBtn.addEventListener('click', async () => {
+    async function triggerInstall(btn) {
       if (isIOS) {
-        iosSteps.classList.add('show');
-        helpNote.textContent = 'Sundin ang steps sa taas para ma-add ang app sa home screen.';
+        showTab('ios');
+        document.querySelector('.install-box').scrollIntoView({ behavior: 'smooth', block: 'start' });
+        helpNote.textContent = 'Sundin ang steps sa Safari para ma-install ang app.';
         return;
       }
-
       if (!deferredPrompt) {
-        helpNote.textContent = 'Kung hindi lumalabas ang prompt, gamitin ang browser menu at piliin ang Install App.';
+        showTab('android');
+        document.querySelector('.install-box').scrollIntoView({ behavior: 'smooth', block: 'start' });
+        helpNote.textContent = 'I-tap ang ⋮ menu ng browser at piliin ang "Install App" o "Add to Home Screen."';
         return;
       }
-
-      installBtn.disabled = true;
-      installBtn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i><span>OPENING INSTALL PROMPT...</span>';
-
+      btn.disabled = true;
+      btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i><span>BINUBUKSAN ANG INSTALL...</span>';
       try {
         deferredPrompt.prompt();
         await deferredPrompt.userChoice;
-      } catch (err) {
-        helpNote.textContent = 'Hindi ma-open ang install prompt. Subukan ulit sa browser menu.';
+      } catch {
+        helpNote.textContent = 'Hindi ma-open ang install prompt. Subukan ang browser menu.';
       } finally {
         deferredPrompt = null;
-        installBtn.disabled = false;
-        installBtn.innerHTML = '<i class="fa-solid fa-download"></i><span>DOWNLOAD APP NOW</span>';
+        btn.disabled = false;
+        btn.innerHTML = '<i class="fa-solid fa-download"></i><span>I-INSTALL ANG APP — LIBRE!</span>';
       }
+    }
+
+    installBtn.addEventListener('click',  () => triggerInstall(installBtn));
+    installBtn2.addEventListener('click', () => triggerInstall(installBtn2));
+
+    document.getElementById('learnBtn').addEventListener('click', () => {
+      document.querySelector('.install-box').scrollIntoView({ behavior: 'smooth', block: 'start' });
     });
   </script>
 </body>
