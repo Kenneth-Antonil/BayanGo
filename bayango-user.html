@@ -150,6 +150,30 @@
     }
 
     const sanitizeTokenKey = (token) => encodeURIComponent(String(token || "")).replace(/\./g, "%2E");
+    const ACTIVE_USER_WINDOW_MS = 5 * 60 * 1000;
+
+    const isStandaloneMode = () =>
+      window.matchMedia("(display-mode: standalone)").matches ||
+      window.navigator.standalone === true;
+
+    async function trackUserAppUsage(user, { markInstalled = false } = {}) {
+      if (!user?.uid || !_fbDb) return;
+      const now = Date.now();
+      const usageRef = _fbDb.ref(`app_usage/${user.uid}`);
+      const updates = {
+        uid: user.uid,
+        email: user.email || null,
+        name: user.displayName || null,
+        lastActiveAt: now,
+        activeWindowUntil: now + ACTIVE_USER_WINDOW_MS,
+        platform: navigator.userAgent || "web",
+      };
+      if (markInstalled || isStandaloneMode()) {
+        const installedSnap = await usageRef.child("installedAt").once("value");
+        if (!installedSnap.exists()) updates.installedAt = now;
+      }
+      await usageRef.update(updates);
+    }
 
     async function enablePushForUser(user, { requestPermission = true } = {}) {
       if (!user?.uid) return;
@@ -296,6 +320,8 @@
 
       useEffect(() => {
         let unsubAuth, unsubOrders, unsubProducts, unsubMarketPricing;
+        let activityIntervalId = null;
+        let visibilityHandler = null;
         let usingOrdersFallback = false;
         let currentMarketPricing = {};
         const timeout = setTimeout(() => setLoading(false), 8000);
@@ -354,11 +380,27 @@
               _fbDb.ref("orders").off();
               unsubOrders = null;
             }
+            if (activityIntervalId) {
+              clearInterval(activityIntervalId);
+              activityIntervalId = null;
+            }
+            if (visibilityHandler) {
+              document.removeEventListener("visibilitychange", visibilityHandler);
+              visibilityHandler = null;
+            }
             usingOrdersFallback = false;
 
             if (currentUser && _fbDb) {
               setPushPermission(typeof Notification !== "undefined" ? Notification.permission : "default");
               enablePushForUser(currentUser, { requestPermission: false });
+              trackUserAppUsage(currentUser).catch(err => console.error("Usage tracking error:", err));
+
+              visibilityHandler = () => {
+                if (document.visibilityState === "visible") {
+                  trackUserAppUsage(currentUser).catch(err => console.error("Usage visibility sync error:", err));
+                }
+              };
+              document.addEventListener("visibilitychange", visibilityHandler);
               // Listen for this user's orders in RTDB
               const mapAndSort = (snap) => {
                 const list = [];
@@ -386,6 +428,12 @@
                   console.error("Orders fallback listener error:", fullErr.code);
                 });
               });
+
+              activityIntervalId = setInterval(() => {
+                if (document.visibilityState === "visible") {
+                  trackUserAppUsage(currentUser).catch(err => console.error("Usage interval sync error:", err));
+                }
+              }, 60 * 1000);
             } else {
               setOrders([]);
               setPushError("");
@@ -405,6 +453,8 @@
             _fbDb.ref("products").off();
             _fbDb.ref("settings/marketPricing").off();
           }
+          if (activityIntervalId) clearInterval(activityIntervalId);
+          if (visibilityHandler) document.removeEventListener("visibilitychange", visibilityHandler);
           if (unsubMarketPricing && typeof unsubMarketPricing.off === "function") unsubMarketPricing.off();
         };
       }, []);
