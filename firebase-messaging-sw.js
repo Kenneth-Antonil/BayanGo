@@ -16,20 +16,26 @@ const messaging = firebase.messaging();
 
 messaging.onBackgroundMessage((payload) => {
   const title = payload?.notification?.title || 'BayanGo';
+  const clickUrl = payload?.data?.link || payload?.data?.click_action || 'https://bayango.ph/bayango-rider.html';
   const options = {
     body: payload?.notification?.body || 'May bagong update ka.',
     icon: 'https://i.imgur.com/wL8wcBB.jpeg',
-    data: payload?.data || {},
+    data: {
+      ...(payload?.data || {}),
+      clickUrl,
+    },
+    sound: 'https://audio.com/kenneth-antonil/audio/universfield-new-notification-022-370046',
+    vibrate: [200, 120, 200, 120, 280],
   };
   self.registration.showNotification(title, options);
 });
 
 self.addEventListener('notificationclick', (event) => {
   event.notification.close();
-  const target = 'https://bayango.ph/bayango-user.html#/orders';
+  const target = event.notification?.data?.clickUrl || 'https://bayango.ph/bayango-rider.html';
   event.waitUntil(clients.matchAll({ type: 'window', includeUncontrolled: true }).then((windowClients) => {
     for (const client of windowClients) {
-      if (client.url.includes('bayango-user') && 'focus' in client) return client.focus();
+      if (client.url.includes('bayango-rider') && 'focus' in client) return client.focus();
     }
     if (clients.openWindow) return clients.openWindow(target);
   }));
