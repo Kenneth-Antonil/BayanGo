@@ -113,6 +113,7 @@
       { label:"Eastridge / Tayuman", fee:65 },
       { label:"Libis / Pantok",      fee:75 },
     ];
+    const ORDER_CANCEL_WINDOW_MS = 15 * 60 * 1000;
 
     const fmt = n => "₱" + Number(n).toLocaleString("en-PH", { minimumFractionDigits:0 });
     const genId = () => Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
@@ -947,7 +948,50 @@
         setTimeout(() => setOrderPlaced(false), 3500);
       };
 
-      const activeOrders = myOrders.filter(o => o.status !== "delivered");
+      const isOrderClosed = (order) => order?.status === "delivered" || order?.status === "cancelled";
+      const getOrderCreatedAtMs = (order) => {
+        const rawTs = order?.createdAt;
+        if (!rawTs) return 0;
+        if (typeof rawTs?.toDate === "function") return rawTs.toDate().getTime();
+        const ts = Number(rawTs);
+        return Number.isFinite(ts) ? ts : 0;
+      };
+      const canCancelOrder = (order) => {
+        if (!order || order.status !== "pending" || order.riderId) return false;
+        const createdAtMs = getOrderCreatedAtMs(order);
+        if (!createdAtMs) return false;
+        return (Date.now() - createdAtMs) >= ORDER_CANCEL_WINDOW_MS;
+      };
+      const getCancelCountdownText = (order) => {
+        if (!order || order.status !== "pending" || order.riderId) return "";
+        const createdAtMs = getOrderCreatedAtMs(order);
+        if (!createdAtMs) return "";
+        const remainingMs = ORDER_CANCEL_WINDOW_MS - (Date.now() - createdAtMs);
+        if (remainingMs <= 0) return "Pwede mo nang i-cancel ang order na ito.";
+        const mins = Math.ceil(remainingMs / 60000);
+        return `Pwede mo i-cancel kapag lampas 15 minuto (${mins} min pa).`;
+      };
+      const handleCancelOrder = async (order) => {
+        if (!order?.id || !_fbDb) return;
+        if (!canCancelOrder(order)) {
+          alert("Hindi pa puwedeng i-cancel. Hintayin muna ang 15 minutes na walang rider.");
+          return;
+        }
+        const sure = window.confirm("Sigurado ka bang gusto mong i-cancel ang order na ito?");
+        if (!sure) return;
+        try {
+          await _fbDb.ref(`orders/${order.id}`).update({
+            status: "cancelled",
+            cancelledBy: user?.uid || null,
+            cancelledAt: Date.now(),
+            updatedAt: Date.now(),
+          });
+        } catch (err) {
+          alert("Hindi ma-cancel ang order: " + (err.message || err.code || "Unknown error"));
+        }
+      };
+
+      const activeOrders = myOrders.filter(o => !isOrderClosed(o));
 
       useEffect(() => {
         let url;
@@ -1605,7 +1649,14 @@
 
           {/* ── ORDERS PAGE ── */}
           {activePage === "orders" && (
-            <OrdersPage orders={myOrders} onTrack={setShowTracker} onTrackRider={setShowRiderMap} />
+            <OrdersPage
+              orders={myOrders}
+              onTrack={setShowTracker}
+              onTrackRider={setShowRiderMap}
+              canCancelOrder={canCancelOrder}
+              cancelCountdownText={getCancelCountdownText}
+              onCancelOrder={handleCancelOrder}
+            />
           )}
 
           {activePage === "account" && (
@@ -1756,13 +1807,14 @@
 
       const initials = (user?.displayName || user?.email || "?")
         .split(" ").map(w => w[0]).join("").toUpperCase().slice(0,2);
-      const deliveredOrders = orders.filter(o => o.status === "delivered");
-      const activeOrders    = orders.filter(o => o.status !== "delivered");
+      const deliveredOrders = orders.filter(o => o.status === "delivered" || o.status === "cancelled");
+      const activeOrders    = orders.filter(o => o.status !== "delivered" && o.status !== "cancelled");
       const ST_COLOR = {
         pending:   { bg:"#F3F4F6", color:"#555",    label:"Pending",   icon:"hourglass-half" },
         buying:    { bg:"#FEF3C7", color:"#92400E",  label:"Buying",    icon:"cart-shopping"  },
         otw:       { bg:"#DBEAFE", color:"#1D4ED8",  label:"OTW",       icon:"motorcycle"     },
         delivered: { bg:"#DCFCE7", color:"#166534",  label:"Delivered", icon:"circle-check"   },
+        cancelled: { bg:"#FEE2E2", color:"#B91C1C",  label:"Cancelled", icon:"ban"            },
       };
       const ST_TICKET = {
         open:     { bg:"#FEF3C7", color:"#92400E", label:"Open"     },
@@ -1848,6 +1900,19 @@
                           <div style={{ padding:"4px 10px", borderRadius:20, fontSize:11, fontWeight:700, background:st.bg, color:st.color, display:"flex", alignItems:"center", gap:4, whiteSpace:"nowrap" }}><Ic n={st.icon} />{st.label}</div>
                         </div>
                         <div style={{ display:"flex", justifyContent:"space-between", fontSize:12, color:"#aaa" }}><span>{ts.toLocaleDateString("en-PH")} {ts.toLocaleTimeString("en-PH",{hour:"2-digit",minute:"2-digit"})}</span><span style={{ fontWeight:700, color:"#166534" }}>~{fmt(o.total)}</span></div>
+                        {(o.status === "pending" && !o.riderId) && (
+                          <div style={{ marginTop:10 }}>
+                            {canCancelOrder(o) ? (
+                              <button onClick={() => handleCancelOrder(o)} style={{ width:"100%", padding:"10px 12px", borderRadius:10, background:"#FEF2F2", border:"1px solid #FCA5A5", color:"#B91C1C", fontSize:12, fontWeight:800 }}>
+                                I-cancel ang order
+                              </button>
+                            ) : (
+                              <div style={{ fontSize:11, color:"#B45309", background:"#FFFBEB", border:"1px solid #FDE68A", borderRadius:10, padding:"8px 10px", fontWeight:700 }}>
+                                {getCancelCountdownText(o)}
+                              </div>
+                            )}
+                          </div>
+                        )}
                       </div>
                     ); })}
                   </>}
@@ -2350,9 +2415,9 @@
       );
     }
 
-    function OrdersPage({ orders, onTrack, onTrackRider }) {
-      const active    = orders.filter(o => o.status !== "delivered");
-      const completed = orders.filter(o => o.status === "delivered");
+    function OrdersPage({ orders, onTrack, onTrackRider, canCancelOrder, cancelCountdownText, onCancelOrder }) {
+      const active    = orders.filter(o => o.status !== "delivered" && o.status !== "cancelled");
+      const completed = orders.filter(o => o.status === "delivered" || o.status === "cancelled");
       const [ordersView, setOrdersView] = useState("active");
 
       const ST_COLOR = {
@@ -2360,6 +2425,7 @@
         buying:    { bg:"#FEF3C7", color:"#92400E", label:"Buying",    icon:"cart-shopping" },
         otw:       { bg:"#DBEAFE", color:"#1D4ED8", label:"OTW",       icon:"motorcycle" },
         delivered: { bg:"#DCFCE7", color:"#166534", label:"Delivered", icon:"circle-check" },
+        cancelled: { bg:"#FEE2E2", color:"#B91C1C", label:"Cancelled", icon:"ban" },
       };
 
       const OrderCard = ({ o }) => {
@@ -2431,6 +2497,25 @@
                 Nasaan ang Rider?
                 <div style={{ width:8, height:8, borderRadius:"50%", background:"#4ADE80", boxShadow:"0 0 6px #4ADE80" }} />
               </button>
+            )}
+            {(o.status === "pending" && !o.riderId) && (
+              canCancelOrder?.(o) ? (
+                <button onClick={() => onCancelOrder?.(o)} style={{
+                  width:"100%", marginTop:8, padding:"11px 12px", borderRadius:12,
+                  background:"#FEF2F2", color:"#B91C1C", border:"1px solid #FCA5A5",
+                  fontSize:12, fontWeight:800,
+                }}>
+                  I-cancel ang order (15+ min na walang rider)
+                </button>
+              ) : (
+                <div style={{
+                  marginTop:8, padding:"9px 10px", borderRadius:12,
+                  background:"#FFFBEB", color:"#92400E", border:"1px solid #FDE68A",
+                  fontSize:11, fontWeight:700,
+                }}>
+                  {cancelCountdownText?.(o)}
+                </div>
+              )
             )}
           </div>
         );
