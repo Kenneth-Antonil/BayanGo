@@ -1589,11 +1589,6 @@
             );
           })()}
 
-          {/* ── Rider Map Modal ── */}
-          {showRiderMap && (
-            <RiderMapModal order={showRiderMap} onClose={() => setShowRiderMap(null)} />
-          )}
-
           {/* ── Success Toast ── */}
           {orderPlaced && (
             <div className="pop" style={{
@@ -1617,6 +1612,11 @@
             <AccountPage user={user} orders={myOrders} name={name} phone={phone} addr={addr}
               setName={setName} setPhone={setPhone} setAddr={setAddr} onLogout={onLogout}
               customerLat={customerLat} customerLng={customerLng} />
+          )}
+
+          {/* ── Rider Map Modal (global so it opens from any tab) ── */}
+          {showRiderMap && (
+            <RiderMapModal order={showRiderMap} onClose={() => setShowRiderMap(null)} />
           )}
 
           {/* ── Bottom Nav ── */}
@@ -2114,6 +2114,7 @@
       const mapRef = useRef(null);
       const mapInstanceRef = useRef(null);
       const riderMarkerRef = useRef(null);
+      const routeLineRef = useRef(null);
       const [riderLoc, setRiderLoc] = useState(null);
       const [lastUpdate, setLastUpdate] = useState(null);
       const [mapError, setMapError] = useState("");
@@ -2178,6 +2179,7 @@
           map.remove();
           mapInstanceRef.current = null;
           riderMarkerRef.current = null;
+          routeLineRef.current = null;
         };
       }, []);
 
@@ -2190,6 +2192,9 @@
         const riderLng = toNum(riderLoc?.lng);
         if (riderLat == null || riderLng == null) return;
         const pos = [riderLat, riderLng];
+        const custLat = toNum(order?.customer?.lat);
+        const custLng = toNum(order?.customer?.lng);
+        const custPos = custLat != null && custLng != null ? [custLat, custLng] : null;
 
         if (!riderMarkerRef.current) {
           const riderIcon = L.divIcon({
@@ -2204,15 +2209,26 @@
           );
 
           // Fit bounds to show both rider and customer pin
-          const custLat = toNum(order?.customer?.lat);
-          const custLng = toNum(order?.customer?.lng);
-          if (custLat != null && custLng != null) {
-            map.fitBounds([pos, [custLat, custLng]], { padding: [50, 50] });
+          if (custPos) {
+            map.fitBounds([pos, custPos], { padding: [50, 50] });
           } else {
             map.setView(pos, 16);
           }
         } else {
           riderMarkerRef.current.setLatLng(pos);
+        }
+
+        if (custPos) {
+          if (!routeLineRef.current) {
+            routeLineRef.current = L.polyline([pos, custPos], {
+              color: "#2563EB",
+              weight: 5,
+              opacity: 0.85,
+              lineCap: "round",
+            }).addTo(map);
+          } else {
+            routeLineRef.current.setLatLngs([pos, custPos]);
+          }
         }
       }, [riderLoc]);
 
@@ -2275,6 +2291,20 @@
                   </div>
                 </>
               )}
+            </div>
+            <div style={{
+              background:"#EFF6FF",
+              borderBottom:"1px solid #DBEAFE",
+              color:"#1D4ED8",
+              fontSize:12,
+              fontWeight:700,
+              padding:"8px 20px",
+              display:"flex",
+              alignItems:"center",
+              gap:8,
+            }}>
+              <Ic n="route" />
+              Blue line = diretsong daan ng rider papunta sa'yo
             </div>
 
             {/* Map */}
