@@ -924,7 +924,8 @@
       const customEstTotal   = customItems.reduce((s,i) => s + (i.estPrice || 0), 0);
       const subtotal         = cartItems.reduce((s,i) => s + i.price * i.qty, 0);
       const itemsTotal       = subtotal + customEstTotal;
-      const hasPinnedLocation = Number.isFinite(Number(customerLat)) && Number.isFinite(Number(customerLng));
+      const hasPinnedLocation = customerLat !== null && customerLng !== null &&
+        Number.isFinite(Number(customerLat)) && Number.isFinite(Number(customerLng));
       const distanceKm = hasPinnedLocation
         ? haversineKm(
             BINANGONAN_PUBLIC_MARKET.lat,
