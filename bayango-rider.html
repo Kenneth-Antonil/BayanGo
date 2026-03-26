@@ -138,6 +138,30 @@
         console.error("Rider push notification setup error:", err);
       }
     }
+    async function showLocalRiderNotification({ title, body, data = {} }) {
+      if (!("Notification" in window) || Notification.permission !== "granted") return;
+      const payload = {
+        body,
+        icon: "https://i.imgur.com/wL8wcBB.jpeg",
+        data,
+      };
+      try {
+        if ("serviceWorker" in navigator) {
+          const reg = await navigator.serviceWorker.getRegistration("/firebase-messaging-sw.js");
+          if (reg?.showNotification) {
+            await reg.showNotification(title, payload);
+            return;
+          }
+        }
+      } catch (err) {
+        console.warn("Rider local notification via service worker failed:", err);
+      }
+      try {
+        new Notification(title, payload);
+      } catch (err) {
+        console.warn("Rider local notification failed:", err);
+      }
+    }
 
     /* ══════════════════ APP ══════════════════ */
     function App() {
@@ -260,6 +284,11 @@
                 const hasNewOrder = [...incomingOrderIds].some(id => !lastAvailableOrderIdsRef.current.has(id));
                 if (hasNewOrder) {
                   playNotificationSound();
+                  showLocalRiderNotification({
+                    title: "BayanGo Rider",
+                    body: "May bagong order! Buksan ang Available tab.",
+                    data: { type: "new_order" },
+                  });
                   showToast("May bagong order! Buksan ang Available tab.");
                 }
               }
