@@ -365,7 +365,13 @@
                 }
               }
               lastAvailableOrderIdsRef.current = incomingOrderIds;
-              setAvailableOrders(list.reverse());
+              // Island orders first (para mahabol ang port), then Mainland
+              list.sort((a, b) => {
+                const aIsland = a.locationType === "Island" ? 0 : 1;
+                const bIsland = b.locationType === "Island" ? 0 : 1;
+                return aIsland - bIsland;
+              });
+              setAvailableOrders(list);
             },
           err => { console.error("Available orders error:", err.code); setAvailErr(err.code || "permission-denied"); }
         );
@@ -872,13 +878,26 @@
             const ts = order.createdAt?.toDate ? order.createdAt.toDate() : new Date(order.createdAt || 0);
             const regularItems = (order.items || []).filter(it => !it.isCustom);
             const customItems  = (order.items || []).filter(it => it.isCustom);
+            const isIsland = order.locationType === "Island";
             return (
               <div key={order.id} className="fade-up" style={{
                 background:"#fff", borderRadius:20, padding:"18px", marginBottom:12,
-                boxShadow:"0 2px 12px rgba(29,78,216,.08)",
-                border:"1px solid #DBEAFE",
+                boxShadow: isIsland ? "0 2px 16px rgba(29,78,216,.18)" : "0 2px 12px rgba(29,78,216,.08)",
+                border: isIsland ? "2px solid #1D4ED8" : "1px solid #DBEAFE",
                 animationDelay:`${i*.06}s`,
               }}>
+                {/* Location type + priority badge */}
+                {isIsland && (
+                  <div style={{
+                    display:"inline-flex", alignItems:"center", gap:5,
+                    background:"#1D4ED8", color:"#fff",
+                    borderRadius:20, padding:"4px 12px", fontSize:11, fontWeight:800,
+                    marginBottom:10,
+                  }}>
+                    <Ic n="water" />&nbsp;ISLAND — UNAHIN (Port Priority)
+                  </div>
+                )}
+
                 {/* Earnings badge */}
                 <div style={{ display:"flex", justifyContent:"space-between", alignItems:"flex-start", marginBottom:12 }}>
                   <div>
@@ -889,6 +908,15 @@
                     <div style={{ fontSize:13, color:"#64748B", marginTop:2 }}><Ic n="mobile-screen" style={{ marginRight:4 }} />{order.customer?.phone}</div>
                   </div>
                   <div style={{ textAlign:"right" }}>
+                    <div style={{
+                      fontSize:10, fontWeight:700, padding:"2px 8px", borderRadius:20, marginBottom:4,
+                      background: isIsland ? "#DBEAFE" : "#F0FDF4",
+                      color: isIsland ? "#1D4ED8" : "#166534",
+                      display:"inline-block",
+                    }}>
+                      <Ic n={isIsland ? "water" : "house"} style={{marginRight:3}} />
+                      {isIsland ? "Island" : "Mainland"}
+                    </div>
                     <div style={{ fontSize:11, color:"#64748B" }}>Kita mo</div>
                     <div style={{ fontSize:22, fontWeight:800, color:"#1D4ED8" }}>{fmt(order.deliveryFee || 0)}</div>
                   </div>

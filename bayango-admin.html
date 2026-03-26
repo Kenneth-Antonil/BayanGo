@@ -563,6 +563,151 @@
       );
     }
 
+    /* ══════════════════ GROCERY LIST TAB ══════════════════ */
+    function GroceryTab({ orders }) {
+      const today = (() => {
+        const ph = new Date(Date.now() + 8 * 60 * 60 * 1000);
+        const pad = n => String(n).padStart(2, "0");
+        return `${ph.getUTCFullYear()}-${pad(ph.getUTCMonth()+1)}-${pad(ph.getUTCDate())}`;
+      })();
+      const [filterDate,  setFilterDate]  = React.useState(today);
+      const [filterBatch, setFilterBatch] = React.useState("AM");
+
+      // Filter orders by deliveryDate + deliveryBatch
+      const batchOrders = orders.filter(o =>
+        o.deliveryDate === filterDate && o.deliveryBatch === filterBatch
+      );
+
+      // Aggregate all items across matched orders
+      const totals = {};
+      batchOrders.forEach(order => {
+        (order.items || []).forEach(item => {
+          if (item.isCustom) return; // skip custom items (no fixed qty/unit)
+          const key = item.name;
+          if (!totals[key]) totals[key] = { name: item.name, cat: item.cat || "sari", qty: 0 };
+          totals[key].qty += Number(item.qty) || 0;
+        });
+      });
+      // Custom items: list them separately (can't be summed by unit)
+      const customList = [];
+      batchOrders.forEach(order => {
+        (order.items || []).filter(i => i.isCustom).forEach(i => {
+          customList.push({ ...i, orderName: order.customer?.name || "?" });
+        });
+      });
+      const aggregated = Object.values(totals).sort((a, b) => a.name.localeCompare(b.name));
+
+      return (
+        <div style={{ padding:"18px 20px", maxWidth:600, margin:"0 auto" }}>
+          <div style={{ fontSize:17, fontWeight:800, color:"#166534", marginBottom:16 }}>
+            <Ic n="basket-shopping" style={{marginRight:8}} />Master Grocery List
+          </div>
+
+          {/* ── Filter Controls ── */}
+          <div style={{ display:"grid", gridTemplateColumns:"1fr auto", gap:10, marginBottom:16, alignItems:"end" }}>
+            <div>
+              <label style={{ fontSize:11, fontWeight:700, color:"#666", display:"block", marginBottom:5 }}>
+                <Ic n="calendar-day" style={{marginRight:4}} />Delivery Date
+              </label>
+              <input type="date" value={filterDate} onChange={e => setFilterDate(e.target.value)}
+                style={{ width:"100%", padding:"10px 12px", borderRadius:10, border:"1.5px solid #D1D5DB", fontSize:14, outline:"none" }} />
+            </div>
+            <div>
+              <label style={{ fontSize:11, fontWeight:700, color:"#666", display:"block", marginBottom:5 }}>Batch</label>
+              <div style={{ display:"flex", gap:6 }}>
+                {["AM","PM"].map(b => (
+                  <button key={b} onClick={() => setFilterBatch(b)} style={{
+                    padding:"10px 18px", borderRadius:10, fontSize:13, fontWeight:800,
+                    background: filterBatch === b ? (b === "AM" ? "#1D4ED8" : "#F59E0B") : "#F3F4F6",
+                    color: filterBatch === b ? "#fff" : "#888",
+                    border:"none", transition:"all .18s",
+                  }}>
+                    <Ic n={b === "AM" ? "sun" : "cloud-sun"} style={{marginRight:5}} />{b}
+                  </button>
+                ))}
+              </div>
+            </div>
+          </div>
+
+          {/* ── Summary badge ── */}
+          <div style={{ background:"#F0FDF4", borderRadius:12, padding:"10px 14px", marginBottom:16, border:"1px solid #BBF7D0", display:"flex", alignItems:"center", gap:8 }}>
+            <Ic n="clipboard-list" style={{color:"#166534", fontSize:16}} />
+            <span style={{ fontSize:13, fontWeight:700, color:"#166534" }}>
+              {batchOrders.length} order{batchOrders.length !== 1 ? "s" : ""} para sa {filterBatch} Batch — {filterDate}
+            </span>
+          </div>
+
+          {batchOrders.length === 0 ? (
+            <div style={{ textAlign:"center", padding:"50px 0", color:"#ccc" }}>
+              <Ic n="basket-shopping" size={48} style={{ marginBottom:10, color:"#ccc" }} />
+              <div style={{ fontSize:14, fontWeight:600, color:"#9CA3AF" }}>Walang orders para sa batch na ito.</div>
+            </div>
+          ) : (
+            <>
+              {/* ── Aggregated Regular Items ── */}
+              {aggregated.length > 0 && (
+                <div style={{ background:"#fff", borderRadius:16, border:"1px solid #E5E7EB", overflow:"hidden", marginBottom:14 }}>
+                  <div style={{ padding:"12px 16px", background:"#166534", color:"#fff", fontSize:13, fontWeight:800 }}>
+                    <Ic n="cart-shopping" style={{marginRight:6}} />Shopping List sa Pritil
+                  </div>
+                  {aggregated.map((item, i) => (
+                    <div key={item.name} style={{
+                      display:"flex", justifyContent:"space-between", alignItems:"center",
+                      padding:"11px 16px", borderBottom: i < aggregated.length-1 ? "1px solid #F3F4F6" : "none",
+                      background: i % 2 === 0 ? "#fff" : "#FAFAFA",
+                    }}>
+                      <span style={{ fontSize:14, fontWeight:600, color:"#1E293B" }}>
+                        <Ic n="circle" size={8} style={{marginRight:8, color:"#22C55E"}} />{item.name}
+                      </span>
+                      <span style={{ fontSize:14, fontWeight:800, color:"#166534", background:"#F0FDF4", padding:"3px 12px", borderRadius:20 }}>
+                        ×{item.qty}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              {/* ── Custom Items (per-order) ── */}
+              {customList.length > 0 && (
+                <div style={{ background:"#fff", borderRadius:16, border:"1px solid #FDE68A", overflow:"hidden", marginBottom:14 }}>
+                  <div style={{ padding:"12px 16px", background:"#F59E0B", color:"#fff", fontSize:13, fontWeight:800 }}>
+                    <Ic n="note-sticky" style={{marginRight:6}} />Custom Requests
+                  </div>
+                  {customList.map((item, i) => (
+                    <div key={i} style={{
+                      display:"flex", justifyContent:"space-between", alignItems:"center",
+                      padding:"11px 16px", borderBottom: i < customList.length-1 ? "1px solid #FEF3C7" : "none",
+                    }}>
+                      <div>
+                        <div style={{ fontSize:13, fontWeight:700, color:"#1E293B" }}>{item.name}</div>
+                        <div style={{ fontSize:11, color:"#9CA3AF", marginTop:1 }}>
+                          {item.unit} — order ni {item.orderName}
+                        </div>
+                      </div>
+                      <span style={{ fontSize:11, fontWeight:700, color:"#92400E", background:"#FEF3C7", padding:"3px 10px", borderRadius:20 }}>custom</span>
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              {/* ── Orders included ── */}
+              <div style={{ background:"#F8FAFC", borderRadius:14, padding:"12px 14px", border:"1px solid #E2E8F0" }}>
+                <div style={{ fontSize:11, fontWeight:700, color:"#64748B", marginBottom:8 }}>ORDERS SA BATCH NA ITO</div>
+                {batchOrders.map(o => (
+                  <div key={o.id} style={{ display:"flex", justifyContent:"space-between", fontSize:12, color:"#475569", padding:"4px 0", borderBottom:"1px solid #F1F5F9" }}>
+                    <span><Ic n="user" style={{marginRight:4}} />{o.customer?.name} — {o.customer?.address}</span>
+                    <span style={{ fontWeight:700, color: o.locationType === "Island" ? "#1D4ED8" : "#166534" }}>
+                      {o.locationType === "Island" ? "🏝 Island" : "🏠 Mainland"}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            </>
+          )}
+        </div>
+      );
+    }
+
     /* ══════════════════ ADMIN DASHBOARD ══════════════════ */
     function AdminDashboard({ orders, onUpdateStatus, onBroadcast, products, onAddProduct, onUpdateProduct, onDeleteProduct, marketPricing, onUpdateMarketPricing, tickets, vouchers, onAddVoucher, onUpdateVoucher, onDeleteVoucher, appUsageStats }) {
       const [tab,          setTab]          = useState("orders");
@@ -646,10 +791,11 @@
           {/* ── Tab Bar ── */}
           <div style={{ display:"flex", background:"#fff", borderBottom:"1px solid #E5E7EB", padding:"0 20px" }}>
             {[
-              { key:"orders",   label:"Mga Orders",   icon:"receipt" },
-              { key:"products", label:"Mga Produkto",  icon:"store" },
-              { key:"vouchers", label:"Vouchers",      icon:"ticket" },
-              { key:"support",  label:"Support",       icon:"headset", badge: tickets.filter(t=>t.status==="open").length },
+              { key:"orders",  label:"Mga Orders",  icon:"receipt" },
+              { key:"grocery", label:"Grocery",      icon:"basket-shopping" },
+              { key:"products",label:"Produkto",     icon:"store" },
+              { key:"vouchers",label:"Vouchers",     icon:"ticket" },
+              { key:"support", label:"Support",      icon:"headset", badge: tickets.filter(t=>t.status==="open").length },
             ].map(t => (
               <button key={t.key} onClick={() => setTab(t.key)} style={{
                 flex:1, padding:"14px 8px", fontSize:13, fontWeight:700,
@@ -668,6 +814,10 @@
 
           {tab === "support" && (
             <SupportPanel tickets={tickets} />
+          )}
+
+          {tab === "grocery" && (
+            <GroceryTab orders={orders} />
           )}
 
           {tab === "products" && (
