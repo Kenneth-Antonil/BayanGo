@@ -74,6 +74,14 @@
 
     const SERVICE_FEE = 20;
     const fmt = n => "₱" + Number(n).toLocaleString("en-PH", { minimumFractionDigits:0 });
+    const DEFAULT_MARKET_FACTOR = 1;
+    const roundPrice = (n) => Math.max(0, Math.round(Number(n) || 0));
+    const computeLivePrice = (product, marketPricing = {}) => {
+      const manualPrice = Number(product?.basePrice ?? product?.price ?? 0);
+      if (product?.autoPriceEnabled === false) return roundPrice(manualPrice);
+      const factor = Number(marketPricing?.[product?.cat]) || DEFAULT_MARKET_FACTOR;
+      return roundPrice(manualPrice * factor);
+    };
     const isImageSrc = (value) =>
       typeof value === "string" &&
       /^(https?:\/\/|blob:|data:image\/)/i.test(value);
@@ -264,9 +272,10 @@
       const [vouchers, setVouchers] = useState([]);
       const [ready,    setReady]    = useState(false);
       const [user,     setUser]     = useState(null);
+      const [marketPricing, setMarketPricing] = useState({});
 
       useEffect(() => {
-        let unsubOrders, unsubProducts, unsubTickets, unsubVouchers, unsubAuth;
+        let unsubOrders, unsubProducts, unsubTickets, unsubVouchers, unsubMarket, unsubAuth;
         (async () => {
           const { db, fns, auth, authFns } = await initFirebase();
           const { onAuthStateChanged } = authFns;
@@ -299,6 +308,8 @@
                   name: typeof v.name === "string" ? v.name : "",
                   cat: typeof v.cat === "string" ? v.cat : "isda",
                   price: Number.isFinite(Number(v.price)) ? Number(v.price) : 0,
+                  basePrice: Number.isFinite(Number(v.basePrice)) ? Number(v.basePrice) : (Number.isFinite(Number(v.price)) ? Number(v.price) : 0),
+                  autoPriceEnabled: v.autoPriceEnabled !== false,
                   unit: typeof v.unit === "string" && v.unit ? v.unit : "kg",
                   stock: v.stock !== false,
                   img: typeof v.img === "string" ? v.img : "",
@@ -308,6 +319,18 @@
               setProducts(list);
             }, err => console.error("Products snapshot error:", err));
             unsubProducts = () => fns.off(prodsRef);
+
+            const marketPricingRef = fns.ref(db, "settings/marketPricing");
+            fns.onValue(marketPricingRef, snap => {
+              const raw = snap.val() || {};
+              const normalized = {};
+              CATEGORIES.forEach(c => {
+                const val = Number(raw?.[c.id]);
+                normalized[c.id] = Number.isFinite(val) && val > 0 ? val : DEFAULT_MARKET_FACTOR;
+              });
+              setMarketPricing(normalized);
+            }, err => console.error("Market pricing snapshot error:", err));
+            unsubMarket = () => fns.off(marketPricingRef);
 
             // Listen orders realtime (query first, fallback to plain ref if query is denied by rules)
             const ordersQueryRef = fns.rtdbQuery(fns.ref(db, "orders"), fns.orderByChild("createdAt"));
@@ -370,7 +393,7 @@
             unsubVouchers = () => fns.off(vouchersRef);
           });
         })();
-        return () => { unsubOrders?.(); unsubProducts?.(); unsubTickets?.(); unsubVouchers?.(); unsubAuth?.(); };
+        return () => { unsubOrders?.(); unsubProducts?.(); unsubTickets?.(); unsubVouchers?.(); unsubMarket?.(); unsubAuth?.(); };
       }, []);
 
       const addOrder = useCallback(async (order) => {
@@ -448,6 +471,13 @@
         await fns.remove(fns.ref(db, "products/" + productId));
       }, []);
 
+      const updateMarketPricing = useCallback(async (catId, factor) => {
+        const { db, fns } = await initFirebase();
+        await fns.update(fns.ref(db, "settings/marketPricing"), {
+          [catId]: Number(factor),
+        });
+      }, []);
+
       const addVoucher = useCallback(async (data) => {
         const { db, fns } = await initFirebase();
         await fns.push(fns.ref(db, "vouchers"), { ...data, createdAt: Date.now() });
@@ -505,6 +535,8 @@
             orders={orders} onUpdateStatus={updateOrderStatus} onBroadcast={sendBroadcast}
             products={products} onAddProduct={addProduct}
             onUpdateProduct={updateProduct} onDeleteProduct={deleteProduct}
+            marketPricing={marketPricing}
+            onUpdateMarketPricing={updateMarketPricing}
             tickets={tickets}
             vouchers={vouchers}
             onAddVoucher={addVoucher}
@@ -516,7 +548,7 @@
     }
 
     /* ══════════════════ ADMIN DASHBOARD ══════════════════ */
-    function AdminDashboard({ orders, onUpdateStatus, onBroadcast, products, onAddProduct, onUpdateProduct, onDeleteProduct, tickets, vouchers, onAddVoucher, onUpdateVoucher, onDeleteVoucher }) {
+    function AdminDashboard({ orders, onUpdateStatus, onBroadcast, products, onAddProduct, onUpdateProduct, onDeleteProduct, marketPricing, onUpdateMarketPricing, tickets, vouchers, onAddVoucher, onUpdateVoucher, onDeleteVoucher }) {
       const [tab,          setTab]          = useState("orders");
       const [selected,     setSelected]     = useState(null);
       const [updating,     setUpdating]     = useState(null);
@@ -628,6 +660,8 @@
               onAdd={onAddProduct}
               onUpdate={onUpdateProduct}
               onDelete={onDeleteProduct}
+              marketPricing={marketPricing}
+              onUpdateMarketPricing={onUpdateMarketPricing}
             />
           )}
 
@@ -933,7 +967,7 @@
     }
 
     /* ══════════════════ PRODUCTS PANEL ══════════════════ */
-    function ProductsPanel({ products, onAdd, onUpdate, onDelete }) {
+    function ProductsPanel({ products, onAdd, onUpdate, onDelete, marketPricing, onUpdateMarketPricing }) {
       const [catFilter,  setCatFilter]  = useState("all");
       const [searchQ,    setSearchQ]    = useState("");
       const [showModal,  setShowModal]  = useState(false);
@@ -942,6 +976,7 @@
       const [delBusy,   setDelBusy]   = useState(false);
       const [saving,    setSaving]    = useState(false);
       const [deleteAllBusy, setDeleteAllBusy] = useState(false);
+      const [savingFactor, setSavingFactor] = useState(null);
 
       const handleDeleteAll = async () => {
         if (deleteAllBusy) return;
@@ -996,6 +1031,33 @@
 
       return (
         <div style={{ paddingBottom:80 }}>
+          <div style={{ margin:"0 20px 8px", background:"#fff", borderRadius:14, border:"1px solid #E5E7EB", padding:"12px 12px 10px" }}>
+            <div style={{ fontSize:12, fontWeight:800, color:"#166534", marginBottom:8 }}><Ic n="chart-line" style={{ marginRight:6 }} />Market Multiplier per Category</div>
+            <div style={{ display:"grid", gridTemplateColumns:"repeat(auto-fit,minmax(150px,1fr))", gap:8 }}>
+              {CATEGORIES.map(c => (
+                <label key={c.id} style={{ background:"#F9FAFB", border:"1px solid #E5E7EB", borderRadius:10, padding:"8px 10px", display:"block" }}>
+                  <div style={{ fontSize:11, fontWeight:700, color:c.color, marginBottom:5 }}><Ic n={c.icon} style={{ marginRight:4 }} />{c.label}</div>
+                  <input
+                    type="number"
+                    step="0.01"
+                    min="0.1"
+                    value={marketPricing?.[c.id] ?? DEFAULT_MARKET_FACTOR}
+                    onChange={async (e) => {
+                      const next = Number(e.target.value);
+                      if (!Number.isFinite(next) || next <= 0) return;
+                      setSavingFactor(c.id);
+                      try { await onUpdateMarketPricing(c.id, next); }
+                      finally { setSavingFactor(null); }
+                    }}
+                    style={{ width:"100%", padding:"8px", borderRadius:8, border:"1px solid #D1D5DB", fontSize:12 }}
+                  />
+                </label>
+              ))}
+            </div>
+            <div style={{ fontSize:11, color:"#777", marginTop:8 }}>
+              {savingFactor ? "Nagse-save ng market factor..." : "1.00 = normal, 1.10 = +10%, 0.90 = -10%"}
+            </div>
+          </div>
 
           {/* Search */}
           <div style={{ padding:"14px 20px 10px" }}>
@@ -1088,8 +1150,11 @@
                     <div style={{ fontSize:14, fontWeight:800, color:"#111", overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>{p.name}</div>
                     <div style={{ fontSize:12, color:"#888", marginTop:2, display:"flex", alignItems:"center", gap:4 }}>
                       {cat && <><Ic n={cat.icon} size={11} style={{ color:cat.color }} /><span>{cat.label}</span><span>•</span></>}
-                      <span style={{ fontWeight:700, color:"#166534" }}>₱{p.price}</span>
+                      <span style={{ fontWeight:700, color:"#166534" }}>₱{computeLivePrice(p, marketPricing)}</span>
                       <span>/ {p.unit}</span>
+                      {p.autoPriceEnabled !== false && (
+                        <span style={{ fontSize:10, color:"#0EA5E9", fontWeight:700, marginLeft:4 }}>AUTO</span>
+                      )}
                     </div>
                     <span style={{
                       display:"inline-block", marginTop:5,
@@ -1424,7 +1489,8 @@
       const UNITS = ["kg","pc","tali","bag","gal","litro","bundle","dozen","box"];
       const [name,  setName]  = useState(product?.name  || "");
       const [cat,   setCat]   = useState(product?.cat   || "isda");
-      const [price, setPrice] = useState(product?.price != null ? String(product.price) : "");
+      const [price, setPrice] = useState(product?.basePrice != null ? String(product.basePrice) : (product?.price != null ? String(product.price) : ""));
+      const [autoPriceEnabled, setAutoPriceEnabled] = useState(product?.autoPriceEnabled !== false);
       const [unit,  setUnit]  = useState(product?.unit  || "kg");
       const [stock, setStock] = useState(product?.stock !== false);
       const [img,       setImg]       = useState(product?.img || "");
@@ -1458,7 +1524,7 @@
 
       const handleSubmit = () => {
         if (!valid) return;
-        onSave({ name: name.trim(), cat, price: Number(price), unit, stock, img });
+        onSave({ name: name.trim(), cat, price: Number(price), basePrice: Number(price), autoPriceEnabled, unit, stock, img });
       };
 
       return (
@@ -1537,7 +1603,7 @@
             {/* Price + Unit */}
             <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:12, marginBottom:16 }}>
               <div>
-                <label style={{ fontSize:11, fontWeight:700, color:"#888", display:"block", marginBottom:5 }}>PRESYO (₱) *</label>
+                <label style={{ fontSize:11, fontWeight:700, color:"#888", display:"block", marginBottom:5 }}>BASE / MANUAL PRICE (₱) *</label>
                 <input type="number" value={price} onChange={e => setPrice(e.target.value)} placeholder="0" min="0"
                   style={{ width:"100%", padding:"12px 14px", borderRadius:10, border:"1.5px solid #E5E7EB", fontSize:15, outline:"none" }}
                   onFocus={e => e.target.style.borderColor="#22C55E"}
@@ -1554,6 +1620,23 @@
                   </select>
                   <Ic n="chevron-down" size={11} style={{ position:"absolute", right:14, top:"50%", transform:"translateY(-50%)", color:"#aaa", pointerEvents:"none" }} />
                 </div>
+              </div>
+            </div>
+
+            <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", background:"#EFF6FF", padding:"12px 14px", borderRadius:12, marginBottom:16, border:"1px solid #BFDBFE" }}>
+              <div>
+                <div style={{ fontSize:13, fontWeight:700, color:"#1D4ED8" }}>Auto Price via Market Factor</div>
+                <div style={{ fontSize:11, color:"#1E40AF", marginTop:1 }}>
+                  Kapag ON, ang final price ay Base Price × category market multiplier.
+                </div>
+              </div>
+              <div onClick={() => setAutoPriceEnabled(!autoPriceEnabled)} style={{
+                width:50, height:28, borderRadius:14, cursor:"pointer",
+                background: autoPriceEnabled ? "#3B82F6" : "#D1D5DB",
+                display:"flex", alignItems:"center", padding:"0 3px",
+                justifyContent: autoPriceEnabled ? "flex-end" : "flex-start"
+              }}>
+                <div style={{ width:22, height:22, borderRadius:"50%", background:"#fff", boxShadow:"0 1px 4px rgba(0,0,0,.2)" }} />
               </div>
             </div>
 
