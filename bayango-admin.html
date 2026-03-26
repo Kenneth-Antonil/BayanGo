@@ -560,6 +560,7 @@
       const [tab,          setTab]          = useState("orders");
       const [selected,     setSelected]     = useState(null);
       const [updating,     setUpdating]     = useState(null);
+      const [ordersView,   setOrdersView]   = useState("active");
       const [filterStatus, setFilterStatus] = useState("all");
       const [searchQ,      setSearchQ]      = useState("");
       const [svcJson,      setSvcJson]      = useState(() => localStorage.getItem("bayango_fcm_service_account") || "");
@@ -570,7 +571,9 @@
 
       const STATUS_FLOW = ["pending","buying","otw","delivered"];
 
-      const filtered = orders.filter(o => {
+      const viewFilteredOrders = orders.filter(o => ordersView === "archive" ? o.status === "delivered" : o.status !== "delivered");
+
+      const filtered = viewFilteredOrders.filter(o => {
         if (filterStatus !== "all" && o.status !== filterStatus) return false;
         if (searchQ) {
           const q = searchQ.toLowerCase();
@@ -620,6 +623,7 @@
       };
 
       const deliveredOrders = orders.filter(o => o.status === "delivered");
+      const activeOrders = orders.filter(o => o.status !== "delivered");
       const totalRevenue = deliveredOrders.reduce((s,o) => s + (o.serviceFee||0), 0);
       const todayStr = new Date().toLocaleDateString("en-PH");
       const todayOrders = orders.filter(o => {
@@ -742,6 +746,26 @@
 
           {/* ── Search ── */}
           <div style={{ padding:"6px 20px 14px" }}>
+            <div style={{ marginBottom:10, display:"grid", gridTemplateColumns:"1fr 1fr", gap:8, background:"#F1F5F9", borderRadius:14, border:"1px solid #E2E8F0", padding:6 }}>
+              <button onClick={() => { setOrdersView("active"); if (filterStatus === "delivered") setFilterStatus("all"); }} style={{
+                padding:"10px 12px", borderRadius:10, fontSize:12, fontWeight:800,
+                background:ordersView==="active" ? "#166534" : "transparent",
+                color:ordersView==="active" ? "#fff" : "#475569",
+                boxShadow:ordersView==="active" ? "0 2px 8px rgba(22,101,52,.28)" : "none",
+              }}>
+                <Ic n="clock-rotate-left" style={{ marginRight:6 }} />
+                Active ({activeOrders.length})
+              </button>
+              <button onClick={() => { setOrdersView("archive"); if (filterStatus === "all") setFilterStatus("delivered"); }} style={{
+                padding:"10px 12px", borderRadius:10, fontSize:12, fontWeight:800,
+                background:ordersView==="archive" ? "#1E293B" : "transparent",
+                color:ordersView==="archive" ? "#fff" : "#475569",
+                boxShadow:ordersView==="archive" ? "0 2px 8px rgba(30,41,59,.25)" : "none",
+              }}>
+                <Ic n="box-archive" style={{ marginRight:6 }} />
+                Archive ({deliveredOrders.length})
+              </button>
+            </div>
             <div style={{ background:"#fff", borderRadius:14, padding:"11px 16px", display:"flex", alignItems:"center", gap:10, boxShadow:"0 1px 4px rgba(0,0,0,.07)", border:"1px solid #E9ECEF" }}>
               <Ic n="magnifying-glass" style={{ opacity:.4, fontSize:16 }} />
               <input placeholder="Hanapin ang order (pangalan, phone, item)..." value={searchQ}
@@ -756,7 +780,7 @@
             {filtered.length === 0 ? (
               <div style={{ textAlign:"center", padding:"60px 0", color:"#ccc" }}>
                 <Ic n="inbox" size={48} style={{ marginBottom:10, color:"#ccc" }} />
-                <div style={{ fontSize:14, fontWeight:600 }}>Walang orders</div>
+                <div style={{ fontSize:14, fontWeight:600 }}>{ordersView === "archive" ? "Wala pang archived orders" : "Walang active orders"}</div>
               </div>
             ) : filtered.map(order => {
               const st = STATUS_INFO[order.status] || STATUS_INFO.pending;
