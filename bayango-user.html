@@ -195,46 +195,6 @@
     /* ══════════════════ FIREBASE AUTH INIT ══════════════════ */
     // _fbApp and _fbAuth are already initialized via <script> tags above
 
-    /* ══════════════════ CLAUDE API ══════════════════ */
-    function getApiKey() {
-      let key = localStorage.getItem("bayango_api_key");
-      if (!key) {
-        key = window.prompt("Ilagay ang Anthropic API Key para sa AI Recipe feature:");
-        if (key) localStorage.setItem("bayango_api_key", key.trim());
-      }
-      return key ? key.trim() : null;
-    }
-
-    async function askClaude(system, user) {
-      const apiKey = getApiKey();
-      if (!apiKey) throw new Error("Walang API key.");
-      const res = await fetch("https://api.anthropic.com/v1/messages", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          "x-api-key": apiKey,
-          "anthropic-version": "2023-06-01",
-          "anthropic-dangerous-direct-browser-access": "true",
-        },
-        body: JSON.stringify({
-          model: "claude-sonnet-4-20250514",
-          max_tokens: 1000,
-          system,
-          messages: [{ role:"user", content:user }],
-        }),
-      });
-      if (!res.ok) {
-        const err = await res.json().catch(() => ({}));
-        if (res.status === 401) {
-          localStorage.removeItem("bayango_api_key");
-          throw new Error("Invalid API key. I-clear at subukan ulit.");
-        }
-        throw new Error(err?.error?.message || `HTTP ${res.status}`);
-      }
-      const data = await res.json();
-      return data.content?.map(b => b.text || "").join("") || "";
-    }
-
     /* ══════════════════ INSTALL BANNER ══════════════════ */
     function InstallBanner() {
       const [visible,  setVisible]  = useState(false);
@@ -777,7 +737,6 @@
       }, [user?.uid]);
       const [searchQ,        setSearchQ]        = useState("");
       const [orderPlaced,    setOrderPlaced]    = useState(false);
-      const [showAI,         setShowAI]         = useState(false);
       const getInitialPage = () => {
         try {
           const url = new URL(window.location.href);
@@ -1167,7 +1126,7 @@
           </div>
 
           {/* ── Products Grid ── */}
-          <div style={{ padding:"0 20px 16px" }}>
+          <div style={{ padding:`0 20px ${totalItemCount > 0 && !showCart ? "138px" : "16px"}` }}>
             <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:12 }}>
               {filtered.map((p, i) => (
                 <div key={p.id} className="fade-up" style={{
@@ -1227,23 +1186,6 @@
               </div>
             )}
           </div>
-
-          {/* ── AI FAB ── */}
-          {cartItems.length > 0 && (
-            <div style={{ position:"fixed", bottom:90, right:20, zIndex:90 }}>
-              <button onClick={() => setShowAI(true)} style={{
-                width:56, height:56, borderRadius:16,
-                background:"linear-gradient(135deg,#7C3AED,#A855F7)",
-                color:"#fff", fontSize:26, display:"flex", alignItems:"center", justifyContent:"center",
-                boxShadow:"0 6px 24px rgba(124,58,237,.45)"
-              }}><Ic n="robot" size={24} /></button>
-              <div style={{
-                position:"absolute", top:-8, right:-4,
-                background:"#22C55E", color:"#fff", borderRadius:10,
-                fontSize:8, fontWeight:800, padding:"2px 6px", whiteSpace:"nowrap", letterSpacing:".03em"
-              }}>AI Recipe</div>
-            </div>
-          )}
 
           {/* ── Floating Cart ── */}
           {totalItemCount > 0 && !showCart && (
@@ -1355,9 +1297,6 @@
               </div>
             </div>
           )}
-
-          {/* ── AI Modal ── */}
-          {showAI && <AIRecipeModal cartItems={cartItems} onClose={() => setShowAI(false)} />}
 
           {/* ── Cart Drawer ── */}
           {showCart && (
@@ -2671,135 +2610,6 @@
                   )
                 )}
               </>
-            )}
-          </div>
-        </div>
-      );
-    }
-
-    /* ══════════════════ AI RECIPE MODAL ══════════════════ */
-    function AIRecipeModal({ cartItems, onClose }) {
-      const [loading,  setLoading]  = useState(false);
-      const [recipes,  setRecipes]  = useState(null);
-      const [error,    setError]    = useState(null);
-      const [selected, setSelected] = useState(null);
-
-      const generate = async () => {
-        setLoading(true); setError(null); setRecipes(null); setSelected(null);
-        try {
-          const itemList = cartItems.map(i => `${i.name} (${i.qty} ${i.unit})`).join(", ");
-          const system = `Ikaw ay isang expert na Filipino chef na taga-Rizal.
-Magbibigay ka ng tatlong (3) putahe na recipe gamit ang mga sangkap na nasa basket ng customer.
-Sumagot LAMANG ng valid JSON, walang markdown, walang backtick, walang text bago o pagkatapos.
-Format:
-[{"name":"Pangalan","emoji":"🍳","difficulty":"Madali|Katamtaman|Mahirap","time":"XX minuto","description":"1-2 sentence sa Tagalog","steps":["Hakbang 1","Hakbang 2"],"tip":"Pro tip sa Tagalog"}]`;
-          const raw = await askClaude(system, `Mga sangkap: ${itemList}. Mag-suggest ng 3 putahe.`);
-          setRecipes(JSON.parse(raw.replace(/```json|```/g,"").trim()));
-        } catch(e) {
-          setError("May error sa AI. Subukan ulit!");
-        } finally {
-          setLoading(false);
-        }
-      };
-
-      return (
-        <div style={{ position:"fixed", inset:0, zIndex:400, background:"rgba(0,0,0,.7)", backdropFilter:"blur(8px)", display:"flex", alignItems:"flex-end", justifyContent:"center" }}>
-          <div className="slide-up" style={{ width:"100%", maxWidth:480, background:"#fff", borderRadius:"24px 24px 0 0", padding:"26px 22px 40px", maxHeight:"90vh", overflowY:"auto" }}>
-            <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:8 }}>
-              <div>
-                <h2 style={{ fontSize:21, fontWeight:800 }}><Ic n="robot" style={{marginRight:6}} />Ano Lulutuin?</h2>
-                <p style={{ fontSize:12, color:"#aaa", marginTop:2 }}>AI-powered recipe suggestions</p>
-              </div>
-              <button onClick={onClose} style={{ width:36, height:36, borderRadius:10, background:"#F3F4F6", fontSize:18, display:"flex", alignItems:"center", justifyContent:"center" }}><Ic n="xmark" /></button>
-            </div>
-
-            <div style={{ background:"#F0FDF4", borderRadius:14, padding:"12px 14px", marginBottom:18, border:"1px solid #BBF7D0" }}>
-              <div style={{ fontSize:11, fontWeight:700, color:"#166534", marginBottom:8 }}><Ic n="basket-shopping" style={{marginRight:4}} />Mga sangkap sa basket:</div>
-              <div style={{ display:"flex", flexWrap:"wrap", gap:6 }}>
-                {cartItems.map(i => (
-                  <span key={i.id} style={{ background:"#fff", border:"1px solid #D1FAE5", borderRadius:20, padding:"4px 10px", fontSize:11, fontWeight:700, color:"#166534" }}>
-                    {i.name}
-                  </span>
-                ))}
-              </div>
-            </div>
-
-            {!recipes && (
-              <button onClick={generate} disabled={loading} style={{
-                width:"100%", padding:"16px", borderRadius:16,
-                background:loading?"#E5E7EB":"linear-gradient(135deg,#7C3AED,#A855F7)",
-                color:loading?"#aaa":"#fff", fontSize:15, fontWeight:700,
-                boxShadow:loading?"none":"0 4px 20px rgba(124,58,237,.35)",
-                display:"flex", alignItems:"center", justifyContent:"center", gap:10
-              }}>
-                {loading ? (<><Ic n="gear" className="spin" size={18} style={{marginRight:6}} /><span className="ai-pulse">Nag-iisip si AI...</span></>) : (<><Ic n="wand-magic-sparkles" style={{marginRight:6}} />Mag-suggest ng Recipe</>)}
-              </button>
-            )}
-
-            {error && (
-              <div style={{ background:"#FEF2F2", border:"1px solid #FECACA", borderRadius:12, padding:"12px 14px", marginTop:14, fontSize:13, color:"#DC2626", fontWeight:500 }}>
-                <Ic n="triangle-exclamation" style={{marginRight:4}} />{error} <button onClick={generate} style={{ marginLeft:8, color:"#DC2626", textDecoration:"underline", fontWeight:700 }}>Ulit</button>
-              </div>
-            )}
-
-            {recipes && !selected && (
-              <div style={{ marginTop:8 }}>
-                <p style={{ fontSize:12, color:"#aaa", marginBottom:12, textAlign:"center" }}>Piliin ang gusto mong lutuin:</p>
-                {recipes.map((r,i) => (
-                  <button key={i} onClick={() => setSelected(r)} className="fade-up" style={{
-                    width:"100%", textAlign:"left", background:"#fff", borderRadius:16,
-                    padding:"16px", marginBottom:10, border:"1px solid #E5E7EB",
-                    boxShadow:"0 2px 8px rgba(0,0,0,.04)", animationDelay:`${i*.1}s`
-                  }}>
-                    <div style={{ display:"flex", alignItems:"center", gap:12, marginBottom:8 }}>
-                      <span style={{ fontSize:34 }}>{r.emoji}</span>
-                      <div>
-                        <div style={{ fontSize:15, fontWeight:800, color:"#111" }}>{r.name}</div>
-                        <div style={{ display:"flex", gap:6, marginTop:4 }}>
-                          <span style={{ fontSize:10, fontWeight:700, background:"#F0FDF4", color:"#166534", padding:"2px 8px", borderRadius:6 }}><Ic n="clock" style={{marginRight:3}} />{r.time}</span>
-                          <span style={{ fontSize:10, fontWeight:700, background:"#FEF3C7", color:"#92400E", padding:"2px 8px", borderRadius:6 }}><Ic n="fire" style={{marginRight:3}} />{r.difficulty}</span>
-                        </div>
-                      </div>
-                    </div>
-                    <p style={{ fontSize:12, color:"#777", lineHeight:1.55 }}>{r.description}</p>
-                  </button>
-                ))}
-                <button onClick={() => { setRecipes(null); generate(); }} style={{
-                  width:"100%", padding:"12px", borderRadius:12, background:"#F9FAFB",
-                  border:"1px solid #E5E7EB", fontSize:13, fontWeight:600, color:"#888"
-                }}><Ic n="rotate" style={{marginRight:6}} />Ibang suggestions</button>
-              </div>
-            )}
-
-            {selected && (
-              <div className="fade-up">
-                <button onClick={() => setSelected(null)} style={{ color:"#7C3AED", fontWeight:700, fontSize:13, marginBottom:16, display:"flex", alignItems:"center", gap:4 }}><Ic n="arrow-left" style={{marginRight:4}} />Bumalik</button>
-                <div style={{ textAlign:"center", marginBottom:20 }}>
-                  <div style={{ fontSize:60 }}>{selected.emoji}</div>
-                  <h3 style={{ fontSize:21, fontWeight:800, marginTop:8 }}>{selected.name}</h3>
-                  <div style={{ display:"flex", gap:8, justifyContent:"center", marginTop:8 }}>
-                    <span style={{ fontSize:11, fontWeight:700, background:"#F0FDF4", color:"#166534", padding:"4px 12px", borderRadius:20 }}><Ic n="clock" style={{marginRight:3}} />{selected.time}</span>
-                    <span style={{ fontSize:11, fontWeight:700, background:"#FEF3C7", color:"#92400E", padding:"4px 12px", borderRadius:20 }}><Ic n="fire" style={{marginRight:3}} />{selected.difficulty}</span>
-                  </div>
-                  <p style={{ fontSize:13, color:"#777", lineHeight:1.6, marginTop:12 }}>{selected.description}</p>
-                </div>
-                <div style={{ background:"#F9FAFB", borderRadius:16, padding:"16px", marginBottom:14, border:"1px solid #E5E7EB" }}>
-                  <div style={{ fontSize:12, fontWeight:700, color:"#444", marginBottom:12 }}><Ic n="list-ol" style={{marginRight:4}} />Paraan ng Pagluto:</div>
-                  {selected.steps.map((step,i) => (
-                    <div key={i} style={{ display:"flex", gap:12, marginBottom:12, alignItems:"flex-start" }}>
-                      <div style={{ width:26, height:26, borderRadius:8, background:"#7C3AED", color:"#fff", fontSize:11, fontWeight:800, display:"flex", alignItems:"center", justifyContent:"center", flexShrink:0 }}>{i+1}</div>
-                      <p style={{ fontSize:13, color:"#555", lineHeight:1.55, margin:0, paddingTop:3 }}>{step}</p>
-                    </div>
-                  ))}
-                </div>
-                <div style={{ background:"#FFF7ED", borderRadius:14, padding:"14px 16px", border:"1px solid #FED7AA", display:"flex", gap:10 }}>
-                  <Ic n="lightbulb" size={18} style={{ color:"#EA580C" }} />
-                  <div>
-                    <div style={{ fontSize:11, fontWeight:800, color:"#EA580C", marginBottom:4 }}>Pro Tip</div>
-                    <p style={{ fontSize:12, color:"#9A3412", lineHeight:1.55, margin:0 }}>{selected.tip}</p>
-                  </div>
-                </div>
-              </div>
             )}
           </div>
         </div>
