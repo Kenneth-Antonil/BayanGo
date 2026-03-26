@@ -14,6 +14,7 @@
   <link rel="apple-touch-icon" href="https://i.imgur.com/wL8wcBB.jpeg" />
   <link rel="icon" href="https://i.imgur.com/wL8wcBB.jpeg" />
   <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;700;800&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" />
   <style>
     * { box-sizing: border-box; margin: 0; padding: 0; }
     body {
@@ -24,7 +25,7 @@
       display: flex;
       justify-content: center;
       align-items: center;
-      padding: 20px;
+      padding: 18px;
     }
     .card {
       width: 100%;
@@ -33,23 +34,50 @@
       overflow: hidden;
       background: rgba(255, 255, 255, 0.1);
       border: 1px solid rgba(255, 255, 255, 0.22);
-      backdrop-filter: blur(8px);
+      backdrop-filter: blur(10px);
       box-shadow: 0 24px 60px rgba(0,0,0,.35);
     }
-    .hero { padding: 28px 24px 10px; text-align: center; }
-    .logo { width: 130px; object-fit: contain; filter: drop-shadow(0 10px 24px rgba(0,0,0,.35)); margin-bottom: 14px; }
-    h1 { font-size: 26px; font-weight: 800; line-height: 1.15; margin-bottom: 10px; }
-    .sub { font-size: 14px; color: rgba(255,255,255,.88); line-height: 1.55; }
-    .chips { padding: 14px 18px 4px; display: flex; flex-wrap: wrap; gap: 8px; justify-content: center; }
-    .chip {
-      padding: 9px 12px;
-      border-radius: 999px;
-      background: rgba(255,255,255,.12);
-      border: 1px solid rgba(255,255,255,.16);
-      font-size: 12px;
-      font-weight: 700;
+    .hero { padding: 24px 20px 10px; text-align: center; }
+    .logo { width: 124px; object-fit: contain; filter: drop-shadow(0 10px 24px rgba(0,0,0,.35)); margin-bottom: 12px; }
+    h1 { font-size: 26px; font-weight: 800; line-height: 1.15; margin-bottom: 8px; }
+    .sub { font-size: 13px; color: rgba(255,255,255,.88); line-height: 1.55; }
+    .perk {
+      margin: 14px 16px 0;
+      border-radius: 14px;
+      border: 1px solid rgba(255,255,255,.24);
+      background: rgba(240, 253, 244, .16);
+      padding: 11px 12px;
+      display: flex;
+      gap: 10px;
+      align-items: center;
     }
-    .cta-wrap { padding: 18px; display: grid; gap: 10px; }
+    .perk .icon {
+      width: 32px;
+      height: 32px;
+      border-radius: 10px;
+      background: rgba(255,255,255,.22);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: #ECFCCB;
+      font-size: 14px;
+    }
+    .perk .label { font-size: 11px; font-weight: 700; color: rgba(255,255,255,.78); letter-spacing: .3px; }
+    .perk .value { font-size: 14px; font-weight: 800; color: #fff; }
+    .features { padding: 12px 16px 2px; display: grid; gap: 8px; }
+    .feature {
+      padding: 10px 11px;
+      border-radius: 12px;
+      border: 1px solid rgba(255,255,255,.14);
+      background: rgba(255,255,255,.10);
+      font-size: 13px;
+      font-weight: 600;
+      display: flex;
+      align-items: center;
+      gap: 9px;
+    }
+    .feature i { width: 20px; text-align: center; color: #DCFCE7; }
+    .cta-wrap { padding: 16px; display: grid; gap: 10px; }
     .btn {
       width: 100%;
       border: none;
@@ -61,55 +89,70 @@
       transition: transform .15s ease;
     }
     .btn:active { transform: scale(.98); }
-    .btn-install { background: #fff; color: #166534; }
-    .btn-open { background: rgba(255,255,255,.16); color: #fff; border: 1px solid rgba(255,255,255,.18); }
-    .note { text-align: center; font-size: 12px; color: rgba(255,255,255,.78); padding: 0 20px 20px; line-height: 1.5; }
+    .btn-install {
+      background: #fff;
+      color: #166534;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      gap: 9px;
+    }
+    .btn-install[disabled] { opacity: .6; cursor: not-allowed; }
     .steps {
-      margin: 0 18px 18px;
-      border-radius: 16px;
+      margin: 0 16px 12px;
+      border-radius: 14px;
       background: rgba(0,0,0,.18);
-      padding: 14px;
+      border: 1px solid rgba(255,255,255,.13);
+      padding: 12px;
       display: none;
       font-size: 12px;
       line-height: 1.65;
       color: rgba(255,255,255,.92);
     }
     .steps.show { display: block; }
+    .note { text-align: center; font-size: 11px; color: rgba(255,255,255,.78); padding: 0 18px 18px; line-height: 1.5; }
   </style>
 </head>
 <body>
   <div class="card">
     <div class="hero">
       <img class="logo" src="https://i.imgur.com/MfhVlCm.png" alt="BayanGo" />
-      <h1>Mas mabilis kung naka-install ang BayanGo</h1>
-      <p class="sub">One-tap open, live order tracking, at mas smooth na shopping experience para sa pamilihang Binangonan.</p>
+      <h1>I-install ang BayanGo App</h1>
+      <p class="sub">App-only access para sa mas mabilis na checkout, live rider tracking, at instant order updates.</p>
     </div>
 
-    <div class="chips">
-      <span class="chip">⚡ Mas mabilis mag-load</span>
-      <span class="chip">🔔 Ready sa updates</span>
-      <span class="chip">🛵 Live rider tracking</span>
-      <span class="chip">🎁 Promo-ready</span>
+    <div class="perk">
+      <div class="icon"><i class="fa-solid fa-tag"></i></div>
+      <div>
+        <div class="label">WELCOME OFFER</div>
+        <div class="value">FREE DELIVERY SA FIRST ORDER</div>
+      </div>
+    </div>
+
+    <div class="features">
+      <div class="feature"><i class="fa-solid fa-bolt"></i>Mas mabilis mag-load at mag-open</div>
+      <div class="feature"><i class="fa-solid fa-bell"></i>Real-time updates sa bawat order</div>
+      <div class="feature"><i class="fa-solid fa-motorcycle"></i>Mas smooth na rider tracking</div>
     </div>
 
     <div class="cta-wrap">
-      <button id="installBtn" class="btn btn-install">I-install ang BayanGo App</button>
-      <a href="bayango-user.html" class="btn btn-open" style="text-decoration:none;text-align:center;display:block;">Buksan sa browser muna</a>
+      <button id="installBtn" class="btn btn-install"><i class="fa-solid fa-download"></i><span>DOWNLOAD APP NOW</span></button>
     </div>
 
     <div id="iosSteps" class="steps">
-      <strong>iPhone/iPad install steps:</strong><br />
+      <strong><i class="fa-solid fa-mobile-screen-button"></i> iPhone/iPad install steps:</strong><br />
       1) I-tap ang <strong>Share</strong> button sa Safari.<br />
       2) Piliin ang <strong>Add to Home Screen</strong>.<br />
       3) I-tap ang <strong>Add</strong> para ma-install.
     </div>
 
-    <p class="note">Tip: Kapag na-install, lalabas na ang BayanGo sa home screen mo na parang normal app.</p>
+    <p id="helpNote" class="note">Kapag installed na, auto-open na ang BayanGo sa app mode.</p>
   </div>
 
   <script>
     const installBtn = document.getElementById('installBtn');
     const iosSteps = document.getElementById('iosSteps');
+    const helpNote = document.getElementById('helpNote');
     let deferredPrompt = null;
     const isIOS = /iphone|ipad|ipod/i.test(navigator.userAgent) && !window.MSStream;
 
@@ -120,24 +163,41 @@
     window.addEventListener('beforeinstallprompt', (e) => {
       e.preventDefault();
       deferredPrompt = e;
+      installBtn.disabled = false;
+      helpNote.textContent = 'Ready na ang install prompt. I-tap ang DOWNLOAD APP NOW.';
+    });
+
+    window.addEventListener('appinstalled', () => {
+      installBtn.disabled = true;
+      installBtn.innerHTML = '<i class="fa-solid fa-circle-check"></i><span>INSTALLED. OPENING APP...</span>';
+      setTimeout(() => window.location.replace('bayango-user.html'), 800);
     });
 
     installBtn.addEventListener('click', async () => {
       if (isIOS) {
-        iosSteps.classList.toggle('show');
+        iosSteps.classList.add('show');
+        helpNote.textContent = 'Sundin ang steps sa taas para ma-add ang app sa home screen.';
         return;
       }
+
       if (!deferredPrompt) {
-        alert('Open in Chrome/Edge at subukan ulit para lumabas ang install prompt.');
+        helpNote.textContent = 'Kung hindi lumalabas ang prompt, gamitin ang browser menu at piliin ang Install App.';
         return;
       }
-      deferredPrompt.prompt();
-      const choice = await deferredPrompt.userChoice;
-      if (choice && choice.outcome === 'accepted') {
-        installBtn.textContent = '✅ Installed! Opening app...';
-        setTimeout(() => window.location.href = 'bayango-user.html', 900);
+
+      installBtn.disabled = true;
+      installBtn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i><span>OPENING INSTALL PROMPT...</span>';
+
+      try {
+        deferredPrompt.prompt();
+        await deferredPrompt.userChoice;
+      } catch (err) {
+        helpNote.textContent = 'Hindi ma-open ang install prompt. Subukan ulit sa browser menu.';
+      } finally {
+        deferredPrompt = null;
+        installBtn.disabled = false;
+        installBtn.innerHTML = '<i class="fa-solid fa-download"></i><span>DOWNLOAD APP NOW</span>';
       }
-      deferredPrompt = null;
     });
   </script>
 </body>
