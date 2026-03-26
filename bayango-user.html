@@ -130,6 +130,14 @@
     };
 
     const fmt = n => "₱" + Number(n).toLocaleString("en-PH", { minimumFractionDigits:0 });
+    const DEFAULT_MARKET_FACTOR = 1;
+    const roundPrice = (n) => Math.max(0, Math.round(Number(n) || 0));
+    const computeLivePrice = (product, marketPricing = {}) => {
+      const base = Number(product?.basePrice ?? product?.price ?? 0);
+      if (product?.autoPriceEnabled === false) return roundPrice(base);
+      const factor = Number(marketPricing?.[product?.cat]) || DEFAULT_MARKET_FACTOR;
+      return roundPrice(base * factor);
+    };
     const genId = () => Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
     async function getPushVapidKey() {
       try {
@@ -377,8 +385,9 @@
       const [pushError, setPushError] = useState("");
 
       useEffect(() => {
-        let unsubAuth, unsubOrders, unsubProducts;
+        let unsubAuth, unsubOrders, unsubProducts, unsubMarketPricing;
         let usingOrdersFallback = false;
+        let currentMarketPricing = {};
         const timeout = setTimeout(() => setLoading(false), 8000);
 
         const bindProducts = () => {
@@ -389,7 +398,13 @@
             snap.forEach(child => {
               const raw = child.val() || {};
               if (raw.active === false) return;
-              prods.push({ id: child.key, ...raw });
+              const normalized = { id: child.key, ...raw };
+              prods.push({
+                ...normalized,
+                basePrice: Number.isFinite(Number(raw.basePrice)) ? Number(raw.basePrice) : Number(raw.price || 0),
+                autoPriceEnabled: raw.autoPriceEnabled !== false,
+                price: computeLivePrice(normalized, currentMarketPricing),
+              });
             });
             setProducts(prods);
           }, err => {
@@ -397,7 +412,23 @@
           });
         };
 
+        const bindMarketPricing = () => {
+          if (!_fbDb) return;
+          _fbDb.ref("settings/marketPricing").off();
+          unsubMarketPricing = _fbDb.ref("settings/marketPricing").on("value", snap => {
+            const raw = snap.val() || {};
+            const next = {};
+            CATEGORIES.forEach(c => {
+              const val = Number(raw?.[c.id]);
+              next[c.id] = Number.isFinite(val) && val > 0 ? val : DEFAULT_MARKET_FACTOR;
+            });
+            currentMarketPricing = next;
+            bindProducts();
+          });
+        };
+
         try {
+          bindMarketPricing();
           bindProducts();
           _fbAuth.getRedirectResult().catch(err => console.error("Redirect result error:", err));
           unsubAuth = _fbAuth.onAuthStateChanged(currentUser => {
@@ -462,7 +493,9 @@
           if (_fbDb) {
             _fbDb.ref("orders").off();
             _fbDb.ref("products").off();
+            _fbDb.ref("settings/marketPricing").off();
           }
+          if (unsubMarketPricing && typeof unsubMarketPricing.off === "function") unsubMarketPricing.off();
         };
       }, []);
 
