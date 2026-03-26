@@ -108,12 +108,26 @@
       { key:"delivered", label:"Delivered", icon:"circle-check",   desc:"Na-deliver na!" },
     ];
 
-    const DELIVERY_ZONES = [
-      { label:"Bayan Area",          fee:49 },
-      { label:"Eastridge / Tayuman", fee:65 },
-      { label:"Libis / Pantok",      fee:75 },
-    ];
+    const BINANGONAN_PUBLIC_MARKET = { lat:14.4584, lng:121.1971, label:"Binangonan Public Market" };
+    const BASE_DELIVERY_FEE = 49;
     const ORDER_CANCEL_WINDOW_MS = 15 * 60 * 1000;
+    const KM_RATE_2_TO_10 = 6;
+    const KM_RATE_BEYOND_10 = 5;
+
+    const toRad = (deg) => (deg * Math.PI) / 180;
+    const haversineKm = (lat1, lng1, lat2, lng2) => {
+      const R = 6371;
+      const dLat = toRad(lat2 - lat1);
+      const dLng = toRad(lng2 - lng1);
+      const a = Math.sin(dLat / 2) ** 2
+        + Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) * Math.sin(dLng / 2) ** 2;
+      return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+    };
+    const computeDeliveryFee = (distanceKm) => {
+      if (!Number.isFinite(distanceKm) || distanceKm <= 2) return BASE_DELIVERY_FEE;
+      if (distanceKm <= 10) return BASE_DELIVERY_FEE + Math.ceil(distanceKm - 2) * KM_RATE_2_TO_10;
+      return BASE_DELIVERY_FEE + (8 * KM_RATE_2_TO_10) + Math.ceil(distanceKm - 10) * KM_RATE_BEYOND_10;
+    };
 
     const fmt = n => "₱" + Number(n).toLocaleString("en-PH", { minimumFractionDigits:0 });
     const genId = () => Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
@@ -743,7 +757,6 @@
       const [showCheckout,   setShowCheckout]   = useState(false);
       const [showTracker,    setShowTracker]    = useState(null);
       const [showRiderMap,   setShowRiderMap]   = useState(null);
-      const [zone,           setZone]           = useState(0);
       const [name,           setName]           = useState("");
       const [phone,          setPhone]          = useState("");
       const [addr,           setAddr]           = useState("");
@@ -798,7 +811,19 @@
       const customEstTotal   = customItems.reduce((s,i) => s + (i.estPrice || 0), 0);
       const subtotal         = cartItems.reduce((s,i) => s + i.price * i.qty, 0);
       const itemsTotal       = subtotal + customEstTotal;
-      const deliveryFee      = DELIVERY_ZONES[zone].fee;
+      const hasPinnedLocation = Number.isFinite(Number(customerLat)) && Number.isFinite(Number(customerLng));
+      const distanceKm = hasPinnedLocation
+        ? haversineKm(
+            BINANGONAN_PUBLIC_MARKET.lat,
+            BINANGONAN_PUBLIC_MARKET.lng,
+            Number(customerLat),
+            Number(customerLng)
+          )
+        : null;
+      const deliveryFee      = computeDeliveryFee(distanceKm);
+      const deliveryMetaLabel = hasPinnedLocation
+        ? `${distanceKm.toFixed(2)} km from ${BINANGONAN_PUBLIC_MARKET.label}`
+        : `Base fee only (${fmt(BASE_DELIVERY_FEE)}) until location is pinned`;
       const serviceFee       = Math.round(itemsTotal * 0.02);
       const smallOrderFee    = itemsTotal < 100 ? Math.round(itemsTotal * 0.05) : 0;
       const isFirstTimeUser  = myOrders.length === 0;
@@ -932,7 +957,7 @@
           } : null,
           totalDiscount,
           total,
-          zone: DELIVERY_ZONES[zone].label,
+          zone: deliveryMetaLabel,
           customer: { name, phone, address: addr, lat: customerLat, lng: customerLng },
           status: "pending",
           hasCustomItems: customItems.length > 0,
@@ -1372,7 +1397,7 @@
                 <div style={{ padding:"18px 24px", paddingBottom:"calc(env(safe-area-inset-bottom,0px) + 18px)", background:"#fff", borderTop:"1px solid #E5E7EB" }}>
                   {[["Subtotal (catalog)",fmt(subtotal)],
                     ...(customEstTotal > 0 ? [["Custom items (est.)", "~"+fmt(customEstTotal)]] : []),
-                    ["Delivery ("+DELIVERY_ZONES[zone].label+")",fmt(deliveryFee)],
+                    ["Delivery ("+deliveryMetaLabel+")",fmt(deliveryFee)],
                     ["Service Fee (2%)",fmt(serviceFee)],
                     ...(smallOrderFee > 0 ? [["Small Order Fee (5%)",fmt(smallOrderFee)]] : []),
                     ...(isFirstTimeUser ? [["First Order Free Shipping","-"+fmt(freeShipDiscount)]] : []),
@@ -1404,18 +1429,13 @@
                   <button onClick={() => setShowCheckout(false)} style={{ width:36, height:36, borderRadius:10, background:"#F3F4F6", fontSize:18, display:"flex", alignItems:"center", justifyContent:"center" }}><Ic n="xmark" /></button>
                 </div>
 
-                <label style={{ fontSize:12, fontWeight:700, color:"#666", display:"block", marginBottom:8 }}><Ic n="location-dot" style={{marginRight:5}} />Delivery Area</label>
-                <div style={{ display:"flex", gap:8, marginBottom:20 }}>
-                  {DELIVERY_ZONES.map((z,i) => (
-                    <button key={i} onClick={() => setZone(i)} style={{
-                      flex:1, padding:"12px 6px", borderRadius:12, textAlign:"center",
-                      border:zone===i?"2px solid #22C55E":"1px solid #E5E7EB",
-                      background:zone===i?"#F0FDF4":"#fff", transition:"all .2s"
-                    }}>
-                      <div style={{ fontSize:12, fontWeight:700, color:zone===i?"#166534":"#333", lineHeight:1.3 }}>{z.label}</div>
-                      <div style={{ fontSize:11, color:"#aaa", marginTop:3 }}>{fmt(z.fee)}</div>
-                    </button>
-                  ))}
+                <label style={{ fontSize:12, fontWeight:700, color:"#666", display:"block", marginBottom:8 }}><Ic n="location-dot" style={{marginRight:5}} />Delivery Fee (Auto)</label>
+                <div style={{ marginBottom:20, border:"1px solid #E5E7EB", borderRadius:12, background:"#F8FAFC", padding:"12px 14px" }}>
+                  <div style={{ fontSize:13, fontWeight:800, color:"#166534" }}>{fmt(deliveryFee)}</div>
+                  <div style={{ fontSize:11, color:"#6B7280", marginTop:4 }}>{deliveryMetaLabel}</div>
+                  <div style={{ fontSize:11, color:"#94A3B8", marginTop:4 }}>
+                    Rule: {fmt(BASE_DELIVERY_FEE)} first 2km, +₱{KM_RATE_2_TO_10}/km up to 10km, then +₱{KM_RATE_BEYOND_10}/km.
+                  </div>
                 </div>
 
                 {[
@@ -1526,7 +1546,7 @@
                   )}
                   <div style={{ borderTop:"1px solid #E5E7EB", marginTop:8, paddingTop:8, fontSize:13, color:"#888" }}>
                     <div style={{ display:"flex", justifyContent:"space-between", marginBottom:4 }}>
-                      <span>Delivery ({DELIVERY_ZONES[zone].label})</span><span style={{ fontWeight:600 }}>{fmt(deliveryFee)}</span>
+                      <span>Delivery ({deliveryMetaLabel})</span><span style={{ fontWeight:600 }}>{fmt(deliveryFee)}</span>
                     </div>
                     <div style={{ display:"flex", justifyContent:"space-between", marginBottom: smallOrderFee > 0 ? 4 : 0 }}>
                       <span>Service Fee (2%)</span><span style={{ fontWeight:600 }}>{fmt(serviceFee)}</span>
