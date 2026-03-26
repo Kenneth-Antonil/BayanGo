@@ -270,12 +270,13 @@
       const [orders,   setOrders]   = useState([]);
       const [tickets,  setTickets]  = useState([]);
       const [vouchers, setVouchers] = useState([]);
+      const [appUsageStats, setAppUsageStats] = useState({ activeUsers: 0, downloadedUsers: 0 });
       const [ready,    setReady]    = useState(false);
       const [user,     setUser]     = useState(null);
       const [marketPricing, setMarketPricing] = useState({});
 
       useEffect(() => {
-        let unsubOrders, unsubProducts, unsubTickets, unsubVouchers, unsubMarket, unsubAuth;
+        let unsubOrders, unsubProducts, unsubTickets, unsubVouchers, unsubMarket, unsubAppUsage, unsubAuth;
         (async () => {
           const { db, fns, auth, authFns } = await initFirebase();
           const { onAuthStateChanged } = authFns;
@@ -289,11 +290,13 @@
             unsubProducts?.();
             unsubTickets?.();
             unsubVouchers?.();
+            unsubAppUsage?.();
 
             if (!currentUser) {
               setOrders([]);
               setTickets([]);
               setVouchers([]);
+              setAppUsageStats({ activeUsers: 0, downloadedUsers: 0 });
               return;
             }
 
@@ -391,9 +394,21 @@
               setVouchers(list);
             }, err => console.error("Vouchers snapshot error:", err.code, err.message));
             unsubVouchers = () => fns.off(vouchersRef);
+
+            // Listen app usage stats realtime
+            const usageRef = fns.ref(db, "app_usage");
+            fns.onValue(usageRef, snap => {
+              const usage = snap.val() || {};
+              const now = Date.now();
+              const users = Object.values(usage || {}).filter(v => v && typeof v === "object");
+              const activeUsers = users.filter(v => Number(v.activeWindowUntil || 0) >= now).length;
+              const downloadedUsers = users.filter(v => Number(v.installedAt || 0) > 0).length;
+              setAppUsageStats({ activeUsers, downloadedUsers });
+            }, err => console.error("App usage snapshot error:", err.code, err.message));
+            unsubAppUsage = () => fns.off(usageRef);
           });
         })();
-        return () => { unsubOrders?.(); unsubProducts?.(); unsubTickets?.(); unsubVouchers?.(); unsubMarket?.(); unsubAuth?.(); };
+        return () => { unsubOrders?.(); unsubProducts?.(); unsubTickets?.(); unsubVouchers?.(); unsubMarket?.(); unsubAppUsage?.(); unsubAuth?.(); };
       }, []);
 
       const addOrder = useCallback(async (order) => {
@@ -542,13 +557,14 @@
             onAddVoucher={addVoucher}
             onUpdateVoucher={updateVoucher}
             onDeleteVoucher={deleteVoucher}
+            appUsageStats={appUsageStats}
           />
         </>
       );
     }
 
     /* ══════════════════ ADMIN DASHBOARD ══════════════════ */
-    function AdminDashboard({ orders, onUpdateStatus, onBroadcast, products, onAddProduct, onUpdateProduct, onDeleteProduct, marketPricing, onUpdateMarketPricing, tickets, vouchers, onAddVoucher, onUpdateVoucher, onDeleteVoucher }) {
+    function AdminDashboard({ orders, onUpdateStatus, onBroadcast, products, onAddProduct, onUpdateProduct, onDeleteProduct, marketPricing, onUpdateMarketPricing, tickets, vouchers, onAddVoucher, onUpdateVoucher, onDeleteVoucher, appUsageStats }) {
       const [tab,          setTab]          = useState("orders");
       const [selected,     setSelected]     = useState(null);
       const [updating,     setUpdating]     = useState(null);
@@ -716,6 +732,20 @@
               <div key={s.label} style={{ background:s.bg, borderRadius:14, padding:"14px 12px", textAlign:"center", boxShadow:"0 1px 4px rgba(0,0,0,.06)" }}>
                 <div style={{ marginBottom:2 }}><Ic n={s.icon} size={20} style={{ color:s.color }} /></div>
                 <div style={{ fontSize:s.label==="Service Fee Revenue"?14:24, fontWeight:800, color:s.color, lineHeight:1.2, marginTop:2 }}>{s.value}</div>
+                <div style={{ fontSize:10, fontWeight:600, color:"#888", marginTop:2 }}>{s.label}</div>
+              </div>
+            ))}
+          </div>
+
+          {/* ── App Usage Summary ── */}
+          <div style={{ padding:"0 20px 10px", display:"grid", gridTemplateColumns:"repeat(2,1fr)", gap:10 }}>
+            {[
+              { label:"Active App Users", value:appUsageStats?.activeUsers || 0, icon:"mobile-screen", color:"#0891B2", bg:"#ECFEFF" },
+              { label:"Downloaded App",   value:appUsageStats?.downloadedUsers || 0, icon:"download", color:"#16A34A", bg:"#F0FDF4" },
+            ].map(s => (
+              <div key={s.label} style={{ background:s.bg, borderRadius:14, padding:"14px 12px", textAlign:"center", boxShadow:"0 1px 4px rgba(0,0,0,.06)" }}>
+                <div style={{ marginBottom:2 }}><Ic n={s.icon} size={20} style={{ color:s.color }} /></div>
+                <div style={{ fontSize:24, fontWeight:800, color:s.color, lineHeight:1.2, marginTop:2 }}>{s.value}</div>
                 <div style={{ fontSize:10, fontWeight:600, color:"#888", marginTop:2 }}>{s.label}</div>
               </div>
             ))}
