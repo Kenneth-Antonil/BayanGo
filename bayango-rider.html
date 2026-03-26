@@ -217,6 +217,8 @@
       const [toast,           setToast]           = useState(null);
       const [availErr,        setAvailErr]        = useState(null);
       const [checklistOrder,  setChecklistOrder]  = useState(null);
+      const [mapOrder,        setMapOrder]        = useState(null);
+      const [riderCoords,     setRiderCoords]     = useState(null);
       const notificationAudioRef = useRef(null);
       const lastAvailableOrderIdsRef = useRef(new Set());
       const pushReadyRef = useRef(false);
@@ -382,13 +384,19 @@
           setGpsActive(true);
           watchIdRef.current = navigator.geolocation.watchPosition(
             (pos) => {
-              _fbDb.ref("rider_locations/" + user.uid).set({
+              const nextCoords = {
                 lat: pos.coords.latitude,
                 lng: pos.coords.longitude,
+                updatedAt: Date.now(),
+              };
+              setRiderCoords(nextCoords);
+              _fbDb.ref("rider_locations/" + user.uid).set({
+                lat: nextCoords.lat,
+                lng: nextCoords.lng,
                 accuracy: pos.coords.accuracy,
                 heading: pos.coords.heading,
                 speed: pos.coords.speed,
-                updatedAt: Date.now(),
+                updatedAt: nextCoords.updatedAt,
                 riderName: user.displayName || user.email,
                 riderPhoto: user.photoURL || null,
               });
@@ -401,6 +409,7 @@
           watchIdRef.current = null;
           setGpsActive(false);
           _fbDb.ref("rider_locations/" + user.uid).remove();
+          setRiderCoords(null);
         }
 
         return () => {
@@ -471,8 +480,8 @@
 
           {/* ── Tab Content ── */}
           <div>
-            {tab === "available"  && <AvailableTab  orders={availableOrders} onAccept={acceptOrder} claiming={claiming} availErr={availErr} onOpenChecklist={setChecklistOrder} />}
-            {tab === "deliveries" && <DeliveriesTab buying={buyingOrders} active={activeOrders} completed={completedOrders} onOtw={markOtw} markingOtw={markingOtw} onDeliver={markDelivered} delivering={delivering} onOpenChecklist={setChecklistOrder} />}
+            {tab === "available"  && <AvailableTab  orders={availableOrders} onAccept={acceptOrder} claiming={claiming} availErr={availErr} onOpenChecklist={setChecklistOrder} onOpenMap={setMapOrder} />}
+            {tab === "deliveries" && <DeliveriesTab buying={buyingOrders} active={activeOrders} completed={completedOrders} onOtw={markOtw} markingOtw={markingOtw} onDeliver={markDelivered} delivering={delivering} onOpenChecklist={setChecklistOrder} onOpenMap={setMapOrder} />}
             {tab === "earnings"   && <EarningsTab   completed={completedOrders} today={todayEarnings} week={weekEarnings} total={totalEarnings} />}
           </div>
 
@@ -523,6 +532,13 @@
               order={checklistOrder}
               onClose={() => setChecklistOrder(null)}
               onToggle={toggleChecklistItem}
+            />
+          )}
+          {mapOrder && (
+            <RiderRouteMapModal
+              order={mapOrder}
+              riderCoords={riderCoords}
+              onClose={() => setMapOrder(null)}
             />
           )}
         </div>
@@ -581,8 +597,99 @@
       );
     }
 
+    function RiderRouteMapModal({ order, riderCoords, onClose }) {
+      const mapRef = useRef(null);
+      const mapInstanceRef = useRef(null);
+      const riderMarkerRef = useRef(null);
+      const customerMarkerRef = useRef(null);
+      const lineRef = useRef(null);
+      const BINANG_CENTER = [14.4584, 121.1971];
+      const toNum = (v) => {
+        const n = Number(v);
+        return Number.isFinite(n) ? n : null;
+      };
+      const custLat = toNum(order?.customer?.lat);
+      const custLng = toNum(order?.customer?.lng);
+      const customerPos = custLat != null && custLng != null ? [custLat, custLng] : null;
+
+      useEffect(() => {
+        if (!mapRef.current || mapInstanceRef.current || typeof L === "undefined") return;
+        const map = L.map(mapRef.current, { center: customerPos || BINANG_CENTER, zoom: 15, zoomControl: false });
+        L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", { attribution: '&copy; OpenStreetMap', maxZoom: 19 }).addTo(map);
+        L.control.zoom({ position: "bottomright" }).addTo(map);
+        mapInstanceRef.current = map;
+
+        if (customerPos) {
+          const customerIcon = L.divIcon({
+            html: '<div style="width:42px;height:42px;border-radius:50%;background:linear-gradient(135deg,#059669,#10B981);display:flex;align-items:center;justify-content:center;color:#fff;font-size:18px;box-shadow:0 4px 16px rgba(5,150,105,.45);border:3px solid #fff;"><i class="fa-solid fa-house"></i></div>',
+            className: "",
+            iconSize: [42, 42],
+            iconAnchor: [21, 21],
+          });
+          customerMarkerRef.current = L.marker(customerPos, { icon: customerIcon }).addTo(map);
+        }
+        setTimeout(() => map.invalidateSize(), 180);
+        return () => {
+          map.remove();
+          mapInstanceRef.current = null;
+          riderMarkerRef.current = null;
+          customerMarkerRef.current = null;
+          lineRef.current = null;
+        };
+      }, []);
+
+      useEffect(() => {
+        const map = mapInstanceRef.current;
+        if (!map || !customerPos) return;
+        const riderLat = toNum(riderCoords?.lat);
+        const riderLng = toNum(riderCoords?.lng);
+        if (riderLat == null || riderLng == null) {
+          map.setView(customerPos, 16);
+          return;
+        }
+        const riderPos = [riderLat, riderLng];
+        if (!riderMarkerRef.current) {
+          const riderIcon = L.divIcon({
+            html: '<div style="width:42px;height:42px;border-radius:50%;background:linear-gradient(135deg,#1D4ED8,#3B82F6);display:flex;align-items:center;justify-content:center;color:#fff;font-size:20px;box-shadow:0 4px 16px rgba(29,78,216,.5);border:3px solid #fff;"><i class="fa-solid fa-motorcycle"></i></div>',
+            className: "",
+            iconSize: [42, 42],
+            iconAnchor: [21, 21],
+          });
+          riderMarkerRef.current = L.marker(riderPos, { icon: riderIcon }).addTo(map);
+        } else {
+          riderMarkerRef.current.setLatLng(riderPos);
+        }
+        if (!lineRef.current) {
+          lineRef.current = L.polyline([riderPos, customerPos], { color:"#1D4ED8", weight:5, opacity:.9 }).addTo(map);
+        } else {
+          lineRef.current.setLatLngs([riderPos, customerPos]);
+        }
+        map.fitBounds([riderPos, customerPos], { padding: [40, 40] });
+      }, [riderCoords, order?.id]);
+
+      return (
+        <div onClick={onClose} style={{ position:"fixed", inset:0, zIndex:1200, background:"rgba(2,6,23,.72)", display:"flex", flexDirection:"column" }}>
+          <div onClick={e => e.stopPropagation()} style={{ flex:1, maxWidth:480, width:"100%", margin:"0 auto", display:"flex", flexDirection:"column" }}>
+            <div style={{ background:"linear-gradient(135deg,#1D4ED8,#3B82F6)", color:"#fff", padding:"calc(env(safe-area-inset-top,0px) + 14px) 18px 14px", display:"flex", justifyContent:"space-between", alignItems:"center" }}>
+              <div style={{ fontSize:15, fontWeight:800 }}><Ic n="route" style={{ marginRight:8 }} />Route papunta kay {order.customer?.name || "Customer"}</div>
+              <button onClick={onClose} style={{ width:34, height:34, borderRadius:10, background:"rgba(255,255,255,.2)", color:"#fff", display:"flex", alignItems:"center", justifyContent:"center" }}><Ic n="xmark" /></button>
+            </div>
+            <div style={{ background:"#EFF6FF", color:"#1D4ED8", fontSize:12, fontWeight:700, padding:"8px 18px", borderBottom:"1px solid #DBEAFE" }}>
+              Blue line = diretsong daan mula sa'yo papunta sa customer
+            </div>
+            <div style={{ position:"relative", flex:1, minHeight:300 }}>
+              <div ref={mapRef} style={{ position:"absolute", inset:0 }} />
+            </div>
+            <div style={{ background:"#fff", padding:"12px 18px calc(env(safe-area-inset-bottom,0px) + 12px)", borderTop:"1px solid #E2E8F0", fontSize:12, color:"#475569" }}>
+              {order.customer?.address || "Walang address"}
+            </div>
+          </div>
+        </div>
+      );
+    }
+
     /* ══════════════════ AVAILABLE TAB ══════════════════ */
-    function AvailableTab({ orders, onAccept, claiming, availErr, onOpenChecklist }) {
+    function AvailableTab({ orders, onAccept, claiming, availErr, onOpenChecklist, onOpenMap }) {
       if (availErr) return (
         <div style={{ textAlign:"center", padding:"60px 20px", color:"#94A3B8" }}>
           <Ic n="triangle-exclamation" size={52} style={{ marginBottom:12, color:"#EF4444" }} />
@@ -636,14 +743,24 @@
                   <div style={{ fontSize:13, color:"#1E293B", fontWeight:600 }}>{order.customer?.address}</div>
                   <div style={{ fontSize:12, color:"#64748B", marginTop:2 }}>Zone: {order.zone}</div>
                   {order.customer?.lat && order.customer?.lng && (
-                    <button onClick={(e) => { e.stopPropagation(); window.open(`https://www.google.com/maps/dir/?api=1&destination=${order.customer.lat},${order.customer.lng}`, "_blank"); }} style={{
-                      marginTop:8, width:"100%", padding:"10px", borderRadius:10,
-                      background:"linear-gradient(135deg,#059669,#10B981)", color:"#fff",
-                      fontSize:13, fontWeight:700, display:"flex", alignItems:"center", justifyContent:"center", gap:8,
-                      boxShadow:"0 2px 10px rgba(5,150,105,.3)",
-                    }}>
-                      <Ic n="diamond-turn-right" /> Navigate sa Google Maps
-                    </button>
+                    <>
+                      <button onClick={(e) => { e.stopPropagation(); onOpenMap(order); }} style={{
+                        marginTop:8, width:"100%", padding:"10px", borderRadius:10,
+                        background:"linear-gradient(135deg,#1D4ED8,#3B82F6)", color:"#fff",
+                        fontSize:13, fontWeight:700, display:"flex", alignItems:"center", justifyContent:"center", gap:8,
+                        boxShadow:"0 2px 10px rgba(29,78,216,.28)",
+                      }}>
+                        <Ic n="map-location-dot" /> View route sa app
+                      </button>
+                      <button onClick={(e) => { e.stopPropagation(); window.open(`https://www.google.com/maps/dir/?api=1&destination=${order.customer.lat},${order.customer.lng}`, "_blank"); }} style={{
+                        marginTop:8, width:"100%", padding:"10px", borderRadius:10,
+                        background:"linear-gradient(135deg,#059669,#10B981)", color:"#fff",
+                        fontSize:13, fontWeight:700, display:"flex", alignItems:"center", justifyContent:"center", gap:8,
+                        boxShadow:"0 2px 10px rgba(5,150,105,.3)",
+                      }}>
+                        <Ic n="diamond-turn-right" /> Navigate sa Google Maps
+                      </button>
+                    </>
                   )}
                 </div>
 
@@ -677,7 +794,7 @@
     }
 
     /* ══════════════════ DELIVERIES TAB ══════════════════ */
-    function DeliveriesTab({ buying, active, completed, onOtw, markingOtw, onDeliver, delivering, onOpenChecklist }) {
+    function DeliveriesTab({ buying, active, completed, onOtw, markingOtw, onDeliver, delivering, onOpenChecklist, onOpenMap }) {
       const OrderCard = ({ order, statusBadge, badgeBg, badgeColor, actionBtn }) => {
         const regularItems = (order.items || []).filter(it => !it.isCustom);
         const customItems  = (order.items || []).filter(it => it.isCustom);
@@ -697,14 +814,24 @@
               <div style={{ fontSize:14, color:"#1E293B", fontWeight:700 }}>{order.customer?.address}</div>
               <div style={{ fontSize:12, color:"#64748B", marginTop:2 }}>Zone: {order.zone}</div>
               {order.customer?.lat && order.customer?.lng && (
-                <button onClick={(e) => { e.stopPropagation(); window.open(`https://www.google.com/maps/dir/?api=1&destination=${order.customer.lat},${order.customer.lng}`, "_blank"); }} style={{
-                  marginTop:8, width:"100%", padding:"10px", borderRadius:10,
-                  background:"linear-gradient(135deg,#059669,#10B981)", color:"#fff",
-                  fontSize:13, fontWeight:700, display:"flex", alignItems:"center", justifyContent:"center", gap:8,
-                  boxShadow:"0 2px 10px rgba(5,150,105,.3)",
-                }}>
-                  <Ic n="diamond-turn-right" /> Navigate sa Google Maps
-                </button>
+                <>
+                  <button onClick={(e) => { e.stopPropagation(); onOpenMap(order); }} style={{
+                    marginTop:8, width:"100%", padding:"10px", borderRadius:10,
+                    background:"linear-gradient(135deg,#1D4ED8,#3B82F6)", color:"#fff",
+                    fontSize:13, fontWeight:700, display:"flex", alignItems:"center", justifyContent:"center", gap:8,
+                    boxShadow:"0 2px 10px rgba(29,78,216,.28)",
+                  }}>
+                    <Ic n="map-location-dot" /> View route sa app
+                  </button>
+                  <button onClick={(e) => { e.stopPropagation(); window.open(`https://www.google.com/maps/dir/?api=1&destination=${order.customer.lat},${order.customer.lng}`, "_blank"); }} style={{
+                    marginTop:8, width:"100%", padding:"10px", borderRadius:10,
+                    background:"linear-gradient(135deg,#059669,#10B981)", color:"#fff",
+                    fontSize:13, fontWeight:700, display:"flex", alignItems:"center", justifyContent:"center", gap:8,
+                    boxShadow:"0 2px 10px rgba(5,150,105,.3)",
+                  }}>
+                    <Ic n="diamond-turn-right" /> Navigate sa Google Maps
+                  </button>
+                </>
               )}
             </div>
             <div style={{ marginBottom:12 }}>
