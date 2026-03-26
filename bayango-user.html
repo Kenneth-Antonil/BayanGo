@@ -205,167 +205,77 @@
 
     /* ══════════════════ INSTALL BANNER ══════════════════ */
     function InstallBanner() {
-      const [visible,  setVisible]  = useState(false);
-      const [isIOS,    setIsIOS]    = useState(false);
-      const [showIOSSteps, setShowIOSSteps] = useState(false);
-      const [installed, setInstalled] = useState(false);
+      const [visible, setVisible] = useState(false);
 
       useEffect(() => {
-        // Don't show if already dismissed or in standalone mode
-        const dismissed = localStorage.getItem("bayango_install_dismissed");
         const isStandalone = window.matchMedia('(display-mode: standalone)').matches
           || window.navigator.standalone === true;
+        if (isStandalone) return;
 
-        if (dismissed || isStandalone) return;
-
-        const ios = /iphone|ipad|ipod/i.test(navigator.userAgent) && !window.MSStream;
-        setIsIOS(ios);
-
-        // Show after a short delay post-login for smoothness
-        const t = setTimeout(() => setVisible(true), 1200);
+        const t = setTimeout(() => setVisible(true), 550);
         return () => clearTimeout(t);
       }, []);
 
-      const dismiss = () => {
-        localStorage.setItem("bayango_install_dismissed", "1");
-        setVisible(false);
-      };
-
-      const handleInstall = async () => {
-        if (isIOS) {
-          setShowIOSSteps(v => !v);
-          return;
-        }
-        const prompt = window._deferredInstallPrompt;
-        if (prompt) {
-          prompt.prompt();
-          const { outcome } = await prompt.userChoice;
-          if (outcome === "accepted") {
-            setInstalled(true);
-            setTimeout(dismiss, 1500);
-          }
-        }
-      };
+      const dismiss = () => setVisible(false);
 
       if (!visible) return null;
 
       return (
         <div style={{
           position: "fixed",
-          bottom: "env(safe-area-inset-bottom, 0px)",
-          left: 0, right: 0,
-          zIndex: 9999,
+          inset: 0,
+          zIndex: 12000,
           display: "flex",
+          alignItems: "center",
           justifyContent: "center",
-          padding: "0 16px 16px",
-          pointerEvents: "none",
+          padding: "20px",
+          background: "rgba(3, 12, 6, .45)",
+          backdropFilter: "blur(8px)",
+          WebkitBackdropFilter: "blur(8px)",
         }}>
           <div style={{
-            width: "100%", maxWidth: 480,
-            background: "#0D5C2E",
-            borderRadius: 20,
+            position: "relative",
+            width: "100%",
+            maxWidth: 430,
+            borderRadius: 24,
             overflow: "hidden",
-            boxShadow: "0 -4px 32px rgba(13,92,46,.35), 0 8px 48px rgba(0,0,0,.2)",
-            animation: "bannerUp .45s cubic-bezier(.34,1.56,.64,1) both",
-            animationDelay: ".1s",
-            pointerEvents: "all",
+            boxShadow: "0 24px 60px rgba(0,0,0,.45)",
+            animation: "pop .22s ease both",
+            border: "1px solid rgba(255,255,255,.22)",
           }}>
-            {/* Main row */}
-            <div style={{
-              display: "flex", alignItems: "center", gap: 14,
-              padding: "16px 18px",
-            }}>
-              {/* Icon */}
-              <div style={{
-                width: 52, height: 52, flexShrink: 0,
-                borderRadius: 14,
-                background: "rgba(255,255,255,.12)",
-                display: "flex", alignItems: "center", justifyContent: "center",
-                fontSize: 26,
-                border: "1px solid rgba(255,255,255,.15)",
-              }}><Ic n="cart-shopping" size={26} /></div>
+            <img
+              src="https://i.imgur.com/CsJtRPZ.png"
+              alt="BayanGo promo banner"
+              style={{ width: "100%", display: "block" }}
+            />
 
-              {/* Text */}
-              <div style={{ flex: 1, minWidth: 0 }}>
-                <div style={{ fontSize: 14, fontWeight: 800, color: "#fff", lineHeight: 1.2, marginBottom: 3 }}>
-                  {installed ? <><Ic n="circle-check" style={{marginRight:6}} />Na-install na!</> : "I-download ang BayanGo App"}
-                </div>
-                <div style={{ fontSize: 11, color: "rgba(255,255,255,.65)", lineHeight: 1.45 }}>
-                  {installed
-                    ? "Makikita mo na ito sa iyong home screen."
-                    : "Mas mabilis, mas maganda. I-save sa home screen mo!"}
-                </div>
-              </div>
-
-              {/* Dismiss */}
-              {!installed && (
-                <button onClick={dismiss} style={{
-                  flexShrink: 0,
-                  width: 30, height: 30,
-                  borderRadius: 8,
-                  background: "rgba(255,255,255,.12)",
-                  color: "rgba(255,255,255,.6)",
-                  fontSize: 16,
-                  display: "flex", alignItems: "center", justifyContent: "center",
-                }}><Ic n="xmark" /></button>
-              )}
-            </div>
-
-            {/* Install button */}
-            {!installed && (
-              <div style={{ padding: "0 18px 16px" }}>
-                <button onClick={handleInstall} style={{
-                  width: "100%",
-                  padding: "13px",
-                  borderRadius: 14,
-                  background: "#22C55E",
-                  color: "#fff",
-                  fontSize: 14, fontWeight: 800,
-                  display: "flex", alignItems: "center", justifyContent: "center", gap: 8,
-                  boxShadow: "0 4px 20px rgba(34,197,94,.4)",
-                  transition: "transform .15s, box-shadow .15s",
-                }}>
-                  {isIOS ? <><Ic n="mobile-screen" style={{marginRight:6}} />Paano I-install (iOS)</> : <><Ic n="download" style={{marginRight:6}} />I-install ang App</>}
-                </button>
-
-                {/* iOS steps */}
-                {isIOS && showIOSSteps && (
-                  <div style={{
-                    marginTop: 12,
-                    background: "rgba(255,255,255,.09)",
-                    borderRadius: 12,
-                    padding: "14px 16px",
-                    border: "1px solid rgba(255,255,255,.12)",
-                    animation: "fadeUp .3s ease both",
-                  }}>
-                    {[
-                      { icon: "arrow-up-from-bracket", text: 'I-tap ang "Share" button sa ibaba ng Safari' },
-                      { icon: "list",                  text: 'Hanapin ang "Add to Home Screen"' },
-                      { icon: "circle-check",          text: 'I-tap ang "Add" sa kanang itaas' },
-                    ].map((step, i) => (
-                      <div key={i} style={{
-                        display: "flex", alignItems: "flex-start", gap: 10,
-                        marginBottom: i < 2 ? 10 : 0,
-                      }}>
-                        <div style={{
-                          width: 28, height: 28, borderRadius: 8, flexShrink: 0,
-                          background: "#22C55E",
-                          display: "flex", alignItems: "center", justifyContent: "center",
-                          fontSize: 14, fontWeight: 800, color: "#fff",
-                        }}>{i + 1}</div>
-                        <div style={{ fontSize: 12, color: "rgba(255,255,255,.8)", lineHeight: 1.5, paddingTop: 4 }}>
-                          <Ic n={step.icon} style={{marginRight:5}} />{step.text}
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </div>
-            )}
+            <button
+              onClick={dismiss}
+              aria-label="Isara ang banner"
+              style={{
+                position: "absolute",
+                top: 10,
+                right: 10,
+                width: 34,
+                height: 34,
+                borderRadius: 999,
+                background: "rgba(0,0,0,.45)",
+                color: "#fff",
+                border: "1px solid rgba(255,255,255,.55)",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                fontSize: 18,
+                fontWeight: 700,
+              }}
+            >
+              <Ic n="xmark" />
+            </button>
           </div>
         </div>
       );
     }
+
 
     /* ══════════════════ MAIN APP ══════════════════ */
     function App() {
