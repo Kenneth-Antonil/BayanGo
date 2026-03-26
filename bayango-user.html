@@ -908,16 +908,21 @@
       const [voucherMsg,     setVoucherMsg]     = useState("");
       const [showVoucherList,setShowVoucherList]= useState(false);
       const [locationType,   setLocationType]  = useState("Mainland");
+      const [cartWeightUnit, setCartWeightUnit] = useState({});
 
       const cartCount = Object.values(cart).reduce((s,v) => s+v, 0);
       const cartItems = Object.entries(cart)
         .filter(([,q]) => q > 0)
-        .map(([id,qty]) => ({ ...products.find(p => p.id === id || p.id === +id), qty }))
+        .map(([id,qty]) => {
+          const prod = products.find(p => p.id === id || p.id === +id);
+          const weightUnit = prod?.unit === "kg" ? (cartWeightUnit[id] || 1) : 1;
+          return { ...prod, qty, weightUnit };
+        })
         .filter(i => i.name);
 
       const myOrders         = orders;
       const customEstTotal   = customItems.reduce((s,i) => s + (i.estPrice || 0), 0);
-      const subtotal         = cartItems.reduce((s,i) => s + i.price * i.qty, 0);
+      const subtotal         = cartItems.reduce((s,i) => s + i.price * i.weightUnit * i.qty, 0);
       const itemsTotal       = subtotal + customEstTotal;
       const hasPinnedLocation = customerLat !== null && customerLng !== null &&
         Number.isFinite(Number(customerLat)) && Number.isFinite(Number(customerLng));
@@ -1063,7 +1068,14 @@
       const placeOrder = () => {
         if (!name || !phone || !addr) return;
         const allItems = [
-          ...cartItems,
+          ...cartItems.map(i => ({
+            ...i,
+            // For kg products, store the effective total kg ordered and adjusted price
+            qty: i.unit === "kg" ? i.qty : i.qty,
+            weightUnit: i.unit === "kg" ? i.weightUnit : undefined,
+            totalKg: i.unit === "kg" ? +(i.qty * i.weightUnit).toFixed(2) : undefined,
+            price: i.unit === "kg" ? i.price : i.price,
+          })),
           ...customItems.map(i => ({ ...i, price: i.estPrice })),
         ];
         const batchInfo = getDeliveryBatch();
@@ -1092,6 +1104,7 @@
           locationType,
         });
         setCart({});
+        setCartWeightUnit({});
         setCustomItems([]);
         setVoucherCode("");
         setAppliedVoucher(null);
@@ -1312,9 +1325,34 @@
                   </div>
                   <div style={{ padding:"11px 14px 14px" }}>
                     <div style={{ fontSize:13, fontWeight:700, color:"#111", marginBottom:2, lineHeight:1.25 }}>{p.name}</div>
-                    <div style={{ fontSize:11, color:"#aaa", marginBottom:10 }}>per {p.unit}</div>
+                    <div style={{ fontSize:11, color:"#aaa", marginBottom:8 }}>per {p.unit}</div>
+                    {p.unit === "kg" && (
+                      <div style={{ display:"flex", gap:4, marginBottom:10 }}>
+                        {[{w:0.25,l:"¼kg"},{w:0.5,l:"½kg"},{w:1,l:"1kg"}].map(({w,l}) => {
+                          const sel = (cartWeightUnit[p.id] || 1) === w;
+                          return (
+                            <button key={w} onClick={() => setCartWeightUnit(u => ({...u,[p.id]:w}))} style={{
+                              flex:1, padding:"5px 0", borderRadius:8, fontSize:11, fontWeight:800,
+                              background: sel ? "#166534" : "#F3F4F6",
+                              color: sel ? "#fff" : "#6B7280",
+                              border: sel ? "none" : "1px solid #E5E7EB",
+                              transition:"all .15s",
+                            }}>{l}</button>
+                          );
+                        })}
+                      </div>
+                    )}
                     <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between" }}>
-                      <span style={{ fontSize:17, fontWeight:800, color:"#166534" }}>{fmt(p.price)}</span>
+                      <div>
+                        <span style={{ fontSize:17, fontWeight:800, color:"#166534" }}>
+                          {p.unit === "kg" ? fmt(p.price * (cartWeightUnit[p.id] || 1)) : fmt(p.price)}
+                        </span>
+                        {p.unit === "kg" && (
+                          <span style={{ fontSize:10, color:"#9CA3AF", marginLeft:3 }}>
+                            / {cartWeightUnit[p.id] === 0.25 ? "¼kg" : cartWeightUnit[p.id] === 0.5 ? "½kg" : "1kg"}
+                          </span>
+                        )}
+                      </div>
                       {p.stock && (
                         cart[p.id] ? (
                           <div style={{ display:"flex", alignItems:"center", gap:5 }}>
@@ -1477,14 +1515,18 @@
                       </div>
                       <div style={{ flex:1 }}>
                         <div style={{ fontSize:14, fontWeight:700, color:"#111" }}>{item.name}</div>
-                        <div style={{ fontSize:12, color:"#999" }}>{fmt(item.price)} / {item.unit}</div>
+                        <div style={{ fontSize:12, color:"#999" }}>
+                          {item.unit === "kg"
+                            ? `${fmt(item.price * item.weightUnit)} / ${item.weightUnit === 0.25 ? "¼kg" : item.weightUnit === 0.5 ? "½kg" : "1kg"}`
+                            : `${fmt(item.price)} / ${item.unit}`}
+                        </div>
                       </div>
                       <div style={{ display:"flex", alignItems:"center", gap:7 }}>
                         <button onClick={() => rem(item.id)} style={{ width:30, height:30, borderRadius:8, background:"#F3F4F6", fontSize:16, fontWeight:700, color:"#666", display:"flex", alignItems:"center", justifyContent:"center" }}>−</button>
                         <span style={{ fontSize:14, fontWeight:800, minWidth:20, textAlign:"center" }}>{item.qty}</span>
                         <button onClick={() => add(item.id)} style={{ width:30, height:30, borderRadius:8, background:"#22C55E", fontSize:16, fontWeight:700, color:"#fff", display:"flex", alignItems:"center", justifyContent:"center" }}>+</button>
                       </div>
-                      <div style={{ fontSize:14, fontWeight:800, color:"#166534", minWidth:58, textAlign:"right" }}>{fmt(item.price*item.qty)}</div>
+                      <div style={{ fontSize:14, fontWeight:800, color:"#166534", minWidth:58, textAlign:"right" }}>{fmt(item.price * item.weightUnit * item.qty)}</div>
                     </div>
                   ))}
                   {customItems.length > 0 && (
@@ -1693,8 +1735,13 @@
                 <div style={{ background:"#F9FAFB", borderRadius:14, padding:"14px 16px", marginBottom:16, border:"1px solid #E5E7EB" }}>
                   {cartItems.map(i => (
                     <div key={i.id} style={{ display:"flex", justifyContent:"space-between", padding:"5px 0", fontSize:13, color:"#555" }}>
-                      <span>{i.name} ×{i.qty}</span>
-                      <span style={{ fontWeight:600 }}>{fmt(i.price*i.qty)}</span>
+                      <span>
+                        {i.name}
+                        {i.unit === "kg"
+                          ? ` ×${i.qty} (${i.weightUnit === 0.25 ? "¼kg" : i.weightUnit === 0.5 ? "½kg" : "1kg"} bawat isa)`
+                          : ` ×${i.qty}`}
+                      </span>
+                      <span style={{ fontWeight:600 }}>{fmt(i.price * i.weightUnit * i.qty)}</span>
                     </div>
                   ))}
                   {customItems.length > 0 && (
