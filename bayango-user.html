@@ -797,6 +797,70 @@
       );
     }
 
+    /* ══════════════════ BATCH HELPERS ══════════════════ */
+    function getDeliveryBatch() {
+      const now = new Date();
+      const phNow = new Date(now.getTime() + 8 * 60 * 60 * 1000); // UTC+8
+      const h = phNow.getUTCHours(), m = phNow.getUTCMinutes(), s = phNow.getUTCSeconds();
+      const totalSecs = h * 3600 + m * 60 + s;
+      const pad = n => String(n).padStart(2, "0");
+      const fmtDate = d => `${d.getUTCFullYear()}-${pad(d.getUTCMonth()+1)}-${pad(d.getUTCDate())}`;
+      const todayStr    = fmtDate(phNow);
+      const tomorrowStr = fmtDate(new Date(phNow.getTime() + 24 * 60 * 60 * 1000));
+      const AM_CUTOFF = 10 * 3600;  // 10:00 AM
+      const PM_CUTOFF = 15 * 3600;  // 3:00 PM
+      if (totalSecs < AM_CUTOFF) {
+        return { batch:"AM", date:todayStr, cutoffLabel:"10:00 AM", deliveryLabel:"11:00 AM", timeLabel:"11:00 AM Ngayon", secsToDeadline: AM_CUTOFF - totalSecs };
+      } else if (totalSecs < PM_CUTOFF) {
+        return { batch:"PM", date:todayStr, cutoffLabel:"3:00 PM",  deliveryLabel:"4:00 PM",  timeLabel:"4:00 PM Ngayon",  secsToDeadline: PM_CUTOFF - totalSecs };
+      } else {
+        return { batch:"AM", date:tomorrowStr, cutoffLabel:"10:00 AM", deliveryLabel:"11:00 AM", timeLabel:"11:00 AM Bukas", secsToDeadline: (24 * 3600 - totalSecs) + AM_CUTOFF };
+      }
+    }
+
+    function BatchTimerBanner() {
+      const [info, setInfo] = React.useState(getDeliveryBatch);
+      React.useEffect(() => {
+        const t = setInterval(() => setInfo(getDeliveryBatch()), 1000);
+        return () => clearInterval(t);
+      }, []);
+      const { batch, cutoffLabel, deliveryLabel, secsToDeadline } = info;
+      const hh  = Math.floor(secsToDeadline / 3600);
+      const mm  = Math.floor((secsToDeadline % 3600) / 60);
+      const ss  = secsToDeadline % 60;
+      const pad = n => String(n).padStart(2, "0");
+      const isAM     = batch === "AM";
+      const isUrgent = secsToDeadline < 30 * 60; // last 30 mins
+      const accent   = isAM ? "#1D4ED8" : "#D97706";
+      const bgColor  = isUrgent ? "#FEF2F2" : (isAM ? "#EFF6FF" : "#FFFBEB");
+      const bdColor  = isUrgent ? "#FCA5A5" : (isAM ? "#BFDBFE" : "#FDE68A");
+      return (
+        <div style={{ margin:"12px 20px 0", borderRadius:16, background:bgColor, border:`1.5px solid ${bdColor}`, padding:"12px 16px", display:"flex", alignItems:"center", gap:12 }}>
+          <div style={{ width:44, height:44, borderRadius:12, flexShrink:0, background: isUrgent ? "#EF4444" : accent, display:"flex", flexDirection:"column", alignItems:"center", justifyContent:"center", color:"#fff" }}>
+            <Ic n={isUrgent ? "fire" : (isAM ? "sun" : "cloud-sun")} size={18} />
+          </div>
+          <div style={{ flex:1, minWidth:0 }}>
+            <div style={{ fontSize:11, fontWeight:700, color: isUrgent ? "#B91C1C" : accent, textTransform:"uppercase", letterSpacing:".06em", marginBottom:2 }}>
+              {isUrgent ? "⚠ Malapit nang mag-cut-off!" : `${batch} Batch — Order ngayon`}
+            </div>
+            <div style={{ fontSize:13, color:"#374151", fontWeight:600, lineHeight:1.4 }}>
+              Delivery: <strong>{deliveryLabel}</strong> &nbsp;·&nbsp; Cut-off: <strong style={{color: isUrgent ? "#EF4444" : accent}}>{cutoffLabel}</strong>
+            </div>
+          </div>
+          <div style={{ textAlign:"center", flexShrink:0 }}>
+            <div style={{ fontSize:10, fontWeight:700, color:"#9CA3AF", marginBottom:1 }}>NATITIRANG ORAS</div>
+            <div style={{
+              fontSize: hh > 0 ? 17 : 20, fontWeight:800, letterSpacing:".04em",
+              color: isUrgent ? "#EF4444" : accent,
+              fontVariantNumeric:"tabular-nums",
+            }}>
+              {hh > 0 ? `${pad(hh)}:${pad(mm)}:${pad(ss)}` : `${pad(mm)}:${pad(ss)}`}
+            </div>
+          </div>
+        </div>
+      );
+    }
+
     /* ══════════════════ USER APP ══════════════════ */
     function UserApp({ products, orders, onOrder, user, onLogout }) {
       const [activeCat,      setActiveCat]      = useState("isda");
@@ -967,30 +1031,6 @@
         }
         setAppliedVoucher(latest);
       }, [appliedVoucher, vouchers, computeVoucherDiscount]);
-
-      const getDeliveryBatch = () => {
-        // Philippine Time = UTC+8
-        const now = new Date();
-        const phOffset = 8 * 60 * 60 * 1000;
-        const phNow = new Date(now.getTime() + phOffset);
-        const h = phNow.getUTCHours();
-        const m = phNow.getUTCMinutes();
-        const totalMins = h * 60 + m;
-        const pad = n => String(n).padStart(2, "0");
-        const fmtDate = d => `${d.getUTCFullYear()}-${pad(d.getUTCMonth()+1)}-${pad(d.getUTCDate())}`;
-        const todayStr    = fmtDate(phNow);
-        const tomorrowStr = fmtDate(new Date(phNow.getTime() + 24 * 60 * 60 * 1000));
-        // Before 8:30 AM  → AM batch, 10:00 AM Today
-        // 8:30 AM–2:30 PM → PM batch, 4:00 PM Today
-        // After 2:30 PM   → AM batch, 10:00 AM Tomorrow
-        if (totalMins < 8 * 60 + 30) {
-          return { batch:"AM", date:todayStr,    label:"AM Batch — 10:00 AM Ngayon",   timeLabel:"10:00 AM Ngayon" };
-        } else if (totalMins <= 14 * 60 + 30) {
-          return { batch:"PM", date:todayStr,    label:"PM Batch — 4:00 PM Ngayon",    timeLabel:"4:00 PM Ngayon" };
-        } else {
-          return { batch:"AM", date:tomorrowStr, label:"AM Batch — 10:00 AM Bukas",    timeLabel:"10:00 AM Bukas" };
-        }
-      };
 
       const applyVoucher = () => {
         const code = voucherCode.trim().toUpperCase();
@@ -1183,6 +1223,9 @@
               {searchQ && <button onClick={() => setSearchQ("")} style={{ opacity:.4, fontSize:16 }}><Ic n="xmark" /></button>}
             </div>
           </div>
+
+          {/* ── Batch Timer ── */}
+          <BatchTimerBanner />
 
           {/* ── Categories ── */}
           <div style={{ display:"flex", gap:8, padding:"14px 20px", overflowX:"auto", scrollbarWidth:"none" }}>
@@ -1704,38 +1747,39 @@
                   )}
                 </div>
 
-                {/* ── Delivery Batch Banner ── */}
+                {/* ── Delivery Batch Banner (Checkout) ── */}
                 {(() => {
                   const b = getDeliveryBatch();
                   const isAM = b.batch === "AM";
+                  const secs = b.secsToDeadline;
+                  const hh = Math.floor(secs / 3600);
+                  const mm = Math.floor((secs % 3600) / 60);
+                  const ss = secs % 60;
+                  const pad2 = n => String(n).padStart(2, "0");
+                  const isUrgent = secs < 30 * 60;
+                  const accent = isUrgent ? "#EF4444" : (isAM ? "#1E40AF" : "#92400E");
+                  const bg     = isUrgent ? "#FEF2F2"  : (isAM ? "#EFF6FF"  : "#FFFBEB");
+                  const bd     = isUrgent ? "#FCA5A5"  : (isAM ? "#BFDBFE"  : "#FDE68A");
                   return (
-                    <div style={{
-                      borderRadius:12, padding:"13px 15px", marginBottom:14,
-                      background: isAM ? "#EFF6FF" : "#FEF9C3",
-                      border: `1.5px solid ${isAM ? "#BFDBFE" : "#FDE68A"}`,
-                      display:"flex", gap:10, alignItems:"center",
-                    }}>
-                      <div style={{
-                        width:38, height:38, borderRadius:10, flexShrink:0,
-                        background: isAM ? "#1D4ED8" : "#F59E0B",
-                        display:"flex", alignItems:"center", justifyContent:"center", color:"#fff", fontSize:17,
-                      }}>
-                        <Ic n={isAM ? "sun" : "cloud-sun"} />
+                    <div style={{ borderRadius:12, padding:"12px 14px", marginBottom:14, background:bg, border:`1.5px solid ${bd}`, display:"flex", gap:10, alignItems:"center" }}>
+                      <div style={{ width:38, height:38, borderRadius:10, flexShrink:0, background: isUrgent ? "#EF4444" : (isAM ? "#1D4ED8" : "#F59E0B"), display:"flex", alignItems:"center", justifyContent:"center", color:"#fff", fontSize:17 }}>
+                        <Ic n={isUrgent ? "fire" : (isAM ? "sun" : "cloud-sun")} />
                       </div>
                       <div style={{ flex:1 }}>
-                        <div style={{ fontSize:13, fontWeight:800, color: isAM ? "#1E40AF" : "#92400E" }}>
-                          {b.batch} Batch — {b.timeLabel}
+                        <div style={{ fontSize:13, fontWeight:800, color:accent }}>
+                          {b.batch} Batch &nbsp;·&nbsp; Delivery: {b.deliveryLabel}
                         </div>
                         <div style={{ fontSize:11, color:"#6B7280", marginTop:2 }}>
-                          Kasama ang order mo sa <strong>{b.batch === "AM" ? "Umaga" : "Hapon"}</strong> na delivery run.
+                          Cut-off: <strong style={{color:accent}}>{b.cutoffLabel}</strong>
+                          &nbsp;—&nbsp;
+                          {isUrgent ? <span style={{color:"#EF4444",fontWeight:700}}>⚠ Malapit nang magsara!</span> : "Order na habang maaga!"}
                         </div>
                       </div>
-                      <div style={{
-                        fontSize:12, fontWeight:800, padding:"4px 10px", borderRadius:20,
-                        background: isAM ? "#DBEAFE" : "#FEF08A",
-                        color: isAM ? "#1E40AF" : "#92400E",
-                      }}>
-                        {b.batch}
+                      <div style={{ textAlign:"center", flexShrink:0 }}>
+                        <div style={{ fontSize:9, fontWeight:700, color:"#9CA3AF", marginBottom:1 }}>TIME LEFT</div>
+                        <div style={{ fontSize: hh > 0 ? 14 : 16, fontWeight:800, color:accent, fontVariantNumeric:"tabular-nums" }}>
+                          {hh > 0 ? `${pad2(hh)}:${pad2(mm)}:${pad2(ss)}` : `${pad2(mm)}:${pad2(ss)}`}
+                        </div>
                       </div>
                     </div>
                   );
