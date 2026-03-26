@@ -848,6 +848,7 @@
       const [appliedVoucher, setAppliedVoucher] = useState(null);
       const [voucherMsg,     setVoucherMsg]     = useState("");
       const [showVoucherList,setShowVoucherList]= useState(false);
+      const [locationType,   setLocationType]  = useState("Mainland");
 
       const cartCount = Object.values(cart).reduce((s,v) => s+v, 0);
       const cartItems = Object.entries(cart)
@@ -967,6 +968,30 @@
         setAppliedVoucher(latest);
       }, [appliedVoucher, vouchers, computeVoucherDiscount]);
 
+      const getDeliveryBatch = () => {
+        // Philippine Time = UTC+8
+        const now = new Date();
+        const phOffset = 8 * 60 * 60 * 1000;
+        const phNow = new Date(now.getTime() + phOffset);
+        const h = phNow.getUTCHours();
+        const m = phNow.getUTCMinutes();
+        const totalMins = h * 60 + m;
+        const pad = n => String(n).padStart(2, "0");
+        const fmtDate = d => `${d.getUTCFullYear()}-${pad(d.getUTCMonth()+1)}-${pad(d.getUTCDate())}`;
+        const todayStr    = fmtDate(phNow);
+        const tomorrowStr = fmtDate(new Date(phNow.getTime() + 24 * 60 * 60 * 1000));
+        // Before 8:30 AM  → AM batch, 10:00 AM Today
+        // 8:30 AM–2:30 PM → PM batch, 4:00 PM Today
+        // After 2:30 PM   → AM batch, 10:00 AM Tomorrow
+        if (totalMins < 8 * 60 + 30) {
+          return { batch:"AM", date:todayStr,    label:"AM Batch — 10:00 AM Ngayon",   timeLabel:"10:00 AM Ngayon" };
+        } else if (totalMins <= 14 * 60 + 30) {
+          return { batch:"PM", date:todayStr,    label:"PM Batch — 4:00 PM Ngayon",    timeLabel:"4:00 PM Ngayon" };
+        } else {
+          return { batch:"AM", date:tomorrowStr, label:"AM Batch — 10:00 AM Bukas",    timeLabel:"10:00 AM Bukas" };
+        }
+      };
+
       const applyVoucher = () => {
         const code = voucherCode.trim().toUpperCase();
         if (!code) {
@@ -1005,6 +1030,7 @@
           ...cartItems,
           ...customItems.map(i => ({ ...i, price: i.estPrice })),
         ];
+        const batchInfo = getDeliveryBatch();
         onOrder({
           items: allItems,
           subtotal, customEstimate: customEstTotal, deliveryFee,
@@ -1025,6 +1051,9 @@
           customer: { name, phone, address: addr, lat: customerLat, lng: customerLng },
           status: "pending",
           hasCustomItems: customItems.length > 0,
+          deliveryBatch: batchInfo.batch,
+          deliveryDate:  batchInfo.date,
+          locationType,
         });
         setCart({});
         setCustomItems([]);
@@ -1671,6 +1700,74 @@
                   {customItems.length > 0 && (
                     <div style={{ marginTop:8, fontSize:11, color:"#92400E", background:"#FEF9C3", borderRadius:8, padding:"6px 10px" }}>
                       <Ic n="triangle-exclamation" style={{marginRight:4}} />Ang total ay approximate dahil may custom items. Ang final na bayad ay depende sa aktwal na presyo.
+                    </div>
+                  )}
+                </div>
+
+                {/* ── Delivery Batch Banner ── */}
+                {(() => {
+                  const b = getDeliveryBatch();
+                  const isAM = b.batch === "AM";
+                  return (
+                    <div style={{
+                      borderRadius:12, padding:"13px 15px", marginBottom:14,
+                      background: isAM ? "#EFF6FF" : "#FEF9C3",
+                      border: `1.5px solid ${isAM ? "#BFDBFE" : "#FDE68A"}`,
+                      display:"flex", gap:10, alignItems:"center",
+                    }}>
+                      <div style={{
+                        width:38, height:38, borderRadius:10, flexShrink:0,
+                        background: isAM ? "#1D4ED8" : "#F59E0B",
+                        display:"flex", alignItems:"center", justifyContent:"center", color:"#fff", fontSize:17,
+                      }}>
+                        <Ic n={isAM ? "sun" : "cloud-sun"} />
+                      </div>
+                      <div style={{ flex:1 }}>
+                        <div style={{ fontSize:13, fontWeight:800, color: isAM ? "#1E40AF" : "#92400E" }}>
+                          {b.batch} Batch — {b.timeLabel}
+                        </div>
+                        <div style={{ fontSize:11, color:"#6B7280", marginTop:2 }}>
+                          Kasama ang order mo sa <strong>{b.batch === "AM" ? "Umaga" : "Hapon"}</strong> na delivery run.
+                        </div>
+                      </div>
+                      <div style={{
+                        fontSize:12, fontWeight:800, padding:"4px 10px", borderRadius:20,
+                        background: isAM ? "#DBEAFE" : "#FEF08A",
+                        color: isAM ? "#1E40AF" : "#92400E",
+                      }}>
+                        {b.batch}
+                      </div>
+                    </div>
+                  );
+                })()}
+
+                {/* ── Location Type Selector ── */}
+                <div style={{ marginBottom:16 }}>
+                  <label style={{ fontSize:12, fontWeight:700, color:"#666", display:"block", marginBottom:8 }}>
+                    <Ic n="map" style={{marginRight:5}} />Uri ng Lokasyon
+                  </label>
+                  <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:8 }}>
+                    {[
+                      { val:"Mainland", icon:"house", label:"Mainland",   desc:"Binangonan mainland" },
+                      { val:"Island",   icon:"water", label:"Island",     desc:"Isla / Kabilang dagat" },
+                    ].map(opt => (
+                      <button key={opt.val} type="button"
+                        onClick={() => setLocationType(opt.val)}
+                        style={{
+                          padding:"12px 10px", borderRadius:14, textAlign:"center",
+                          border: locationType === opt.val ? "2px solid #166534" : "1.5px solid #E5E7EB",
+                          background: locationType === opt.val ? "#F0FDF4" : "#FAFAFA",
+                          transition:"all .18s",
+                        }}>
+                        <Ic n={opt.icon} size={18} style={{ color: locationType === opt.val ? "#166534" : "#9CA3AF", marginBottom:4, display:"block" }} />
+                        <div style={{ fontSize:13, fontWeight:800, color: locationType === opt.val ? "#166534" : "#374151" }}>{opt.label}</div>
+                        <div style={{ fontSize:10, color:"#9CA3AF", marginTop:2 }}>{opt.desc}</div>
+                      </button>
+                    ))}
+                  </div>
+                  {locationType === "Island" && (
+                    <div style={{ marginTop:8, fontSize:11, color:"#B45309", background:"#FEF3C7", borderRadius:8, padding:"6px 10px" }}>
+                      <Ic n="triangle-exclamation" style={{marginRight:4}} />Island orders ay uunahin para mahabol ang huling biyahe sa port.
                     </div>
                   )}
                 </div>
