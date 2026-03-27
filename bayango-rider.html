@@ -284,6 +284,7 @@
       const [riderCoords,     setRiderCoords]     = useState(null);
       const notificationAudioRef = useRef(null);
       const lastAvailableOrderIdsRef = useRef(new Set());
+      const prevMyOrdersStatusRef = useRef({});
       const [notifPermission, setNotifPermission] = useState(
         typeof Notification === "undefined" ? "unsupported" : Notification.permission
       );
@@ -523,12 +524,35 @@
         };
       }, [myOrders, user.uid]);
 
+      useEffect(() => {
+        const prev = prevMyOrdersStatusRef.current;
+        const isFirstLoad = Object.keys(prev).length === 0;
+        if (!isFirstLoad) {
+          myOrders.forEach(o => {
+            if (o.status === "cancelled" && prev[o.id] && prev[o.id] !== "cancelled") {
+              const short = String(o.id).slice(-6);
+              showToast(`Order #${short} ay na-cancel ng customer.`);
+              showLocalRiderNotification({
+                title: "BayanGo Rider",
+                body: `Order #${short} ay na-cancel ng customer.`,
+                data: { type: "order_cancelled", orderId: o.id },
+              });
+              playNotificationSound();
+            }
+          });
+        }
+        const newPrev = {};
+        myOrders.forEach(o => { newPrev[o.id] = o.status; });
+        prevMyOrdersStatusRef.current = newPrev;
+      }, [myOrders]);
+
       const buyingOrders    = myOrders.filter(o => o.status === "buying");
       const activeOrders    = myOrders.filter(o => o.status === "otw");
-      const completedOrders = myOrders.filter(o => o.status === "delivered");
-      const todayEarnings   = completedOrders.filter(o => isToday(o.deliveredAt)).reduce((s,o) => s + (o.deliveryFee||0), 0);
-      const totalEarnings   = completedOrders.reduce((s,o) => s + (o.deliveryFee||0), 0);
-      const weekEarnings    = completedOrders.filter(o => {
+      const deliveredOrders = myOrders.filter(o => o.status === "delivered");
+      const completedOrders = myOrders.filter(o => o.status === "delivered" || o.status === "cancelled");
+      const todayEarnings   = deliveredOrders.filter(o => isToday(o.deliveredAt)).reduce((s,o) => s + (o.deliveryFee||0), 0);
+      const totalEarnings   = deliveredOrders.reduce((s,o) => s + (o.deliveryFee||0), 0);
+      const weekEarnings    = deliveredOrders.filter(o => {
         if (!o.deliveredAt) return false;
         const d = o.deliveredAt.toDate ? o.deliveredAt.toDate() : new Date(o.deliveredAt);
         const diff = (new Date() - d) / 86400000;
@@ -587,7 +611,7 @@
           <div style={{ filter: shouldForceNotifEnable ? "blur(3px)" : "none", pointerEvents: shouldForceNotifEnable ? "none" : "auto" }}>
             {tab === "available"  && <AvailableTab  orders={availableOrders} onAccept={acceptOrder} claiming={claiming} availErr={availErr} onOpenChecklist={setChecklistOrder} onOpenMap={setMapOrder} />}
             {tab === "deliveries" && <DeliveriesTab buying={buyingOrders} active={activeOrders} completed={completedOrders} onOtw={markOtw} markingOtw={markingOtw} onDeliver={markDelivered} delivering={delivering} onOpenChecklist={setChecklistOrder} onOpenMap={setMapOrder} />}
-            {tab === "earnings"   && <EarningsTab   completed={completedOrders} today={todayEarnings} week={weekEarnings} total={totalEarnings} />}
+            {tab === "earnings"   && <EarningsTab   completed={deliveredOrders} today={todayEarnings} week={weekEarnings} total={totalEarnings} />}
           </div>
 
           {/* ── Bottom Nav ── */}
@@ -1086,25 +1110,31 @@
           {completed.length > 0 && (
             <>
               <div style={{ fontSize:12, fontWeight:700, color:"#64748B", margin:"16px 0 10px", textTransform:"uppercase", letterSpacing:".08em" }}>
-                <Ic n="circle-check" style={{ marginRight:6 }} />Mga Na-deliver ({completed.length})
+                <Ic n="circle-check" style={{ marginRight:6 }} />Natapos ({completed.length})
               </div>
               {completed.slice(0, 20).map(order => {
-                const ts = order.deliveredAt?.toDate ? order.deliveredAt.toDate() : new Date(order.deliveredAt || 0);
+                const isCancelled = order.status === "cancelled";
+                const ts = isCancelled
+                  ? (order.cancelledAt ? new Date(order.cancelledAt) : new Date(order.createdAt || 0))
+                  : (order.deliveredAt?.toDate ? order.deliveredAt.toDate() : new Date(order.deliveredAt || 0));
                 return (
                   <div key={order.id} className="fade-up" style={{
                     background:"#fff", borderRadius:16, padding:"14px 16px", marginBottom:8,
-                    border:"1px solid #E2E8F0", display:"flex", alignItems:"center", gap:12,
+                    border: isCancelled ? "1px solid #FCA5A5" : "1px solid #E2E8F0",
+                    display:"flex", alignItems:"center", gap:12,
                   }}>
-                    <div style={{ width:44, height:44, borderRadius:12, background:"#DCFCE7", display:"flex", alignItems:"center", justifyContent:"center", flexShrink:0 }}><Ic n="circle-check" size={20} style={{ color:"#059669" }} /></div>
+                    <div style={{ width:44, height:44, borderRadius:12, background: isCancelled ? "#FEE2E2" : "#DCFCE7", display:"flex", alignItems:"center", justifyContent:"center", flexShrink:0 }}>
+                      <Ic n={isCancelled ? "ban" : "circle-check"} size={20} style={{ color: isCancelled ? "#B91C1C" : "#059669" }} />
+                    </div>
                     <div style={{ flex:1, minWidth:0 }}>
                       <div style={{ fontSize:14, fontWeight:700, color:"#1E293B", overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>
                         {order.customer?.name}
                       </div>
-                      <div style={{ fontSize:12, color:"#94A3B8", marginTop:2 }}>
-                        {ts.toLocaleDateString("en-PH")} {ts.toLocaleTimeString("en-PH",{hour:"2-digit",minute:"2-digit"})}
+                      <div style={{ fontSize:12, color: isCancelled ? "#B91C1C" : "#94A3B8", marginTop:2 }}>
+                        {isCancelled ? "Na-cancel ng customer" : `${ts.toLocaleDateString("en-PH")} ${ts.toLocaleTimeString("en-PH",{hour:"2-digit",minute:"2-digit"})}`}
                       </div>
                     </div>
-                    <div style={{ fontSize:16, fontWeight:800, color:"#059669" }}>{fmt(order.deliveryFee || 0)}</div>
+                    {!isCancelled && <div style={{ fontSize:16, fontWeight:800, color:"#059669" }}>{fmt(order.deliveryFee || 0)}</div>}
                   </div>
                 );
               })}
