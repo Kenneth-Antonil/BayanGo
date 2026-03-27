@@ -1,22 +1,40 @@
 {
   "name": "BayanGo — Binangonan Concierge",
   "short_name": "BayanGo",
-  "description": "Kami na ang mamamalengke para sa'yo sa Binangonan!",
+  "description": "Kami na ang mamamalengke para sa'yo sa Binangonan! Mag-order ng pagkain, gulay, isda, at iba pa — ide-deliver namin sa'yo.",
+  "id": "ph.bayango.app",
   "start_url": "/bayango-user.html",
+  "scope": "/",
   "display": "standalone",
+  "display_override": ["standalone", "minimal-ui"],
   "background_color": "#F8FAF8",
   "theme_color": "#166534",
   "orientation": "portrait",
+  "lang": "tl",
+  "dir": "ltr",
+  "categories": ["food", "shopping", "lifestyle"],
   "icons": [
     {
       "src": "https://i.imgur.com/wL8wcBB.jpeg",
       "sizes": "192x192",
-      "type": "image/png"
+      "type": "image/jpeg",
+      "purpose": "any"
     },
     {
       "src": "https://i.imgur.com/wL8wcBB.jpeg",
       "sizes": "512x512",
-      "type": "image/png"
+      "type": "image/jpeg",
+      "purpose": "any maskable"
     }
-  ]
+  ],
+  "screenshots": [
+    {
+      "src": "https://i.imgur.com/wL8wcBB.jpeg",
+      "sizes": "1080x1920",
+      "type": "image/jpeg",
+      "form_factor": "narrow",
+      "label": "BayanGo — Order screen"
+    }
+  ],
+  "prefer_related_applications": false
 }
