@@ -3,7 +3,7 @@
   "version": "1.0.0",
   "description": "Firebase Cloud Functions for BayanGo batch order notifications",
   "engines": {
-    "node": "18"
+    "node": "22"
   },
   "main": "index.js",
   "dependencies": {
