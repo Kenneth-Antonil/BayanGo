@@ -179,7 +179,7 @@
       return tokenJson.access_token;
     }
 
-    async function sendFcmToTokens(tokens, { title, body, data = {} }) {
+    async function sendFcmToTokens(tokens, { title, body, data = {}, link }) {
       const rawJson = getServiceAccountJson();
       if (!rawJson) throw new Error("Walang service account JSON. I-save muna sa admin panel.");
 
@@ -206,7 +206,7 @@
           message: {
             token,
             notification: { title, body },
-            data: Object.fromEntries(Object.entries(data || {}).map(([k, v]) => [String(k), String(v)])),
+            data: Object.fromEntries(Object.entries({ ...(data || {}), ...(link ? { link } : {}) }).map(([k, v]) => [String(k), String(v)])),
             webpush: {
               notification: {
                 title,
@@ -214,7 +214,7 @@
                 icon: "https://i.imgur.com/wL8wcBB.jpeg",
               },
               fcm_options: {
-                link: "https://bayango.ph/bayango-user.html#/orders",
+                link: link || "https://bayango.ph/bayango-user.html#/orders",
               },
             },
           },
@@ -447,6 +447,7 @@
             title: "Order Update",
             body: `Order #${String(order.id || "").slice(-6)}: ${statusLabel}`,
             data: { type: "order_status", orderId: String(order.id || ""), status: newStatus },
+            link: "https://bayango.ph/bayango-user.html#/orders",
           });
         } catch (pushErr) {
           console.error("Order push send failed:", pushErr);
@@ -480,6 +481,7 @@
                     title: "BayanGo: Bagong Order!",
                     body: `May bagong order mula kay ${order.customer?.name || "customer"}. Buksan ang app para tanggapin.`,
                     data: { type: "new_order", orderId: String(order.id) },
+                    link: "https://bayango.ph/bayango-rider.html",
                   });
                 }
               } catch (e) { console.error("New order rider notif failed:", e); }
@@ -493,6 +495,7 @@
                     title: "BayanGo: Order Cancelled",
                     body: `Order #${String(order.id).slice(-6)} ay na-cancel ng customer.`,
                     data: { type: "order_cancelled", orderId: String(order.id) },
+                    link: "https://bayango.ph/bayango-rider.html",
                   });
                 }
               } catch (e) { console.error("Rider cancel notif failed:", e); }
