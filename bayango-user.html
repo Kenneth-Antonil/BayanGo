@@ -317,9 +317,34 @@
       );
     }
 
+    const _ua = navigator.userAgent || "";
+    const _isIOS     = /iPad|iPhone|iPod/.test(_ua) && !window.MSStream;
+    const _isAndroid = /Android/.test(_ua);
+
+    function InstallSteps({ steps }) {
+      return (
+        <div style={{ display:"grid", gap:14 }}>
+          {steps.map(({ num, icon, text }) => (
+            <div key={num} style={{ display:"flex", alignItems:"flex-start", gap:14 }}>
+              <div style={{
+                minWidth:38, height:38, borderRadius:"50%",
+                background:"linear-gradient(135deg,#166534,#22C55E)",
+                color:"#fff", display:"flex", alignItems:"center", justifyContent:"center",
+                fontWeight:800, fontSize:16, flexShrink:0,
+              }}>{num}</div>
+              <div style={{ paddingTop:6 }}>
+                {icon && <Ic n={icon} style={{ color:"#166534", marginRight:6, fontSize:15 }} />}
+                <span style={{ fontSize:16, color:"#1F2937", lineHeight:1.55, fontWeight:500 }}
+                  dangerouslySetInnerHTML={{ __html: text }} />
+              </div>
+            </div>
+          ))}
+        </div>
+      );
+    }
+
     function InstallGate() {
       const [busy, setBusy] = useState(false);
-      const [errorMsg, setErrorMsg] = useState("");
       const [canPromptInstall, setCanPromptInstall] = useState(Boolean(window._deferredInstallPrompt));
 
       useEffect(() => {
@@ -329,97 +354,108 @@
       }, []);
 
       const handleInstall = async () => {
-        setErrorMsg("");
         const promptEvent = window._deferredInstallPrompt;
-        if (!promptEvent) {
-          setErrorMsg("Hindi pa available ang install prompt. Gamitin ang browser menu at piliin ang Install App o Add to Home Screen.");
-          return;
-        }
-
+        if (!promptEvent) return;
         setBusy(true);
         try {
           promptEvent.prompt();
           await promptEvent.userChoice;
           window._deferredInstallPrompt = null;
           setCanPromptInstall(false);
-        } catch (err) {
-          setErrorMsg("Hindi ma-open ang install prompt. Subukan ulit.");
         } finally {
           setBusy(false);
         }
       };
+
+      // iOS: manual steps lang, walang beforeinstallprompt
+      const iosSteps = [
+        { num:1, icon:"safari", text:'Buksan ang link na ito sa <strong>Safari</strong> browser (hindi Chrome).' },
+        { num:2, icon:"arrow-up-from-bracket", text:'I-tap ang <strong>Share button</strong> — yung parisukat na may pataas na arrow, nasa ibaba ng screen.' },
+        { num:3, icon:"plus-square", text:'Scroll pababa at i-tap ang <strong>"Add to Home Screen"</strong>.' },
+        { num:4, icon:"check", text:'I-tap ang <strong>"Add"</strong> sa kanang sulok sa itaas. Tapos na!' },
+      ];
+
+      // Android: walang auto-prompt, manual steps
+      const androidManualSteps = [
+        { num:1, icon:"ellipsis-vertical", text:'I-tap ang <strong>⋮</strong> (tatlong tuldok) sa kanang sulok sa itaas ng Chrome.' },
+        { num:2, icon:"mobile-screen", text:'Piliin ang <strong>"Add to Home Screen"</strong> o <strong>"Install App"</strong>.' },
+        { num:3, icon:"check", text:'I-tap ang <strong>"Add"</strong> o <strong>"Install"</strong>. Tapos na!' },
+      ];
+
+      const showManualSteps = _isIOS || (_isAndroid && !canPromptInstall);
+      const manualSteps     = _isIOS ? iosSteps : androidManualSteps;
 
       return (
         <div style={{
           minHeight:"100vh",
           padding:"22px 18px calc(env(safe-area-inset-bottom,0px) + 22px)",
           background:"linear-gradient(165deg,#052e16 0%,#14532d 46%,#166534 100%)",
-          display:"flex",
-          alignItems:"center",
-          justifyContent:"center",
+          display:"flex", alignItems:"center", justifyContent:"center",
         }}>
-          <div style={{ width:"100%", maxWidth:420, borderRadius:26, background:"#fff", boxShadow:"0 28px 60px rgba(0,0,0,.38)", overflow:"hidden" }}>
-            <div style={{ padding:"18px 18px 8px", background:"linear-gradient(140deg,#166534,#22C55E)", color:"#fff" }}>
-              <div style={{ display:"inline-flex", alignItems:"center", gap:8, borderRadius:999, background:"rgba(255,255,255,.2)", padding:"6px 12px", fontSize:11, fontWeight:700, letterSpacing:".3px" }}>
-                <Ic n="bolt" /> MOBILE APP REQUIRED
+          <div style={{ width:"100%", maxWidth:440, borderRadius:26, background:"#fff", boxShadow:"0 28px 60px rgba(0,0,0,.38)", overflow:"hidden" }}>
+
+            {/* Header */}
+            <div style={{ padding:"20px 20px 14px", background:"linear-gradient(140deg,#166534,#22C55E)", color:"#fff" }}>
+              <div style={{ display:"inline-flex", alignItems:"center", gap:8, borderRadius:999, background:"rgba(255,255,255,.2)", padding:"6px 14px", fontSize:12, fontWeight:700, letterSpacing:".3px" }}>
+                <Ic n="bolt" /> I-INSTALL ANG APP
               </div>
-              <h2 style={{ marginTop:14, fontSize:26, lineHeight:1.1, fontWeight:800 }}>I-download ang BayanGo App</h2>
-              <p style={{ marginTop:8, fontSize:13, lineHeight:1.5, opacity:.95 }}>
-                Para sa mas mabilis na checkout at real-time order updates, app-only na ang access.
+              <h2 style={{ marginTop:12, fontSize:26, lineHeight:1.15, fontWeight:800 }}>I-download ang BayanGo App</h2>
+              <p style={{ marginTop:8, fontSize:14, lineHeight:1.55, opacity:.95 }}>
+                I-install sa iyong home screen para sa mas mabilis na order at instant na notifications.
               </p>
             </div>
 
-            <div style={{ padding:"16px 16px 18px", display:"grid", gap:12 }}>
-              <div style={{ border:"1px solid #DCFCE7", borderRadius:14, background:"#F0FDF4", padding:"12px 13px", display:"flex", alignItems:"center", gap:10 }}>
-                <div style={{ width:34, height:34, borderRadius:11, background:"#166534", color:"#fff", display:"flex", alignItems:"center", justifyContent:"center" }}>
+            <div style={{ padding:"20px 20px 22px", display:"grid", gap:16 }}>
+
+              {/* Free delivery perk */}
+              <div style={{ border:"1px solid #DCFCE7", borderRadius:14, background:"#F0FDF4", padding:"13px 14px", display:"flex", alignItems:"center", gap:12 }}>
+                <div style={{ width:36, height:36, borderRadius:11, background:"#166534", color:"#fff", display:"flex", alignItems:"center", justifyContent:"center", flexShrink:0 }}>
                   <Ic n="tag" />
                 </div>
                 <div>
-                  <div style={{ fontSize:11, color:"#15803D", fontWeight:700, letterSpacing:".4px" }}>LIMITED WELCOME PERK</div>
+                  <div style={{ fontSize:11, color:"#15803D", fontWeight:700, letterSpacing:".4px" }}>WELCOME PERK</div>
                   <div style={{ fontSize:15, color:"#14532D", fontWeight:800 }}>FREE DELIVERY SA FIRST ORDER</div>
                 </div>
               </div>
 
-              <div style={{ border:"1px solid #E5E7EB", borderRadius:14, padding:"12px", display:"grid", gap:10 }}>
+              {/* Auto-install button: Android + Chrome lang */}
+              {!_isIOS && canPromptInstall && (
+                <button onClick={handleInstall} disabled={busy} style={{
+                  width:"100%", borderRadius:14, padding:"16px",
+                  background: busy ? "#9CA3AF" : "linear-gradient(135deg,#166534,#22C55E)",
+                  color:"#fff", fontSize:17, fontWeight:800, letterSpacing:".2px",
+                  boxShadow:"0 12px 24px rgba(22,101,52,.28)",
+                }}>
+                  <Ic n="download" style={{ marginRight:10 }} />
+                  {busy ? "Sandali lang..." : "I-INSTALL ANG APP"}
+                </button>
+              )}
+
+              {/* Step-by-step para sa iOS o Android walang prompt */}
+              {showManualSteps && (
+                <div style={{ border:"1px solid #E5E7EB", borderRadius:16, padding:"16px 16px 18px" }}>
+                  <div style={{ fontSize:13, fontWeight:700, color:"#166534", marginBottom:16, letterSpacing:".3px" }}>
+                    <Ic n="list-ol" style={{ marginRight:7 }} />
+                    {_isIOS ? "PAANO I-INSTALL SA iPHONE / iPAD:" : "PAANO I-INSTALL SA ANDROID:"}
+                  </div>
+                  <InstallSteps steps={manualSteps} />
+                </div>
+              )}
+
+              {/* Features list */}
+              <div style={{ border:"1px solid #E5E7EB", borderRadius:14, padding:"13px", display:"grid", gap:11 }}>
                 {[
-                  ["mobile-screen", "Mas stable na order tracking"],
-                  ["bell", "Instant notifications sa status updates"],
-                  ["shield-halved", "Mas secure na account session"],
+                  ["mobile-screen", "Mas mabilis at stable na pag-order"],
+                  ["bell", "Abisuhan kung kailan darating ang order"],
+                  ["shield-halved", "Mas secure ang iyong account"],
                 ].map(([icon, text]) => (
-                  <div key={icon} style={{ display:"flex", alignItems:"center", gap:10, fontSize:13, color:"#374151", fontWeight:600 }}>
-                    <span style={{ width:24, textAlign:"center", color:"#166534" }}><Ic n={icon} /></span>
+                  <div key={icon} style={{ display:"flex", alignItems:"center", gap:10, fontSize:15, color:"#374151", fontWeight:600 }}>
+                    <span style={{ width:26, textAlign:"center", color:"#166534" }}><Ic n={icon} /></span>
                     <span>{text}</span>
                   </div>
                 ))}
               </div>
 
-              <button onClick={handleInstall} disabled={busy || !canPromptInstall} style={{
-                marginTop:2,
-                width:"100%",
-                borderRadius:14,
-                padding:"14px 16px",
-                background: busy || !canPromptInstall ? "#9CA3AF" : "linear-gradient(135deg,#166534,#22C55E)",
-                color:"#fff",
-                fontSize:14,
-                fontWeight:800,
-                letterSpacing:".2px",
-                boxShadow:"0 12px 24px rgba(22,101,52,.28)",
-              }}>
-                <Ic n="download" style={{ marginRight:8 }} />{busy ? "Ino-open ang install prompt..." : "DOWNLOAD APP NOW"}
-              </button>
-
-              {!canPromptInstall && (
-                <div style={{ fontSize:12, color:"#6B7280", lineHeight:1.5, borderRadius:12, background:"#F9FAFB", border:"1px solid #E5E7EB", padding:"10px 12px" }}>
-                  <Ic n="circle-info" style={{ color:"#166534", marginRight:6 }} />
-                  Buksan ang browser menu at piliin ang <strong>Install App</strong> o <strong>Add to Home Screen</strong>, tapos i-reopen ang BayanGo app.
-                </div>
-              )}
-
-              {errorMsg && (
-                <div style={{ fontSize:12, color:"#B91C1C", background:"#FEF2F2", border:"1px solid #FCA5A5", borderRadius:12, padding:"10px 12px" }}>
-                  <Ic n="triangle-exclamation" style={{ marginRight:6 }} />{errorMsg}
-                </div>
-              )}
             </div>
           </div>
         </div>
