@@ -635,29 +635,54 @@
       const [filterDate,  setFilterDate]  = React.useState(today);
       const [filterBatch, setFilterBatch] = React.useState("AM");
 
-      // Filter orders by deliveryDate + deliveryBatch
-      const batchOrders = orders.filter(o =>
+      const DONE_STATUSES = ["delivered", "cancelled"];
+
+      // All orders for this batch (for counting)
+      const allBatchOrders = orders.filter(o =>
         o.deliveryDate === filterDate && o.deliveryBatch === filterBatch
       );
+      // Active orders only → goes into the grocery list
+      const activeOrders = allBatchOrders.filter(o => !DONE_STATUSES.includes(o.status));
+      // Done orders → goes into Recent Orders section
+      const doneOrders   = allBatchOrders.filter(o => DONE_STATUSES.includes(o.status));
 
-      // Aggregate all items across matched orders
+      // Format quantity with proper unit label
+      const fmtQty = (item) => {
+        if (item.unit === "kg") {
+          const kg = parseFloat((item.totalKg || 0).toFixed(2));
+          return `${kg % 1 === 0 ? kg : kg} kg`;
+        }
+        const unit = (item.unit || "pc").toLowerCase();
+        return `${item.qty} ${unit}`;
+      };
+
+      // Aggregate regular items from active orders only
       const totals = {};
-      batchOrders.forEach(order => {
+      activeOrders.forEach(order => {
         (order.items || []).forEach(item => {
-          if (item.isCustom) return; // skip custom items (no fixed qty/unit)
+          if (item.isCustom) return;
           const key = item.name;
-          if (!totals[key]) totals[key] = { name: item.name, cat: item.cat || "sari", qty: 0 };
-          totals[key].qty += Number(item.qty) || 0;
+          if (!totals[key]) totals[key] = { name: item.name, cat: item.cat || "sari", unit: item.unit || "pc", qty: 0, totalKg: 0 };
+          if (item.unit === "kg") {
+            totals[key].totalKg += Number(item.totalKg) || 0;
+          } else {
+            totals[key].qty += Number(item.qty) || 0;
+          }
         });
       });
-      // Custom items: list them separately (can't be summed by unit)
+
+      // Custom items from active orders only
       const customList = [];
-      batchOrders.forEach(order => {
+      activeOrders.forEach(order => {
         (order.items || []).filter(i => i.isCustom).forEach(i => {
           customList.push({ ...i, orderName: order.customer?.name || "?" });
         });
       });
+
       const aggregated = Object.values(totals).sort((a, b) => a.name.localeCompare(b.name));
+
+      const statusLabel = { pending:"Pending", buying:"Buying", otw:"OTW", in_boat:"In the Boat", delivered:"Delivered", cancelled:"Cancelled" };
+      const statusColor = { pending:"#9CA3AF", buying:"#F59E0B", otw:"#3B82F6", in_boat:"#3B82F6", delivered:"#22C55E", cancelled:"#EF4444" };
 
       return (
         <div style={{ padding:"18px 20px", maxWidth:600, margin:"0 auto" }}>
@@ -695,75 +720,131 @@
           <div style={{ background:"#F0FDF4", borderRadius:12, padding:"10px 14px", marginBottom:16, border:"1px solid #BBF7D0", display:"flex", alignItems:"center", gap:8 }}>
             <Ic n="clipboard-list" style={{color:"#166534", fontSize:16}} />
             <span style={{ fontSize:13, fontWeight:700, color:"#166534" }}>
-              {batchOrders.length} order{batchOrders.length !== 1 ? "s" : ""} para sa {filterBatch} Batch — {filterDate}
+              {activeOrders.length} active order{activeOrders.length !== 1 ? "s" : ""} — {filterBatch} Batch {filterDate}
+              {doneOrders.length > 0 && (
+                <span style={{ fontWeight:500, color:"#6B7280", marginLeft:6 }}>
+                  ({doneOrders.length} tapos na)
+                </span>
+              )}
             </span>
           </div>
 
-          {batchOrders.length === 0 ? (
-            <div style={{ textAlign:"center", padding:"50px 0", color:"#ccc" }}>
+          {allBatchOrders.length === 0 ? (
+            <div style={{ textAlign:"center", padding:"50px 0" }}>
               <Ic n="basket-shopping" size={48} style={{ marginBottom:10, color:"#ccc" }} />
               <div style={{ fontSize:14, fontWeight:600, color:"#9CA3AF" }}>Walang orders para sa batch na ito.</div>
             </div>
           ) : (
             <>
-              {/* ── Aggregated Regular Items ── */}
-              {aggregated.length > 0 && (
-                <div style={{ background:"#fff", borderRadius:16, border:"1px solid #E5E7EB", overflow:"hidden", marginBottom:14 }}>
-                  <div style={{ padding:"12px 16px", background:"#166534", color:"#fff", fontSize:13, fontWeight:800 }}>
-                    <Ic n="cart-shopping" style={{marginRight:6}} />Shopping List sa Pritil
+              {activeOrders.length === 0 ? (
+                <div style={{ textAlign:"center", padding:"30px 0", background:"#F0FDF4", borderRadius:14, marginBottom:14, border:"1px solid #BBF7D0" }}>
+                  <Ic n="circle-check" style={{ fontSize:28, color:"#22C55E", marginBottom:8 }} />
+                  <div style={{ fontSize:14, fontWeight:700, color:"#166534" }}>Lahat ng orders ay tapos na!</div>
+                  <div style={{ fontSize:12, color:"#9CA3AF", marginTop:4 }}>Walang kailangang bilhin pa.</div>
+                </div>
+              ) : (
+                <>
+                  {/* ── Aggregated Regular Items ── */}
+                  {aggregated.length > 0 && (
+                    <div style={{ background:"#fff", borderRadius:16, border:"1px solid #E5E7EB", overflow:"hidden", marginBottom:14 }}>
+                      <div style={{ padding:"12px 16px", background:"#166534", color:"#fff", fontSize:13, fontWeight:800 }}>
+                        <Ic n="cart-shopping" style={{marginRight:6}} />Shopping List sa Pritil
+                      </div>
+                      {aggregated.map((item, i) => (
+                        <div key={item.name} style={{
+                          display:"flex", justifyContent:"space-between", alignItems:"center",
+                          padding:"12px 16px", borderBottom: i < aggregated.length-1 ? "1px solid #F3F4F6" : "none",
+                          background: i % 2 === 0 ? "#fff" : "#FAFAFA",
+                        }}>
+                          <span style={{ fontSize:14, fontWeight:600, color:"#1E293B" }}>
+                            <Ic n="circle" size={8} style={{marginRight:8, color:"#22C55E"}} />{item.name}
+                          </span>
+                          <span style={{ fontSize:15, fontWeight:800, color:"#166534", background:"#F0FDF4", padding:"4px 14px", borderRadius:20, whiteSpace:"nowrap" }}>
+                            {fmtQty(item)}
+                          </span>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+
+                  {/* ── Custom Items (per-order) ── */}
+                  {customList.length > 0 && (
+                    <div style={{ background:"#fff", borderRadius:16, border:"1px solid #FDE68A", overflow:"hidden", marginBottom:14 }}>
+                      <div style={{ padding:"12px 16px", background:"#F59E0B", color:"#fff", fontSize:13, fontWeight:800 }}>
+                        <Ic n="note-sticky" style={{marginRight:6}} />Custom Requests
+                      </div>
+                      {customList.map((item, i) => (
+                        <div key={i} style={{
+                          display:"flex", justifyContent:"space-between", alignItems:"center",
+                          padding:"11px 16px", borderBottom: i < customList.length-1 ? "1px solid #FEF3C7" : "none",
+                        }}>
+                          <div>
+                            <div style={{ fontSize:13, fontWeight:700, color:"#1E293B" }}>{item.name}</div>
+                            <div style={{ fontSize:11, color:"#9CA3AF", marginTop:1 }}>
+                              {item.unit} — order ni {item.orderName}
+                            </div>
+                          </div>
+                          <span style={{ fontSize:11, fontWeight:700, color:"#92400E", background:"#FEF3C7", padding:"3px 10px", borderRadius:20 }}>custom</span>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+
+                  {/* ── Active Orders included ── */}
+                  <div style={{ background:"#F8FAFC", borderRadius:14, padding:"12px 14px", border:"1px solid #E2E8F0", marginBottom:14 }}>
+                    <div style={{ fontSize:11, fontWeight:700, color:"#64748B", marginBottom:8 }}>ACTIVE ORDERS SA BATCH NA ITO</div>
+                    {activeOrders.map(o => (
+                      <div key={o.id} style={{ display:"flex", justifyContent:"space-between", alignItems:"center", fontSize:12, color:"#475569", padding:"5px 0", borderBottom:"1px solid #F1F5F9" }}>
+                        <span><Ic n="user" style={{marginRight:4}} />{o.customer?.name} — {o.customer?.address}</span>
+                        <span style={{ fontWeight:700, color: o.locationType === "Island" ? "#1D4ED8" : "#166534", whiteSpace:"nowrap", marginLeft:8 }}>
+                          {o.locationType === "Island" ? "🏝" : "🏠"} {o.locationType}
+                        </span>
+                      </div>
+                    ))}
                   </div>
-                  {aggregated.map((item, i) => (
-                    <div key={item.name} style={{
-                      display:"flex", justifyContent:"space-between", alignItems:"center",
-                      padding:"11px 16px", borderBottom: i < aggregated.length-1 ? "1px solid #F3F4F6" : "none",
+                </>
+              )}
+
+              {/* ── Recent Orders (Delivered / Cancelled) ── */}
+              {doneOrders.length > 0 && (
+                <div style={{ background:"#fff", borderRadius:16, border:"1px solid #E5E7EB", overflow:"hidden" }}>
+                  <div style={{ padding:"12px 16px", background:"#374151", color:"#fff", fontSize:13, fontWeight:800 }}>
+                    <Ic n="clock-rotate-left" style={{marginRight:6}} />Recent Orders
+                  </div>
+                  {doneOrders.map((o, i) => (
+                    <div key={o.id} style={{
+                      padding:"11px 16px",
+                      borderBottom: i < doneOrders.length-1 ? "1px solid #F3F4F6" : "none",
                       background: i % 2 === 0 ? "#fff" : "#FAFAFA",
                     }}>
-                      <span style={{ fontSize:14, fontWeight:600, color:"#1E293B" }}>
-                        <Ic n="circle" size={8} style={{marginRight:8, color:"#22C55E"}} />{item.name}
-                      </span>
-                      <span style={{ fontSize:14, fontWeight:800, color:"#166534", background:"#F0FDF4", padding:"3px 12px", borderRadius:20 }}>
-                        ×{item.qty}
-                      </span>
-                    </div>
-                  ))}
-                </div>
-              )}
-
-              {/* ── Custom Items (per-order) ── */}
-              {customList.length > 0 && (
-                <div style={{ background:"#fff", borderRadius:16, border:"1px solid #FDE68A", overflow:"hidden", marginBottom:14 }}>
-                  <div style={{ padding:"12px 16px", background:"#F59E0B", color:"#fff", fontSize:13, fontWeight:800 }}>
-                    <Ic n="note-sticky" style={{marginRight:6}} />Custom Requests
-                  </div>
-                  {customList.map((item, i) => (
-                    <div key={i} style={{
-                      display:"flex", justifyContent:"space-between", alignItems:"center",
-                      padding:"11px 16px", borderBottom: i < customList.length-1 ? "1px solid #FEF3C7" : "none",
-                    }}>
-                      <div>
-                        <div style={{ fontSize:13, fontWeight:700, color:"#1E293B" }}>{item.name}</div>
-                        <div style={{ fontSize:11, color:"#9CA3AF", marginTop:1 }}>
-                          {item.unit} — order ni {item.orderName}
-                        </div>
+                      <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center" }}>
+                        <span style={{ fontSize:13, fontWeight:700, color:"#1E293B" }}>
+                          <Ic n="user" style={{marginRight:5, color:"#9CA3AF"}} />{o.customer?.name}
+                        </span>
+                        <span style={{
+                          fontSize:11, fontWeight:700, padding:"3px 10px", borderRadius:20,
+                          background: o.status === "delivered" ? "#DCFCE7" : "#FEE2E2",
+                          color: statusColor[o.status] || "#555",
+                        }}>
+                          {statusLabel[o.status] || o.status}
+                        </span>
                       </div>
-                      <span style={{ fontSize:11, fontWeight:700, color:"#92400E", background:"#FEF3C7", padding:"3px 10px", borderRadius:20 }}>custom</span>
+                      <div style={{ fontSize:11, color:"#9CA3AF", marginTop:3 }}>
+                        {o.customer?.address}
+                        {o.items?.length > 0 && (
+                          <span style={{ marginLeft:8, color:"#D1D5DB" }}>•</span>
+                        )}
+                        {o.items?.slice(0,3).map((it, idx) => (
+                          <span key={idx} style={{ marginLeft:6, color:"#6B7280" }}>
+                            {it.name} ({fmtQty(it)}){idx < Math.min(o.items.length,3)-1 ? "," : ""}
+                          </span>
+                        ))}
+                        {o.items?.length > 3 && <span style={{ color:"#9CA3AF" }}> +{o.items.length-3} pa</span>}
+                      </div>
                     </div>
                   ))}
                 </div>
               )}
-
-              {/* ── Orders included ── */}
-              <div style={{ background:"#F8FAFC", borderRadius:14, padding:"12px 14px", border:"1px solid #E2E8F0" }}>
-                <div style={{ fontSize:11, fontWeight:700, color:"#64748B", marginBottom:8 }}>ORDERS SA BATCH NA ITO</div>
-                {batchOrders.map(o => (
-                  <div key={o.id} style={{ display:"flex", justifyContent:"space-between", fontSize:12, color:"#475569", padding:"4px 0", borderBottom:"1px solid #F1F5F9" }}>
-                    <span><Ic n="user" style={{marginRight:4}} />{o.customer?.name} — {o.customer?.address}</span>
-                    <span style={{ fontWeight:700, color: o.locationType === "Island" ? "#1D4ED8" : "#166534" }}>
-                      {o.locationType === "Island" ? "🏝 Island" : "🏠 Mainland"}
-                    </span>
-                  </div>
-                ))}
-              </div>
             </>
           )}
         </div>
