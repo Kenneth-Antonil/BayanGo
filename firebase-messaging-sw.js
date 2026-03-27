@@ -16,7 +16,19 @@ const messaging = firebase.messaging();
 
 messaging.onBackgroundMessage((payload) => {
   const title = payload?.notification?.title || 'BayanGo';
-  const clickUrl = payload?.data?.link || payload?.data?.click_action || 'https://bayango.ph/bayango-rider.html';
+  const type = payload?.data?.type || '';
+
+  // Use explicit link from data if present, otherwise derive from notification type
+  let clickUrl = payload?.data?.link || payload?.data?.click_action;
+  if (!clickUrl) {
+    if (type === 'order_status' || type === 'broadcast') {
+      clickUrl = 'https://bayango.ph/bayango-user.html#/orders';
+    } else {
+      // new_order, order_cancelled → rider app
+      clickUrl = 'https://bayango.ph/bayango-rider.html';
+    }
+  }
+
   const options = {
     body: payload?.notification?.body || 'May bagong update ka.',
     icon: 'https://i.imgur.com/wL8wcBB.jpeg',
@@ -24,7 +36,6 @@ messaging.onBackgroundMessage((payload) => {
       ...(payload?.data || {}),
       clickUrl,
     },
-    sound: 'https://audio.com/kenneth-antonil/audio/universfield-new-notification-022-370046',
     vibrate: [200, 120, 200, 120, 280],
   };
   self.registration.showNotification(title, options);
@@ -33,10 +44,19 @@ messaging.onBackgroundMessage((payload) => {
 self.addEventListener('notificationclick', (event) => {
   event.notification.close();
   const target = event.notification?.data?.clickUrl || 'https://bayango.ph/bayango-rider.html';
-  event.waitUntil(clients.matchAll({ type: 'window', includeUncontrolled: true }).then((windowClients) => {
-    for (const client of windowClients) {
-      if (client.url.includes('bayango-rider') && 'focus' in client) return client.focus();
-    }
-    if (clients.openWindow) return clients.openWindow(target);
-  }));
+  const isRiderTarget = target.includes('bayango-rider');
+
+  event.waitUntil(
+    clients.matchAll({ type: 'window', includeUncontrolled: true }).then((windowClients) => {
+      for (const client of windowClients) {
+        const isMatch = isRiderTarget
+          ? client.url.includes('bayango-rider')
+          : client.url.includes('bayango-user');
+        if (isMatch && 'focus' in client) {
+          return client.focus();
+        }
+      }
+      if (clients.openWindow) return clients.openWindow(target);
+    })
+  );
 });
