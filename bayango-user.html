@@ -69,6 +69,44 @@
   </style>
 </head>
 <body>
+
+  <!-- ═══════════════════════════════════════════════════════
+       IN-APP BROWSER DETECTION
+       Kapag binuksan sa Facebook/Instagram/TikTok built-in
+       browser, ipakita ang overlay para mag-open sa Chrome.
+  ════════════════════════════════════════════════════════════ -->
+  <script>
+    (function () {
+      var ua = navigator.userAgent || '';
+      var isIAB = /FBAN|FBAV|FB_IAB|FB4A|FBIOS|Instagram|TikTok|SnapChat|Line\/|Twitter/i.test(ua);
+      if (!isIAB) return;
+
+      var isIOS     = /iPad|iPhone|iPod/.test(ua);
+      var isAndroid = /Android/.test(ua);
+
+      var androidSteps = '<div style="display:flex;align-items:flex-start;gap:12px;margin-bottom:14px"><div style="background:#166534;color:#fff;border-radius:50%;min-width:26px;height:26px;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:13px">1</div><p style="font-size:14px;color:#374151;line-height:1.55;margin-top:2px">I-tap ang <strong>⋮</strong> (tatlong tuldok) sa kanang sulok sa itaas ng screen.</p></div><div style="display:flex;align-items:flex-start;gap:12px"><div style="background:#166534;color:#fff;border-radius:50%;min-width:26px;height:26px;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:13px">2</div><p style="font-size:14px;color:#374151;line-height:1.55;margin-top:2px">Piliin ang <strong>"Open in Chrome"</strong> o <strong>"Open in Browser"</strong>.</p></div>';
+
+      var iosSteps = '<div style="display:flex;align-items:flex-start;gap:12px;margin-bottom:14px"><div style="background:#166534;color:#fff;border-radius:50%;min-width:26px;height:26px;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:13px">1</div><p style="font-size:14px;color:#374151;line-height:1.55;margin-top:2px">I-tap ang <strong>⋯</strong> (tatlong tuldok) sa ibaba o sa kanang sulok ng screen.</p></div><div style="display:flex;align-items:flex-start;gap:12px"><div style="background:#166534;color:#fff;border-radius:50%;min-width:26px;height:26px;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:13px">2</div><p style="font-size:14px;color:#374151;line-height:1.55;margin-top:2px">Piliin ang <strong>"Open in Safari"</strong> o <strong>"Open in Browser"</strong>.</p></div>';
+
+      var genericSteps = '<div style="display:flex;align-items:flex-start;gap:12px;margin-bottom:14px"><div style="background:#166534;color:#fff;border-radius:50%;min-width:26px;height:26px;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:13px">1</div><p style="font-size:14px;color:#374151;line-height:1.55;margin-top:2px">I-tap ang menu ng iyong browser.</p></div><div style="display:flex;align-items:flex-start;gap:12px"><div style="background:#166534;color:#fff;border-radius:50%;min-width:26px;height:26px;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:13px">2</div><p style="font-size:14px;color:#374151;line-height:1.55;margin-top:2px">Piliin ang <strong>"Open in Browser"</strong> o <strong>"Open in Chrome"</strong>.</p></div>';
+
+      var steps = isAndroid ? androidSteps : (isIOS ? iosSteps : genericSteps);
+
+      var el = document.createElement('div');
+      el.style.cssText = 'position:fixed;inset:0;background:#fff;z-index:99999;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:36px 24px;font-family:sans-serif;text-align:center;overflow-y:auto';
+      el.innerHTML =
+        '<img src="https://i.imgur.com/MfhVlCm.png" alt="BayanGo" style="width:72px;height:72px;object-fit:contain;margin-bottom:16px" />'
+        + '<div style="font-size:20px;font-weight:800;color:#166534;margin-bottom:8px">Buksan sa Chrome o Safari</div>'
+        + '<p style="font-size:13px;color:#6B7280;max-width:300px;line-height:1.65;margin-bottom:24px">Hindi gumagana ang pag-install ng <strong>BayanGo</strong> sa built-in browser ng Facebook, Instagram, o TikTok. Sundan ang mga hakbang para buksan sa tamang browser:</p>'
+        + '<div style="text-align:left;width:100%;max-width:320px;margin-bottom:24px">' + steps + '</div>'
+        + '<div style="padding:14px 18px;background:#F0FDF4;border-radius:12px;max-width:320px;width:100%;border:1px solid #BBF7D0">'
+        + '<p style="font-size:12px;color:#166534;font-weight:600;line-height:1.6">Pagkatapos buksan sa Chrome o Safari, maaari mo nang i-install ang BayanGo sa iyong home screen!</p>'
+        + '</div>';
+
+      document.body.appendChild(el);
+    })();
+  </script>
+
   <div id="root">
     <div class="splash-shell">
       <img class="splash-logo" src="https://i.imgur.com/MfhVlCm.png" alt="BayanGo" />
