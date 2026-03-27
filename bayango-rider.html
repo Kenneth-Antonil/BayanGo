@@ -432,11 +432,13 @@
         }
       };
 
-      const markOtw = async (orderId) => {
-        setMarkingOtw(orderId);
+      const markOtw = async (order) => {
+        const nextStatus = order.locationType === "Island" ? "in_boat" : "otw";
+        const toast      = order.locationType === "Island" ? "Nakasakay na sa bangka! Ingat!" : "OTW na! Mag-ingat sa daan.";
+        setMarkingOtw(order.id);
         try {
-          await _fbDb.ref("orders/" + orderId).update({ status: "otw" });
-          showToast("OTW na! Mag-ingat sa daan.");
+          await _fbDb.ref("orders/" + order.id).update({ status: nextStatus });
+          showToast(toast);
         } catch (err) {
           showToast("Error: " + (err.code || err.message));
         } finally {
@@ -482,7 +484,7 @@
       const watchIdRef = useRef(null);
 
       useEffect(() => {
-        const hasActiveDelivery = myOrders.some(o => o.status === "buying" || o.status === "otw");
+        const hasActiveDelivery = myOrders.some(o => o.status === "buying" || o.status === "otw" || o.status === "in_boat");
 
         if (hasActiveDelivery && !watchIdRef.current && navigator.geolocation) {
           setGpsActive(true);
@@ -547,7 +549,7 @@
       }, [myOrders]);
 
       const buyingOrders    = myOrders.filter(o => o.status === "buying");
-      const activeOrders    = myOrders.filter(o => o.status === "otw");
+      const activeOrders    = myOrders.filter(o => o.status === "otw" || o.status === "in_boat");
       const deliveredOrders = myOrders.filter(o => o.status === "delivered");
       const completedOrders = myOrders.filter(o => o.status === "delivered" || o.status === "cancelled");
       const todayEarnings   = deliveredOrders.filter(o => isToday(o.deliveredAt)).reduce((s,o) => s + (o.deliveryFee||0), 0);
@@ -1063,33 +1065,43 @@
               <div style={{ fontSize:12, fontWeight:700, color:"#64748B", marginBottom:10, textTransform:"uppercase", letterSpacing:".08em" }}>
                 <Ic n="cart-shopping" style={{ marginRight:6 }} />Binibili ({buying.length})
               </div>
-              {buying.map(order => (
-                <OrderCard key={order.id} order={order}
-                  statusBadge={<><Ic n="cart-shopping" style={{ marginRight:4 }} />Buying</>} badgeBg="#FEF3C7" badgeColor="#92400E"
-                  actionBtn={
-                    <button onClick={() => onOtw(order.id)} disabled={markingOtw === order.id} style={{
-                      width:"100%", padding:"14px", borderRadius:14,
-                      background: markingOtw === order.id ? "#E2E8F0" : "linear-gradient(135deg,#1D4ED8,#3B82F6)",
-                      color: markingOtw === order.id ? "#94A3B8" : "#fff",
-                      fontSize:15, fontWeight:800,
-                    }}>
-                      {markingOtw === order.id ? <span className="pulse">Ina-update...</span> : <><Ic n="motorcycle" style={{ marginRight:6 }} />Tapos na! OTW na ako!</>}
-                    </button>
-                  }
-                />
-              ))}
+              {buying.map(order => {
+                const isIsland = order.locationType === "Island";
+                return (
+                  <OrderCard key={order.id} order={order}
+                    statusBadge={<><Ic n="cart-shopping" style={{ marginRight:4 }} />Buying</>} badgeBg="#FEF3C7" badgeColor="#92400E"
+                    actionBtn={
+                      <button onClick={() => onOtw(order)} disabled={markingOtw === order.id} style={{
+                        width:"100%", padding:"14px", borderRadius:14,
+                        background: markingOtw === order.id ? "#E2E8F0" : "linear-gradient(135deg,#1D4ED8,#3B82F6)",
+                        color: markingOtw === order.id ? "#94A3B8" : "#fff",
+                        fontSize:15, fontWeight:800,
+                      }}>
+                        {markingOtw === order.id
+                          ? <span className="pulse">Ina-update...</span>
+                          : isIsland
+                            ? <><Ic n="ship" style={{ marginRight:6 }} />Tapos na! Nakasakay na sa bangka!</>
+                            : <><Ic n="motorcycle" style={{ marginRight:6 }} />Tapos na! OTW na ako!</>}
+                      </button>
+                    }
+                  />
+                );
+              })}
             </>
           )}
 
-          {/* OTW deliveries */}
+          {/* OTW / In the Boat deliveries */}
           {active.length > 0 && (
             <>
               <div style={{ fontSize:12, fontWeight:700, color:"#64748B", marginBottom:10, marginTop: buying.length > 0 ? 16 : 0, textTransform:"uppercase", letterSpacing:".08em" }}>
-                <Ic n="motorcycle" style={{ marginRight:6 }} />OTW ({active.length})
+                <Ic n="motorcycle" style={{ marginRight:6 }} />OTW / In the Boat ({active.length})
               </div>
-              {active.map(order => (
+              {active.map(order => {
+                const isIsland = order.status === "in_boat";
+                return (
                 <OrderCard key={order.id} order={order}
-                  statusBadge={<><Ic n="motorcycle" style={{ marginRight:4 }} />OTW</>} badgeBg="#DBEAFE" badgeColor="#1D4ED8"
+                  statusBadge={isIsland ? <><Ic n="ship" style={{ marginRight:4 }} />In the Boat</> : <><Ic n="motorcycle" style={{ marginRight:4 }} />OTW</>}
+                  badgeBg={isIsland ? "#EFF6FF" : "#DBEAFE"} badgeColor="#1D4ED8"
                   actionBtn={
                     <button onClick={() => onDeliver(order.id)} disabled={delivering === order.id} style={{
                       width:"100%", padding:"14px", borderRadius:14,
@@ -1102,7 +1114,8 @@
                     </button>
                   }
                 />
-              ))}
+                );
+              })}
             </>
           )}
 

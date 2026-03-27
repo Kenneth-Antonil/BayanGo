@@ -784,7 +784,14 @@
       const [pushBusy,      setPushBusy]     = useState(false);
       const [vapidKey,      setVapidKey]     = useState("");
 
-      const STATUS_FLOW = ["pending","buying","otw","delivered"];
+      const getStatusFlow = (order) => order?.locationType === "Island"
+        ? ["pending","buying","in_boat","delivered"]
+        : ["pending","buying","otw","delivered"];
+      const getNextLabel = (order) => {
+        const flow = getStatusFlow(order);
+        const nextKey = flow[flow.indexOf(order.status) + 1];
+        return nextKey ? `Mark as ${STATUS_INFO[nextKey]?.label || nextKey}` : null;
+      };
 
       const viewFilteredOrders = orders.filter(o => ordersView === "archive" ? (o.status === "delivered" || o.status === "cancelled") : (o.status !== "delivered" && o.status !== "cancelled"));
 
@@ -805,7 +812,7 @@
         all:       orders.length,
         pending:   orders.filter(o => o.status === "pending").length,
         buying:    orders.filter(o => o.status === "buying").length,
-        otw:       orders.filter(o => o.status === "otw").length,
+        otw:       orders.filter(o => o.status === "otw" || o.status === "in_boat").length,
         delivered: orders.filter(o => o.status === "delivered").length,
       };
 
@@ -822,20 +829,22 @@
       }, []);
 
       const advance = async (order) => {
-        const idx = STATUS_FLOW.indexOf(order.status);
-        if (idx < 0 || idx >= STATUS_FLOW.length - 1) return;
-        const next = STATUS_FLOW[idx + 1];
+        const flow = getStatusFlow(order);
+        const idx = flow.indexOf(order.status);
+        if (idx < 0 || idx >= flow.length - 1) return;
+        const next = flow[idx + 1];
         setUpdating(order.id);
         try { await onUpdateStatus(order, next); }
         finally { setUpdating(null); if (selected?.id === order.id) setSelected(s => ({...s, status:next})); }
       };
 
       const STATUS_INFO = {
-        pending:   { label:"Pending",   icon:"hourglass-half", bg:"#F3F4F6", color:"#555",    next:"Mark as Buying" },
-        buying:    { label:"Buying",    icon:"cart-shopping",  bg:"#FEF3C7", color:"#92400E", next:"Mark as OTW" },
-        otw:       { label:"OTW",       icon:"motorcycle",     bg:"#DBEAFE", color:"#1D4ED8", next:"Mark Delivered" },
-        delivered: { label:"Delivered", icon:"circle-check",   bg:"#DCFCE7", color:"#166534", next:null },
-        cancelled: { label:"Cancelled", icon:"ban",            bg:"#FEE2E2", color:"#B91C1C", next:null },
+        pending:   { label:"Pending",     icon:"hourglass-half", bg:"#F3F4F6", color:"#555"    },
+        buying:    { label:"Buying",      icon:"cart-shopping",  bg:"#FEF3C7", color:"#92400E" },
+        otw:       { label:"OTW",         icon:"motorcycle",     bg:"#DBEAFE", color:"#1D4ED8" },
+        in_boat:   { label:"In the Boat", icon:"ship",           bg:"#EFF6FF", color:"#1D4ED8" },
+        delivered: { label:"Delivered",   icon:"circle-check",   bg:"#DCFCE7", color:"#166534" },
+        cancelled: { label:"Cancelled",   icon:"ban",            bg:"#FEE2E2", color:"#B91C1C" },
       };
 
       const deliveredOrders = orders.filter(o => o.status === "delivered");
@@ -1083,14 +1092,14 @@
                       flex:1, padding:"10px", borderRadius:12, background:"#F9FAFB",
                       border:"1px solid #E5E7EB", fontSize:13, fontWeight:600, color:"#555"
                     }}><Ic n="clipboard" style={{ marginRight:4 }} />Details</button>
-                    {st.next && (
+                    {getNextLabel(order) && (
                       <button onClick={() => advance(order)} disabled={updating === order.id} style={{
                         flex:2, padding:"10px", borderRadius:12,
                         background: updating===order.id ? "#E5E7EB" : "linear-gradient(135deg,#166534,#22C55E)",
                         color: updating===order.id ? "#aaa" : "#fff",
                         fontSize:13, fontWeight:700,
                       }}>
-                        {updating===order.id ? <><Ic n="hourglass-half" style={{ marginRight:4 }} />Updating...</> : `${st.next} →`}
+                        {updating===order.id ? <><Ic n="hourglass-half" style={{ marginRight:4 }} />Updating...</> : `${getNextLabel(order)} →`}
                       </button>
                     )}
                   </div>
@@ -1187,14 +1196,14 @@
                 </div>
 
                 {/* Status update */}
-                {STATUS_INFO[selected.status]?.next && (
+                {getNextLabel(selected) && (
                   <button onClick={() => advance(selected)} disabled={updating === selected.id} style={{
                     width:"100%", padding:"15px", borderRadius:16,
                     background: updating===selected.id ? "#E5E7EB" : "linear-gradient(135deg,#166534,#22C55E)",
                     color: updating===selected.id ? "#aaa" : "#fff",
                     fontSize:15, fontWeight:700,
                   }}>
-                    {updating===selected.id ? <><Ic n="hourglass-half" style={{ marginRight:4 }} />Updating...</> : `${STATUS_INFO[selected.status].next} →`}
+                    {updating===selected.id ? <><Ic n="hourglass-half" style={{ marginRight:4 }} />Updating...</> : `${getNextLabel(selected)} →`}
                   </button>
                 )}
                 {selected.status === "delivered" && (

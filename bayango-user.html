@@ -33,6 +33,7 @@
     @keyframes bannerUp { from { opacity:0; transform:translateY(100%); } to { opacity:1; transform:translateY(0); } }
     @keyframes dotBounce { 0%,80%,100%{transform:scale(.65);opacity:.35;} 40%{transform:scale(1.1);opacity:1;} }
     @keyframes splashFadeIn { from{opacity:0;transform:translateY(10px);} to{opacity:1;transform:translateY(0);} }
+    @keyframes flowDown { 0%{background-position:0 -100%;} 100%{background-position:0 200%;} }
     .fade-up  { animation: fadeUp  .38s ease both; }
     .slide-in { animation: slideIn .28s cubic-bezier(.4,0,.2,1) both; }
     .slide-up { animation: slideUp .3s cubic-bezier(.4,0,.2,1) both; }
@@ -138,6 +139,13 @@
       { key:"otw",       label:"OTW",       icon:"motorcycle",     desc:"Papunta na sa'yo" },
       { key:"delivered", label:"Delivered", icon:"circle-check",   desc:"Na-deliver na!" },
     ];
+    const ISLAND_ORDER_STATUSES = [
+      { key:"pending",   label:"Pending",     icon:"hourglass-half", desc:"Nai-receive na ang order mo" },
+      { key:"buying",    label:"Buying",      icon:"cart-shopping",  desc:"Binibili na sa palengke" },
+      { key:"in_boat",   label:"In the Boat", icon:"ship",           desc:"Nakasakay na sa bangka papunta sa'yo" },
+      { key:"delivered", label:"Delivered",   icon:"circle-check",   desc:"Na-deliver na!" },
+    ];
+    const getOrderStatuses = (order) => order?.locationType === "Island" ? ISLAND_ORDER_STATUSES : ORDER_STATUSES;
 
     const BINANGONAN_PUBLIC_MARKET = { lat:14.4584, lng:121.1971, label:"Binangonan Public Market" };
     const BASE_DELIVERY_FEE = 49;
@@ -1892,31 +1900,46 @@
                   </div>
                   <button onClick={() => setShowTracker(null)} style={{ width:34, height:34, borderRadius:10, background:"#F3F4F6", fontSize:16, display:"flex", alignItems:"center", justifyContent:"center" }}><Ic n="xmark" /></button>
                 </div>
-                {ORDER_STATUSES.map((s,i) => {
-                  const idx     = ORDER_STATUSES.findIndex(st => st.key === liveOrder.status);
-                  const active  = i <= idx;
-                  const current = i === idx;
-                  return (
-                    <div key={s.key} style={{ display:"flex", gap:14 }}>
-                      <div style={{ display:"flex", flexDirection:"column", alignItems:"center" }}>
-                        <div style={{
-                          width:40, height:40, borderRadius:12, fontSize:20,
-                          display:"flex", alignItems:"center", justifyContent:"center",
-                          background:active?"#22C55E":"#F3F4F6", color:active?"#fff":"#ccc",
-                          boxShadow:current?"0 0 0 4px #BBF7D0":"none", transition:"all .3s"
-                        }}><Ic n={s.icon} size={18} /></div>
-                        {i < 3 && <div style={{ width:3, height:32, background:active&&i<idx?"#22C55E":"#E5E7EB", borderRadius:3 }} />}
+                {(() => {
+                  const statuses = getOrderStatuses(liveOrder);
+                  const lastIdx  = statuses.length - 1;
+                  return statuses.map((s,i) => {
+                    const idx     = statuses.findIndex(st => st.key === liveOrder.status);
+                    const active  = i <= idx;
+                    const current = i === idx;
+                    const lineDone    = active && i < idx;
+                    const lineActive  = i === idx && i < lastIdx;
+                    const lineStyle = lineDone
+                      ? { width:3, height:32, borderRadius:3, background:"#22C55E" }
+                      : lineActive
+                        ? { width:3, height:32, borderRadius:3,
+                            background:"linear-gradient(to bottom, #22C55E 0%, #86EFAC 45%, #22C55E 100%)",
+                            backgroundSize:"100% 200%",
+                            animationName:"flowDown", animationDuration:"1.4s",
+                            animationIterationCount:"infinite", animationTimingFunction:"ease-in-out" }
+                        : { width:3, height:32, borderRadius:3, background:"#E5E7EB" };
+                    return (
+                      <div key={s.key} style={{ display:"flex", gap:14 }}>
+                        <div style={{ display:"flex", flexDirection:"column", alignItems:"center" }}>
+                          <div style={{
+                            width:40, height:40, borderRadius:12, fontSize:20,
+                            display:"flex", alignItems:"center", justifyContent:"center",
+                            background:active?"#22C55E":"#F3F4F6", color:active?"#fff":"#ccc",
+                            boxShadow:current?"0 0 0 4px #BBF7D0":"none", transition:"all .3s"
+                          }}><Ic n={s.icon} size={18} /></div>
+                          {i < lastIdx && <div style={lineStyle} />}
+                        </div>
+                        <div style={{ paddingTop:4, paddingBottom:i<lastIdx?14:0 }}>
+                          <div style={{ fontSize:14, fontWeight:700, color:active?"#111":"#ccc" }}>{s.label}</div>
+                          <div style={{ fontSize:11, color:"#aaa" }}>{s.desc}</div>
+                        </div>
                       </div>
-                      <div style={{ paddingTop:4, paddingBottom:i<3?14:0 }}>
-                        <div style={{ fontSize:14, fontWeight:700, color:active?"#111":"#ccc" }}>{s.label}</div>
-                        <div style={{ fontSize:11, color:"#aaa" }}>{s.desc}</div>
-                      </div>
-                    </div>
-                  );
-                })}
+                    );
+                  });
+                })()}
 
                 {/* Track Rider Button */}
-                {(liveOrder.status === "buying" || liveOrder.status === "otw") && (
+                {(liveOrder.status === "buying" || liveOrder.status === "otw" || liveOrder.status === "in_boat") && (
                   <button onClick={() => { setShowTracker(null); setShowRiderMap(liveOrder); }} style={{
                     width:"100%", marginTop:18, padding:"14px", borderRadius:14,
                     background:"linear-gradient(135deg,#1D4ED8,#3B82F6)",
@@ -2110,11 +2133,12 @@
       const deliveredOrders = orders.filter(o => o.status === "delivered" || o.status === "cancelled");
       const activeOrders    = orders.filter(o => o.status !== "delivered" && o.status !== "cancelled");
       const ST_COLOR = {
-        pending:   { bg:"#F3F4F6", color:"#555",    label:"Pending",   icon:"hourglass-half" },
-        buying:    { bg:"#FEF3C7", color:"#92400E",  label:"Buying",    icon:"cart-shopping"  },
-        otw:       { bg:"#DBEAFE", color:"#1D4ED8",  label:"OTW",       icon:"motorcycle"     },
-        delivered: { bg:"#DCFCE7", color:"#166534",  label:"Delivered", icon:"circle-check"   },
-        cancelled: { bg:"#FEE2E2", color:"#B91C1C",  label:"Cancelled", icon:"ban"            },
+        pending:   { bg:"#F3F4F6", color:"#555",    label:"Pending",      icon:"hourglass-half" },
+        buying:    { bg:"#FEF3C7", color:"#92400E",  label:"Buying",       icon:"cart-shopping"  },
+        otw:       { bg:"#DBEAFE", color:"#1D4ED8",  label:"OTW",          icon:"motorcycle"     },
+        in_boat:   { bg:"#EFF6FF", color:"#1D4ED8",  label:"In the Boat",  icon:"ship"           },
+        delivered: { bg:"#DCFCE7", color:"#166534",  label:"Delivered",    icon:"circle-check"   },
+        cancelled: { bg:"#FEE2E2", color:"#B91C1C",  label:"Cancelled",    icon:"ban"            },
       };
       const ST_TICKET = {
         open:     { bg:"#FEF3C7", color:"#92400E", label:"Open"     },
@@ -2697,14 +2721,14 @@
               <div style={{ display:"flex", alignItems:"center", gap:10 }}>
                 <div style={{
                   width:40, height:40, borderRadius:12, flexShrink:0,
-                  background: order.status==="otw" ? "#DBEAFE" : "#FEF3C7",
+                  background: ST_COLOR[order.status]?.bg || "#FEF3C7",
                   display:"flex", alignItems:"center", justifyContent:"center",
                 }}>
-                  <Ic n={order.status==="otw"?"motorcycle":"cart-shopping"} style={{ color: order.status==="otw"?"#1D4ED8":"#92400E" }} />
+                  <Ic n={ST_COLOR[order.status]?.icon || "cart-shopping"} style={{ color: ST_COLOR[order.status]?.color || "#92400E" }} />
                 </div>
                 <div style={{ flex:1 }}>
                   <div style={{ fontSize:14, fontWeight:800, color:"#111" }}>
-                    {order.status==="otw" ? "Papunta na sa'yo!" : order.status==="buying" ? "Binibili pa sa palengke" : ORDER_STATUSES.find(s=>s.key===order.status)?.desc}
+                    {getOrderStatuses(order).find(s => s.key === order.status)?.desc}
                   </div>
                   <div style={{ fontSize:12, color:"#888", marginTop:1 }}>{order.customer?.address}</div>
                 </div>
@@ -2721,18 +2745,20 @@
       const [ordersView, setOrdersView] = useState("active");
 
       const ST_COLOR = {
-        pending:   { bg:"#F3F4F6", color:"#555",    label:"Pending",   icon:"hourglass-half" },
-        buying:    { bg:"#FEF3C7", color:"#92400E", label:"Buying",    icon:"cart-shopping" },
-        otw:       { bg:"#DBEAFE", color:"#1D4ED8", label:"OTW",       icon:"motorcycle" },
-        delivered: { bg:"#DCFCE7", color:"#166534", label:"Delivered", icon:"circle-check" },
-        cancelled: { bg:"#FEE2E2", color:"#B91C1C", label:"Cancelled", icon:"ban" },
+        pending:   { bg:"#F3F4F6", color:"#555",    label:"Pending",     icon:"hourglass-half" },
+        buying:    { bg:"#FEF3C7", color:"#92400E", label:"Buying",      icon:"cart-shopping" },
+        otw:       { bg:"#DBEAFE", color:"#1D4ED8", label:"OTW",         icon:"motorcycle" },
+        in_boat:   { bg:"#EFF6FF", color:"#1D4ED8", label:"In the Boat", icon:"ship" },
+        delivered: { bg:"#DCFCE7", color:"#166534", label:"Delivered",   icon:"circle-check" },
+        cancelled: { bg:"#FEE2E2", color:"#B91C1C", label:"Cancelled",   icon:"ban" },
       };
 
       const OrderCard = ({ o }) => {
         const st = ST_COLOR[o.status] || ST_COLOR.pending;
         const ts = o.createdAt ? (o.createdAt.toDate ? o.createdAt.toDate() : new Date(o.createdAt)) : new Date();
-        const idx = ORDER_STATUSES.findIndex(s => s.key === o.status);
-        const canTrackRider = o.status === "buying" || o.status === "otw";
+        const orderStatuses = getOrderStatuses(o);
+        const idx = orderStatuses.findIndex(s => s.key === o.status);
+        const canTrackRider = o.status === "buying" || o.status === "otw" || o.status === "in_boat";
         return (
           <div style={{ marginBottom:12 }}>
             <button onClick={() => onTrack(o)} style={{
@@ -2759,7 +2785,7 @@
 
               {/* Progress bar */}
               <div style={{ display:"flex", gap:4, marginBottom:12 }}>
-                {ORDER_STATUSES.map((s, i) => (
+                {orderStatuses.map((s, i) => (
                   <div key={s.key} style={{
                     flex:1, height:4, borderRadius:4,
                     background: i <= idx ? "#22C55E" : "#E5E7EB",
@@ -2770,7 +2796,7 @@
 
               {/* Steps */}
               <div style={{ display:"flex", justifyContent:"space-between" }}>
-                {ORDER_STATUSES.map((s, i) => (
+                {orderStatuses.map((s, i) => (
                   <div key={s.key} style={{ textAlign:"center", flex:1 }}>
                     <div style={{ fontSize:16, opacity: i <= idx ? 1 : 0.25 }}><Ic n={s.icon} /></div>
                     <div style={{ fontSize:9, fontWeight:700, color: i <= idx ? "#166534" : "#ccc", marginTop:2 }}>{s.label}</div>
