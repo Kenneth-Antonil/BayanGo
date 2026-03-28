@@ -999,7 +999,13 @@
           // Notify customer
           try {
             const tokens = await collectUserTokens(order.uid || order.userId);
-            await sendFcmToTokens(tokens, {
+            const hasProof = Array.isArray(updatedProof) && updatedProof.length > 0;
+            await sendFcmToTokens(tokens, hasProof ? {
+              title: "Nabili na ang order mo! 🧾",
+              body: `Order #${String(order.id||"").slice(-6)}: Tapos na ang pamimili at may proof of order na. Total: ₱${total.toLocaleString("en-PH")}`,
+              data: { type: "order_bought_with_proof", orderId: String(order.id||""), hasProof: "true" },
+              link: "https://bayango.ph/bayango-user.html#/orders",
+            } : {
               title: "Order Update — Tingnan ang iyong bayad",
               body: `Order #${String(order.id||"").slice(-6)}: Na-update na ang actual na presyo. Total: ₱${total.toLocaleString("en-PH")}`,
               data: { type: "prices_updated", orderId: String(order.id||"") },
