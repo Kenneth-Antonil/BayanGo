@@ -478,6 +478,10 @@
       const [authEmail,     setAuthEmail]     = useState("");
       const [authPassword,  setAuthPassword]  = useState("");
       const [authConfirm,   setAuthConfirm]   = useState("");
+      const [authName,      setAuthName]      = useState("");
+      const [authPhone,     setAuthPhone]     = useState("");
+      const [authAddr,      setAuthAddr]      = useState("");
+      const [authLocationType, setAuthLocationType] = useState("Mainland");
       const [authError,     setAuthError]     = useState("");
       const [authLoading,   setAuthLoading]   = useState(false);
       const [syncError,     setSyncError]     = useState(null);
@@ -714,13 +718,31 @@
 
       const handleEmailSignUp = async () => {
         setAuthError("");
+        const signupName = authName.trim();
+        const signupPhone = authPhone.trim();
+        const signupAddr = authAddr.trim();
+        if (!signupName || !signupPhone || !signupAddr) {
+          setAuthError("Kumpletuhin ang pangalan, mobile number, at address.");
+          return;
+        }
         if (authPassword !== authConfirm) {
           setAuthError("Hindi magkaparehong password.");
           return;
         }
         setAuthLoading(true);
         try {
-          await _fbAuth.createUserWithEmailAndPassword(authEmail, authPassword);
+          const cred = await _fbAuth.createUserWithEmailAndPassword(authEmail, authPassword);
+          if (_fbDb && cred?.user?.uid) {
+            await _fbDb.ref("users/" + cred.user.uid + "/profile").set({
+              name: signupName,
+              phone: signupPhone,
+              addr: signupAddr,
+              locationType: authLocationType,
+              lat: null,
+              lng: null,
+              updatedAt: Date.now(),
+            });
+          }
         } catch (error) {
           setAuthError(getFriendlyError(error.code));
         } finally {
@@ -807,6 +829,29 @@
 
                 <input type="email" placeholder="Email address" value={authEmail}
                   onChange={e => setAuthEmail(e.target.value)} style={inputStyle} />
+                {authMode === "email-signup" && (
+                  <>
+                    <input type="text" placeholder="Buong pangalan" value={authName}
+                      onChange={e => setAuthName(e.target.value)} style={inputStyle} />
+                    <input type="tel" placeholder="Mobile Number (09XXXXXXXXX)" value={authPhone}
+                      onChange={e => setAuthPhone(e.target.value)} style={inputStyle} />
+                    <textarea placeholder="Address (Bahay, Barangay, Lungsod)" value={authAddr}
+                      onChange={e => setAuthAddr(e.target.value)}
+                      style={{ ...inputStyle, minHeight:82, resize:"vertical", fontFamily:"inherit" }} />
+                    <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:8 }}>
+                      {["Mainland", "Island"].map(loc => (
+                        <button key={loc} type="button" onClick={() => setAuthLocationType(loc)} style={{
+                          border: authLocationType === loc ? "2px solid #166534" : "1px solid #D1D5DB",
+                          background: authLocationType === loc ? "#F0FDF4" : "#fff",
+                          borderRadius:10, padding:"10px 12px", fontSize:13, fontWeight:700,
+                          color: authLocationType === loc ? "#166534" : "#4B5563",
+                        }}>
+                          {loc}
+                        </button>
+                      ))}
+                    </div>
+                  </>
+                )}
                 <input type="password" placeholder="Password" value={authPassword}
                   onChange={e => setAuthPassword(e.target.value)} style={inputStyle} />
                 {authMode === "email-signup" && (
@@ -964,6 +1009,7 @@
       const [addr,           setAddr]           = useState("");
       const [customerLat,    setCustomerLat]    = useState(null);
       const [customerLng,    setCustomerLng]    = useState(null);
+      const [locationType,   setLocationType]   = useState("Mainland");
 
       // Load profile from RTDB when user logs in
       useEffect(() => {
@@ -973,6 +1019,7 @@
           if (p.name)  setName(p.name);
           if (p.phone) setPhone(p.phone);
           if (p.addr)  setAddr(p.addr);
+          if (p.locationType) setLocationType(p.locationType);
           if (p.lat)   setCustomerLat(p.lat);
           if (p.lng)   setCustomerLng(p.lng);
         }).catch(err => console.error("Profile load error:", err.code));
@@ -1002,7 +1049,6 @@
       const [appliedVoucher, setAppliedVoucher] = useState(null);
       const [voucherMsg,     setVoucherMsg]     = useState("");
       const [showVoucherList,setShowVoucherList]= useState(false);
-      const [locationType,   setLocationType]  = useState("Mainland");
       const [cartWeightUnit, setCartWeightUnit] = useState({});
 
       const cartCount = Object.values(cart).reduce((s,v) => s+v, 0);
@@ -2015,6 +2061,7 @@
           {activePage === "account" && (
             <AccountPage user={user} orders={myOrders} name={name} phone={phone} addr={addr}
               setName={setName} setPhone={setPhone} setAddr={setAddr} onLogout={onLogout}
+              locationType={locationType} setLocationType={setLocationType}
               customerLat={customerLat} customerLng={customerLng} />
           )}
 
@@ -2240,11 +2287,12 @@
     }
 
     /* ══════════════════ ACCOUNT PAGE ══════════════════ */
-    function AccountPage({ user, orders, name, phone, addr, setName, setPhone, setAddr, onLogout, customerLat, customerLng }) {
+    function AccountPage({ user, orders, name, phone, addr, locationType, setName, setPhone, setAddr, setLocationType, onLogout, customerLat, customerLng }) {
       const [editMode,      setEditMode]      = useState(false);
       const [localName,     setLocalName]     = useState(name);
       const [localPhone,    setLocalPhone]    = useState(phone);
       const [localAddr,     setLocalAddr]     = useState(addr);
+      const [localLocationType, setLocalLocationType] = useState(locationType || "Mainland");
       const [activeSection, setActiveSection] = useState("info");
 
       // Support
@@ -2284,10 +2332,12 @@
 
       const saveProfile = () => {
         setName(localName); setPhone(localPhone); setAddr(localAddr);
+        setLocationType(localLocationType || "Mainland");
         setEditMode(false);
         if (user?.uid && _fbDb) {
           _fbDb.ref("users/" + user.uid + "/profile").set({
             name: localName, phone: localPhone, addr: localAddr,
+            locationType: localLocationType || "Mainland",
             lat: customerLat || null, lng: customerLng || null,
             updatedAt: Date.now(),
           }).catch(err => console.error("Profile save error:", err.code));
@@ -2384,13 +2434,14 @@
                 <div style={{ background:"#fff", borderRadius:18, padding:20, boxShadow:"0 2px 8px rgba(0,0,0,.05)", border:"1px solid #F0F0F0", marginBottom:16 }}>
                   <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:16 }}>
                     <span style={{ fontSize:14, fontWeight:800, color:"#111" }}><Ic n="user" style={{marginRight:8,color:"#166534"}} />Aking Impormasyon</span>
-                    {!editMode && <button onClick={() => { setLocalName(name); setLocalPhone(phone); setLocalAddr(addr); setEditMode(true); }} style={{ fontSize:12, fontWeight:700, color:"#166534", display:"flex", alignItems:"center", gap:5 }}><Ic n="pen-to-square" />I-edit</button>}
+                    {!editMode && <button onClick={() => { setLocalName(name); setLocalPhone(phone); setLocalAddr(addr); setLocalLocationType(locationType || "Mainland"); setEditMode(true); }} style={{ fontSize:12, fontWeight:700, color:"#166534", display:"flex", alignItems:"center", gap:5 }}><Ic n="pen-to-square" />I-edit</button>}
                   </div>
                   {[
                     { icon:"envelope",     label:"Email",    val: user?.email,  editable:false },
                     { icon:"user",         label:"Pangalan", val: editMode?null:(name||"—"),  editable:true, state:localName,  set:setLocalName,  placeholder:"Ilagay ang iyong pangalan" },
                     { icon:"phone",        label:"Telepono", val: editMode?null:(phone||"—"), editable:true, state:localPhone, set:setLocalPhone, placeholder:"09XXXXXXXXX" },
                     { icon:"location-dot", label:"Address",  val: editMode?null:(addr||"—"),  editable:true, state:localAddr,  set:setLocalAddr,  placeholder:"Bahay, Barangay, Lungsod" },
+                    { icon:"house",        label:"Location", val: editMode?null:(locationType||"Mainland"), editable:false },
                   ].map(f => (
                     <div key={f.label} style={{ display:"flex", alignItems:editMode&&f.editable?"flex-start":"center", gap:12, padding:"10px 0", borderBottom:"1px solid #F8F8F8" }}>
                       <div style={{ width:32, height:32, borderRadius:10, background:"#F0FDF4", display:"flex", alignItems:"center", justifyContent:"center", flexShrink:0 }}><Ic n={f.icon} size={13} style={{ color:"#166534" }} /></div>
@@ -2402,6 +2453,23 @@
                       </div>
                     </div>
                   ))}
+                  {editMode && (
+                    <div style={{ paddingTop:10 }}>
+                      <div style={{ fontSize:10, color:"#aaa", fontWeight:600, textTransform:"uppercase", letterSpacing:".06em", marginBottom:8 }}>Location</div>
+                      <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:8 }}>
+                        {["Mainland", "Island"].map(loc => (
+                          <button key={loc} type="button" onClick={() => setLocalLocationType(loc)} style={{
+                            border: localLocationType === loc ? "2px solid #166534" : "1px solid #D1D5DB",
+                            background: localLocationType === loc ? "#F0FDF4" : "#fff",
+                            borderRadius:10, padding:"10px 12px", fontSize:13, fontWeight:700,
+                            color: localLocationType === loc ? "#166534" : "#4B5563",
+                          }}>
+                            {loc}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  )}
                   {editMode && (
                     <div style={{ display:"flex", gap:10, marginTop:16 }}>
                       <button onClick={() => setEditMode(false)} style={{ flex:1, padding:"11px 0", borderRadius:12, background:"#F3F4F6", fontSize:13, fontWeight:700, color:"#555" }}>Kanselahin</button>
