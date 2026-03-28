@@ -435,6 +435,11 @@
       const markOtw = async (order) => {
         const nextStatus = order.locationType === "Island" ? "in_boat" : "otw";
         const toast      = order.locationType === "Island" ? "Nakasakay na sa bangka! Ingat!" : "OTW na! Mag-ingat sa daan.";
+        // Block island orders from going to in_boat without confirmed GCash payment
+        if (order.locationType === "Island" && !order.gcashPaymentConfirmed) {
+          showToast("Hindi pa na-confirm ang GCash payment. Hintayin ang confirmation mula sa admin.");
+          return;
+        }
         setMarkingOtw(order.id);
         try {
           await _fbDb.ref("orders/" + order.id).update({ status: nextStatus });
@@ -1067,22 +1072,36 @@
               </div>
               {buying.map(order => {
                 const isIsland = order.locationType === "Island";
+                const gcashPending = isIsland && !order.gcashPaymentConfirmed;
                 return (
                   <OrderCard key={order.id} order={order}
                     statusBadge={<><Ic n="cart-shopping" style={{ marginRight:4 }} />Buying</>} badgeBg="#FEF3C7" badgeColor="#92400E"
                     actionBtn={
-                      <button onClick={() => onOtw(order)} disabled={markingOtw === order.id} style={{
-                        width:"100%", padding:"14px", borderRadius:14,
-                        background: markingOtw === order.id ? "#E2E8F0" : "linear-gradient(135deg,#1D4ED8,#3B82F6)",
-                        color: markingOtw === order.id ? "#94A3B8" : "#fff",
-                        fontSize:15, fontWeight:800,
-                      }}>
-                        {markingOtw === order.id
-                          ? <span className="pulse">Ina-update...</span>
-                          : isIsland
-                            ? <><Ic n="ship" style={{ marginRight:6 }} />Tapos na! Nakasakay na sa bangka!</>
-                            : <><Ic n="motorcycle" style={{ marginRight:6 }} />Tapos na! OTW na ako!</>}
-                      </button>
+                      <>
+                        {isIsland && (
+                          gcashPending
+                            ? <div style={{ marginBottom:8, padding:"10px 12px", borderRadius:10, background:"#FEF3C7", color:"#92400E", fontSize:12, fontWeight:700, display:"flex", alignItems:"center", gap:6 }}>
+                                <Ic n="hourglass-half" /> Naghihintay ng GCash Payment Confirmation...
+                              </div>
+                            : <div style={{ marginBottom:8, padding:"10px 12px", borderRadius:10, background:"#DCFCE7", color:"#166534", fontSize:12, fontWeight:700, display:"flex", alignItems:"center", gap:6 }}>
+                                <Ic n="circle-check" /> GCash Payment Confirmed!
+                              </div>
+                        )}
+                        <button onClick={() => onOtw(order)} disabled={markingOtw === order.id || gcashPending} style={{
+                          width:"100%", padding:"14px", borderRadius:14,
+                          background: (markingOtw === order.id || gcashPending) ? "#E2E8F0" : "linear-gradient(135deg,#1D4ED8,#3B82F6)",
+                          color: (markingOtw === order.id || gcashPending) ? "#94A3B8" : "#fff",
+                          fontSize:15, fontWeight:800,
+                        }}>
+                          {markingOtw === order.id
+                            ? <span className="pulse">Ina-update...</span>
+                            : gcashPending
+                              ? <><Ic n="lock" style={{ marginRight:6 }} />Hindi pa pwede — GCash Hindi Pa Confirmed</>
+                              : isIsland
+                                ? <><Ic n="ship" style={{ marginRight:6 }} />Tapos na! Nakasakay na sa bangka!</>
+                                : <><Ic n="motorcycle" style={{ marginRight:6 }} />Tapos na! OTW na ako!</>}
+                        </button>
+                      </>
                     }
                   />
                 );

@@ -484,6 +484,7 @@
       const [pushPermission, setPushPermission] = useState(typeof Notification !== "undefined" ? Notification.permission : "default");
       const [pushBusy, setPushBusy] = useState(false);
       const [pushError, setPushError] = useState("");
+      const [gcashSettings, setGcashSettings] = useState({ number:"", name:"", qrUrl:"" });
 
       useEffect(() => {
         const syncStandalone = () => setIsStandalone(isStandaloneMode());
@@ -494,6 +495,13 @@
           window.removeEventListener("appinstalled", syncStandalone);
           document.removeEventListener("visibilitychange", syncStandalone);
         };
+      }, []);
+
+      useEffect(() => {
+        if (!_fbDb) return;
+        _fbDb.ref("settings/gcash").once("value", snap => {
+          if (snap.exists()) setGcashSettings({ number:"", name:"", qrUrl:"", ...snap.val() });
+        });
       }, []);
 
       useEffect(() => {
@@ -2016,6 +2024,50 @@
                   });
                 })()}
 
+                {/* GCash Payment Section (Island orders only, after buying status) */}
+                {liveOrder.locationType === "Island" && (liveOrder.status === "buying" || liveOrder.status === "in_boat") && (
+                  <div style={{ marginTop:18, borderRadius:16, border:"2px solid #3B82F6", background:"#EFF6FF", padding:"16px" }}>
+                    {liveOrder.gcashPaymentConfirmed ? (
+                      <div style={{ display:"flex", alignItems:"center", gap:10 }}>
+                        <div style={{ width:36, height:36, borderRadius:10, background:"#DCFCE7", display:"flex", alignItems:"center", justifyContent:"center" }}>
+                          <Ic n="circle-check" size={18} style={{ color:"#166534" }} />
+                        </div>
+                        <div>
+                          <div style={{ fontSize:14, fontWeight:800, color:"#166534" }}>GCash Payment Confirmed!</div>
+                          <div style={{ fontSize:11, color:"#555" }}>Na-confirm na ng admin ang iyong bayad.</div>
+                        </div>
+                      </div>
+                    ) : (
+                      <>
+                        <div style={{ fontSize:13, fontWeight:800, color:"#1D4ED8", marginBottom:10, display:"flex", alignItems:"center", gap:6 }}>
+                          <Ic n="qrcode" /> I-send ang GCash Payment
+                        </div>
+                        {gcashSettings.qrUrl && (
+                          <div style={{ textAlign:"center", marginBottom:10 }}>
+                            <img src={gcashSettings.qrUrl} alt="GCash QR" style={{ width:160, height:160, objectFit:"contain", borderRadius:12, border:"1px solid #BFDBFE", background:"#fff" }} />
+                          </div>
+                        )}
+                        <div style={{ background:"#fff", borderRadius:10, padding:"10px 12px", marginBottom:8 }}>
+                          <div style={{ fontSize:11, color:"#888", marginBottom:2 }}>GCash Number</div>
+                          <div style={{ fontSize:16, fontWeight:800, color:"#1D4ED8", letterSpacing:1 }}>{gcashSettings.number || "—"}</div>
+                        </div>
+                        <div style={{ background:"#fff", borderRadius:10, padding:"10px 12px", marginBottom:8 }}>
+                          <div style={{ fontSize:11, color:"#888", marginBottom:2 }}>Account Name</div>
+                          <div style={{ fontSize:15, fontWeight:700, color:"#111" }}>{gcashSettings.name || "—"}</div>
+                        </div>
+                        <div style={{ background:"#FEF3C7", borderRadius:10, padding:"10px 12px", marginBottom:6 }}>
+                          <div style={{ fontSize:11, color:"#92400E", marginBottom:2 }}>Halaga ng I-send</div>
+                          <div style={{ fontSize:18, fontWeight:800, color:"#92400E" }}>~{fmt(liveOrder.total)}</div>
+                        </div>
+                        <div style={{ fontSize:11, color:"#3B82F6", marginTop:4, lineHeight:1.5 }}>
+                          <Ic n="triangle-exclamation" style={{ marginRight:4 }} />
+                          Hangga't hindi na-confirm ng admin ang iyong GCash payment, hindi mapapadala ang order sa bangka.
+                        </div>
+                      </>
+                    )}
+                  </div>
+                )}
+
                 {/* Track Rider Button */}
                 {(liveOrder.status === "buying" || liveOrder.status === "otw" || liveOrder.status === "in_boat") && (
                   <button onClick={() => { setShowTracker(null); setShowRiderMap(liveOrder); }} style={{
@@ -2057,6 +2109,7 @@
               canCancelOrder={canCancelOrder}
               cancelCountdownText={getCancelCountdownText}
               onCancelOrder={handleCancelOrder}
+              gcashSettings={gcashSettings}
             />
           )}
 
@@ -2817,7 +2870,7 @@
       );
     }
 
-    function OrdersPage({ orders, onTrack, onTrackRider, canCancelOrder, cancelCountdownText, onCancelOrder }) {
+    function OrdersPage({ orders, onTrack, onTrackRider, canCancelOrder, cancelCountdownText, onCancelOrder, gcashSettings }) {
       const active    = orders.filter(o => o.status !== "delivered" && o.status !== "cancelled");
       const completed = orders.filter(o => o.status === "delivered" || o.status === "cancelled");
       const [ordersView, setOrdersView] = useState("active");
@@ -2837,14 +2890,16 @@
         const orderStatuses = getOrderStatuses(o);
         const idx = orderStatuses.findIndex(s => s.key === o.status);
         const canTrackRider = o.status === "buying" || o.status === "otw" || o.status === "in_boat";
+        const hasGcashBanner = o.locationType === "Island" && o.status === "buying";
+        const hasBottomAttachment = canTrackRider || hasGcashBanner;
         return (
           <div style={{ marginBottom:12 }}>
             <button onClick={() => onTrack(o)} style={{
               width:"100%", textAlign:"left", background:"#fff",
-              borderRadius: canTrackRider ? "18px 18px 0 0" : 18,
+              borderRadius: hasBottomAttachment ? "18px 18px 0 0" : 18,
               padding:"16px", border:"1px solid #F0F0F0",
-              borderBottom: canTrackRider ? "none" : undefined,
-              boxShadow: canTrackRider ? "none" : "0 2px 8px rgba(0,0,0,.05)", display:"block",
+              borderBottom: hasBottomAttachment ? "none" : undefined,
+              boxShadow: hasBottomAttachment ? "none" : "0 2px 8px rgba(0,0,0,.05)", display:"block",
             }}>
               {/* Top row */}
               <div style={{ display:"flex", justifyContent:"space-between", alignItems:"flex-start", marginBottom:12 }}>
@@ -2888,6 +2943,17 @@
                 <div style={{ fontSize:14, fontWeight:800, color:"#166534" }}>~{fmt(o.total)}</div>
               </div>
             </button>
+
+            {/* GCash payment banner for island buying orders */}
+            {o.locationType === "Island" && o.status === "buying" && (
+              o.gcashPaymentConfirmed
+                ? <div style={{ padding:"10px 14px", background:"#DCFCE7", color:"#166534", fontSize:12, fontWeight:700, display:"flex", alignItems:"center", gap:6, borderTop:"1px solid #BBF7D0" }}>
+                    <Ic n="circle-check" /> GCash Payment Confirmed — Handa na!
+                  </div>
+                : <div onClick={() => onTrack(o)} style={{ padding:"10px 14px", background:"#EFF6FF", color:"#1D4ED8", fontSize:12, fontWeight:700, display:"flex", alignItems:"center", gap:6, borderTop:"1px solid #BFDBFE", cursor:"pointer" }}>
+                    <Ic n="qrcode" /> I-send ang GCash Payment — Tingnan ang details
+                  </div>
+            )}
 
             {/* Track Rider button */}
             {canTrackRider && (

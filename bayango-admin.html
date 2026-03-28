@@ -864,6 +864,9 @@
       const [bMessage,      setBMessage]     = useState("");
       const [pushBusy,      setPushBusy]     = useState(false);
       const [vapidKey,      setVapidKey]     = useState("");
+      const [gcashSettings, setGcashSettings] = useState({ number:"", name:"", qrUrl:"" });
+      const [gcashSaving,   setGcashSaving]  = useState(false);
+      const [confirmingPay, setConfirmingPay] = useState(null);
 
       const getStatusFlow = (order) => order?.locationType === "Island"
         ? ["pending","buying","in_boat","delivered"]
@@ -909,11 +912,60 @@
         })();
       }, []);
 
+      useEffect(() => {
+        (async () => {
+          try {
+            const { db, fns } = await initFirebase();
+            const snap = await fns.get(fns.ref(db, "settings/gcash"));
+            if (snap.exists()) setGcashSettings({ number:"", name:"", qrUrl:"", ...snap.val() });
+          } catch (err) {
+            console.error("Failed to load GCash settings:", err);
+          }
+        })();
+      }, []);
+
+      const saveGcashSettings = async () => {
+        setGcashSaving(true);
+        try {
+          const { db, fns } = await initFirebase();
+          await fns.set(fns.ref(db, "settings/gcash"), gcashSettings);
+          alert("Na-save ang GCash settings!");
+        } catch (err) {
+          alert("Error: " + (err.message || err.code));
+        } finally { setGcashSaving(false); }
+      };
+
+      const confirmGcashPayment = async (order) => {
+        setConfirmingPay(order.id);
+        try {
+          const { db, fns } = await initFirebase();
+          await fns.update(fns.ref(db, "orders/" + order.id), { gcashPaymentConfirmed: true });
+          if (selected?.id === order.id) setSelected(s => ({ ...s, gcashPaymentConfirmed: true }));
+          // Notify the customer
+          try {
+            const tokens = await collectUserTokens(order.uid || order.userId);
+            await sendFcmToTokens(tokens, {
+              title: "GCash Payment Confirmed!",
+              body: `Order #${String(order.id || "").slice(-6)}: Na-confirm na ang iyong GCash payment. Ihahanda na ang order mo!`,
+              data: { type: "gcash_confirmed", orderId: String(order.id || "") },
+              link: "https://bayango.ph/bayango-user.html#/orders",
+            });
+          } catch (e) { console.error("GCash notif failed:", e); }
+        } catch (err) {
+          alert("Error: " + (err.message || err.code));
+        } finally { setConfirmingPay(null); }
+      };
+
       const advance = async (order) => {
         const flow = getStatusFlow(order);
         const idx = flow.indexOf(order.status);
         if (idx < 0 || idx >= flow.length - 1) return;
         const next = flow[idx + 1];
+        // Block island orders from going to in_boat without confirmed GCash payment
+        if (order.locationType === "Island" && next === "in_boat" && !order.gcashPaymentConfirmed) {
+          alert("Hindi pa na-confirm ang GCash payment ng island order na ito. I-confirm muna bago i-advance.");
+          return;
+        }
         setUpdating(order.id);
         try { await onUpdateStatus(order, next); }
         finally { setUpdating(null); if (selected?.id === order.id) setSelected(s => ({...s, status:next})); }
@@ -1022,6 +1074,18 @@
               } finally { setPushBusy(false); }
             }} style={{ width:"100%", padding:"10px 12px", borderRadius:10, background: pushBusy?"#9CA3AF":"#166534", color:"#fff", fontSize:12, fontWeight:700 }}>
               {pushBusy ? "Sending..." : "Send Broadcast"}
+            </button>
+          </div>
+
+          {/* ── GCash Settings ── */}
+          <div style={{ margin:"0 20px 10px", background:"#fff", border:"1px solid #E5E7EB", borderRadius:16, padding:14 }}>
+            <div style={{ fontSize:14, fontWeight:800, color:"#1D4ED8", marginBottom:8 }}><Ic n="qrcode" style={{marginRight:6}} />GCash Payment Settings (para sa Island Orders)</div>
+            <input value={gcashSettings.number} onChange={e=>setGcashSettings(s=>({...s,number:e.target.value}))} placeholder="GCash Number (e.g. 09XXXXXXXXX)" style={{ width:"100%", padding:"10px 12px", border:"1px solid #D1D5DB", borderRadius:10, fontSize:13, marginBottom:8 }} />
+            <input value={gcashSettings.name} onChange={e=>setGcashSettings(s=>({...s,name:e.target.value}))} placeholder="GCash Account Name" style={{ width:"100%", padding:"10px 12px", border:"1px solid #D1D5DB", borderRadius:10, fontSize:13, marginBottom:8 }} />
+            <input value={gcashSettings.qrUrl} onChange={e=>setGcashSettings(s=>({...s,qrUrl:e.target.value}))} placeholder="GCash QR Code Image URL" style={{ width:"100%", padding:"10px 12px", border:"1px solid #D1D5DB", borderRadius:10, fontSize:13, marginBottom:8 }} />
+            {gcashSettings.qrUrl && <img src={gcashSettings.qrUrl} alt="GCash QR" style={{ width:120, height:120, objectFit:"contain", display:"block", margin:"0 auto 10px", borderRadius:10, border:"1px solid #E5E7EB" }} />}
+            <button onClick={saveGcashSettings} disabled={gcashSaving} style={{ width:"100%", padding:"9px 12px", borderRadius:10, background:gcashSaving?"#E5E7EB":"#1D4ED8", color:gcashSaving?"#aaa":"#fff", fontSize:12, fontWeight:700 }}>
+              {gcashSaving ? "Saving..." : "I-save ang GCash Settings"}
             </button>
           </div>
 
@@ -1167,6 +1231,22 @@
                     )}
                   </div>
 
+                  {/* GCash Payment Confirm (Island orders in buying) */}
+                  {order.locationType === "Island" && order.status === "buying" && (
+                    order.gcashPaymentConfirmed
+                      ? <div style={{ marginBottom:8, padding:"8px 12px", borderRadius:10, background:"#DCFCE7", color:"#166534", fontSize:12, fontWeight:700, display:"flex", alignItems:"center", gap:6 }}>
+                          <Ic n="circle-check" /> GCash Payment Confirmed
+                        </div>
+                      : <button onClick={() => confirmGcashPayment(order)} disabled={confirmingPay === order.id} style={{
+                          width:"100%", marginBottom:8, padding:"10px", borderRadius:12,
+                          background: confirmingPay===order.id ? "#E5E7EB" : "linear-gradient(135deg,#1D4ED8,#3B82F6)",
+                          color: confirmingPay===order.id ? "#aaa" : "#fff", fontSize:13, fontWeight:700,
+                          display:"flex", alignItems:"center", justifyContent:"center", gap:6,
+                        }}>
+                          <Ic n="qrcode" />{confirmingPay===order.id ? "Confirming..." : "Confirm GCash Payment"}
+                        </button>
+                  )}
+
                   {/* Action buttons */}
                   <div style={{ display:"flex", gap:8 }}>
                     <button onClick={() => setSelected(order)} style={{
@@ -1275,6 +1355,22 @@
                     </div>
                   </div>
                 </div>
+
+                {/* GCash payment in detail modal (island orders) */}
+                {selected.locationType === "Island" && selected.status === "buying" && (
+                  selected.gcashPaymentConfirmed
+                    ? <div style={{ marginBottom:12, padding:"12px 16px", borderRadius:14, background:"#DCFCE7", color:"#166534", fontSize:14, fontWeight:700, display:"flex", alignItems:"center", gap:8 }}>
+                        <Ic n="circle-check" size={18} /> GCash Payment Confirmed
+                      </div>
+                    : <button onClick={() => confirmGcashPayment(selected)} disabled={confirmingPay === selected.id} style={{
+                        width:"100%", marginBottom:12, padding:"14px", borderRadius:14,
+                        background: confirmingPay===selected.id ? "#E5E7EB" : "linear-gradient(135deg,#1D4ED8,#3B82F6)",
+                        color: confirmingPay===selected.id ? "#aaa" : "#fff", fontSize:14, fontWeight:700,
+                        display:"flex", alignItems:"center", justifyContent:"center", gap:8,
+                      }}>
+                        <Ic n="qrcode" size={18} />{confirmingPay===selected.id ? "Confirming..." : "Confirm GCash Payment"}
+                      </button>
+                )}
 
                 {/* Status update */}
                 {getNextLabel(selected) && (
