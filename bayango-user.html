@@ -2024,6 +2024,54 @@
                   });
                 })()}
 
+                {/* ── Proof of Order + Itemized Receipt ── */}
+                {(liveOrder.status === "buying" || liveOrder.status === "otw" || liveOrder.status === "in_boat" || liveOrder.status === "delivered") && (liveOrder.proofImages?.length > 0 || liveOrder.pricesUpdatedAt) && (
+                  <div style={{ marginTop:18, borderRadius:16, border:"1.5px solid #E5E7EB", background:"#FAFAFA", padding:"16px" }}>
+                    <div style={{ fontSize:13, fontWeight:800, color:"#111", marginBottom:10, display:"flex", alignItems:"center", gap:6 }}>
+                      <Ic n="receipt" style={{ color:"#166534" }} /> Resibo at Proof ng Order
+                    </div>
+
+                    {/* Proof photos gallery */}
+                    {liveOrder.proofImages?.length > 0 && (
+                      <div style={{ display:"flex", gap:8, overflowX:"auto", paddingBottom:4, marginBottom:10 }}>
+                        {liveOrder.proofImages.map((url, i) => (
+                          <a key={i} href={url} target="_blank" rel="noreferrer" style={{ flexShrink:0 }}>
+                            <img src={url} alt={`proof-${i}`} style={{ width:80, height:80, borderRadius:10, objectFit:"cover", border:"1.5px solid #E5E7EB" }} />
+                          </a>
+                        ))}
+                      </div>
+                    )}
+
+                    {/* Itemized receipt */}
+                    {(liveOrder.items || []).map((item, idx) => {
+                      const lineTotal = item.unit === "kg"
+                        ? Number(item.price||0) * Number(item.qty||1) * Number(item.weightUnit||1)
+                        : Number(item.price||0) * Number(item.qty||1);
+                      return (
+                        <div key={item.id||idx} style={{ display:"flex", alignItems:"center", gap:8, padding:"6px 0", borderBottom:"1px solid #F0F0F0" }}>
+                          {(item.img || item.image || item.imageUrl)
+                            ? <img src={item.img || item.image || item.imageUrl} alt={item.name} style={{ width:30, height:30, borderRadius:7, objectFit:"cover", border:"1px solid #E5E7EB", flexShrink:0 }} />
+                            : <div style={{ width:30, height:30, borderRadius:7, background:"#F3F4F6", display:"flex", alignItems:"center", justifyContent:"center", flexShrink:0 }}><Ic n={item.isCustom?"note-sticky":"bag-shopping"} style={{ color:"#94A3B8", fontSize:12 }} /></div>
+                          }
+                          <div style={{ flex:1, minWidth:0 }}>
+                            <div style={{ fontSize:12, fontWeight:700, overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>{item.name}</div>
+                            <div style={{ fontSize:10, color:"#94A3B8" }}>×{item.qty}{item.unit==="kg"?` (${item.totalKg||Number(item.qty)*Number(item.weightUnit||1)}kg)`:""}</div>
+                          </div>
+                          <div style={{ fontSize:13, fontWeight:700, color:"#111" }}>{fmt(lineTotal)}</div>
+                        </div>
+                      );
+                    })}
+                    <div style={{ marginTop:8, paddingTop:8, borderTop:"1px solid #E5E7EB", fontSize:12, color:"#555" }}>
+                      <div style={{ display:"flex", justifyContent:"space-between", marginBottom:3 }}><span>Delivery</span><span>{fmt(liveOrder.deliveryFee)}</span></div>
+                      <div style={{ display:"flex", justifyContent:"space-between", marginBottom:3 }}><span>Service Fee</span><span>{fmt(liveOrder.serviceFee)}</span></div>
+                      {(liveOrder.totalDiscount||0)>0 && <div style={{ display:"flex", justifyContent:"space-between", marginBottom:3, color:"#166534" }}><span>Discount</span><span>-{fmt(liveOrder.totalDiscount)}</span></div>}
+                      <div style={{ display:"flex", justifyContent:"space-between", marginTop:6, paddingTop:6, borderTop:"2px dashed #D1D5DB", fontSize:15, fontWeight:800, color:"#111" }}>
+                        <span>TOTAL</span><span>{fmt(liveOrder.total)}</span>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
                 {/* GCash Payment Section (Island orders only, after buying status) */}
                 {liveOrder.locationType === "Island" && (liveOrder.status === "buying" || liveOrder.status === "in_boat") && (
                   <div style={{ marginTop:18, borderRadius:16, border:"2px solid #3B82F6", background:"#EFF6FF", padding:"16px" }}>

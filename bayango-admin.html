@@ -867,6 +867,10 @@
       const [gcashSettings, setGcashSettings] = useState({ number:"09618280589", name:"Kenneth Antonil", qrUrl:"" });
       const [gcashSaving,   setGcashSaving]  = useState(false);
       const [confirmingPay, setConfirmingPay] = useState(null);
+      const [editedPrices,  setEditedPrices]  = useState({});   // { itemId: price }
+      const [proofImages,   setProofImages]   = useState([]);   // URLs for selected order
+      const [savingPrices,  setSavingPrices]  = useState(false);
+      const [uploadingProof,setUploadingProof]= useState(false);
 
       const getStatusFlow = (order) => order?.locationType === "Island"
         ? ["pending","buying","in_boat","delivered"]
@@ -960,6 +964,65 @@
         } catch (err) {
           alert("Error: " + (err.message || err.code));
         } finally { setConfirmingPay(null); }
+      };
+
+      const recomputeTotals = (items, deliveryFee, totalDiscount) => {
+        const subtotal = items.reduce((s, i) => {
+          const p = Number(i.price || 0), q = Number(i.qty || 1);
+          return s + (i.unit === "kg" ? p * q * Number(i.weightUnit || 1) : p * q);
+        }, 0);
+        const serviceFee    = Math.round(subtotal * 0.02);
+        const smallOrderFee = subtotal < 100 ? Math.round(subtotal * 0.05) : 0;
+        const total         = Math.max(0, subtotal + Number(deliveryFee || 0) + serviceFee + smallOrderFee - Number(totalDiscount || 0));
+        return { subtotal, serviceFee, smallOrderFee, total };
+      };
+
+      const saveActualPrices = async (order) => {
+        setSavingPrices(true);
+        try {
+          const { db, fns } = await initFirebase();
+          // Merge edited prices into items
+          const updatedItems = (order.items || []).map((item, idx) => {
+            const key = item.id || String(idx);
+            const newPrice = editedPrices[key];
+            return newPrice !== undefined ? { ...item, price: Number(newPrice) } : item;
+          });
+          const { subtotal, serviceFee, smallOrderFee, total } = recomputeTotals(
+            updatedItems, order.deliveryFee, order.totalDiscount
+          );
+          const updatedProof = proofImages.length > 0 ? proofImages : (order.proofImages || []);
+          await fns.update(fns.ref(db, "orders/" + order.id), {
+            items: updatedItems, subtotal, serviceFee, smallOrderFee, total,
+            proofImages: updatedProof, pricesUpdatedAt: Date.now(),
+          });
+          setSelected(s => s ? { ...s, items: updatedItems, subtotal, serviceFee, smallOrderFee, total, proofImages: updatedProof, pricesUpdatedAt: Date.now() } : s);
+          // Notify customer
+          try {
+            const tokens = await collectUserTokens(order.uid || order.userId);
+            await sendFcmToTokens(tokens, {
+              title: "Order Update — Tingnan ang iyong bayad",
+              body: `Order #${String(order.id||"").slice(-6)}: Na-update na ang actual na presyo. Total: ₱${total.toLocaleString("en-PH")}`,
+              data: { type: "prices_updated", orderId: String(order.id||"") },
+              link: "https://bayango.ph/bayango-user.html#/orders",
+            });
+          } catch(e) { console.error("Notif failed:", e); }
+          alert("Na-update na ang presyo at total!");
+        } catch (err) {
+          alert("Error: " + (err.message || err.code));
+        } finally { setSavingPrices(false); }
+      };
+
+      const uploadProofImage = async (file, orderId) => {
+        setUploadingProof(true);
+        try {
+          const st = await initStorage();
+          const storageRef = st.ref(st.storage, `order_proofs/${orderId}/${Date.now()}_${file.name}`);
+          await st.uploadBytes(storageRef, file);
+          const url = await st.getDownloadURL(storageRef);
+          setProofImages(prev => [...prev, url]);
+        } catch (err) {
+          alert("Hindi ma-upload ang larawan: " + (err.message || err.code));
+        } finally { setUploadingProof(false); }
       };
 
       const advance = async (order) => {
@@ -1261,7 +1324,7 @@
 
                   {/* Action buttons */}
                   <div style={{ display:"flex", gap:8 }}>
-                    <button onClick={() => setSelected(order)} style={{
+                    <button onClick={() => { setSelected(order); setEditedPrices({}); setProofImages(order.proofImages || []); }} style={{
                       flex:1, padding:"10px", borderRadius:12, background:"#F9FAFB",
                       border:"1px solid #E5E7EB", fontSize:13, fontWeight:600, color:"#555"
                     }}><Ic n="clipboard" style={{ marginRight:4 }} />Details</button>
@@ -1329,44 +1392,115 @@
                   </div>
                 )}
 
-                {/* Items */}
-                <div style={{ background:"#F9FAFB", borderRadius:14, padding:"14px 16px", marginBottom:14, border:"1px solid #E5E7EB" }}>
-                  <div style={{ fontSize:12, fontWeight:700, color:"#888", marginBottom:10 }}>ITEMS</div>
-                  {selected.items?.filter(i => !i.isCustom).map(i => (
-                    <div key={i.id} style={{ display:"flex", justifyContent:"space-between", padding:"5px 0", fontSize:13, color:"#555", borderBottom:"1px solid #F0F0F0", gap:10 }}>
-                      <span style={{ display:"inline-flex", alignItems:"center", gap:7 }}>
-                        {orderItemImage(i)
-                          ? <img src={orderItemImage(i)} alt={i.name} style={{ width:24, height:24, borderRadius:6, objectFit:"cover", border:"1px solid #E5E7EB" }} />
-                          : <Ic n="bag-shopping" style={{ color:"#94A3B8" }} />
-                        }
-                        {i.name} ×{i.qty}
-                      </span>
-                      <span style={{ fontWeight:700 }}>{fmt(i.price * i.qty)}</span>
+                {/* Items + Actual Price Editor */}
+                {(() => {
+                  const allItems = selected.items || [];
+                  const liveItems = allItems.map((item, idx) => {
+                    const key = item.id || String(idx);
+                    const ep = editedPrices[key];
+                    return { ...item, price: ep !== undefined ? Number(ep) : Number(item.price || 0), _key: key };
+                  });
+                  const { subtotal, serviceFee, smallOrderFee, total } = recomputeTotals(liveItems, selected.deliveryFee, selected.totalDiscount);
+                  const hasEdits = Object.keys(editedPrices).length > 0 || proofImages.length !== (selected.proofImages || []).length;
+                  return (
+                  <div style={{ background:"#F9FAFB", borderRadius:14, padding:"14px 16px", marginBottom:14, border:"1px solid #E5E7EB" }}>
+                    <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:10 }}>
+                      <div style={{ fontSize:12, fontWeight:700, color:"#888" }}>ITEMS &amp; ACTUAL PRICES</div>
+                      {selected.pricesUpdatedAt && <div style={{ fontSize:10, color:"#22C55E", fontWeight:700 }}><Ic n="circle-check" style={{ marginRight:3 }} />Updated</div>}
                     </div>
-                  ))}
-                  {selected.items?.some(i => i.isCustom) && (
-                    <>
-                      <div style={{ fontSize:11, fontWeight:700, color:"#166534", padding:"8px 0 4px", marginTop:4 }}><Ic n="note-sticky" style={{ marginRight:4 }} />Custom Items (User-requested)</div>
-                      {selected.items.filter(i => i.isCustom).map(i => (
-                        <div key={i.id} style={{ display:"flex", justifyContent:"space-between", padding:"5px 0", fontSize:13, color:"#555", borderBottom:"1px solid #F0F0F0" }}>
-                          <span><Ic n="note-sticky" style={{ marginRight:4 }} />{i.name} ({i.unit})</span>
-                          <span style={{ fontWeight:700, fontStyle:"italic", color:"#888" }}>~{fmt(i.estPrice)}</span>
+                    {liveItems.map((item, idx) => {
+                      const ep = editedPrices[item._key];
+                      const displayPrice = ep !== undefined ? ep : item.price;
+                      const lineTotal = item.unit === "kg"
+                        ? Number(displayPrice) * Number(item.qty||1) * Number(item.weightUnit||1)
+                        : Number(displayPrice) * Number(item.qty||1);
+                      return (
+                        <div key={item._key} style={{ display:"flex", alignItems:"center", gap:8, padding:"7px 0", borderBottom:"1px solid #F0F0F0" }}>
+                          {orderItemImage(item)
+                            ? <img src={orderItemImage(item)} alt={item.name} style={{ width:32, height:32, borderRadius:8, objectFit:"cover", border:"1px solid #E5E7EB", flexShrink:0 }} />
+                            : <div style={{ width:32, height:32, borderRadius:8, background:"#E5E7EB", display:"flex", alignItems:"center", justifyContent:"center", flexShrink:0 }}><Ic n={item.isCustom?"note-sticky":"bag-shopping"} style={{ color:"#94A3B8", fontSize:13 }} /></div>
+                          }
+                          <div style={{ flex:1, minWidth:0 }}>
+                            <div style={{ fontSize:12, fontWeight:700, color:"#111", overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>
+                              {item.name}{item.isCustom && <span style={{ fontSize:10, color:"#166534", marginLeft:4, background:"#F0FDF4", padding:"1px 4px", borderRadius:4 }}>custom</span>}
+                            </div>
+                            <div style={{ fontSize:11, color:"#94A3B8" }}>{fmtQty ? fmtQty(item) : `×${item.qty}`}</div>
+                          </div>
+                          <div style={{ display:"flex", flexDirection:"column", alignItems:"flex-end", gap:2 }}>
+                            <div style={{ display:"flex", alignItems:"center", gap:4 }}>
+                              <span style={{ fontSize:11, color:"#94A3B8" }}>₱</span>
+                              <input
+                                type="number"
+                                min="0"
+                                step="1"
+                                value={ep !== undefined ? ep : item.price}
+                                onChange={e => setEditedPrices(prev => ({ ...prev, [item._key]: e.target.value }))}
+                                style={{ width:68, padding:"4px 6px", border:"1px solid #D1D5DB", borderRadius:7, fontSize:13, fontWeight:700, textAlign:"right",
+                                  background: ep !== undefined ? "#FFF7ED" : "#fff",
+                                  borderColor: ep !== undefined ? "#FB923C" : "#D1D5DB" }}
+                              />
+                            </div>
+                            <div style={{ fontSize:10, color:"#94A3B8" }}>= {fmt(lineTotal)}</div>
+                          </div>
                         </div>
-                      ))}
-                    </>
-                  )}
-                  <div style={{ marginTop:10, paddingTop:10, borderTop:"1px solid #E5E7EB", fontSize:13, color:"#888" }}>
-                    <div style={{ display:"flex", justifyContent:"space-between", marginBottom:4 }}>
-                      <span>Delivery</span><span>{fmt(selected.deliveryFee)}</span>
+                      );
+                    })}
+
+                    {/* Proof Photos */}
+                    <div style={{ marginTop:12, paddingTop:10, borderTop:"1px solid #E5E7EB" }}>
+                      <div style={{ fontSize:11, fontWeight:700, color:"#888", marginBottom:8 }}>PROOF OF ORDER (Resibo / Litrato ng Items)</div>
+                      {proofImages.length > 0 && (
+                        <div style={{ display:"flex", gap:8, flexWrap:"wrap", marginBottom:8 }}>
+                          {proofImages.map((url, i) => (
+                            <div key={i} style={{ position:"relative" }}>
+                              <img src={url} alt={`proof-${i}`} style={{ width:60, height:60, borderRadius:8, objectFit:"cover", border:"1px solid #E5E7EB" }} />
+                              <button onClick={() => setProofImages(prev => prev.filter((_,j)=>j!==i))} style={{ position:"absolute", top:-5, right:-5, width:18, height:18, borderRadius:"50%", background:"#EF4444", color:"#fff", fontSize:10, display:"flex", alignItems:"center", justifyContent:"center" }}>✕</button>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                      <label style={{ display:"flex", alignItems:"center", gap:6, padding:"8px 12px", borderRadius:10, border:"1.5px dashed #D1D5DB", cursor:"pointer", fontSize:12, color:"#555", background:"#fff" }}>
+                        <Ic n={uploadingProof?"spinner":"camera"} className={uploadingProof?"fa-spin":""} />
+                        {uploadingProof ? "Ina-upload..." : "Mag-upload ng Resibo / Litrato"}
+                        <input type="file" accept="image/*" style={{ display:"none" }} onChange={async e => { if(e.target.files[0]) await uploadProofImage(e.target.files[0], selected.id); e.target.value=""; }} />
+                      </label>
                     </div>
-                    <div style={{ display:"flex", justifyContent:"space-between" }}>
-                      <span>Service Fee</span><span>{fmt(selected.serviceFee)}</span>
+
+                    {/* Totals */}
+                    <div style={{ marginTop:10, paddingTop:10, borderTop:"1px solid #E5E7EB", fontSize:13, color:"#888" }}>
+                      <div style={{ display:"flex", justifyContent:"space-between", marginBottom:4 }}>
+                        <span>Subtotal</span><span>{fmt(subtotal)}</span>
+                      </div>
+                      <div style={{ display:"flex", justifyContent:"space-between", marginBottom:4 }}>
+                        <span>Delivery</span><span>{fmt(selected.deliveryFee)}</span>
+                      </div>
+                      <div style={{ display:"flex", justifyContent:"space-between", marginBottom:4 }}>
+                        <span>Service Fee (2%)</span><span>{fmt(serviceFee)}</span>
+                      </div>
+                      {smallOrderFee > 0 && <div style={{ display:"flex", justifyContent:"space-between", marginBottom:4 }}>
+                        <span>Small Order Fee</span><span>{fmt(smallOrderFee)}</span>
+                      </div>}
+                      {(selected.totalDiscount || 0) > 0 && <div style={{ display:"flex", justifyContent:"space-between", marginBottom:4, color:"#166534" }}>
+                        <span>Discount</span><span>-{fmt(selected.totalDiscount)}</span>
+                      </div>}
+                      <div style={{ display:"flex", justifyContent:"space-between", marginTop:8, paddingTop:8, borderTop:"2px dashed #D1D5DB", fontSize:17, fontWeight:800, color: hasEdits ? "#EA580C" : "#111" }}>
+                        <span>TOTAL</span><span>{fmt(total)}{hasEdits && <span style={{ fontSize:10, marginLeft:4, color:"#EA580C" }}>*unsaved</span>}</span>
+                      </div>
                     </div>
-                    <div style={{ display:"flex", justifyContent:"space-between", marginTop:8, paddingTop:8, borderTop:"2px dashed #D1D5DB", fontSize:16, fontWeight:800, color:"#111" }}>
-                      <span>~Total</span><span>~{fmt(selected.total)}</span>
-                    </div>
+
+                    {/* Save button */}
+                    <button onClick={() => saveActualPrices(selected)} disabled={savingPrices || (!hasEdits)} style={{
+                      width:"100%", marginTop:12, padding:"11px", borderRadius:12,
+                      background: savingPrices ? "#E5E7EB" : (!hasEdits ? "#F3F4F6" : "linear-gradient(135deg,#EA580C,#F97316)"),
+                      color: (!hasEdits || savingPrices) ? "#aaa" : "#fff",
+                      fontSize:13, fontWeight:700, display:"flex", alignItems:"center", justifyContent:"center", gap:6,
+                    }}>
+                      <Ic n={savingPrices ? "spinner" : "floppy-disk"} className={savingPrices ? "fa-spin" : ""} />
+                      {savingPrices ? "Sine-save..." : "I-save ang Actual Presyo at Proof"}
+                    </button>
                   </div>
-                </div>
+                  );
+                })()}
 
                 {/* GCash payment in detail modal (island orders) */}
                 {selected.locationType === "Island" && selected.status === "buying" && (

@@ -112,6 +112,11 @@
       const t = new Date();
       return d.getFullYear() === t.getFullYear() && d.getMonth() === t.getMonth() && d.getDate() === t.getDate();
     };
+    async function initRiderStorage() {
+      const mod = await import("https://www.gstatic.com/firebasejs/10.12.0/firebase-storage.js");
+      return { storage: mod.getStorage(RIDER_FB_APP), ref: mod.ref, uploadBytes: mod.uploadBytes, getDownloadURL: mod.getDownloadURL };
+    }
+
     const RIDER_NOTIFICATION_SOUND_URL = "https://audio.com/kenneth-antonil/audio/universfield-new-notification-022-370046";
     async function getPushVapidKey() {
       try {
@@ -281,6 +286,11 @@
       const [availErr,        setAvailErr]        = useState(null);
       const [checklistOrder,  setChecklistOrder]  = useState(null);
       const [mapOrder,        setMapOrder]        = useState(null);
+      const [priceEditOrder,  setPriceEditOrder]  = useState(null);
+      const [riderEditedPrices, setRiderEditedPrices] = useState({});
+      const [riderProofImages,  setRiderProofImages]  = useState([]);
+      const [savingRiderPrices, setSavingRiderPrices] = useState(false);
+      const [uploadingRiderProof, setUploadingRiderProof] = useState(false);
       const [riderCoords,     setRiderCoords]     = useState(null);
       const notificationAudioRef = useRef(null);
       const lastAvailableOrderIdsRef = useRef(new Set());
@@ -466,6 +476,53 @@
         }
       };
 
+      const recomputeTotals = (items, deliveryFee, totalDiscount) => {
+        const subtotal = items.reduce((s, i) => {
+          const p = Number(i.price || 0), q = Number(i.qty || 1);
+          return s + (i.unit === "kg" ? p * q * Number(i.weightUnit || 1) : p * q);
+        }, 0);
+        const serviceFee    = Math.round(subtotal * 0.02);
+        const smallOrderFee = subtotal < 100 ? Math.round(subtotal * 0.05) : 0;
+        const total         = Math.max(0, subtotal + Number(deliveryFee || 0) + serviceFee + smallOrderFee - Number(totalDiscount || 0));
+        return { subtotal, serviceFee, smallOrderFee, total };
+      };
+
+      const uploadRiderProofImage = async (file, orderId) => {
+        setUploadingRiderProof(true);
+        try {
+          const st = await initRiderStorage();
+          const storageRef = st.ref(st.storage, `order_proofs/${orderId}/${Date.now()}_${file.name}`);
+          await st.uploadBytes(storageRef, file);
+          const url = await st.getDownloadURL(storageRef);
+          setRiderProofImages(prev => [...prev, url]);
+        } catch (err) {
+          showToast("Hindi ma-upload ang larawan: " + (err.message || err.code));
+        } finally { setUploadingRiderProof(false); }
+      };
+
+      const saveRiderActualPrices = async (order) => {
+        setSavingRiderPrices(true);
+        try {
+          const updatedItems = (order.items || []).map((item, idx) => {
+            const key = item.id || String(idx);
+            const np = riderEditedPrices[key];
+            return np !== undefined ? { ...item, price: Number(np) } : item;
+          });
+          const { subtotal, serviceFee, smallOrderFee, total } = recomputeTotals(
+            updatedItems, order.deliveryFee, order.totalDiscount
+          );
+          const updatedProof = riderProofImages.length > 0 ? riderProofImages : (order.proofImages || []);
+          await _fbDb.ref("orders/" + order.id).update({
+            items: updatedItems, subtotal, serviceFee, smallOrderFee, total,
+            proofImages: updatedProof, pricesUpdatedAt: Date.now(),
+          });
+          showToast("Na-update na ang presyo! Total: ₱" + total.toLocaleString("en-PH"));
+          setPriceEditOrder(null);
+        } catch (err) {
+          showToast("Error: " + (err.message || err.code));
+        } finally { setSavingRiderPrices(false); }
+      };
+
       const toggleChecklistItem = async (orderId, itemKey, checked) => {
         setChecklistOrder(prev => {
           if (!prev || prev.id !== orderId) return prev;
@@ -617,7 +674,7 @@
           {/* ── Tab Content ── */}
           <div style={{ filter: shouldForceNotifEnable ? "blur(3px)" : "none", pointerEvents: shouldForceNotifEnable ? "none" : "auto" }}>
             {tab === "available"  && <AvailableTab  orders={availableOrders} onAccept={acceptOrder} claiming={claiming} availErr={availErr} onOpenChecklist={setChecklistOrder} onOpenMap={setMapOrder} />}
-            {tab === "deliveries" && <DeliveriesTab buying={buyingOrders} active={activeOrders} completed={completedOrders} onOtw={markOtw} markingOtw={markingOtw} onDeliver={markDelivered} delivering={delivering} onOpenChecklist={setChecklistOrder} onOpenMap={setMapOrder} />}
+            {tab === "deliveries" && <DeliveriesTab buying={buyingOrders} active={activeOrders} completed={completedOrders} onOtw={markOtw} markingOtw={markingOtw} onDeliver={markDelivered} delivering={delivering} onOpenChecklist={setChecklistOrder} onOpenMap={setMapOrder} onUpdatePrices={order => { setPriceEditOrder(order); setRiderEditedPrices({}); setRiderProofImages(order.proofImages || []); }} />}
             {tab === "earnings"   && <EarningsTab   completed={deliveredOrders} today={todayEarnings} week={weekEarnings} total={totalEarnings} />}
           </div>
 
@@ -670,6 +727,128 @@
               onToggle={toggleChecklistItem}
             />
           )}
+
+          {/* ── Price Update Modal ── */}
+          {priceEditOrder && (() => {
+            const order = myOrders.find(o => o.id === priceEditOrder.id) || priceEditOrder;
+            const liveItems = (order.items || []).map((item, idx) => {
+              const key = item.id || String(idx);
+              const ep = riderEditedPrices[key];
+              return { ...item, price: ep !== undefined ? Number(ep) : Number(item.price || 0), _key: key };
+            });
+            const subtotal = liveItems.reduce((s,i) => {
+              const p = Number(i.price||0), q = Number(i.qty||1);
+              return s + (i.unit==="kg" ? p*q*Number(i.weightUnit||1) : p*q);
+            }, 0);
+            const serviceFee    = Math.round(subtotal * 0.02);
+            const smallOrderFee = subtotal < 100 ? Math.round(subtotal * 0.05) : 0;
+            const total         = Math.max(0, subtotal + Number(order.deliveryFee||0) + serviceFee + smallOrderFee - Number(order.totalDiscount||0));
+            const hasEdits = Object.keys(riderEditedPrices).length > 0 || riderProofImages.length !== (order.proofImages||[]).length;
+            return (
+              <div style={{ position:"fixed", inset:0, zIndex:400, background:"rgba(0,0,0,.6)", backdropFilter:"blur(4px)", display:"flex", alignItems:"flex-end", justifyContent:"center" }}
+                onClick={() => setPriceEditOrder(null)}>
+                <div onClick={e=>e.stopPropagation()} className="slide-up" style={{ width:"100%", maxWidth:480, background:"#fff", borderRadius:"24px 24px 0 0", padding:"22px 20px 36px", maxHeight:"90vh", overflowY:"auto" }}>
+                  <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:16 }}>
+                    <div>
+                      <div style={{ fontSize:17, fontWeight:800 }}>Actual Presyo at Resibo</div>
+                      <div style={{ fontSize:11, color:"#aaa" }}>#{order.id?.slice(0,8)} · {order.customer?.name}</div>
+                    </div>
+                    <button onClick={() => setPriceEditOrder(null)} style={{ width:34, height:34, borderRadius:10, background:"#F3F4F6", display:"flex", alignItems:"center", justifyContent:"center" }}><Ic n="xmark" /></button>
+                  </div>
+
+                  {/* Items with editable prices */}
+                  <div style={{ marginBottom:14 }}>
+                    {liveItems.map((item) => {
+                      const ep = riderEditedPrices[item._key];
+                      const displayPrice = ep !== undefined ? ep : item.price;
+                      const lineTotal = item.unit==="kg"
+                        ? Number(displayPrice)*Number(item.qty||1)*Number(item.weightUnit||1)
+                        : Number(displayPrice)*Number(item.qty||1);
+                      return (
+                        <div key={item._key} style={{ display:"flex", alignItems:"center", gap:10, padding:"8px 0", borderBottom:"1px solid #F0F0F0" }}>
+                          {orderItemImage(item)
+                            ? <img src={orderItemImage(item)} alt={item.name} style={{ width:38, height:38, borderRadius:9, objectFit:"cover", border:"1px solid #E5E7EB", flexShrink:0 }} />
+                            : <div style={{ width:38, height:38, borderRadius:9, background:"#F3F4F6", display:"flex", alignItems:"center", justifyContent:"center", flexShrink:0 }}><Ic n={item.isCustom?"note-sticky":"bag-shopping"} style={{ color:"#94A3B8" }} /></div>
+                          }
+                          <div style={{ flex:1, minWidth:0 }}>
+                            <div style={{ fontSize:13, fontWeight:700, overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>
+                              {item.name}{item.isCustom && <span style={{ fontSize:10, color:"#166534", marginLeft:4, background:"#F0FDF4", padding:"1px 4px", borderRadius:4 }}>custom</span>}
+                            </div>
+                            <div style={{ fontSize:11, color:"#94A3B8" }}>×{item.qty}{item.unit==="kg"?` (${item.totalKg||Number(item.qty)*Number(item.weightUnit||1)}kg)`:""}</div>
+                          </div>
+                          <div style={{ display:"flex", flexDirection:"column", alignItems:"flex-end", gap:2 }}>
+                            <div style={{ display:"flex", alignItems:"center", gap:4 }}>
+                              <span style={{ fontSize:12, color:"#94A3B8" }}>₱</span>
+                              <input
+                                type="number" min="0" step="1"
+                                value={ep !== undefined ? ep : item.price}
+                                onChange={e => setRiderEditedPrices(prev => ({ ...prev, [item._key]: e.target.value }))}
+                                style={{ width:72, padding:"5px 7px", border:"1.5px solid", borderColor: ep!==undefined?"#A855F7":"#D1D5DB", borderRadius:8, fontSize:14, fontWeight:700, textAlign:"right", background: ep!==undefined?"#FAF5FF":"#fff" }}
+                              />
+                            </div>
+                            <div style={{ fontSize:10, color:"#94A3B8" }}>= {fmt(lineTotal)}</div>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+
+                  {/* Proof Photos */}
+                  <div style={{ marginBottom:14 }}>
+                    <div style={{ fontSize:12, fontWeight:700, color:"#555", marginBottom:8 }}><Ic n="camera" style={{ marginRight:5 }} />Resibo / Litrato ng mga Items</div>
+                    {riderProofImages.length > 0 && (
+                      <div style={{ display:"flex", gap:8, flexWrap:"wrap", marginBottom:8 }}>
+                        {riderProofImages.map((url, i) => (
+                          <div key={i} style={{ position:"relative" }}>
+                            <img src={url} alt="" style={{ width:70, height:70, borderRadius:10, objectFit:"cover", border:"1px solid #E5E7EB" }} />
+                            <button onClick={() => setRiderProofImages(prev=>prev.filter((_,j)=>j!==i))} style={{ position:"absolute", top:-5, right:-5, width:20, height:20, borderRadius:"50%", background:"#EF4444", color:"#fff", fontSize:11, display:"flex", alignItems:"center", justifyContent:"center" }}>✕</button>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                    <label style={{ display:"flex", alignItems:"center", gap:8, padding:"11px 14px", borderRadius:12, border:"1.5px dashed #D1D5DB", cursor:"pointer", fontSize:13, color:"#555", background:"#FAFAFA" }}>
+                      <Ic n={uploadingRiderProof?"spinner":"camera"} className={uploadingRiderProof?"fa-spin":""} style={{ color:"#7C3AED" }} />
+                      {uploadingRiderProof ? "Ina-upload..." : "Kumuha ng Larawan o Mag-upload"}
+                      <input type="file" accept="image/*" capture="environment" style={{ display:"none" }}
+                        onChange={async e => { if(e.target.files[0]) await uploadRiderProofImage(e.target.files[0], order.id); e.target.value=""; }} />
+                    </label>
+                  </div>
+
+                  {/* Totals summary */}
+                  <div style={{ background:"#F9FAFB", borderRadius:14, padding:"12px 14px", marginBottom:14, border:"1px solid #E5E7EB", fontSize:13 }}>
+                    <div style={{ display:"flex", justifyContent:"space-between", marginBottom:4, color:"#555" }}>
+                      <span>Subtotal</span><span>{fmt(subtotal)}</span>
+                    </div>
+                    <div style={{ display:"flex", justifyContent:"space-between", marginBottom:4, color:"#555" }}>
+                      <span>Delivery</span><span>{fmt(order.deliveryFee)}</span>
+                    </div>
+                    <div style={{ display:"flex", justifyContent:"space-between", marginBottom:4, color:"#555" }}>
+                      <span>Service Fee (2%)</span><span>{fmt(serviceFee)}</span>
+                    </div>
+                    {smallOrderFee>0 && <div style={{ display:"flex", justifyContent:"space-between", marginBottom:4, color:"#555" }}>
+                      <span>Small Order Fee</span><span>{fmt(smallOrderFee)}</span>
+                    </div>}
+                    {(order.totalDiscount||0)>0 && <div style={{ display:"flex", justifyContent:"space-between", marginBottom:4, color:"#166534" }}>
+                      <span>Discount</span><span>-{fmt(order.totalDiscount)}</span>
+                    </div>}
+                    <div style={{ display:"flex", justifyContent:"space-between", marginTop:8, paddingTop:8, borderTop:"2px dashed #D1D5DB", fontSize:18, fontWeight:800, color: hasEdits?"#7C3AED":"#111" }}>
+                      <span>TOTAL</span><span>{fmt(total)}</span>
+                    </div>
+                  </div>
+
+                  <button onClick={() => saveRiderActualPrices(order)} disabled={savingRiderPrices || !hasEdits} style={{
+                    width:"100%", padding:"15px", borderRadius:16,
+                    background: savingRiderPrices ? "#E5E7EB" : (!hasEdits ? "#F3F4F6" : "linear-gradient(135deg,#7C3AED,#A855F7)"),
+                    color: (!hasEdits||savingRiderPrices) ? "#aaa" : "#fff",
+                    fontSize:15, fontWeight:700, display:"flex", alignItems:"center", justifyContent:"center", gap:8,
+                  }}>
+                    <Ic n={savingRiderPrices?"spinner":"floppy-disk"} className={savingRiderPrices?"fa-spin":""} />
+                    {savingRiderPrices ? "Sine-save..." : "I-save at Ipadala sa Customer"}
+                  </button>
+                </div>
+              </div>
+            );
+          })()}
           {mapOrder && (
             <RiderRouteMapModal
               order={mapOrder}
@@ -1006,7 +1185,7 @@
     }
 
     /* ══════════════════ DELIVERIES TAB ══════════════════ */
-    function DeliveriesTab({ buying, active, completed, onOtw, markingOtw, onDeliver, delivering, onOpenChecklist, onOpenMap }) {
+    function DeliveriesTab({ buying, active, completed, onOtw, markingOtw, onDeliver, delivering, onOpenChecklist, onOpenMap, onUpdatePrices }) {
       const OrderCard = ({ order, statusBadge, badgeBg, badgeColor, actionBtn }) => {
         const regularItems = (order.items || []).filter(it => !it.isCustom);
         const customItems  = (order.items || []).filter(it => it.isCustom);
@@ -1087,6 +1266,15 @@
                                 <Ic n="circle-check" /> GCash Payment Confirmed!
                               </div>
                         )}
+                        <button onClick={() => onUpdatePrices?.(order)} style={{
+                          width:"100%", marginBottom:8, padding:"11px", borderRadius:12,
+                          background:"linear-gradient(135deg,#7C3AED,#A855F7)", color:"#fff", fontSize:13, fontWeight:700,
+                          display:"flex", alignItems:"center", justifyContent:"center", gap:6,
+                        }}>
+                          <Ic n="receipt" />
+                          I-update ang Actual Presyo at Mag-upload ng Resibo
+                          {order.pricesUpdatedAt && <Ic n="circle-check" style={{ color:"#BBF7D0", marginLeft:2 }} />}
+                        </button>
                         <button onClick={() => onOtw(order)} disabled={markingOtw === order.id || gcashPending} style={{
                           width:"100%", padding:"14px", borderRadius:14,
                           background: (markingOtw === order.id || gcashPending) ? "#E2E8F0" : "linear-gradient(135deg,#1D4ED8,#3B82F6)",
