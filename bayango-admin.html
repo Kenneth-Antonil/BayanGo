@@ -901,6 +901,9 @@
       const [proofPreviewUrl, setProofPreviewUrl] = useState("");
       const [savingPrices,  setSavingPrices]  = useState(false);
       const [uploadingProof,setUploadingProof]= useState(false);
+      const [riders,        setRiders]        = useState([]);
+      const [assigningOrderId, setAssigningOrderId] = useState(null);
+      const [assignRiderId, setAssignRiderId] = useState("");
 
       const getStatusFlow = (order) => order?.locationType === "Island"
         ? ["pending","buying","in_boat","delivered"]
@@ -964,6 +967,39 @@
         })();
       }, []);
 
+      useEffect(() => {
+        (async () => {
+          try {
+            const { db, fns } = await initFirebase();
+            const snap = await fns.get(fns.ref(db, "push_tokens"));
+            if (!snap.exists()) {
+              setRiders([]);
+              return;
+            }
+            const allTokens = snap.val() || {};
+            const riderMap = {};
+            Object.entries(allTokens).forEach(([uid, tokens]) => {
+              Object.values(tokens || {}).forEach((entry) => {
+                if (entry?.role !== "rider" || entry?.enabled === false) return;
+                if (!riderMap[uid]) {
+                  riderMap[uid] = {
+                    uid,
+                    name: entry.riderName || entry.riderEmail || uid,
+                    photo: entry.riderPhoto || null,
+                    email: entry.riderEmail || "",
+                  };
+                }
+              });
+            });
+            const list = Object.values(riderMap).sort((a, b) => a.name.localeCompare(b.name));
+            setRiders(list);
+          } catch (err) {
+            console.error("Failed to load riders:", err);
+            setRiders([]);
+          }
+        })();
+      }, []);
+
       const saveGcashSettings = async () => {
         setGcashSaving(true);
         try {
@@ -994,6 +1030,51 @@
         } catch (err) {
           alert("Error: " + (err.message || err.code));
         } finally { setConfirmingPay(null); }
+      };
+
+      const assignOrderToRider = async (order, riderUid) => {
+        if (!riderUid) {
+          alert("Pumili muna ng rider.");
+          return;
+        }
+        const rider = riders.find(r => r.uid === riderUid);
+        if (!rider) {
+          alert("Hindi mahanap ang napiling rider.");
+          return;
+        }
+        setAssigningOrderId(order.id);
+        try {
+          const { db, fns } = await initFirebase();
+          const updates = {
+            riderId: rider.uid,
+            riderName: rider.name,
+            riderPhoto: rider.photo || null,
+          };
+          if (order.status === "pending") {
+            updates.status = "buying";
+            updates.acceptedAt = Date.now();
+          }
+          await fns.update(fns.ref(db, "orders/" + order.id), updates);
+          if (selected?.id === order.id) {
+            setSelected(s => s ? ({ ...s, ...updates }) : s);
+          }
+          try {
+            const riderTokens = await collectUserTokens(rider.uid);
+            await sendFcmToTokens(riderTokens, {
+              title: "May order na ipinasa sa'yo",
+              body: `Order #${String(order.id || "").slice(-6)} para kay ${order.customer?.name || "customer"}.`,
+              data: { type: "assigned_order", orderId: String(order.id || "") },
+              link: "https://bayango.ph/bayango-rider.html",
+            });
+          } catch (e) {
+            console.error("Assign rider notif failed:", e);
+          }
+          alert(`Naipasa na ang order kay ${rider.name}.`);
+        } catch (err) {
+          alert("Error: " + (err.message || err.code));
+        } finally {
+          setAssigningOrderId(null);
+        }
       };
 
       const recomputeTotals = (items, deliveryFee, totalDiscount) => {
@@ -1364,7 +1445,7 @@
 
                   {/* Action buttons */}
                   <div style={{ display:"flex", gap:8 }}>
-                    <button onClick={() => { setSelected(order); setEditedPrices({}); setProofImages(order.proofImages || []); }} style={{
+                    <button onClick={() => { setSelected(order); setEditedPrices({}); setProofImages(order.proofImages || []); setAssignRiderId(order.riderId || ""); }} style={{
                       flex:1, padding:"10px", borderRadius:12, background:"#F9FAFB",
                       border:"1px solid #E5E7EB", fontSize:13, fontWeight:600, color:"#555"
                     }}><Ic n="clipboard" style={{ marginRight:4 }} />Details</button>
@@ -1387,7 +1468,7 @@
           {/* ── Order Detail Modal ── */}
           {selected && (
             <div style={{ position:"fixed", inset:0, zIndex:300, background:"rgba(0,0,0,.6)", backdropFilter:"blur(4px)", display:"flex", alignItems:"flex-end", justifyContent:"center" }}
-              onClick={() => setSelected(null)}>
+              onClick={() => { setSelected(null); setAssignRiderId(""); }}>
               <div className="slide-up" onClick={e => e.stopPropagation()} style={{
                 width:"100%", maxWidth:540, background:"#fff", borderRadius:"24px 24px 0 0",
                 padding:"24px 22px 36px", maxHeight:"85vh", overflowY:"auto"
@@ -1397,7 +1478,7 @@
                     <h3 style={{ fontSize:19, fontWeight:800 }}>Order Detail</h3>
                     <p style={{ fontSize:12, color:"#bbb" }}>#{selected.id?.slice(0,8)}</p>
                   </div>
-                  <button onClick={() => setSelected(null)} style={{ width:34, height:34, borderRadius:10, background:"#F3F4F6", fontSize:16, display:"flex", alignItems:"center", justifyContent:"center" }}>✕</button>
+                  <button onClick={() => { setSelected(null); setAssignRiderId(""); }} style={{ width:34, height:34, borderRadius:10, background:"#F3F4F6", fontSize:16, display:"flex", alignItems:"center", justifyContent:"center" }}>✕</button>
                 </div>
 
                 {/* Customer */}
@@ -1429,6 +1510,42 @@
                         )}
                       </div>
                     </div>
+                  </div>
+                )}
+
+                {/* Assign / Reassign Rider */}
+                {selected.status !== "delivered" && selected.status !== "cancelled" && (
+                  <div style={{ background:"#EEF2FF", borderRadius:14, padding:"14px 16px", marginBottom:14, border:"1px solid #C7D2FE" }}>
+                    <div style={{ fontSize:12, fontWeight:700, color:"#4338CA", marginBottom:8 }}>IPASA SA RIDER</div>
+                    <div style={{ display:"flex", gap:8 }}>
+                      <select
+                        value={assignRiderId || selected.riderId || ""}
+                        onChange={e => setAssignRiderId(e.target.value)}
+                        style={{ flex:1, border:"1px solid #C7D2FE", borderRadius:10, padding:"10px 12px", fontSize:13, fontWeight:600, color:"#1E1B4B", background:"#fff" }}
+                      >
+                        <option value="">Pumili ng rider...</option>
+                        {riders.map(r => (
+                          <option key={r.uid} value={r.uid}>{r.name}{r.email ? ` (${r.email})` : ""}</option>
+                        ))}
+                      </select>
+                      <button
+                        onClick={() => assignOrderToRider(selected, assignRiderId || selected.riderId)}
+                        disabled={assigningOrderId === selected.id || riders.length === 0}
+                        style={{
+                          padding:"10px 12px", borderRadius:10, fontSize:12, fontWeight:700,
+                          background: assigningOrderId===selected.id ? "#E5E7EB" : "#4338CA",
+                          color: assigningOrderId===selected.id ? "#9CA3AF" : "#fff",
+                          minWidth:110,
+                        }}
+                      >
+                        {assigningOrderId===selected.id ? "Pinapasa..." : (selected.riderId ? "Reassign" : "Ipasa")}
+                      </button>
+                    </div>
+                    {riders.length === 0 && (
+                      <div style={{ fontSize:11, color:"#6B7280", marginTop:8 }}>
+                        Walang available rider na may naka-enable na push token.
+                      </div>
+                    )}
                   </div>
                 )}
 
