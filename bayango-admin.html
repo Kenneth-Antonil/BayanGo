@@ -1078,6 +1078,7 @@
               { key:"grocery", label:"Grocery",      icon:"basket-shopping" },
               { key:"products",label:"Produkto",     icon:"store" },
               { key:"vouchers",label:"Vouchers",     icon:"ticket" },
+              { key:"settings",label:"Settings",     icon:"gear" },
               { key:"support", label:"Support",      icon:"headset", badge: tickets.filter(t=>t.status==="open").length },
             ].map(t => (
               <button key={t.key} onClick={() => setTab(t.key)} style={{
@@ -1123,56 +1124,59 @@
             />
           )}
 
+          {(tab === "orders" || tab === "settings") && <>
+
+          {tab === "settings" && <>
+            {/* ── Push Notifications ── */}
+            <div style={{ margin:"14px 20px 10px", background:"#fff", border:"1px solid #E5E7EB", borderRadius:16, padding:14 }}>
+              <div style={{ fontSize:14, fontWeight:800, color:"#166534", marginBottom:8 }}><Ic n="bell" style={{marginRight:6}} />Push Notifications</div>
+              <div style={{ fontSize:11, color:"#666", marginBottom:10 }}>Gamitin ang Firebase Service Account JSON para secure na FCM v1 sending.</div>
+              <textarea value={svcJson} onChange={e=>setSvcJson(e.target.value)} placeholder="Service Account JSON" rows={6} style={{ width:"100%", padding:"10px 12px", border:"1px solid #D1D5DB", borderRadius:10, fontSize:12, marginBottom:8, fontFamily:"monospace", resize:"vertical" }} />
+              <button onClick={() => { localStorage.setItem("bayango_fcm_service_account", svcJson.trim()); alert("Service account saved (local browser only)."); }} style={{ width:"100%", padding:"9px 12px", borderRadius:10, background:"#111827", color:"#fff", fontSize:12, fontWeight:700, marginBottom:8 }}>Save Service Account</button>
+              <input value={vapidKey} onChange={e=>setVapidKey(e.target.value)} placeholder="Public VAPID Key (Web Push)" style={{ width:"100%", padding:"10px 12px", border:"1px solid #D1D5DB", borderRadius:10, fontSize:12, marginBottom:8 }} />
+              <button onClick={async () => {
+                try {
+                  const { db, fns } = await initFirebase();
+                  await fns.set(fns.ref(db, "settings/pushVapidKey"), vapidKey.trim());
+                  alert("VAPID key saved.");
+                } catch (err) { alert(err.message || "Failed to save VAPID key"); }
+              }} style={{ width:"100%", padding:"9px 12px", borderRadius:10, background:"#1D4ED8", color:"#fff", fontSize:12, fontWeight:700, marginBottom:10 }}>Save VAPID Key</button>
+              <input value={bTitle} onChange={e=>setBTitle(e.target.value)} placeholder="Broadcast title" style={{ width:"100%", padding:"10px 12px", border:"1px solid #D1D5DB", borderRadius:10, fontSize:12, marginBottom:8 }} />
+              <textarea value={bMessage} onChange={e=>setBMessage(e.target.value)} placeholder="Broadcast message" rows={2} style={{ width:"100%", padding:"10px 12px", border:"1px solid #D1D5DB", borderRadius:10, fontSize:12, marginBottom:8, resize:"vertical" }} />
+              <button disabled={pushBusy || !bTitle.trim() || !bMessage.trim()} onClick={async () => {
+                setPushBusy(true);
+                try {
+                  await onBroadcast(bTitle.trim(), bMessage.trim());
+                  setBMessage("");
+                  alert("Broadcast sent.");
+                } catch (err) {
+                  alert(err.message || "Failed to send broadcast");
+                } finally { setPushBusy(false); }
+              }} style={{ width:"100%", padding:"10px 12px", borderRadius:10, background: pushBusy?"#9CA3AF":"#166534", color:"#fff", fontSize:12, fontWeight:700 }}>
+                {pushBusy ? "Sending..." : "Send Broadcast"}
+              </button>
+            </div>
+
+            {/* ── GCash Settings ── */}
+            <div style={{ margin:"0 20px 10px", background:"#fff", border:"1px solid #E5E7EB", borderRadius:16, padding:14 }}>
+              <div style={{ fontSize:14, fontWeight:800, color:"#1D4ED8", marginBottom:4 }}><Ic n="qrcode" style={{marginRight:6}} />GCash Payment Settings (para sa Island Orders)</div>
+              <div style={{ fontSize:11, color:"#94A3B8", marginBottom:10 }}>Lalabas ito sa customer kapag nag-order sila mula sa island.</div>
+              <input value={gcashSettings.number} onChange={e=>setGcashSettings(s=>({...s,number:e.target.value}))} placeholder="GCash Number" style={{ width:"100%", padding:"10px 12px", border:"1px solid #D1D5DB", borderRadius:10, fontSize:13, marginBottom:8 }} />
+              <input value={gcashSettings.name} onChange={e=>setGcashSettings(s=>({...s,name:e.target.value}))} placeholder="GCash Account Name" style={{ width:"100%", padding:"10px 12px", border:"1px solid #D1D5DB", borderRadius:10, fontSize:13, marginBottom:8 }} />
+              <input value={gcashSettings.qrUrl} onChange={e=>setGcashSettings(s=>({...s,qrUrl:e.target.value}))} placeholder="GCash QR Code URL (i-upload sa Firebase Storage)" style={{ width:"100%", padding:"10px 12px", border:"1px solid #D1D5DB", borderRadius:10, fontSize:13, marginBottom:8 }} />
+              {gcashSettings.qrUrl
+                ? <img src={gcashSettings.qrUrl} alt="GCash QR" style={{ width:140, height:140, objectFit:"contain", display:"block", margin:"0 auto 10px", borderRadius:10, border:"2px solid #BFDBFE" }} />
+                : <div style={{ textAlign:"center", marginBottom:10, padding:"10px", background:"#F8FAFC", borderRadius:10, border:"1.5px dashed #CBD5E1", color:"#94A3B8", fontSize:11 }}>
+                    Walang QR URL pa — customers makakakita ng GCash number at name
+                  </div>
+              }
+              <button onClick={saveGcashSettings} disabled={gcashSaving} style={{ width:"100%", padding:"9px 12px", borderRadius:10, background:gcashSaving?"#E5E7EB":"#1D4ED8", color:gcashSaving?"#aaa":"#fff", fontSize:12, fontWeight:700 }}>
+                {gcashSaving ? "Saving..." : "I-save ang GCash Settings"}
+              </button>
+            </div>
+          </>}
+
           {tab === "orders" && <>
-
-          {/* ── Push Notifications ── */}
-          <div style={{ margin:"14px 20px 10px", background:"#fff", border:"1px solid #E5E7EB", borderRadius:16, padding:14 }}>
-            <div style={{ fontSize:14, fontWeight:800, color:"#166534", marginBottom:8 }}><Ic n="bell" style={{marginRight:6}} />Push Notifications</div>
-            <div style={{ fontSize:11, color:"#666", marginBottom:10 }}>Gamitin ang Firebase Service Account JSON para secure na FCM v1 sending.</div>
-            <textarea value={svcJson} onChange={e=>setSvcJson(e.target.value)} placeholder="Service Account JSON" rows={6} style={{ width:"100%", padding:"10px 12px", border:"1px solid #D1D5DB", borderRadius:10, fontSize:12, marginBottom:8, fontFamily:"monospace", resize:"vertical" }} />
-            <button onClick={() => { localStorage.setItem("bayango_fcm_service_account", svcJson.trim()); alert("Service account saved (local browser only)."); }} style={{ width:"100%", padding:"9px 12px", borderRadius:10, background:"#111827", color:"#fff", fontSize:12, fontWeight:700, marginBottom:8 }}>Save Service Account</button>
-            <input value={vapidKey} onChange={e=>setVapidKey(e.target.value)} placeholder="Public VAPID Key (Web Push)" style={{ width:"100%", padding:"10px 12px", border:"1px solid #D1D5DB", borderRadius:10, fontSize:12, marginBottom:8 }} />
-            <button onClick={async () => {
-              try {
-                const { db, fns } = await initFirebase();
-                await fns.set(fns.ref(db, "settings/pushVapidKey"), vapidKey.trim());
-                alert("VAPID key saved.");
-              } catch (err) { alert(err.message || "Failed to save VAPID key"); }
-            }} style={{ width:"100%", padding:"9px 12px", borderRadius:10, background:"#1D4ED8", color:"#fff", fontSize:12, fontWeight:700, marginBottom:10 }}>Save VAPID Key</button>
-            <input value={bTitle} onChange={e=>setBTitle(e.target.value)} placeholder="Broadcast title" style={{ width:"100%", padding:"10px 12px", border:"1px solid #D1D5DB", borderRadius:10, fontSize:12, marginBottom:8 }} />
-            <textarea value={bMessage} onChange={e=>setBMessage(e.target.value)} placeholder="Broadcast message" rows={2} style={{ width:"100%", padding:"10px 12px", border:"1px solid #D1D5DB", borderRadius:10, fontSize:12, marginBottom:8, resize:"vertical" }} />
-            <button disabled={pushBusy || !bTitle.trim() || !bMessage.trim()} onClick={async () => {
-              setPushBusy(true);
-              try {
-                await onBroadcast(bTitle.trim(), bMessage.trim());
-                setBMessage("");
-                alert("Broadcast sent.");
-              } catch (err) {
-                alert(err.message || "Failed to send broadcast");
-              } finally { setPushBusy(false); }
-            }} style={{ width:"100%", padding:"10px 12px", borderRadius:10, background: pushBusy?"#9CA3AF":"#166534", color:"#fff", fontSize:12, fontWeight:700 }}>
-              {pushBusy ? "Sending..." : "Send Broadcast"}
-            </button>
-          </div>
-
-          {/* ── GCash Settings ── */}
-          <div style={{ margin:"0 20px 10px", background:"#fff", border:"1px solid #E5E7EB", borderRadius:16, padding:14 }}>
-            <div style={{ fontSize:14, fontWeight:800, color:"#1D4ED8", marginBottom:4 }}><Ic n="qrcode" style={{marginRight:6}} />GCash Payment Settings (para sa Island Orders)</div>
-            <div style={{ fontSize:11, color:"#94A3B8", marginBottom:10 }}>Lalabas ito sa customer kapag nag-order sila mula sa island.</div>
-            <input value={gcashSettings.number} onChange={e=>setGcashSettings(s=>({...s,number:e.target.value}))} placeholder="GCash Number" style={{ width:"100%", padding:"10px 12px", border:"1px solid #D1D5DB", borderRadius:10, fontSize:13, marginBottom:8 }} />
-            <input value={gcashSettings.name} onChange={e=>setGcashSettings(s=>({...s,name:e.target.value}))} placeholder="GCash Account Name" style={{ width:"100%", padding:"10px 12px", border:"1px solid #D1D5DB", borderRadius:10, fontSize:13, marginBottom:8 }} />
-            <input value={gcashSettings.qrUrl} onChange={e=>setGcashSettings(s=>({...s,qrUrl:e.target.value}))} placeholder="GCash QR Code URL (i-upload sa Firebase Storage)" style={{ width:"100%", padding:"10px 12px", border:"1px solid #D1D5DB", borderRadius:10, fontSize:13, marginBottom:8 }} />
-            {gcashSettings.qrUrl
-              ? <img src={gcashSettings.qrUrl} alt="GCash QR" style={{ width:140, height:140, objectFit:"contain", display:"block", margin:"0 auto 10px", borderRadius:10, border:"2px solid #BFDBFE" }} />
-              : <div style={{ textAlign:"center", marginBottom:10, padding:"10px", background:"#F8FAFC", borderRadius:10, border:"1.5px dashed #CBD5E1", color:"#94A3B8", fontSize:11 }}>
-                  Walang QR URL pa — customers makakakita ng GCash number at name
-                </div>
-            }
-            <button onClick={saveGcashSettings} disabled={gcashSaving} style={{ width:"100%", padding:"9px 12px", borderRadius:10, background:gcashSaving?"#E5E7EB":"#1D4ED8", color:gcashSaving?"#aaa":"#fff", fontSize:12, fontWeight:700 }}>
-              {gcashSaving ? "Saving..." : "I-save ang GCash Settings"}
-            </button>
-          </div>
-
           {/* ── Sales Summary ── */}
           <div style={{ padding:"18px 20px 10px", display:"grid", gridTemplateColumns:"repeat(3,1fr)", gap:10 }}>
             {[
