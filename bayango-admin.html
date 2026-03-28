@@ -270,15 +270,6 @@
       return { sent };
     }
 
-    async function collectUserTokens(uid) {
-      if (!uid) return [];
-      const { db, fns } = await initFirebase();
-      const snap = await fns.get(fns.ref(db, `push_tokens/${uid}`));
-      if (!snap.exists()) return [];
-      const val = snap.val() || {};
-      return Object.values(val).map(v => v?.token).filter(Boolean);
-    }
-
     async function collectAllTokens() {
       const { db, fns } = await initFirebase();
       const snap = await fns.get(fns.ref(db, "push_tokens"));
@@ -293,21 +284,6 @@
       return [...new Set(tokens)];
     }
 
-    async function collectRiderTokens() {
-      const { db, fns } = await initFirebase();
-      const snap = await fns.get(fns.ref(db, "push_tokens"));
-      if (!snap.exists()) return [];
-      const val = snap.val() || {};
-      const tokens = [];
-      Object.values(val).forEach((userTokens) => {
-        Object.values(userTokens || {}).forEach((entry) => {
-          if (entry?.role === "rider" && entry?.enabled !== false && entry?.token) {
-            tokens.push(entry.token);
-          }
-        });
-      });
-      return [...new Set(tokens)];
-    }
 
     /* ══════════════════ MAIN APP ══════════════════ */
     function App() {
@@ -468,19 +444,6 @@
       const updateOrderStatus = useCallback(async (order, newStatus) => {
         const { db, fns } = await initFirebase();
         await fns.update(fns.ref(db, "orders/" + order.id), { status: newStatus });
-
-        try {
-          const statusLabel = (ORDER_STATUSES.find(s => s.key === newStatus)?.label) || newStatus;
-          const tokens = await collectUserTokens(order.uid || order.userId);
-          await sendFcmToTokens(tokens, {
-            title: "Order Update",
-            body: `Order #${String(order.id || "").slice(-6)}: ${statusLabel}`,
-            data: { type: "order_status", orderId: String(order.id || ""), status: newStatus },
-            link: "https://bayango.ph/bayango-user.html#/orders",
-          });
-        } catch (pushErr) {
-          console.error("Order push send failed:", pushErr);
-        }
       }, []);
 
       const sendBroadcast = useCallback(async (title, message) => {
@@ -491,51 +454,6 @@
           data: { type: "broadcast" },
         });
       }, []);
-
-      const prevOrdersRef = React.useRef({});
-      useEffect(() => {
-        if (orders.length === 0) return;
-        const prev = prevOrdersRef.current;
-        const isFirstLoad = Object.keys(prev).length === 0;
-
-        if (!isFirstLoad) {
-          orders.forEach(async (order) => {
-            const prevStatus = prev[order.id];
-            // New order: not in prev, pending, no rider yet
-            if (!prevStatus && order.status === "pending" && !order.riderId) {
-              try {
-                const riderTokens = await collectRiderTokens();
-                if (riderTokens.length > 0) {
-                  await sendFcmToTokens(riderTokens, {
-                    title: "BayanGo: Bagong Order!",
-                    body: `May bagong order mula kay ${order.customer?.name || "customer"}. Buksan ang app para tanggapin.`,
-                    data: { type: "new_order", orderId: String(order.id) },
-                    link: "https://bayango.ph/bayango-rider.html",
-                  });
-                }
-              } catch (e) { console.error("New order rider notif failed:", e); }
-            }
-            // Order just cancelled and had a rider assigned
-            if (prevStatus && prevStatus !== "cancelled" && order.status === "cancelled" && order.riderId) {
-              try {
-                const riderTokens = await collectUserTokens(order.riderId);
-                if (riderTokens.length > 0) {
-                  await sendFcmToTokens(riderTokens, {
-                    title: "BayanGo: Order Cancelled",
-                    body: `Order #${String(order.id).slice(-6)} ay na-cancel ng customer.`,
-                    data: { type: "order_cancelled", orderId: String(order.id) },
-                    link: "https://bayango.ph/bayango-rider.html",
-                  });
-                }
-              } catch (e) { console.error("Rider cancel notif failed:", e); }
-            }
-          });
-        }
-
-        const newPrev = {};
-        orders.forEach(o => { newPrev[o.id] = o.status; });
-        prevOrdersRef.current = newPrev;
-      }, [orders]);
 
       const handleGoogleLogin = async () => {
         try {
@@ -1017,16 +935,6 @@
           const { db, fns } = await initFirebase();
           await fns.update(fns.ref(db, "orders/" + order.id), { gcashPaymentConfirmed: true });
           if (selected?.id === order.id) setSelected(s => ({ ...s, gcashPaymentConfirmed: true }));
-          // Notify the customer
-          try {
-            const tokens = await collectUserTokens(order.uid || order.userId);
-            await sendFcmToTokens(tokens, {
-              title: "GCash Payment Confirmed!",
-              body: `Order #${String(order.id || "").slice(-6)}: Na-confirm na ang iyong GCash payment. Ihahanda na ang order mo!`,
-              data: { type: "gcash_confirmed", orderId: String(order.id || "") },
-              link: "https://bayango.ph/bayango-user.html#/orders",
-            });
-          } catch (e) { console.error("GCash notif failed:", e); }
         } catch (err) {
           alert("Error: " + (err.message || err.code));
         } finally { setConfirmingPay(null); }
@@ -1057,17 +965,6 @@
           await fns.update(fns.ref(db, "orders/" + order.id), updates);
           if (selected?.id === order.id) {
             setSelected(s => s ? ({ ...s, ...updates }) : s);
-          }
-          try {
-            const riderTokens = await collectUserTokens(rider.uid);
-            await sendFcmToTokens(riderTokens, {
-              title: "May order na ipinasa sa'yo",
-              body: `Order #${String(order.id || "").slice(-6)} para kay ${order.customer?.name || "customer"}.`,
-              data: { type: "assigned_order", orderId: String(order.id || "") },
-              link: "https://bayango.ph/bayango-rider.html",
-            });
-          } catch (e) {
-            console.error("Assign rider notif failed:", e);
           }
           alert(`Naipasa na ang order kay ${rider.name}.`);
         } catch (err) {
@@ -1107,22 +1004,6 @@
             proofImages: updatedProof, pricesUpdatedAt: Date.now(),
           });
           setSelected(s => s ? { ...s, items: updatedItems, subtotal, serviceFee, smallOrderFee, total, proofImages: updatedProof, pricesUpdatedAt: Date.now() } : s);
-          // Notify customer
-          try {
-            const tokens = await collectUserTokens(order.uid || order.userId);
-            const hasProof = Array.isArray(updatedProof) && updatedProof.length > 0;
-            await sendFcmToTokens(tokens, hasProof ? {
-              title: "Nabili na ang order mo! 🧾",
-              body: `Order #${String(order.id||"").slice(-6)}: Tapos na ang pamimili at may proof of order na. Total: ₱${total.toLocaleString("en-PH")}`,
-              data: { type: "order_bought_with_proof", orderId: String(order.id||""), hasProof: "true" },
-              link: "https://bayango.ph/bayango-user.html#/orders",
-            } : {
-              title: "Order Update — Tingnan ang iyong bayad",
-              body: `Order #${String(order.id||"").slice(-6)}: Na-update na ang actual na presyo. Total: ₱${total.toLocaleString("en-PH")}`,
-              data: { type: "prices_updated", orderId: String(order.id||"") },
-              link: "https://bayango.ph/bayango-user.html#/orders",
-            });
-          } catch(e) { console.error("Notif failed:", e); }
           alert("Na-update na ang presyo at total!");
         } catch (err) {
           alert("Error: " + (err.message || err.code));

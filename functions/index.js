@@ -1,5 +1,5 @@
 const { onSchedule } = require("firebase-functions/v2/scheduler");
-const { onValueCreated } = require("firebase-functions/v2/database");
+const { onValueCreated, onValueUpdated } = require("firebase-functions/v2/database");
 const { onRequest } = require("firebase-functions/v2/https");
 const { initializeApp } = require("firebase-admin/app");
 const { getDatabase } = require("firebase-admin/database");
@@ -10,6 +10,16 @@ initializeApp();
 
 const APP_ICON = "https://i.imgur.com/wL8wcBB.jpeg";
 const USER_APP_URL = "https://bayango.ph/bayango-user.html";
+const RIDER_APP_URL = "https://bayango.ph/bayango-rider.html";
+
+const ORDER_STATUS_LABELS = {
+  pending:   "Nai-receive na ang order",
+  buying:    "Binibili na sa palengke",
+  otw:       "Papunta na sa'yo",
+  in_boat:   "Nasa bangka na",
+  delivered: "Na-deliver na!",
+  cancelled: "Na-cancel ang order",
+};
 const PAYMONGO_WEBHOOK_SECRET = process.env.PAYMONGO_WEBHOOK_SECRET || "";
 
 function asBuffer(rawBody, fallback) {
@@ -129,6 +139,48 @@ async function getAllCustomerTokens() {
   // Deduplicate by token value
   const seen = new Set();
   return tokens.filter((t) => {
+    if (seen.has(t.token)) return false;
+    seen.add(t.token);
+    return true;
+  });
+}
+
+/**
+ * Kuha ang FCM tokens ng isang specific na user.
+ */
+async function getUserTokens(uid) {
+  if (!uid) return [];
+  const db = getDatabase();
+  const snap = await db.ref(`push_tokens/${uid}`).get();
+  if (!snap.exists()) return [];
+  const entries = [];
+  snap.forEach((t) => {
+    const d = t.val();
+    if (d?.token && d?.enabled !== false) {
+      entries.push({ uid, tokenKey: t.key, token: d.token });
+    }
+  });
+  return entries;
+}
+
+/**
+ * Kuha lahat ng FCM tokens ng mga rider.
+ */
+async function getAllRiderTokens() {
+  const db = getDatabase();
+  const snap = await db.ref("push_tokens").get();
+  if (!snap.exists()) return [];
+  const entries = [];
+  snap.forEach((userSnap) => {
+    userSnap.forEach((tokenSnap) => {
+      const data = tokenSnap.val();
+      if (data?.token && data?.enabled !== false && data?.role === "rider") {
+        entries.push({ uid: userSnap.key, tokenKey: tokenSnap.key, token: data.token });
+      }
+    });
+  });
+  const seen = new Set();
+  return entries.filter((t) => {
     if (seen.has(t.token)) return false;
     seen.add(t.token);
     return true;
@@ -455,5 +507,121 @@ exports.notifyPreorder = onSchedule(
       type: "batch_reminder_preorder",
     });
     console.log(`[Pre-order Reminder 8PM] Sent: ${result.sent}, Failed: ${result.failed}`);
+  }
+);
+
+// ─────────────────────────────────────────────────────────────────────────────
+// RTDB-TRIGGERED: ORDER EVENTS (notifications to customers & riders)
+// ─────────────────────────────────────────────────────────────────────────────
+
+/**
+ * Bagong order → i-notify ang lahat ng riders.
+ */
+exports.onNewOrder = onValueCreated(
+  { ref: "orders/{orderId}", region: "us-central1" },
+  async (event) => {
+    const order = event.data.val();
+    if (!order || order.status !== "pending" || order.riderId) return;
+
+    const riderTokens = await getAllRiderTokens();
+    if (!riderTokens.length) return;
+
+    const result = await sendBatchNotification(riderTokens, {
+      title: "BayanGo: Bagong Order!",
+      body: `May bagong order mula kay ${order.customer?.name || "customer"}. Buksan ang app para tanggapin.`,
+      type: "new_order",
+      link: RIDER_APP_URL,
+    });
+    console.log(`[onNewOrder ${event.params.orderId}] Sent:${result.sent} Failed:${result.failed}`);
+  }
+);
+
+/**
+ * Order na-update → i-notify ang customer at/o rider depende sa kung ano ang nagbago:
+ *   - status nagbago       → notify customer; kung cancelled at may rider → notify rider din
+ *   - riderId nai-assign   → notify rider
+ *   - gcashPaymentConfirmed → notify customer
+ *   - pricesUpdatedAt      → notify customer
+ */
+exports.onOrderUpdated = onValueUpdated(
+  { ref: "orders/{orderId}", region: "us-central1" },
+  async (event) => {
+    const before = event.data.before.val() || {};
+    const after = event.data.after.val() || {};
+    const orderId = event.params.orderId;
+    const uid = after.uid || after.userId;
+
+    // 1. Status changed → notify customer
+    if (before.status !== after.status && uid) {
+      const statusLabel = ORDER_STATUS_LABELS[after.status] || after.status;
+      const userTokens = await getUserTokens(uid);
+      if (userTokens.length) {
+        await sendBatchNotification(userTokens, {
+          title: "Order Update",
+          body: `Order #${String(orderId).slice(-6)}: ${statusLabel}`,
+          type: "order_status",
+          link: `${USER_APP_URL}#orders`,
+        });
+      }
+      // Kung cancelled at may rider → notify rider
+      if (after.status === "cancelled" && after.riderId) {
+        const riderTokens = await getUserTokens(after.riderId);
+        if (riderTokens.length) {
+          await sendBatchNotification(riderTokens, {
+            title: "BayanGo: Order Cancelled",
+            body: `Order #${String(orderId).slice(-6)} ay na-cancel ng customer.`,
+            type: "order_cancelled",
+            link: RIDER_APP_URL,
+          });
+        }
+      }
+    }
+
+    // 2. Rider na-assign (riderId added) → notify rider
+    if (!before.riderId && after.riderId) {
+      const riderTokens = await getUserTokens(after.riderId);
+      if (riderTokens.length) {
+        await sendBatchNotification(riderTokens, {
+          title: "May order na ipinasa sa'yo",
+          body: `Order #${String(orderId).slice(-6)} para kay ${after.customer?.name || "customer"}.`,
+          type: "assigned_order",
+          link: RIDER_APP_URL,
+        });
+      }
+    }
+
+    // 3. GCash confirmed → notify customer
+    if (!before.gcashPaymentConfirmed && after.gcashPaymentConfirmed && uid) {
+      const userTokens = await getUserTokens(uid);
+      if (userTokens.length) {
+        await sendBatchNotification(userTokens, {
+          title: "GCash Payment Confirmed!",
+          body: `Order #${String(orderId).slice(-6)}: Na-confirm na ang iyong GCash payment. Ihahanda na ang order mo!`,
+          type: "gcash_confirmed",
+          link: `${USER_APP_URL}#orders`,
+        });
+      }
+    }
+
+    // 4. Prices updated → notify customer
+    if (before.pricesUpdatedAt !== after.pricesUpdatedAt && after.pricesUpdatedAt && uid) {
+      const total = after.total || 0;
+      const hasProof = Array.isArray(after.proofImages) && after.proofImages.length > 0;
+      const userTokens = await getUserTokens(uid);
+      if (userTokens.length) {
+        const notifPayload = hasProof ? {
+          title: "Nabili na ang order mo!",
+          body: `Order #${String(orderId).slice(-6)}: Tapos na ang pamimili at may proof of order na. Total: ₱${Number(total).toLocaleString("en-PH")}`,
+          type: "order_bought_with_proof",
+          link: `${USER_APP_URL}#orders`,
+        } : {
+          title: "Order Update — Tingnan ang iyong bayad",
+          body: `Order #${String(orderId).slice(-6)}: Na-update na ang actual na presyo. Total: ₱${Number(total).toLocaleString("en-PH")}`,
+          type: "prices_updated",
+          link: `${USER_APP_URL}#orders`,
+        };
+        await sendBatchNotification(userTokens, notifPayload);
+      }
+    }
   }
 );
