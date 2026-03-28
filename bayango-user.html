@@ -1971,14 +1971,46 @@
             </div>
           )}
 
-          {/* ── Order Tracker Modal ── */}
+          {/* ── Success Toast ── */}
+          {orderPlaced && (
+            <div className="pop" style={{
+              position:"fixed", top:"calc(env(safe-area-inset-top,0px) + 16px)", left:20, right:20, zIndex:500,
+              background:"#166534", color:"#fff", padding:"14px 20px", borderRadius:16,
+              fontSize:14, fontWeight:700, boxShadow:"0 8px 32px rgba(0,0,0,.22)",
+              display:"flex", alignItems:"center", gap:10
+            }}>
+              <Ic n="circle-check" size={22} /> Order placed! Salamat, mare/pare!
+            </div>
+          )}
+
+          </> /* end shop page */}
+
+          {/* ── ORDERS PAGE ── */}
+          {activePage === "orders" && (
+            <OrdersPage
+              orders={myOrders}
+              onTrack={setShowTracker}
+              onTrackRider={setShowRiderMap}
+              canCancelOrder={canCancelOrder}
+              cancelCountdownText={getCancelCountdownText}
+              onCancelOrder={handleCancelOrder}
+              gcashSettings={gcashSettings}
+            />
+          )}
+
+          {activePage === "account" && (
+            <AccountPage user={user} orders={myOrders} name={name} phone={phone} addr={addr}
+              setName={setName} setPhone={setPhone} setAddr={setAddr} onLogout={onLogout}
+              customerLat={customerLat} customerLng={customerLng} />
+          )}
+
+          {/* ── Order Tracker Modal (global so it opens from any tab) ── */}
           {showTracker && (() => {
-            // Always read live status from orders state (so admin updates are reflected)
             const liveOrder = orders.find(o => o.id === showTracker.id) || showTracker;
             return (
             <div style={{ position:"fixed", inset:0, zIndex:300, background:"rgba(0,0,0,.55)", backdropFilter:"blur(4px)", display:"flex", alignItems:"center", justifyContent:"center", padding:20 }}
               onClick={() => setShowTracker(null)}>
-              <div className="pop" onClick={e => e.stopPropagation()} style={{ width:"100%", maxWidth:370, background:"#fff", borderRadius:24, padding:"28px 22px", boxShadow:"0 20px 60px rgba(0,0,0,.14)" }}>
+              <div className="pop" onClick={e => e.stopPropagation()} style={{ width:"100%", maxWidth:370, background:"#fff", borderRadius:24, padding:"28px 22px", boxShadow:"0 20px 60px rgba(0,0,0,.14)", maxHeight:"85vh", overflowY:"auto" }}>
                 <div style={{ display:"flex", justifyContent:"space-between", alignItems:"flex-start", marginBottom:20 }}>
                   <div>
                     <h3 style={{ fontSize:19, fontWeight:800 }}>Order Tracker</h3>
@@ -2146,39 +2178,6 @@
             </div>
             );
           })()}
-
-          {/* ── Success Toast ── */}
-          {orderPlaced && (
-            <div className="pop" style={{
-              position:"fixed", top:"calc(env(safe-area-inset-top,0px) + 16px)", left:20, right:20, zIndex:500,
-              background:"#166534", color:"#fff", padding:"14px 20px", borderRadius:16,
-              fontSize:14, fontWeight:700, boxShadow:"0 8px 32px rgba(0,0,0,.22)",
-              display:"flex", alignItems:"center", gap:10
-            }}>
-              <Ic n="circle-check" size={22} /> Order placed! Salamat, mare/pare!
-            </div>
-          )}
-
-          </> /* end shop page */}
-
-          {/* ── ORDERS PAGE ── */}
-          {activePage === "orders" && (
-            <OrdersPage
-              orders={myOrders}
-              onTrack={setShowTracker}
-              onTrackRider={setShowRiderMap}
-              canCancelOrder={canCancelOrder}
-              cancelCountdownText={getCancelCountdownText}
-              onCancelOrder={handleCancelOrder}
-              gcashSettings={gcashSettings}
-            />
-          )}
-
-          {activePage === "account" && (
-            <AccountPage user={user} orders={myOrders} name={name} phone={phone} addr={addr}
-              setName={setName} setPhone={setPhone} setAddr={setAddr} onLogout={onLogout}
-              customerLat={customerLat} customerLng={customerLng} />
-          )}
 
           {/* ── Rider Map Modal (global so it opens from any tab) ── */}
           {showRiderMap && (
