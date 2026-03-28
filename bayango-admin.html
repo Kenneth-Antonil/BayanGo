@@ -869,6 +869,7 @@
       const [confirmingPay, setConfirmingPay] = useState(null);
       const [editedPrices,  setEditedPrices]  = useState({});   // { itemId: price }
       const [proofImages,   setProofImages]   = useState([]);   // URLs for selected order
+      const [proofPreviewUrl, setProofPreviewUrl] = useState("");
       const [savingPrices,  setSavingPrices]  = useState(false);
       const [uploadingProof,setUploadingProof]= useState(false);
 
@@ -1459,7 +1460,9 @@
                         <div style={{ display:"flex", gap:8, flexWrap:"wrap", marginBottom:8 }}>
                           {proofImages.map((url, i) => (
                             <div key={i} style={{ position:"relative" }}>
-                              <img src={url} alt={`proof-${i}`} style={{ width:60, height:60, borderRadius:8, objectFit:"cover", border:"1px solid #E5E7EB" }} />
+                              <button onClick={() => setProofPreviewUrl(url)} style={{ padding:0, border:"none", background:"transparent", cursor:"zoom-in" }}>
+                                <img src={url} alt={`proof-${i}`} style={{ width:60, height:60, borderRadius:8, objectFit:"cover", border:"1px solid #E5E7EB" }} />
+                              </button>
                               <button onClick={() => setProofImages(prev => prev.filter((_,j)=>j!==i))} style={{ position:"absolute", top:-5, right:-5, width:18, height:18, borderRadius:"50%", background:"#EF4444", color:"#fff", fontSize:10, display:"flex", alignItems:"center", justifyContent:"center" }}>✕</button>
                             </div>
                           ))}
@@ -1544,6 +1547,12 @@
 
           </>}
         </div>
+
+        {proofPreviewUrl && (
+          <div onClick={() => setProofPreviewUrl("")} style={{ position:"fixed", inset:0, background:"rgba(0,0,0,.8)", zIndex:13050, display:"flex", alignItems:"center", justifyContent:"center", padding:20 }}>
+            <img src={proofPreviewUrl} alt="Proof preview" onClick={e => e.stopPropagation()} style={{ maxWidth:"95vw", maxHeight:"90vh", borderRadius:14, objectFit:"contain", boxShadow:"0 10px 40px rgba(0,0,0,.45)", background:"#fff" }} />
+          </div>
+        )}
       );
     }
 
