@@ -1,0 +1,86 @@
+{
+  "rules": {
+    ".read": false,
+    ".write": false,
+
+    "settings": {
+      ".read": "auth != null",
+      ".write": "auth != null"
+    },
+
+    "products": {
+      ".read": "auth != null",
+      ".write": "auth != null"
+    },
+
+    "vouchers": {
+      ".read": "auth != null",
+      ".write": "auth != null"
+    },
+
+    "orders": {
+      ".indexOn": ["uid", "riderId", "createdAt"],
+      "$orderId": {
+        ".read": "auth != null",
+        ".write": "auth != null && ( (!data.exists() && (newData.child('uid').val() === auth.uid || newData.child('riderId').val() === auth.uid)) || (data.exists() && (data.child('uid').val() === auth.uid || data.child('riderId').val() === auth.uid || (!data.child('riderId').exists() && newData.child('riderId').val() === auth.uid))) )"
+      }
+    },
+
+    "rider_locations": {
+      "$uid": {
+        ".read": "auth != null",
+        ".write": "auth != null && auth.uid === $uid"
+      }
+    },
+
+    "push_tokens": {
+      ".read": "auth != null",
+      "$uid": {
+        "$tokenKey": {
+          ".write": "auth != null && auth.uid === $uid"
+        }
+      }
+    },
+
+    "notification_queue": {
+      ".read": "auth != null",
+      "$pushId": {
+        ".write": "auth != null",
+        ".validate": "newData.hasChildren(['uid', 'title', 'body'])"
+      }
+    },
+
+    "users": {
+      "$uid": {
+        ".read": "auth != null && auth.uid === $uid",
+        ".write": "auth != null && auth.uid === $uid",
+        "profile": {
+          ".validate": "newData.hasChildren(['name'])"
+        }
+      }
+    },
+
+    "support_tickets": {
+      ".indexOn": ["uid", "createdAt"],
+      "$ticketId": {
+        ".read": "auth != null",
+        ".write": "auth != null"
+      }
+    },
+
+    "support_messages": {
+      "$ticketId": {
+        ".read": "auth != null",
+        ".write": "auth != null",
+        ".indexOn": ["createdAt"]
+      }
+    },
+
+    "app_usage": {
+      "$uid": {
+        ".read": "auth != null",
+        ".write": "auth != null && auth.uid === $uid"
+      }
+    }
+  }
+}
