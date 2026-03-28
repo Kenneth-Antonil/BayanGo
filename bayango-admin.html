@@ -37,8 +37,16 @@
     .ai-pulse { animation: pulse 1.4s ease infinite; }
   </style>
 </head>
-<body>
+  <body>
   <div id="root"></div>
+  <div id="fatal-error" style="display:none; min-height:100vh; padding:24px; background:#F8FAF8; font-family:'Plus Jakarta Sans',sans-serif; color:#111827;">
+    <div style="max-width:620px; margin:40px auto; background:#fff; border:1px solid #E5E7EB; border-radius:16px; padding:20px; box-shadow:0 8px 30px rgba(0,0,0,.06);">
+      <h1 style="font-size:20px; margin-bottom:8px;">May loading error sa Admin</h1>
+      <p style="font-size:14px; color:#4B5563; margin-bottom:14px;">Nagka-problema habang ino-open ang dashboard. Paki-refresh muna ang page.</p>
+      <pre id="fatal-error-msg" style="white-space:pre-wrap; word-break:break-word; font-size:12px; line-height:1.5; background:#F9FAFB; border:1px solid #E5E7EB; border-radius:10px; padding:12px; color:#991B1B;"></pre>
+      <button onclick="window.location.reload()" style="margin-top:14px; background:#166534; color:#fff; padding:10px 14px; border:none; border-radius:10px; font-weight:700; cursor:pointer;">Refresh page</button>
+    </div>
+  </div>
 
   <script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
@@ -46,6 +54,25 @@
 
   <script type="text/babel" data-presets="react">
     const { useState, useEffect, useCallback, useRef } = React;
+    const showFatalError = (errorMessage) => {
+      const root = document.getElementById("root");
+      const panel = document.getElementById("fatal-error");
+      const msg = document.getElementById("fatal-error-msg");
+      if (msg) msg.textContent = String(errorMessage || "Unknown error");
+      if (root) root.style.display = "none";
+      if (panel) panel.style.display = "block";
+    };
+
+    window.addEventListener("error", (event) => {
+      if (!event?.message) return;
+      showFatalError(event.message);
+    });
+
+    window.addEventListener("unhandledrejection", (event) => {
+      const reason = event?.reason;
+      const message = reason?.message || reason || "Unhandled promise rejection";
+      showFatalError(message);
+    });
 
     const Ic = ({ n, style, size, className }) => <i className={`fa-solid fa-${n}${className?' '+className:''}`} style={{ fontSize:size, lineHeight:1, ...style }} />;
 
@@ -2671,7 +2698,43 @@
       );
     }
 
-    ReactDOM.createRoot(document.getElementById("root")).render(<App />);
+    class AdminErrorBoundary extends React.Component {
+      constructor(props) {
+        super(props);
+        this.state = { hasError: false, message: "" };
+      }
+
+      static getDerivedStateFromError(error) {
+        return { hasError: true, message: error?.message || "Unexpected React error" };
+      }
+
+      componentDidCatch(error) {
+        console.error("Admin UI crashed:", error);
+      }
+
+      render() {
+        if (this.state.hasError) {
+          return (
+            <div style={{ minHeight:"100vh", display:"flex", alignItems:"center", justifyContent:"center", padding:20, background:"#F8FAF8" }}>
+              <div style={{ width:"100%", maxWidth:560, background:"#fff", border:"1px solid #E5E7EB", borderRadius:16, padding:20 }}>
+                <h2 style={{ fontSize:20, marginBottom:10, color:"#111827" }}>May error sa dashboard</h2>
+                <p style={{ fontSize:14, color:"#4B5563", marginBottom:12 }}>Subukang i-refresh. Kapag tuloy-tuloy, i-report sa dev team.</p>
+                <div style={{ fontSize:12, color:"#991B1B", background:"#F9FAFB", border:"1px solid #E5E7EB", borderRadius:10, padding:12 }}>
+                  {this.state.message}
+                </div>
+              </div>
+            </div>
+          );
+        }
+        return this.props.children;
+      }
+    }
+
+    ReactDOM.createRoot(document.getElementById("root")).render(
+      <AdminErrorBoundary>
+        <App />
+      </AdminErrorBoundary>
+    );
   </script>
 </body>
 </html>
