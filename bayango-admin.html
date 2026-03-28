@@ -101,7 +101,7 @@
       { label:"Libis / Pantok",      fee:75 },
     ];
 
-    const SERVICE_FEE = 20;
+    const SERVICE_FEE_RATE = 0.03;
     const fmt = n => "₱" + Number(n).toLocaleString("en-PH", { minimumFractionDigits:0 });
     const DEFAULT_MARKET_FACTOR = 1;
     const roundPrice = (n) => Math.max(0, Math.round(Number(n) || 0));
@@ -1001,7 +1001,7 @@
           const p = Number(i.price || 0), q = Number(i.qty || 1);
           return s + (i.unit === "kg" ? p * q * Number(i.weightUnit || 1) : p * q);
         }, 0);
-        const serviceFee    = Math.round(subtotal * 0.02);
+        const serviceFee    = Math.round(subtotal * 0.03);
         const smallOrderFee = subtotal < 100 ? Math.round(subtotal * 0.05) : 0;
         const total         = Math.max(0, subtotal + Number(deliveryFee || 0) + serviceFee + smallOrderFee - Number(totalDiscount || 0));
         return { subtotal, serviceFee, smallOrderFee, total };
@@ -1517,7 +1517,7 @@
                         <span>Delivery</span><span>{fmt(selected.deliveryFee)}</span>
                       </div>
                       <div style={{ display:"flex", justifyContent:"space-between", marginBottom:4 }}>
-                        <span>Service Fee (2%)</span><span>{fmt(serviceFee)}</span>
+                        <span>Service Fee (3%)</span><span>{fmt(serviceFee)}</span>
                       </div>
                       {smallOrderFee > 0 && <div style={{ display:"flex", justifyContent:"space-between", marginBottom:4 }}>
                         <span>Small Order Fee</span><span>{fmt(smallOrderFee)}</span>
@@ -2326,7 +2326,8 @@
 
       const subtotal    = cartItems.reduce((s,i) => s + i.price * i.qty, 0);
       const deliveryFee = DELIVERY_ZONES[zone].fee;
-      const total       = subtotal + deliveryFee + SERVICE_FEE;
+      const serviceFee  = Math.round(subtotal * SERVICE_FEE_RATE);
+      const total       = subtotal + deliveryFee + serviceFee;
 
       const add = id => setCart(c => ({ ...c, [id]:(c[id]||0)+1 }));
       const rem = id => setCart(c => {
@@ -2344,7 +2345,7 @@
 
         await onOrder({
           items:cartItems, subtotal, deliveryFee,
-          serviceFee:SERVICE_FEE, total,
+          serviceFee, total,
           zone:DELIVERY_ZONES[zone].label,
           customer:{ name, phone, address:addr },
         });
@@ -2558,7 +2559,7 @@
                   ))}
                 </div>
                 <div style={{ padding:"18px 24px", background:"#fff", borderTop:"1px solid #E5E7EB" }}>
-                  {[["Subtotal",fmt(subtotal)],["Delivery ("+DELIVERY_ZONES[zone].label+")",fmt(deliveryFee)],["Service Fee",fmt(SERVICE_FEE)]].map(([l,v]) => (
+                  {[["Subtotal",fmt(subtotal)],["Delivery ("+DELIVERY_ZONES[zone].label+")",fmt(deliveryFee)],["Service Fee",fmt(serviceFee)]].map(([l,v]) => (
                     <div key={l} style={{ display:"flex", justifyContent:"space-between", marginBottom:6, fontSize:13, color:"#777" }}>
                       <span>{l}</span><span style={{ fontWeight:600 }}>{v}</span>
                     </div>
@@ -2621,7 +2622,7 @@
                     </div>
                   ))}
                   <div style={{ borderTop:"1px solid #E5E7EB", marginTop:8, paddingTop:8, display:"flex", justifyContent:"space-between", fontSize:13, color:"#888" }}>
-                    <span>Delivery + Service</span><span style={{ fontWeight:600 }}>{fmt(deliveryFee+SERVICE_FEE)}</span>
+                    <span>Delivery + Service</span><span style={{ fontWeight:600 }}>{fmt(deliveryFee+serviceFee)}</span>
                   </div>
                   <div style={{ marginTop:10, paddingTop:10, borderTop:"2px dashed #D1D5DB", display:"flex", justifyContent:"space-between", fontSize:17, fontWeight:800, color:"#111" }}>
                     <span>Total</span><span>{fmt(total)}</span>
