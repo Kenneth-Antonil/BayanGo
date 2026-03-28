@@ -844,7 +844,7 @@
       return (
         <>
 
-          <UserApp products={products} orders={orders} onOrder={addOrder} user={user} onLogout={handleLogout} />
+          <UserApp products={products} orders={orders} onOrder={addOrder} user={user} onLogout={handleLogout} gcashSettings={gcashSettings} />
           {pushPermission !== "granted" && (
             <div className="pop" style={{
               position:"fixed", bottom:"calc(env(safe-area-inset-bottom,0px) + 16px)", left:16, right:16, zIndex:9998,
@@ -951,7 +951,7 @@
     }
 
     /* ══════════════════ USER APP ══════════════════ */
-    function UserApp({ products, orders, onOrder, user, onLogout }) {
+    function UserApp({ products, orders, onOrder, user, onLogout, gcashSettings }) {
       const [activeCat,      setActiveCat]      = useState("isda");
       const [cart,           setCart]           = useState({});
       const [showCart,       setShowCart]       = useState(false);
@@ -1987,17 +1987,15 @@
 
           {/* ── ORDERS PAGE ── */}
           {activePage === "orders" && (
-            <OrdersErrorBoundary>
-              <OrdersPage
-                orders={myOrders}
-                onTrack={setShowTracker}
-                onTrackRider={setShowRiderMap}
-                canCancelOrder={canCancelOrder}
-                cancelCountdownText={getCancelCountdownText}
-                onCancelOrder={handleCancelOrder}
-                gcashSettings={gcashSettings}
-              />
-            </OrdersErrorBoundary>
+            <OrdersPage
+              orders={myOrders}
+              onTrack={setShowTracker}
+              onTrackRider={setShowRiderMap}
+              canCancelOrder={canCancelOrder}
+              cancelCountdownText={getCancelCountdownText}
+              onCancelOrder={handleCancelOrder}
+              gcashSettings={gcashSettings}
+            />
           )}
 
           {activePage === "account" && (
@@ -2930,24 +2928,6 @@
           </div>
         </div>
       );
-    }
-
-    class OrdersErrorBoundary extends React.Component {
-      constructor(props) { super(props); this.state = { error: null }; }
-      static getDerivedStateFromError(error) { return { error }; }
-      render() {
-        if (this.state.error) {
-          return (
-            <div style={{ padding:24, margin:20, background:"#FEF2F2", borderRadius:16, border:"1.5px solid #FCA5A5" }}>
-              <div style={{ fontSize:14, fontWeight:800, color:"#B91C1C", marginBottom:8 }}>Error sa Orders Page</div>
-              <div style={{ fontSize:12, color:"#7F1D1D", fontFamily:"monospace", wordBreak:"break-all" }}>
-                {this.state.error.toString()}
-              </div>
-            </div>
-          );
-        }
-        return this.props.children;
-      }
     }
 
     function OrdersPage({ orders, onTrack, onTrackRider, canCancelOrder, cancelCountdownText, onCancelOrder, gcashSettings }) {
