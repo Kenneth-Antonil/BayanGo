@@ -1223,6 +1223,32 @@
 
     /* ══════════════════ DELIVERIES TAB ══════════════════ */
     function DeliveriesTab({ buying, active, completed, onOtw, markingOtw, onDeliver, delivering, onOpenChecklist, onOpenMap, onUpdatePrices }) {
+      const buyingMasterList = buying
+        .map(order => {
+          const items = (order.items || []).map((item, idx) => {
+            const key = itemChecklistKey(item, idx);
+            const isChecked = !!order?.riderChecklist?.[key];
+            const baseQty = Number(item.qty || 1);
+            const totalQty = item.unit === "kg"
+              ? `${item.totalKg || baseQty * Number(item.weightUnit || 1)}kg`
+              : `${baseQty}x`;
+            return {
+              key: `${order.id}_${key}`,
+              label: item.name || "Item",
+              qty: totalQty,
+              isCustom: !!item.isCustom,
+              isChecked,
+            };
+          });
+          return { orderId: order.id, customerName: order.customer?.name || "Customer", items };
+        })
+        .filter(group => group.items.length > 0);
+      const buyingMasterTotals = buyingMasterList.reduce((acc, group) => {
+        const itemCount = group.items.length;
+        const checkedCount = group.items.filter(item => item.isChecked).length;
+        return { itemCount: acc.itemCount + itemCount, checkedCount: acc.checkedCount + checkedCount };
+      }, { itemCount: 0, checkedCount: 0 });
+
       const OrderCard = ({ order, statusBadge, badgeBg, badgeColor, actionBtn }) => {
         const regularItems = (order.items || []).filter(it => !it.isCustom);
         const customItems  = (order.items || []).filter(it => it.isCustom);
@@ -1280,6 +1306,63 @@
 
       return (
         <div style={{ padding:"14px 16px" }}>
+          {/* Master shopping list for assigned buying orders */}
+          {buyingMasterList.length > 0 && (
+            <div style={{ background:"#FFFFFF", border:"1px solid #DBEAFE", borderRadius:18, padding:"14px 14px 10px", marginBottom:14, boxShadow:"0 2px 12px rgba(29,78,216,.08)" }}>
+              <div style={{ display:"flex", justifyContent:"space-between", alignItems:"flex-start", gap:10, marginBottom:10 }}>
+                <div>
+                  <div style={{ fontSize:12, fontWeight:700, color:"#1D4ED8", textTransform:"uppercase", letterSpacing:".08em" }}>
+                    <Ic n="clipboard-list" style={{ marginRight:6 }} />Master List ng Bibilhin
+                  </div>
+                  <div style={{ fontSize:12, color:"#64748B", marginTop:3 }}>
+                    Lahat ng items sa assigned orders na kasalukuyang binibili mo.
+                  </div>
+                </div>
+                <div style={{ background:"#EFF6FF", color:"#1E3A8A", borderRadius:12, padding:"6px 10px", fontSize:11, fontWeight:800, whiteSpace:"nowrap" }}>
+                  {buyingMasterTotals.checkedCount}/{buyingMasterTotals.itemCount} checked
+                </div>
+              </div>
+
+              {buyingMasterList.map(group => (
+                <div key={group.orderId} style={{ borderTop:"1px solid #E2E8F0", paddingTop:10, marginTop:10 }}>
+                  <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", gap:10, marginBottom:8 }}>
+                    <div style={{ minWidth:0 }}>
+                      <div style={{ fontSize:13, fontWeight:800, color:"#0F172A", overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>
+                        {group.customerName}
+                      </div>
+                      <div style={{ fontSize:11, color:"#94A3B8" }}>Order #{String(group.orderId).slice(-6)} • {group.items.length} item{group.items.length > 1 ? "s" : ""}</div>
+                    </div>
+                    <button
+                      onClick={() => {
+                        const order = buying.find(o => o.id === group.orderId);
+                        if (order) onOpenChecklist(order);
+                      }}
+                      style={{ padding:"7px 10px", borderRadius:9, border:"1px solid #BFDBFE", background:"#F8FAFF", color:"#1D4ED8", fontSize:11, fontWeight:700, flexShrink:0 }}
+                    >
+                      Buksan
+                    </button>
+                  </div>
+                  <div style={{ display:"grid", gap:6 }}>
+                    {group.items.map(item => (
+                      <div key={item.key} style={{ display:"flex", alignItems:"center", gap:8, fontSize:12 }}>
+                        <Ic n={item.isChecked ? "circle-check" : "circle"} style={{ color:item.isChecked ? "#16A34A" : "#CBD5E1" }} />
+                        <div style={{ flex:1, color:item.isChecked ? "#94A3B8" : "#334155", textDecoration:item.isChecked ? "line-through" : "none" }}>
+                          {item.label}
+                        </div>
+                        <div style={{ color:"#64748B", fontWeight:700 }}>{item.qty}</div>
+                        {item.isCustom && (
+                          <span style={{ fontSize:10, color:"#166534", background:"#F0FDF4", borderRadius:6, padding:"2px 5px", fontWeight:700 }}>
+                            custom
+                          </span>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+
           {/* Buying orders */}
           {buying.length > 0 && (
             <>
