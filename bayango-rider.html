@@ -34,7 +34,7 @@
       display:flex; flex-direction:column; align-items:center; justify-content:center;
       height:100vh; background:#fff; gap:0; padding:24px;
     }
-    .rider-splash-logo { width:88px; height:88px; object-fit:contain; animation:splashFadeIn .5s ease both; }
+    .rider-splash-logo { width:76px; height:76px; object-fit:contain; animation:splashFadeIn .5s ease both; }
     .rider-splash-wordmark {
       font-size:22px; font-weight:900; color:#1D4ED8; margin-top:18px; letter-spacing:-.3px;
       animation:splashFadeIn .5s .1s ease both;
@@ -261,7 +261,7 @@
       return (
         <div style={{ minHeight:"100vh", background:"linear-gradient(160deg,#1E3A8A,#1D4ED8,#3B82F6)", display:"flex", flexDirection:"column", alignItems:"center", justifyContent:"center", gap:28, padding:24 }}>
           <div className="fade-up" style={{ textAlign:"center", color:"#fff" }}>
-            <img src="https://i.imgur.com/h7HgGC0.png" style={{ height:180, objectFit:"contain", marginBottom:8, filter:"drop-shadow(0 6px 24px rgba(0,0,0,.35))" }} />
+            <img src="https://i.imgur.com/h7HgGC0.png" style={{ height:108, maxWidth:"72vw", objectFit:"contain", marginBottom:8, filter:"drop-shadow(0 6px 24px rgba(0,0,0,.35))" }} />
             <p style={{ fontSize:14, opacity:.75, marginTop:6 }}>Delivery Partner App</p>
           </div>
           <button className="fade-up" onClick={onLogin} style={{
