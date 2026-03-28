@@ -76,6 +76,7 @@
   <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-storage-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-messaging-compat.js"></script>
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
   <script>
@@ -112,9 +113,13 @@
       const t = new Date();
       return d.getFullYear() === t.getFullYear() && d.getMonth() === t.getMonth() && d.getDate() === t.getDate();
     };
-    async function initRiderStorage() {
-      const mod = await import("https://www.gstatic.com/firebasejs/10.12.0/firebase-storage.js");
-      return { storage: mod.getStorage(RIDER_FB_APP), ref: mod.ref, uploadBytes: mod.uploadBytes, getDownloadURL: mod.getDownloadURL };
+    function initRiderStorage() {
+      const storage = firebase.storage(RIDER_FB_APP);
+      return {
+        ref: (path) => storage.ref(path),
+        uploadBytes: (storageRef, file) => storageRef.put(file),
+        getDownloadURL: (storageRef) => storageRef.getDownloadURL(),
+      };
     }
 
     const RIDER_NOTIFICATION_SOUND_URL = "https://audio.com/kenneth-antonil/audio/universfield-new-notification-022-370046";
@@ -490,8 +495,8 @@
       const uploadRiderProofImage = async (file, orderId) => {
         setUploadingRiderProof(true);
         try {
-          const st = await initRiderStorage();
-          const storageRef = st.ref(st.storage, `order_proofs/${orderId}/${Date.now()}_${file.name}`);
+          const st = initRiderStorage();
+          const storageRef = st.ref(`order_proofs/${orderId}/${Date.now()}_${file.name}`);
           await st.uploadBytes(storageRef, file);
           const url = await st.getDownloadURL(storageRef);
           setRiderProofImages(prev => [...prev, url]);
