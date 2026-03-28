@@ -1,0 +1,87 @@
+{
+  "rules": {
+    ".read": false,
+    ".write": false,
+    "admins": {
+      "$uid": {
+        ".read": "auth != null && auth.uid === $uid",
+        ".write": "auth != null && auth.token.admin === true"
+      }
+    },
+    "riders": {
+      "$uid": {
+        ".read": "auth != null && (auth.uid === $uid || root.child('admins/' + auth.uid).val() === true || auth.token.admin === true)",
+        ".write": "auth != null && (root.child('admins/' + auth.uid).val() === true || auth.token.admin === true)"
+      }
+    },
+    "settings": {
+      ".read": "auth != null",
+      ".write": "auth != null && (root.child('admins/' + auth.uid).val() === true || auth.token.admin === true)"
+    },
+    "products": {
+      ".read": "auth != null",
+      ".write": "auth != null && (root.child('admins/' + auth.uid).val() === true || auth.token.admin === true)"
+    },
+    "vouchers": {
+      ".read": "auth != null",
+      ".write": "auth != null && (root.child('admins/' + auth.uid).val() === true || auth.token.admin === true)"
+    },
+    "orders": {
+      ".indexOn": ["uid", "riderId", "createdAt"],
+      "$orderId": {
+        ".read": "auth != null && (data.child('uid').val() === auth.uid || data.child('riderId').val() === auth.uid || root.child('admins/' + auth.uid).val() === true || auth.token.admin === true || root.child('riders/' + auth.uid).val() === true || auth.token.rider === true)",
+        ".write": "auth != null && (root.child('admins/' + auth.uid).val() === true || auth.token.admin === true || (!data.exists() && newData.child('uid').val() === auth.uid) || (data.exists() && data.child('uid').val() === auth.uid && !data.child('riderId').exists()) || (data.exists() && (data.child('riderId').val() === auth.uid || (!data.child('riderId').exists() && newData.child('riderId').val() === auth.uid && (root.child('riders/' + auth.uid).val() === true || auth.token.rider === true)))))"
+      }
+    },
+    "rider_locations": {
+      "$uid": {
+        ".read": "auth != null",
+        ".write": "auth != null && (auth.uid === $uid || root.child('admins/' + auth.uid).val() === true || auth.token.admin === true)"
+      }
+    },
+    "push_tokens": {
+      "$uid": {
+        ".read": "auth != null && (auth.uid === $uid || root.child('admins/' + auth.uid).val() === true || auth.token.admin === true)",
+        "$tokenKey": {
+          ".write": "auth != null && auth.uid === $uid"
+        }
+      }
+    },
+    "notification_queue": {
+      ".read": "auth != null && (root.child('admins/' + auth.uid).val() === true || auth.token.admin === true)",
+      "$pushId": {
+        ".write": "auth != null && (root.child('admins/' + auth.uid).val() === true || auth.token.admin === true || root.child('riders/' + auth.uid).val() === true || auth.token.rider === true)",
+        ".validate": "newData.hasChildren(['uid', 'title', 'body'])"
+      }
+    },
+    "users": {
+      "$uid": {
+        ".read": "auth != null && (auth.uid === $uid || root.child('admins/' + auth.uid).val() === true || auth.token.admin === true)",
+        ".write": "auth != null && auth.uid === $uid",
+        "profile": {
+          ".validate": "newData.hasChildren(['name'])"
+        }
+      }
+    },
+    "support_tickets": {
+      ".indexOn": ["uid", "createdAt"],
+      "$ticketId": {
+        ".read": "auth != null && (data.child('uid').val() === auth.uid || root.child('admins/' + auth.uid).val() === true || auth.token.admin === true)",
+        ".write": "auth != null && (root.child('admins/' + auth.uid).val() === true || auth.token.admin === true || (!data.exists() && newData.child('uid').val() === auth.uid))"
+      }
+    },
+    "support_messages": {
+      "$ticketId": {
+        ".read": "auth != null && (root.child('support_tickets/' + $ticketId + '/uid').val() === auth.uid || root.child('admins/' + auth.uid).val() === true || auth.token.admin === true)",
+        ".write": "auth != null && (root.child('support_tickets/' + $ticketId + '/uid').val() === auth.uid || root.child('admins/' + auth.uid).val() === true || auth.token.admin === true)",
+        ".indexOn": ["createdAt"]
+      }
+    },
+    "app_usage": {
+      "$uid": {
+        ".read": "auth != null && (auth.uid === $uid || root.child('admins/' + auth.uid).val() === true || auth.token.admin === true)",
+        ".write": "auth != null && auth.uid === $uid"
+      }
+    }
+  }
+}
