@@ -1,0 +1,189 @@
+{
+  "rules": {
+
+    // ─────────────────────────────────────────────────────────────────────────
+    // ADMIN REGISTRY
+    // Only admins can read or write this node.
+    // Bootstrap: manually add { "<your-uid>": true } via Firebase Console.
+    // ─────────────────────────────────────────────────────────────────────────
+    "admins": {
+      ".read":  "auth != null && root.child('admins').child(auth.uid).val() === true",
+      ".write": "auth != null && root.child('admins').child(auth.uid).val() === true"
+    },
+
+    // ─────────────────────────────────────────────────────────────────────────
+    // RIDER REGISTRY
+    // Only admins can grant/revoke rider status.
+    // Each rider can read their own entry to know if they are still active.
+    // ─────────────────────────────────────────────────────────────────────────
+    "riders": {
+      ".write": "auth != null && root.child('admins').child(auth.uid).val() === true",
+      "$uid": {
+        ".read": "auth != null && auth.uid === $uid"
+      }
+    },
+
+    // ─────────────────────────────────────────────────────────────────────────
+    // PRODUCTS
+    // Any authenticated user can read. Only admins can write.
+    // ─────────────────────────────────────────────────────────────────────────
+    "products": {
+      ".read":  "auth != null",
+      ".write": "auth != null && root.child('admins').child(auth.uid).val() === true"
+    },
+
+    // ─────────────────────────────────────────────────────────────────────────
+    // VOUCHERS
+    // Any authenticated user can read. Only admins can write.
+    // ─────────────────────────────────────────────────────────────────────────
+    "vouchers": {
+      ".read":  "auth != null",
+      ".write": "auth != null && root.child('admins').child(auth.uid).val() === true"
+    },
+
+    // ─────────────────────────────────────────────────────────────────────────
+    // APP SETTINGS  (gcash, marketPricing, pushVapidKey, etc.)
+    // Any authenticated user can read. Only admins can write.
+    // ─────────────────────────────────────────────────────────────────────────
+    "settings": {
+      ".read":  "auth != null",
+      ".write": "auth != null && root.child('admins').child(auth.uid).val() === true"
+    },
+
+    // ─────────────────────────────────────────────────────────────────────────
+    // ORDERS
+    // - Admins & riders: full read on the collection (for dashboards / order lists)
+    // - Customers: can query filtered by their own uid ONLY
+    // - New order: any authenticated user, but uid must match their own auth.uid
+    // - Update/delete: order owner (customer), admin, or rider
+    // ─────────────────────────────────────────────────────────────────────────
+    "orders": {
+      ".read": "auth != null && (
+        root.child('admins').child(auth.uid).val() === true ||
+        root.child('riders').child(auth.uid).val() === true ||
+        (query.orderByChild === 'uid' && query.equalTo === auth.uid)
+      )",
+      "$orderId": {
+        ".read": "auth != null && (
+          data.child('uid').val() === auth.uid ||
+          root.child('admins').child(auth.uid).val() === true ||
+          root.child('riders').child(auth.uid).val() === true
+        )",
+        ".write": "auth != null && (
+          (!data.exists() && newData.child('uid').val() === auth.uid) ||
+          (data.exists() && data.child('uid').val() === auth.uid) ||
+          root.child('admins').child(auth.uid).val() === true ||
+          root.child('riders').child(auth.uid).val() === true
+        )",
+        ".validate": "newData.hasChildren(['uid','status','items','createdAt'])"
+      }
+    },
+
+    // ─────────────────────────────────────────────────────────────────────────
+    // RIDER LOCATIONS
+    // Any authenticated user can read (customers need to track their rider).
+    // Only the rider themselves can write/remove their own location.
+    // ─────────────────────────────────────────────────────────────────────────
+    "rider_locations": {
+      "$uid": {
+        ".read":  "auth != null",
+        ".write": "auth != null && auth.uid === $uid"
+      }
+    },
+
+    // ─────────────────────────────────────────────────────────────────────────
+    // PUSH TOKENS (FCM)
+    // Users manage their own tokens only.
+    // Admins can read all tokens (needed for broadcast notifications).
+    // Cloud Functions use Admin SDK so they bypass rules automatically.
+    // ─────────────────────────────────────────────────────────────────────────
+    "push_tokens": {
+      ".read":  "auth != null && root.child('admins').child(auth.uid).val() === true",
+      "$uid": {
+        ".read":  "auth != null && auth.uid === $uid",
+        ".write": "auth != null && auth.uid === $uid"
+      }
+    },
+
+    // ─────────────────────────────────────────────────────────────────────────
+    // SUPPORT TICKETS
+    // - Admins: full read/write on the collection
+    // - Customers: can query filtered by their own uid; can create new tickets;
+    //   can update/reply on their own tickets
+    // ─────────────────────────────────────────────────────────────────────────
+    "support_tickets": {
+      ".read": "auth != null && (
+        root.child('admins').child(auth.uid).val() === true ||
+        (query.orderByChild === 'uid' && query.equalTo === auth.uid)
+      )",
+      "$ticketId": {
+        ".read": "auth != null && (
+          data.child('uid').val() === auth.uid ||
+          root.child('admins').child(auth.uid).val() === true
+        )",
+        ".write": "auth != null && (
+          (!data.exists() && newData.child('uid').val() === auth.uid) ||
+          (data.exists() && data.child('uid').val() === auth.uid) ||
+          root.child('admins').child(auth.uid).val() === true
+        )"
+      }
+    },
+
+    // ─────────────────────────────────────────────────────────────────────────
+    // SUPPORT MESSAGES
+    // Only the ticket owner and admins can read/write messages for a ticket.
+    // ─────────────────────────────────────────────────────────────────────────
+    "support_messages": {
+      "$ticketId": {
+        ".read": "auth != null && (
+          root.child('support_tickets').child($ticketId).child('uid').val() === auth.uid ||
+          root.child('admins').child(auth.uid).val() === true
+        )",
+        ".write": "auth != null && (
+          root.child('support_tickets').child($ticketId).child('uid').val() === auth.uid ||
+          root.child('admins').child(auth.uid).val() === true
+        )"
+      }
+    },
+
+    // ─────────────────────────────────────────────────────────────────────────
+    // USER PROFILES
+    // Users can read and write their own profile only.
+    // Admins can read all profiles.
+    // ─────────────────────────────────────────────────────────────────────────
+    "users": {
+      "$uid": {
+        ".read":  "auth != null && (auth.uid === $uid || root.child('admins').child(auth.uid).val() === true)",
+        ".write": "auth != null && auth.uid === $uid"
+      }
+    },
+
+    // ─────────────────────────────────────────────────────────────────────────
+    // NOTIFICATION QUEUE
+    // Riders push delivery-payment notifications here.
+    // Cloud Functions read and clean up entries via Admin SDK (bypasses rules).
+    // Admin can read/write for debugging.
+    // ─────────────────────────────────────────────────────────────────────────
+    "notification_queue": {
+      ".read":  "auth != null && root.child('admins').child(auth.uid).val() === true",
+      ".write": "auth != null && (
+        root.child('admins').child(auth.uid).val() === true ||
+        root.child('riders').child(auth.uid).val() === true
+      )"
+    },
+
+    // ─────────────────────────────────────────────────────────────────────────
+    // APP USAGE TELEMETRY
+    // Users write their own install/activity data only.
+    // Admins can read all telemetry.
+    // ─────────────────────────────────────────────────────────────────────────
+    "app_usage": {
+      ".read":  "auth != null && root.child('admins').child(auth.uid).val() === true",
+      "$uid": {
+        ".read":  "auth != null && auth.uid === $uid",
+        ".write": "auth != null && auth.uid === $uid"
+      }
+    }
+
+  }
+}
