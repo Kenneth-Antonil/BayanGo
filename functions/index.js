@@ -1,4 +1,5 @@
 const { onSchedule } = require("firebase-functions/v2/scheduler");
+const { onValueCreated } = require("firebase-functions/v2/database");
 const { initializeApp } = require("firebase-admin/app");
 const { getDatabase } = require("firebase-admin/database");
 const { getMessaging } = require("firebase-admin/messaging");
@@ -119,6 +120,58 @@ async function sendBatchNotification(tokenEntries, { title, body, type }) {
 
   return { sent: totalSent, failed: totalFailed };
 }
+
+// ─────────────────────────────────────────────────────────────────────────────
+// RTDB-TRIGGERED: notification_queue
+// ─────────────────────────────────────────────────────────────────────────────
+
+/**
+ * Kapag may bagong entry sa notification_queue, ipadala ang FCM sa tamang user
+ * at tanggalin ang queue entry pagkatapos.
+ */
+exports.processNotificationQueue = onValueCreated(
+  { ref: "notification_queue/{pushId}", region: "us-central1" },
+  async (event) => {
+    const data = event.data.val();
+    if (!data) return;
+
+    const { uid, title, body, link } = data;
+    const pushId = event.params.pushId;
+    const db = getDatabase();
+
+    if (!uid || !title || !body) {
+      console.warn(`[notif_queue/${pushId}] Missing required fields. Skipping.`);
+      await db.ref(`notification_queue/${pushId}`).remove();
+      return;
+    }
+
+    // Fetch push tokens for this specific user
+    const tokenSnap = await db.ref(`push_tokens/${uid}`).get();
+    const tokenEntries = [];
+    if (tokenSnap.exists()) {
+      tokenSnap.forEach((t) => {
+        const d = t.val();
+        if (d?.token && d?.enabled !== false) {
+          tokenEntries.push({ uid, tokenKey: t.key, token: d.token });
+        }
+      });
+    }
+
+    if (tokenEntries.length === 0) {
+      console.log(`[notif_queue/${pushId}] No tokens for uid=${uid}. Skipping.`);
+    } else {
+      const result = await sendBatchNotification(tokenEntries, {
+        title,
+        body,
+        type: "gcash_payment_reminder",
+      });
+      console.log(`[notif_queue/${pushId}] uid=${uid} Sent:${result.sent} Failed:${result.failed}`);
+    }
+
+    // Clean up queue entry
+    await db.ref(`notification_queue/${pushId}`).remove();
+  }
+);
 
 // ─────────────────────────────────────────────────────────────────────────────
 // SCHEDULED NOTIFICATIONS (Philippines Time / Asia/Manila)

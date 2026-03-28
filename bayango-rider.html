@@ -516,6 +516,21 @@
             items: updatedItems, subtotal, serviceFee, smallOrderFee, total,
             proofImages: updatedProof, pricesUpdatedAt: Date.now(),
           });
+          // Send push notif to customer for island orders (needs GCash payment)
+          const uid = order.uid || order.userId;
+          if (uid && order.locationType === "Island") {
+            try {
+              await _fbDb.ref("notification_queue").push({
+                uid,
+                title: "BayanGo — Bayad na via GCash!",
+                body: `Handa na ang iyong order (₱${total.toLocaleString("en-PH")}). Mag-bayad na via GCash para maipadala sa bangka!`,
+                link: "https://bayango.ph/bayango-user.html?section=orders",
+                createdAt: Date.now(),
+              });
+            } catch (notifErr) {
+              console.warn("Notification queue write failed:", notifErr);
+            }
+          }
           showToast("Na-update na ang presyo! Total: ₱" + total.toLocaleString("en-PH"));
           setPriceEditOrder(null);
         } catch (err) {
@@ -806,12 +821,20 @@
                         ))}
                       </div>
                     )}
-                    <label style={{ display:"flex", alignItems:"center", gap:8, padding:"11px 14px", borderRadius:12, border:"1.5px dashed #D1D5DB", cursor:"pointer", fontSize:13, color:"#555", background:"#FAFAFA" }}>
-                      <Ic n={uploadingRiderProof?"spinner":"camera"} className={uploadingRiderProof?"fa-spin":""} style={{ color:"#7C3AED" }} />
-                      {uploadingRiderProof ? "Ina-upload..." : "Kumuha ng Larawan o Mag-upload"}
-                      <input type="file" accept="image/*" capture="environment" style={{ display:"none" }}
-                        onChange={async e => { if(e.target.files[0]) await uploadRiderProofImage(e.target.files[0], order.id); e.target.value=""; }} />
-                    </label>
+                    <div style={{ display:"flex", gap:8 }}>
+                      <label style={{ flex:1, display:"flex", alignItems:"center", justifyContent:"center", gap:8, padding:"11px 10px", borderRadius:12, border:"1.5px dashed #D1D5DB", cursor:"pointer", fontSize:13, color:"#555", background:"#FAFAFA" }}>
+                        <Ic n={uploadingRiderProof?"spinner":"camera"} className={uploadingRiderProof?"fa-spin":""} style={{ color:"#7C3AED" }} />
+                        {uploadingRiderProof ? "Ina-upload..." : "Camera"}
+                        <input type="file" accept="image/*" capture="environment" style={{ display:"none" }}
+                          onChange={async e => { if(e.target.files[0]) await uploadRiderProofImage(e.target.files[0], order.id); e.target.value=""; }} />
+                      </label>
+                      <label style={{ flex:1, display:"flex", alignItems:"center", justifyContent:"center", gap:8, padding:"11px 10px", borderRadius:12, border:"1.5px dashed #D1D5DB", cursor:"pointer", fontSize:13, color:"#555", background:"#FAFAFA" }}>
+                        <Ic n="image" style={{ color:"#7C3AED" }} />
+                        Gallery
+                        <input type="file" accept="image/*" style={{ display:"none" }}
+                          onChange={async e => { if(e.target.files[0]) await uploadRiderProofImage(e.target.files[0], order.id); e.target.value=""; }} />
+                      </label>
+                    </div>
                   </div>
 
                   {/* Totals summary */}
