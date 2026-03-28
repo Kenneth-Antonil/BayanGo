@@ -1548,13 +1548,13 @@
           )}
 
           </>}
-        </div>
 
-        {proofPreviewUrl && (
-          <div onClick={() => setProofPreviewUrl("")} style={{ position:"fixed", inset:0, background:"rgba(0,0,0,.8)", zIndex:13050, display:"flex", alignItems:"center", justifyContent:"center", padding:20 }}>
-            <img src={proofPreviewUrl} alt="Proof preview" onClick={e => e.stopPropagation()} style={{ maxWidth:"95vw", maxHeight:"90vh", borderRadius:14, objectFit:"contain", boxShadow:"0 10px 40px rgba(0,0,0,.45)", background:"#fff" }} />
-          </div>
-        )}
+          {proofPreviewUrl && (
+            <div onClick={() => setProofPreviewUrl("")} style={{ position:"fixed", inset:0, background:"rgba(0,0,0,.8)", zIndex:13050, display:"flex", alignItems:"center", justifyContent:"center", padding:20 }}>
+              <img src={proofPreviewUrl} alt="Proof preview" onClick={e => e.stopPropagation()} style={{ maxWidth:"95vw", maxHeight:"90vh", borderRadius:14, objectFit:"contain", boxShadow:"0 10px 40px rgba(0,0,0,.45)", background:"#fff" }} />
+            </div>
+          )}
+        </div>
       );
     }
 
