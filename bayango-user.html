@@ -958,6 +958,7 @@
       const [showCheckout,   setShowCheckout]   = useState(false);
       const [showTracker,    setShowTracker]    = useState(null);
       const [showRiderMap,   setShowRiderMap]   = useState(null);
+      const [proofPreviewUrl,setProofPreviewUrl]= useState("");
       const [name,           setName]           = useState("");
       const [phone,          setPhone]          = useState("");
       const [addr,           setAddr]           = useState("");
@@ -2069,9 +2070,9 @@
                     {liveOrder.proofImages?.length > 0 && (
                       <div style={{ display:"flex", gap:8, overflowX:"auto", paddingBottom:4, marginBottom:10 }}>
                         {liveOrder.proofImages.map((url, i) => (
-                          <a key={i} href={url} target="_blank" rel="noreferrer" style={{ flexShrink:0 }}>
+                          <button key={i} onClick={() => setProofPreviewUrl(url)} style={{ flexShrink:0, padding:0, border:"none", background:"transparent", cursor:"zoom-in" }}>
                             <img src={url} alt={`proof-${i}`} style={{ width:80, height:80, borderRadius:10, objectFit:"cover", border:"1.5px solid #E5E7EB" }} />
-                          </a>
+                          </button>
                         ))}
                       </div>
                     )}
@@ -2184,6 +2185,12 @@
           {/* ── Rider Map Modal (global so it opens from any tab) ── */}
           {showRiderMap && (
             <RiderMapModal order={showRiderMap} onClose={() => setShowRiderMap(null)} />
+          )}
+
+          {proofPreviewUrl && (
+            <div onClick={() => setProofPreviewUrl("")} style={{ position:"fixed", inset:0, background:"rgba(0,0,0,.8)", zIndex:12050, display:"flex", alignItems:"center", justifyContent:"center", padding:20 }}>
+              <img src={proofPreviewUrl} alt="Proof preview" onClick={e => e.stopPropagation()} style={{ maxWidth:"96vw", maxHeight:"90vh", borderRadius:14, objectFit:"contain", boxShadow:"0 10px 40px rgba(0,0,0,.45)", background:"#fff" }} />
+            </div>
           )}
 
           {/* ── Bottom Nav ── */}
