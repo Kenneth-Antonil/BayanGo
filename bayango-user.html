@@ -484,7 +484,7 @@
       const [pushPermission, setPushPermission] = useState(typeof Notification !== "undefined" ? Notification.permission : "default");
       const [pushBusy, setPushBusy] = useState(false);
       const [pushError, setPushError] = useState("");
-      const [gcashSettings, setGcashSettings] = useState({ number:"", name:"", qrUrl:"" });
+      const [gcashSettings, setGcashSettings] = useState({ number:"09618280589", name:"Kenneth Antonil", qrUrl:"" });
 
       useEffect(() => {
         const syncStandalone = () => setIsStandalone(isStandaloneMode());
@@ -500,7 +500,7 @@
       useEffect(() => {
         if (!_fbDb) return;
         _fbDb.ref("settings/gcash").once("value", snap => {
-          if (snap.exists()) setGcashSettings({ number:"", name:"", qrUrl:"", ...snap.val() });
+          if (snap.exists()) setGcashSettings({ number:"09618280589", name:"Kenneth Antonil", qrUrl:"", ...snap.val() });
         });
       }, []);
 
@@ -2042,26 +2042,39 @@
                         <div style={{ fontSize:13, fontWeight:800, color:"#1D4ED8", marginBottom:10, display:"flex", alignItems:"center", gap:6 }}>
                           <Ic n="qrcode" /> I-send ang GCash Payment
                         </div>
-                        {gcashSettings.qrUrl && (
+                        {gcashSettings.qrUrl ? (
                           <div style={{ textAlign:"center", marginBottom:10 }}>
-                            <img src={gcashSettings.qrUrl} alt="GCash QR" style={{ width:160, height:160, objectFit:"contain", borderRadius:12, border:"1px solid #BFDBFE", background:"#fff" }} />
+                            <img src={gcashSettings.qrUrl} alt="GCash QR" style={{ width:180, height:180, objectFit:"contain", borderRadius:12, border:"2px solid #BFDBFE", background:"#fff", padding:4 }} />
+                            <div style={{ fontSize:10, color:"#94A3B8", marginTop:4 }}>I-scan ang QR sa GCash app</div>
+                          </div>
+                        ) : (
+                          <div style={{ textAlign:"center", marginBottom:10, padding:"14px", background:"#fff", borderRadius:12, border:"2px dashed #BFDBFE" }}>
+                            <Ic n="qrcode" size={48} style={{ color:"#BFDBFE", display:"block", margin:"0 auto 6px" }} />
+                            <div style={{ fontSize:11, color:"#94A3B8" }}>I-search sa GCash app ang number sa ibaba</div>
                           </div>
                         )}
-                        <div style={{ background:"#fff", borderRadius:10, padding:"10px 12px", marginBottom:8 }}>
-                          <div style={{ fontSize:11, color:"#888", marginBottom:2 }}>GCash Number</div>
-                          <div style={{ fontSize:16, fontWeight:800, color:"#1D4ED8", letterSpacing:1 }}>{gcashSettings.number || "—"}</div>
-                        </div>
-                        <div style={{ background:"#fff", borderRadius:10, padding:"10px 12px", marginBottom:8 }}>
+                        <button onClick={() => { try { navigator.clipboard.writeText(gcashSettings.number); } catch(e){} }} style={{
+                          width:"100%", background:"#fff", borderRadius:10, padding:"10px 12px", marginBottom:8,
+                          border:"1px solid #BFDBFE", textAlign:"left", cursor:"pointer",
+                          display:"flex", justifyContent:"space-between", alignItems:"center",
+                        }}>
+                          <div>
+                            <div style={{ fontSize:11, color:"#888", marginBottom:2 }}>GCash Number</div>
+                            <div style={{ fontSize:17, fontWeight:800, color:"#1D4ED8", letterSpacing:1 }}>{gcashSettings.number || "—"}</div>
+                          </div>
+                          <Ic n="copy" style={{ color:"#93C5FD" }} />
+                        </button>
+                        <div style={{ background:"#fff", borderRadius:10, padding:"10px 12px", marginBottom:8, border:"1px solid #E5E7EB" }}>
                           <div style={{ fontSize:11, color:"#888", marginBottom:2 }}>Account Name</div>
                           <div style={{ fontSize:15, fontWeight:700, color:"#111" }}>{gcashSettings.name || "—"}</div>
                         </div>
-                        <div style={{ background:"#FEF3C7", borderRadius:10, padding:"10px 12px", marginBottom:6 }}>
+                        <div style={{ background:"#FEF3C7", borderRadius:10, padding:"10px 12px", marginBottom:8, border:"1px solid #FDE68A" }}>
                           <div style={{ fontSize:11, color:"#92400E", marginBottom:2 }}>Halaga ng I-send</div>
-                          <div style={{ fontSize:18, fontWeight:800, color:"#92400E" }}>~{fmt(liveOrder.total)}</div>
+                          <div style={{ fontSize:20, fontWeight:800, color:"#92400E" }}>~{fmt(liveOrder.total)}</div>
                         </div>
-                        <div style={{ fontSize:11, color:"#3B82F6", marginTop:4, lineHeight:1.5 }}>
-                          <Ic n="triangle-exclamation" style={{ marginRight:4 }} />
-                          Hangga't hindi na-confirm ng admin ang iyong GCash payment, hindi mapapadala ang order sa bangka.
+                        <div style={{ fontSize:11, color:"#3B82F6", lineHeight:1.5, display:"flex", alignItems:"flex-start", gap:5 }}>
+                          <Ic n="triangle-exclamation" style={{ marginTop:1, flexShrink:0 }} />
+                          <span>Hangga't hindi na-confirm ng admin ang iyong GCash payment, hindi mapapadala ang order sa bangka.</span>
                         </div>
                       </>
                     )}

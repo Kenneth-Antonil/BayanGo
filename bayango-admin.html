@@ -864,7 +864,7 @@
       const [bMessage,      setBMessage]     = useState("");
       const [pushBusy,      setPushBusy]     = useState(false);
       const [vapidKey,      setVapidKey]     = useState("");
-      const [gcashSettings, setGcashSettings] = useState({ number:"", name:"", qrUrl:"" });
+      const [gcashSettings, setGcashSettings] = useState({ number:"09618280589", name:"Kenneth Antonil", qrUrl:"" });
       const [gcashSaving,   setGcashSaving]  = useState(false);
       const [confirmingPay, setConfirmingPay] = useState(null);
 
@@ -917,7 +917,13 @@
           try {
             const { db, fns } = await initFirebase();
             const snap = await fns.get(fns.ref(db, "settings/gcash"));
-            if (snap.exists()) setGcashSettings({ number:"", name:"", qrUrl:"", ...snap.val() });
+            if (snap.exists()) {
+              setGcashSettings({ number:"09618280589", name:"Kenneth Antonil", qrUrl:"", ...snap.val() });
+            } else {
+              // Auto-initialize with defaults on first load
+              const defaults = { number:"09618280589", name:"Kenneth Antonil", qrUrl:"" };
+              await fns.set(fns.ref(db, "settings/gcash"), defaults);
+            }
           } catch (err) {
             console.error("Failed to load GCash settings:", err);
           }
@@ -1079,11 +1085,17 @@
 
           {/* ── GCash Settings ── */}
           <div style={{ margin:"0 20px 10px", background:"#fff", border:"1px solid #E5E7EB", borderRadius:16, padding:14 }}>
-            <div style={{ fontSize:14, fontWeight:800, color:"#1D4ED8", marginBottom:8 }}><Ic n="qrcode" style={{marginRight:6}} />GCash Payment Settings (para sa Island Orders)</div>
-            <input value={gcashSettings.number} onChange={e=>setGcashSettings(s=>({...s,number:e.target.value}))} placeholder="GCash Number (e.g. 09XXXXXXXXX)" style={{ width:"100%", padding:"10px 12px", border:"1px solid #D1D5DB", borderRadius:10, fontSize:13, marginBottom:8 }} />
+            <div style={{ fontSize:14, fontWeight:800, color:"#1D4ED8", marginBottom:4 }}><Ic n="qrcode" style={{marginRight:6}} />GCash Payment Settings (para sa Island Orders)</div>
+            <div style={{ fontSize:11, color:"#94A3B8", marginBottom:10 }}>Lalabas ito sa customer kapag nag-order sila mula sa island.</div>
+            <input value={gcashSettings.number} onChange={e=>setGcashSettings(s=>({...s,number:e.target.value}))} placeholder="GCash Number" style={{ width:"100%", padding:"10px 12px", border:"1px solid #D1D5DB", borderRadius:10, fontSize:13, marginBottom:8 }} />
             <input value={gcashSettings.name} onChange={e=>setGcashSettings(s=>({...s,name:e.target.value}))} placeholder="GCash Account Name" style={{ width:"100%", padding:"10px 12px", border:"1px solid #D1D5DB", borderRadius:10, fontSize:13, marginBottom:8 }} />
-            <input value={gcashSettings.qrUrl} onChange={e=>setGcashSettings(s=>({...s,qrUrl:e.target.value}))} placeholder="GCash QR Code Image URL" style={{ width:"100%", padding:"10px 12px", border:"1px solid #D1D5DB", borderRadius:10, fontSize:13, marginBottom:8 }} />
-            {gcashSettings.qrUrl && <img src={gcashSettings.qrUrl} alt="GCash QR" style={{ width:120, height:120, objectFit:"contain", display:"block", margin:"0 auto 10px", borderRadius:10, border:"1px solid #E5E7EB" }} />}
+            <input value={gcashSettings.qrUrl} onChange={e=>setGcashSettings(s=>({...s,qrUrl:e.target.value}))} placeholder="GCash QR Code URL (i-upload sa Firebase Storage)" style={{ width:"100%", padding:"10px 12px", border:"1px solid #D1D5DB", borderRadius:10, fontSize:13, marginBottom:8 }} />
+            {gcashSettings.qrUrl
+              ? <img src={gcashSettings.qrUrl} alt="GCash QR" style={{ width:140, height:140, objectFit:"contain", display:"block", margin:"0 auto 10px", borderRadius:10, border:"2px solid #BFDBFE" }} />
+              : <div style={{ textAlign:"center", marginBottom:10, padding:"10px", background:"#F8FAFC", borderRadius:10, border:"1.5px dashed #CBD5E1", color:"#94A3B8", fontSize:11 }}>
+                  Walang QR URL pa — customers makakakita ng GCash number at name
+                </div>
+            }
             <button onClick={saveGcashSettings} disabled={gcashSaving} style={{ width:"100%", padding:"9px 12px", borderRadius:10, background:gcashSaving?"#E5E7EB":"#1D4ED8", color:gcashSaving?"#aaa":"#fff", fontSize:12, fontWeight:700 }}>
               {gcashSaving ? "Saving..." : "I-save ang GCash Settings"}
             </button>
