@@ -1162,7 +1162,12 @@
       };
 
       const placeOrder = () => {
-        if (!name || !phone || !addr) return;
+        if (!name || !phone || !addr || !hasPinnedLocation) {
+          if (!hasPinnedLocation) {
+            alert("I-pin muna ang exact location mo bago mag-order.");
+          }
+          return;
+        }
         const allItems = [
           ...cartItems.map(i => ({
             ...i,
@@ -1962,13 +1967,18 @@
                   </div>
                 </div>
 
-                <button onClick={placeOrder} disabled={!name||!phone||!addr} style={{
+                <button onClick={placeOrder} disabled={!name||!phone||!addr||!hasPinnedLocation} style={{
                   width:"100%", padding:"17px", borderRadius:16,
-                  background:(!name||!phone||!addr)?"#D1D5DB":"linear-gradient(135deg,#166534,#22C55E)",
+                  background:(!name||!phone||!addr||!hasPinnedLocation)?"#D1D5DB":"linear-gradient(135deg,#166534,#22C55E)",
                   color:"#fff", fontSize:16, fontWeight:700,
-                  boxShadow:(!name||!phone||!addr)?"none":"0 4px 20px rgba(22,101,52,.35)",
+                  boxShadow:(!name||!phone||!addr||!hasPinnedLocation)?"none":"0 4px 20px rgba(22,101,52,.35)",
                   transition:"all .2s"
                 }}>Mag-Order Na! <Ic n="bag-shopping" style={{marginLeft:6}} /></button>
+                {!hasPinnedLocation && (
+                  <div style={{ marginTop:8, fontSize:11, color:"#B45309" }}>
+                    <Ic n="triangle-exclamation" style={{marginRight:4}} />I-pin muna ang exact location bago mag-order.
+                  </div>
+                )}
               </div>
             </div>
           )}
