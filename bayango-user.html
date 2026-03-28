@@ -219,6 +219,133 @@
       const factor = Number(marketPricing?.[product?.cat]) || DEFAULT_MARKET_FACTOR;
       return roundPrice(base * factor);
     };
+    const LEGAL_CONTENT = {
+      about: {
+        title: "About Us",
+        icon: "circle-info",
+        updatedAt: "March 28, 2026",
+        sections: [
+          {
+            heading: "Sino ang BayanGo",
+            body: "Ang BayanGo ay local concierge app para sa Binangonan na tumutulong sa mabilis at maayos na pamamalengke. Layunin naming gawing simple ang pag-order ng fresh goods at basic essentials para sa mga pamilya sa mainland at island areas."
+          },
+          {
+            heading: "Aming Misyon",
+            body: "Ihatid ang tamang produkto sa tamang oras, may malinaw na updates sa order status, at may maaasahang customer support para sa bawat order."
+          },
+          {
+            heading: "Contact",
+            body: "Para sa concerns, maaari kang gumamit ng Support section sa app para direktang makapagpadala ng ticket sa BayanGo team."
+          },
+        ],
+      },
+      privacy: {
+        title: "Privacy Policy",
+        icon: "shield-halved",
+        updatedAt: "March 28, 2026",
+        sections: [
+          {
+            heading: "Anong data ang kinokolekta",
+            body: "Kinokolekta namin ang basic account details (email, pangalan, phone, address), order details, at location pin mo para maihatid nang tama ang order."
+          },
+          {
+            heading: "Paano ginagamit ang data",
+            body: "Ginagamit ang data para sa pagproseso ng orders, delivery coordination, customer support, at pag-send ng order notifications kung in-allow mo ang notifications."
+          },
+          {
+            heading: "Pag-share ng impormasyon",
+            body: "Hindi namin ibinebenta ang personal data mo. Ibinabahagi lang ang kinakailangang impormasyon sa rider/admin para ma-fulfill ang order at support request."
+          },
+          {
+            heading: "Data protection",
+            body: "Gumagamit ang app ng secured backend services. Maaari mong i-update ang profile details mo anumang oras sa Account settings."
+          },
+        ],
+      },
+      terms: {
+        title: "Terms and Conditions",
+        icon: "file-contract",
+        updatedAt: "March 28, 2026",
+        sections: [
+          {
+            heading: "Paggamit ng serbisyo",
+            body: "Sa paggamit ng BayanGo, sumasang-ayon kang magbigay ng tama at kumpletong delivery impormasyon at sundin ang mga patakaran ng app."
+          },
+          {
+            heading: "Order at presyo",
+            body: "Ang presyo, availability, at estimated totals ay maaaring magbago depende sa market conditions. Ire-reflect sa app ang final computed total bago ma-place ang order."
+          },
+          {
+            heading: "Cancellation at delivery",
+            body: "May limitadong cancellation window para sa eligible orders. Kapag na-assign na ang rider o lampas na sa allowed window, maaaring hindi na ma-cancel ang order."
+          },
+          {
+            heading: "Liability",
+            body: "Sisiguraduhin ng BayanGo ang maayos na serbisyo, ngunit maaaring magkaroon ng delays dahil sa panahon, trapiko, o availability ng item."
+          },
+        ],
+      },
+    };
+    const LEGAL_LINKS = [
+      { key:"about", label:"About Us", icon:"circle-info" },
+      { key:"privacy", label:"Privacy Policy", icon:"shield-halved" },
+      { key:"terms", label:"Terms & Conditions", icon:"file-contract" },
+    ];
+    function LegalLinks({ onOpen, compact = false }) {
+      return (
+        <div style={{ display:"grid", gap:8 }}>
+          {LEGAL_LINKS.map(link => (
+            <button key={link.key} onClick={() => onOpen(link.key)} style={{
+              width:"100%",
+              border:"1px solid #D1FAE5",
+              background:"#F8FFF9",
+              borderRadius: compact ? 10 : 12,
+              padding: compact ? "9px 10px" : "11px 12px",
+              display:"flex",
+              alignItems:"center",
+              justifyContent:"space-between",
+              color:"#166534",
+              fontSize: compact ? 12 : 13,
+              fontWeight:700,
+            }}>
+              <span style={{ display:"flex", alignItems:"center", gap:8 }}>
+                <Ic n={link.icon} />
+                {link.label}
+              </span>
+              <Ic n="chevron-right" size={11} />
+            </button>
+          ))}
+        </div>
+      );
+    }
+    function LegalModal({ docKey, onClose }) {
+      if (!docKey || !LEGAL_CONTENT[docKey]) return null;
+      const doc = LEGAL_CONTENT[docKey];
+      return (
+        <div style={{ position:"fixed", inset:0, zIndex:10000, background:"rgba(0,0,0,.55)", display:"flex", alignItems:"center", justifyContent:"center", padding:16 }} onClick={onClose}>
+          <div className="pop" onClick={e => e.stopPropagation()} style={{ width:"100%", maxWidth:420, background:"#fff", borderRadius:18, maxHeight:"88vh", overflow:"hidden", boxShadow:"0 20px 60px rgba(0,0,0,.22)" }}>
+            <div style={{ padding:"14px 16px", borderBottom:"1px solid #F1F5F9", display:"flex", alignItems:"center", justifyContent:"space-between" }}>
+              <div style={{ display:"flex", alignItems:"center", gap:9, color:"#166534", fontWeight:800, fontSize:15 }}>
+                <Ic n={doc.icon} />
+                {doc.title}
+              </div>
+              <button onClick={onClose} style={{ width:30, height:30, borderRadius:9, background:"#F3F4F6", color:"#334155" }}>
+                <Ic n="xmark" />
+              </button>
+            </div>
+            <div style={{ padding:"14px 16px 18px", overflowY:"auto", maxHeight:"calc(88vh - 58px)" }}>
+              <div style={{ fontSize:11, color:"#94A3B8", marginBottom:10 }}>Last updated: {doc.updatedAt}</div>
+              {doc.sections.map(section => (
+                <div key={section.heading} style={{ marginBottom:13 }}>
+                  <div style={{ fontSize:13, fontWeight:800, color:"#111827", marginBottom:4 }}>{section.heading}</div>
+                  <div style={{ fontSize:12.5, color:"#4B5563", lineHeight:1.6 }}>{section.body}</div>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      );
+    }
     const genId = () => Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
     async function getPushVapidKey() {
       try {
@@ -489,6 +616,7 @@
       const [pushBusy, setPushBusy] = useState(false);
       const [pushError, setPushError] = useState("");
       const [gcashSettings, setGcashSettings] = useState({ number:"09618280589", name:"Kenneth Antonil", qrUrl:"" });
+      const [openLegalDoc, setOpenLegalDoc] = useState(null);
 
       useEffect(() => {
         const syncStandalone = () => setIsStandalone(isStandaloneMode());
@@ -783,43 +911,44 @@
           fontSize:15, outline:"none", background:"#fff", width:"100%",
         };
         return (
-          <div style={{ minHeight:"100vh", display:"flex", alignItems:"center", justifyContent:"center", flexDirection:"column", gap:20, padding:"20px 24px" }}>
-            <div className="fade-up" style={{ textAlign:"center" }}>
-              <img src="https://i.imgur.com/1W159zD.png" style={{ height:108, maxWidth:"72vw", objectFit:"contain", marginBottom:12 }} />
-              <p style={{ color:"#666", fontSize:15, marginTop:4 }}>Palengke sa'yo. Mag-sign in para makapag-order.</p>
-            </div>
-
-            {authMode === "options" && (
-              <div className="fade-up" style={{ width:"100%", maxWidth:360, display:"flex", flexDirection:"column", gap:12, animationDelay:".1s" }}>
-                <button onClick={handleGoogleLogin} style={{
-                  background:"#fff", border:"1px solid #E5E7EB", padding:"14px 20px", borderRadius:100,
-                  fontSize:15, fontWeight:700, color:"#333", display:"flex", alignItems:"center", justifyContent:"center", gap:12,
-                  boxShadow:"0 4px 12px rgba(0,0,0,0.05)",
-                }}>
-                  <img src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg" alt="Google" style={{width:22, height:22}} />
-                  Sign in with Google
-                </button>
-                <button onClick={() => { setAuthMode("email-signin"); setAuthError(""); }} style={{
-                  background:"#166534", border:"none", padding:"14px 20px", borderRadius:100,
-                  fontSize:15, fontWeight:700, color:"#fff", display:"flex", alignItems:"center", justifyContent:"center", gap:10,
-                  boxShadow:"0 4px 16px rgba(22,101,52,0.3)",
-                }}>
-                  <Ic n="envelope" style={{marginRight:8}} />Sign in with Email
-                </button>
-                <div style={{ textAlign:"center", fontSize:13, color:"#888", marginTop:4 }}>
-                  Wala pang account?{" "}
-                  <button onClick={() => { setAuthMode("email-signup"); setAuthError(""); }} style={{ color:"#166534", fontWeight:700, textDecoration:"underline", fontSize:13 }}>
-                    Mag-sign up
-                  </button>
-                </div>
+          <>
+            <div style={{ minHeight:"100vh", display:"flex", alignItems:"center", justifyContent:"center", flexDirection:"column", gap:20, padding:"20px 24px" }}>
+              <div className="fade-up" style={{ textAlign:"center" }}>
+                <img src="https://i.imgur.com/1W159zD.png" style={{ height:108, maxWidth:"72vw", objectFit:"contain", marginBottom:12 }} />
+                <p style={{ color:"#666", fontSize:15, marginTop:4 }}>Palengke sa'yo. Mag-sign in para makapag-order.</p>
               </div>
-            )}
 
-            {(authMode === "email-signin" || authMode === "email-signup") && (
-              <div className="fade-up" style={{ width:"100%", maxWidth:360, display:"flex", flexDirection:"column", gap:12 }}>
-                <h2 style={{ textAlign:"center", fontSize:20, fontWeight:800, color:"#166534", marginBottom:4 }}>
-                  {authMode === "email-signup" ? "Gumawa ng Account" : "Mag-sign in"}
-                </h2>
+              {authMode === "options" && (
+                <div className="fade-up" style={{ width:"100%", maxWidth:360, display:"flex", flexDirection:"column", gap:12, animationDelay:".1s" }}>
+                  <button onClick={handleGoogleLogin} style={{
+                    background:"#fff", border:"1px solid #E5E7EB", padding:"14px 20px", borderRadius:100,
+                    fontSize:15, fontWeight:700, color:"#333", display:"flex", alignItems:"center", justifyContent:"center", gap:12,
+                    boxShadow:"0 4px 12px rgba(0,0,0,0.05)",
+                  }}>
+                    <img src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg" alt="Google" style={{width:22, height:22}} />
+                    Sign in with Google
+                  </button>
+                  <button onClick={() => { setAuthMode("email-signin"); setAuthError(""); }} style={{
+                    background:"#166534", border:"none", padding:"14px 20px", borderRadius:100,
+                    fontSize:15, fontWeight:700, color:"#fff", display:"flex", alignItems:"center", justifyContent:"center", gap:10,
+                    boxShadow:"0 4px 16px rgba(22,101,52,0.3)",
+                  }}>
+                    <Ic n="envelope" style={{marginRight:8}} />Sign in with Email
+                  </button>
+                  <div style={{ textAlign:"center", fontSize:13, color:"#888", marginTop:4 }}>
+                    Wala pang account?{" "}
+                    <button onClick={() => { setAuthMode("email-signup"); setAuthError(""); }} style={{ color:"#166534", fontWeight:700, textDecoration:"underline", fontSize:13 }}>
+                      Mag-sign up
+                    </button>
+                  </div>
+                </div>
+              )}
+
+              {(authMode === "email-signin" || authMode === "email-signup") && (
+                <div className="fade-up" style={{ width:"100%", maxWidth:360, display:"flex", flexDirection:"column", gap:12 }}>
+                  <h2 style={{ textAlign:"center", fontSize:20, fontWeight:800, color:"#166534", marginBottom:4 }}>
+                    {authMode === "email-signup" ? "Gumawa ng Account" : "Mag-sign in"}
+                  </h2>
 
                 {authError && (
                   <div style={{ background:"#FEF2F2", border:"1px solid #FCA5A5", borderRadius:12, padding:"10px 14px", fontSize:13, color:"#B91C1C" }}>
@@ -877,19 +1006,27 @@
                   }
                 </div>
 
-                <button onClick={() => { setAuthMode("options"); setAuthError(""); }} style={{ color:"#999", fontSize:13, textAlign:"center", marginTop:2 }}>
-                  <Ic n="arrow-left" style={{marginRight:6}} />Bumalik sa ibang options
-                </button>
+                  <button onClick={() => { setAuthMode("options"); setAuthError(""); }} style={{ color:"#999", fontSize:13, textAlign:"center", marginTop:2 }}>
+                    <Ic n="arrow-left" style={{marginRight:6}} />Bumalik sa ibang options
+                  </button>
+                </div>
+              )}
+
+              <div style={{ width:"100%", maxWidth:360, borderTop:"1px solid #E5E7EB", paddingTop:14 }}>
+                <div style={{ fontSize:11, color:"#94A3B8", fontWeight:700, letterSpacing:".06em", textTransform:"uppercase", marginBottom:8 }}>
+                  About & Policies
+                </div>
+                <LegalLinks onOpen={setOpenLegalDoc} compact />
               </div>
-            )}
-          </div>
+            </div>
+            <LegalModal docKey={openLegalDoc} onClose={() => setOpenLegalDoc(null)} />
+          </>
         );
       }
 
       return (
         <>
-
-          <UserApp products={products} orders={orders} onOrder={addOrder} user={user} onLogout={handleLogout} gcashSettings={gcashSettings} />
+          <UserApp products={products} orders={orders} onOrder={addOrder} user={user} onLogout={handleLogout} gcashSettings={gcashSettings} onOpenLegal={setOpenLegalDoc} />
           {pushPermission !== "granted" && (
             <div className="pop" style={{
               position:"fixed", bottom:"calc(env(safe-area-inset-bottom,0px) + 16px)", left:16, right:16, zIndex:9998,
@@ -927,6 +1064,7 @@
               <button onClick={() => setSyncError(null)} style={{ color:"#fff", opacity:.7, fontSize:16, marginLeft:8 }}><Ic n="xmark" /></button>
             </div>
           )}
+          <LegalModal docKey={openLegalDoc} onClose={() => setOpenLegalDoc(null)} />
         </>
       );
     }
@@ -996,7 +1134,7 @@
     }
 
     /* ══════════════════ USER APP ══════════════════ */
-    function UserApp({ products, orders, onOrder, user, onLogout, gcashSettings }) {
+    function UserApp({ products, orders, onOrder, user, onLogout, gcashSettings, onOpenLegal }) {
       const [activeCat,      setActiveCat]      = useState("isda");
       const [cart,           setCart]           = useState({});
       const [showCart,       setShowCart]       = useState(false);
@@ -2062,7 +2200,7 @@
             <AccountPage user={user} orders={myOrders} name={name} phone={phone} addr={addr}
               setName={setName} setPhone={setPhone} setAddr={setAddr} onLogout={onLogout}
               locationType={locationType} setLocationType={setLocationType}
-              customerLat={customerLat} customerLng={customerLng} />
+              customerLat={customerLat} customerLng={customerLng} onOpenLegal={onOpenLegal} />
           )}
 
           {/* ── Order Tracker Modal (global so it opens from any tab) ── */}
@@ -2287,7 +2425,7 @@
     }
 
     /* ══════════════════ ACCOUNT PAGE ══════════════════ */
-    function AccountPage({ user, orders, name, phone, addr, locationType, setName, setPhone, setAddr, setLocationType, onLogout, customerLat, customerLng }) {
+    function AccountPage({ user, orders, name, phone, addr, locationType, setName, setPhone, setAddr, setLocationType, onLogout, customerLat, customerLng, onOpenLegal }) {
       const [editMode,      setEditMode]      = useState(false);
       const [localName,     setLocalName]     = useState(name);
       const [localPhone,    setLocalPhone]    = useState(phone);
@@ -2480,6 +2618,12 @@
                 <button onClick={onLogout} style={{ width:"100%", marginTop:12, padding:"13px 0", borderRadius:14, background:"#FEF2F2", fontSize:13, fontWeight:700, color:"#EF4444", display:"flex", alignItems:"center", justifyContent:"center", gap:8 }}>
                   <Ic n="right-from-bracket" />Mag-Log Out
                 </button>
+                <div style={{ background:"#fff", borderRadius:16, marginTop:12, padding:14, border:"1px solid #ECFDF3", boxShadow:"0 2px 8px rgba(0,0,0,.04)" }}>
+                  <div style={{ fontSize:11, color:"#94A3B8", fontWeight:700, textTransform:"uppercase", letterSpacing:".07em", marginBottom:8 }}>
+                    About & Policies
+                  </div>
+                  <LegalLinks onOpen={onOpenLegal} compact />
+                </div>
 
               </div>
             )}
