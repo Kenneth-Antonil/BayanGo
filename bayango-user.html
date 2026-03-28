@@ -293,26 +293,30 @@
     ];
     function LegalLinks({ onOpen, compact = false }) {
       return (
-        <div style={{ display:"grid", gap:8 }}>
+        <div style={{
+          display:"flex",
+          flexWrap:"wrap",
+          gap: compact ? 6 : 8,
+        }}>
           {LEGAL_LINKS.map(link => (
             <button key={link.key} onClick={() => onOpen(link.key)} style={{
-              width:"100%",
-              border:"1px solid #D1FAE5",
-              background:"#F8FFF9",
-              borderRadius: compact ? 10 : 12,
-              padding: compact ? "9px 10px" : "11px 12px",
+              border:"1px solid #BBF7D0",
+              background:"#F7FEF9",
+              borderRadius:999,
+              padding: compact ? "7px 10px" : "9px 12px",
               display:"flex",
               alignItems:"center",
-              justifyContent:"space-between",
+              justifyContent:"center",
+              gap: compact ? 6 : 8,
               color:"#166534",
               fontSize: compact ? 12 : 13,
               fontWeight:700,
+              lineHeight:1.2,
+              flex: compact ? "0 0 auto" : "1 1 auto",
             }}>
-              <span style={{ display:"flex", alignItems:"center", gap:8 }}>
-                <Ic n={link.icon} />
-                {link.label}
-              </span>
-              <Ic n="chevron-right" size={11} />
+              <Ic n={link.icon} />
+              <span>{link.label}</span>
+              <Ic n="chevron-right" size={10} />
             </button>
           ))}
         </div>
@@ -323,22 +327,22 @@
       const doc = LEGAL_CONTENT[docKey];
       return (
         <div style={{ position:"fixed", inset:0, zIndex:10000, background:"rgba(0,0,0,.55)", display:"flex", alignItems:"center", justifyContent:"center", padding:16 }} onClick={onClose}>
-          <div className="pop" onClick={e => e.stopPropagation()} style={{ width:"100%", maxWidth:420, background:"#fff", borderRadius:18, maxHeight:"88vh", overflow:"hidden", boxShadow:"0 20px 60px rgba(0,0,0,.22)" }}>
-            <div style={{ padding:"14px 16px", borderBottom:"1px solid #F1F5F9", display:"flex", alignItems:"center", justifyContent:"space-between" }}>
-              <div style={{ display:"flex", alignItems:"center", gap:9, color:"#166534", fontWeight:800, fontSize:15 }}>
+          <div className="pop" onClick={e => e.stopPropagation()} style={{ width:"100%", maxWidth:390, background:"#fff", borderRadius:16, maxHeight:"82vh", overflow:"hidden", boxShadow:"0 20px 60px rgba(0,0,0,.22)" }}>
+            <div style={{ padding:"12px 14px", borderBottom:"1px solid #F1F5F9", display:"flex", alignItems:"center", justifyContent:"space-between" }}>
+              <div style={{ display:"flex", alignItems:"center", gap:8, color:"#166534", fontWeight:800, fontSize:14 }}>
                 <Ic n={doc.icon} />
                 {doc.title}
               </div>
-              <button onClick={onClose} style={{ width:30, height:30, borderRadius:9, background:"#F3F4F6", color:"#334155" }}>
+              <button onClick={onClose} style={{ width:28, height:28, borderRadius:8, background:"#F3F4F6", color:"#334155" }}>
                 <Ic n="xmark" />
               </button>
             </div>
-            <div style={{ padding:"14px 16px 18px", overflowY:"auto", maxHeight:"calc(88vh - 58px)" }}>
-              <div style={{ fontSize:11, color:"#94A3B8", marginBottom:10 }}>Last updated: {doc.updatedAt}</div>
+            <div style={{ padding:"12px 14px 14px", overflowY:"auto", maxHeight:"calc(82vh - 52px)" }}>
+              <div style={{ fontSize:10, color:"#94A3B8", marginBottom:8 }}>Last updated: {doc.updatedAt}</div>
               {doc.sections.map(section => (
-                <div key={section.heading} style={{ marginBottom:13 }}>
-                  <div style={{ fontSize:13, fontWeight:800, color:"#111827", marginBottom:4 }}>{section.heading}</div>
-                  <div style={{ fontSize:12.5, color:"#4B5563", lineHeight:1.6 }}>{section.body}</div>
+                <div key={section.heading} style={{ marginBottom:10 }}>
+                  <div style={{ fontSize:12.5, fontWeight:800, color:"#111827", marginBottom:3 }}>{section.heading}</div>
+                  <div style={{ fontSize:12, color:"#4B5563", lineHeight:1.5 }}>{section.body}</div>
                 </div>
               ))}
             </div>
