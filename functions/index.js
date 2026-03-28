@@ -45,7 +45,7 @@ async function getAllCustomerTokens() {
  * Magpadala ng multicast FCM notification sa maraming tokens.
  * Awtomatikong nagtatanggal ng mga invalid/expired tokens sa database.
  */
-async function sendBatchNotification(tokenEntries, { title, body, type }) {
+async function sendBatchNotification(tokenEntries, { title, body, type, link }) {
   if (!tokenEntries.length) {
     console.log("Walang tokens. Skipping send.");
     return { sent: 0, failed: 0 };
@@ -55,6 +55,8 @@ async function sendBatchNotification(tokenEntries, { title, body, type }) {
   const db = getDatabase();
   let totalSent = 0;
   let totalFailed = 0;
+
+  const resolvedLink = link || USER_APP_URL;
 
   // FCM multicast limit: 500 tokens per call
   const CHUNK_SIZE = 500;
@@ -76,12 +78,12 @@ async function sendBatchNotification(tokenEntries, { title, body, type }) {
             vibrate: [200, 100, 200],
           },
           fcm_options: {
-            link: USER_APP_URL,
+            link: resolvedLink,
           },
         },
         data: {
           type: type || "batch_reminder",
-          link: USER_APP_URL,
+          link: resolvedLink,
           timestamp: String(Date.now()),
         },
       });
@@ -164,6 +166,7 @@ exports.processNotificationQueue = onValueCreated(
         title,
         body,
         type: "gcash_payment_reminder",
+        link,
       });
       console.log(`[notif_queue/${pushId}] uid=${uid} Sent:${result.sent} Failed:${result.failed}`);
     }

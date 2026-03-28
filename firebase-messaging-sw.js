@@ -13,21 +13,28 @@ firebase.initializeApp({
 });
 
 const messaging = firebase.messaging();
+const USER_APP_URL = 'https://bayango.ph/bayango-user.html';
+const RIDER_APP_URL = 'https://bayango.ph/bayango-rider.html';
+
+function resolveClickUrl(rawUrl, type) {
+  try {
+    if (rawUrl) return new URL(rawUrl, self.location.origin).toString();
+  } catch (err) {
+    console.warn('Invalid notification click URL. Falling back.', err);
+  }
+
+  if (type === 'order_status' || type === 'broadcast' || type === 'gcash_payment_reminder') {
+    return `${USER_APP_URL}?section=orders`;
+  }
+
+  return RIDER_APP_URL;
+}
 
 messaging.onBackgroundMessage((payload) => {
   const title = payload?.notification?.title || 'BayanGo';
   const type = payload?.data?.type || '';
 
-  // Use explicit link from data if present, otherwise derive from notification type
-  let clickUrl = payload?.data?.link || payload?.data?.click_action;
-  if (!clickUrl) {
-    if (type === 'order_status' || type === 'broadcast') {
-      clickUrl = 'https://bayango.ph/bayango-user.html#/orders';
-    } else {
-      // new_order, order_cancelled → rider app
-      clickUrl = 'https://bayango.ph/bayango-rider.html';
-    }
-  }
+  const clickUrl = resolveClickUrl(payload?.data?.link || payload?.data?.click_action, type);
 
   const options = {
     body: payload?.notification?.body || 'May bagong update ka.',
@@ -43,7 +50,10 @@ messaging.onBackgroundMessage((payload) => {
 
 self.addEventListener('notificationclick', (event) => {
   event.notification.close();
-  const target = event.notification?.data?.clickUrl || 'https://bayango.ph/bayango-rider.html';
+  const target = resolveClickUrl(
+    event.notification?.data?.clickUrl,
+    event.notification?.data?.type || ''
+  );
   const isRiderTarget = target.includes('bayango-rider');
 
   event.waitUntil(
@@ -53,6 +63,9 @@ self.addEventListener('notificationclick', (event) => {
           ? client.url.includes('bayango-rider')
           : client.url.includes('bayango-user');
         if (isMatch && 'focus' in client) {
+          if ('navigate' in client) {
+            return client.navigate(target).then(() => client.focus());
+          }
           return client.focus();
         }
       }
