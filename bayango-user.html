@@ -1154,6 +1154,7 @@
       const [customerLat,    setCustomerLat]    = useState(null);
       const [customerLng,    setCustomerLng]    = useState(null);
       const [locationType,   setLocationType]   = useState("Mainland");
+      const [paymentMethod,  setPaymentMethod]  = useState("cod"); // "cod" | "online"
 
       // Load profile from RTDB when user logs in
       useEffect(() => {
@@ -1393,6 +1394,7 @@
           deliveryBatch: batchInfo.batch,
           deliveryDate:  batchInfo.date,
           locationType,
+          paymentMethod: locationType === "Island" ? "online" : paymentMethod,
         });
         setCart({});
         setCartWeightUnit({});
@@ -2130,7 +2132,7 @@
                       { val:"Island",   icon:"water", label:"Island",     desc:"Isla / Kabilang dagat" },
                     ].map(opt => (
                       <button key={opt.val} type="button"
-                        onClick={() => setLocationType(opt.val)}
+                        onClick={() => { setLocationType(opt.val); setPaymentMethod(opt.val === "Island" ? "online" : "cod"); }}
                         style={{
                           padding:"12px 10px", borderRadius:14, textAlign:"center",
                           border: locationType === opt.val ? "2px solid #166534" : "1.5px solid #E5E7EB",
@@ -2150,11 +2152,39 @@
                   )}
                 </div>
 
-                <div style={{ background:"#FEF3C7", borderRadius:12, padding:"12px 14px", marginBottom:18, display:"flex", gap:10 }}>
-                  <Ic n="credit-card" size={18} style={{ color:"#92400E", marginTop:1 }} />
-                  <div style={{ fontSize:12, color:"#92400E", lineHeight:1.5 }}>
-                    <strong>GCash o COD</strong> — Pag-deliver ng order, pwede kang magbayad via GCash o Cash on Delivery.
-                  </div>
+                {/* Payment Method Selector */}
+                <div style={{ marginBottom:18 }}>
+                  <label style={{ fontSize:12, fontWeight:700, color:"#666", display:"block", marginBottom:8 }}>
+                    <Ic n="credit-card" style={{marginRight:5}} />Paraan ng Bayad
+                  </label>
+                  {locationType === "Island" ? (
+                    <div style={{ background:"#F5F3FF", borderRadius:12, padding:"12px 14px", border:"1.5px solid #DDD6FE", display:"flex", gap:10, alignItems:"center" }}>
+                      <Ic n="qrcode" size={18} style={{ color:"#6D28D9" }} />
+                      <div style={{ fontSize:12, color:"#6D28D9", lineHeight:1.5 }}>
+                        <strong>QR Ph (Online)</strong> — Island orders ay kailangan bayaran online bago maipadala sa bangka.
+                      </div>
+                    </div>
+                  ) : (
+                    <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:8 }}>
+                      {[
+                        { val:"cod",    icon:"money-bill-wave", label:"COD",       desc:"Bayad pagdating" },
+                        { val:"online", icon:"qrcode",          label:"QR Ph",     desc:"Bayad online ngayon" },
+                      ].map(opt => (
+                        <button key={opt.val} type="button"
+                          onClick={() => setPaymentMethod(opt.val)}
+                          style={{
+                            padding:"12px 10px", borderRadius:12, textAlign:"center", cursor:"pointer",
+                            border: paymentMethod === opt.val ? "2px solid #7C3AED" : "2px solid #E5E7EB",
+                            background: paymentMethod === opt.val ? "#F5F3FF" : "#fff",
+                            transition:"all .15s",
+                          }}>
+                          <Ic n={opt.icon} size={18} style={{ color: paymentMethod === opt.val ? "#6D28D9" : "#9CA3AF", marginBottom:4, display:"block" }} />
+                          <div style={{ fontSize:13, fontWeight:800, color: paymentMethod === opt.val ? "#6D28D9" : "#374151" }}>{opt.label}</div>
+                          <div style={{ fontSize:10, color:"#9CA3AF", marginTop:2 }}>{opt.desc}</div>
+                        </button>
+                      ))}
+                    </div>
+                  )}
                 </div>
 
                 <button onClick={placeOrder} disabled={!name||!phone||!addr||!hasPinnedLocation} style={{
@@ -2366,8 +2396,10 @@
                   </div>
                 )}
 
-                {/* PayMongo Online Payment Button */}
-                {(liveOrder.status === "pending" || liveOrder.status === "buying") && liveOrder.paymentStatus !== "paid" && (
+                {/* PayMongo Online Payment Button — show for online payment orders only */}
+                {(liveOrder.status === "pending" || liveOrder.status === "buying") &&
+                  (liveOrder.paymentMethod === "online" || liveOrder.locationType === "Island") &&
+                  liveOrder.paymentStatus !== "paid" && (
                   <PaymongoPayButton order={liveOrder} fbFunctions={_fbFunctions} />
                 )}
 
@@ -3321,18 +3353,15 @@
             </button>
 
             {/* Payment status banner */}
-            {(o.status === "pending" || o.status === "buying") && (
+            {(o.status === "pending" || o.status === "buying") &&
+              (o.paymentMethod === "online" || o.locationType === "Island") && (
               o.paymentStatus === "paid"
                 ? <div style={{ padding:"10px 14px", background:"#DCFCE7", color:"#166534", fontSize:12, fontWeight:700, display:"flex", alignItems:"center", gap:6, borderTop:"1px solid #BBF7D0" }}>
                     <Ic n="circle-check" /> Online Payment Confirmed — Bayad na!
                   </div>
-                : o.locationType === "Island" && o.gcashPaymentConfirmed
-                  ? <div style={{ padding:"10px 14px", background:"#DCFCE7", color:"#166534", fontSize:12, fontWeight:700, display:"flex", alignItems:"center", gap:6, borderTop:"1px solid #BBF7D0" }}>
-                      <Ic n="circle-check" /> GCash Payment Confirmed — Handa na!
-                    </div>
-                  : <div onClick={() => onTrack(o)} style={{ padding:"10px 14px", background:"#F5F3FF", color:"#6D28D9", fontSize:12, fontWeight:700, display:"flex", alignItems:"center", gap:6, borderTop:"1px solid #DDD6FE", cursor:"pointer" }}>
-                      <Ic n="credit-card" /> Magbayad Online — Tingnan ang details
-                    </div>
+                : <div onClick={() => onTrack(o)} style={{ padding:"10px 14px", background:"#F5F3FF", color:"#6D28D9", fontSize:12, fontWeight:700, display:"flex", alignItems:"center", gap:6, borderTop:"1px solid #DDD6FE", cursor:"pointer" }}>
+                    <Ic n="qrcode" /> Magbayad via QR Ph — Tingnan ang details
+                  </div>
             )}
 
             {/* Track Rider button */}
