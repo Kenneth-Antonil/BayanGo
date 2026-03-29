@@ -1,12 +1,15 @@
 const { onSchedule } = require("firebase-functions/v2/scheduler");
 const { onValueCreated, onValueUpdated } = require("firebase-functions/v2/database");
-const { onRequest } = require("firebase-functions/v2/https");
+const { onRequest, onCall } = require("firebase-functions/v2/https");
+const { defineSecret } = require("firebase-functions/params");
 const { initializeApp } = require("firebase-admin/app");
 const { getDatabase } = require("firebase-admin/database");
 const { getMessaging } = require("firebase-admin/messaging");
 const crypto = require("crypto");
 
 initializeApp();
+
+const PAYMONGO_SECRET_KEY = defineSecret("PAYMONGO_SECRET_KEY");
 
 const APP_ICON = "https://i.imgur.com/wL8wcBB.jpeg";
 const USER_APP_URL = "https://bayango.ph/bayango-user.html";
@@ -623,5 +626,99 @@ exports.onOrderUpdated = onValueUpdated(
         await sendBatchNotification(userTokens, notifPayload);
       }
     }
+  }
+);
+
+// ─────────────────────────────────────────────────────────────────────────────
+// CALLABLE: CREATE PAYMONGO CHECKOUT SESSION
+// ─────────────────────────────────────────────────────────────────────────────
+
+/**
+ * Gumagawa ng PayMongo checkout session para sa isang order.
+ * Tinatawag mula sa user app — ibinabalik ang checkout_url para i-redirect ang user.
+ */
+exports.createPaymongoCheckout = onCall(
+  { region: "us-central1", secrets: [PAYMONGO_SECRET_KEY] },
+  async (request) => {
+    if (!request.auth) {
+      throw new Error("Kailangan mag-login bago magbayad.");
+    }
+
+    const { orderId } = request.data || {};
+    if (!orderId) throw new Error("Walang orderId.");
+
+    const db = getDatabase();
+    const orderSnap = await db.ref(`orders/${orderId}`).get();
+    if (!orderSnap.exists()) throw new Error("Hindi mahanap ang order.");
+
+    const order = orderSnap.val();
+
+    // Siguraduhing ang user ang may-ari ng order
+    if (order.uid !== request.auth.uid) throw new Error("Hindi mo order ito.");
+
+    // Huwag payagan kung bayad na
+    if (order.paymentStatus === "paid") throw new Error("Bayad na ang order na ito.");
+
+    const amountCentavos = Math.round((Number(order.total) || 0) * 100);
+    if (amountCentavos < 2000) throw new Error("Minimum na bayad ay ₱20.");
+
+    const secretKey = PAYMONGO_SECRET_KEY.value();
+    const authHeader = "Basic " + Buffer.from(secretKey + ":").toString("base64");
+    const baseUrl = "https://bayango.ph/bayango-user.html";
+
+    const body = {
+      data: {
+        attributes: {
+          billing: {
+            name: order.customer?.name || "Customer",
+            phone: order.customer?.phone || null,
+          },
+          send_email_receipt: false,
+          show_description: true,
+          show_line_items: true,
+          cancel_url: `${baseUrl}?section=orders`,
+          success_url: `${baseUrl}?section=orders&payment=success`,
+          description: `BayanGo Order #${String(orderId).slice(-6)}`,
+          line_items: [
+            {
+              currency: "PHP",
+              amount: amountCentavos,
+              name: `BayanGo Order #${String(orderId).slice(-6)}`,
+              quantity: 1,
+            },
+          ],
+          payment_method_types: ["gcash", "card", "paymaya", "dob", "brankas_landbank", "brankas_bdo"],
+          metadata: { orderId },
+        },
+      },
+    };
+
+    const res = await fetch("https://api.paymongo.com/v1/checkout_sessions", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: authHeader,
+      },
+      body: JSON.stringify(body),
+    });
+
+    const json = await res.json();
+    if (!res.ok) {
+      const errMsg = json?.errors?.[0]?.detail || `PayMongo error ${res.status}`;
+      throw new Error(errMsg);
+    }
+
+    const checkoutUrl = json?.data?.attributes?.checkout_url;
+    if (!checkoutUrl) throw new Error("Walang checkout URL mula sa PayMongo.");
+
+    // I-save ang checkout session ID sa order para ma-track
+    await db.ref(`orders/${orderId}`).update({
+      paymongoCheckoutId: json?.data?.id || null,
+      paymentStatus: "pending",
+      paymentProvider: "paymongo",
+      paymentUpdatedAt: Date.now(),
+    });
+
+    return { checkoutUrl };
   }
 );
