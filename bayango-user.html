@@ -2968,26 +2968,14 @@
     function PaymongoPayButton({ order, fbFunctions }) {
       const [loading, setLoading] = React.useState(false);
       const [error,   setError]   = React.useState("");
-      const [qrData,  setQrData]  = React.useState(null); // { qrImageUrl, qrString }
 
       const handlePay = async () => {
         setError("");
         setLoading(true);
         try {
-          const idToken = await _fbAuth.currentUser.getIdToken();
-          const res = await fetch(
-            "https://us-central1-bayango-315c6.cloudfunctions.net/createPaymongoQR",
-            {
-              method: "POST",
-              headers: { "Content-Type": "application/json", Authorization: `Bearer ${idToken}` },
-              body: JSON.stringify({ orderId: order.id }),
-            }
-          );
-          const data = await res.json();
-          if (!data.ok) throw new Error(data.error || "Hindi ma-generate ang QR.");
-          setQrData({ qrImageUrl: data.qrImageUrl, qrString: data.qrString });
+          window.open("https://paymongo.com/", "_blank", "noopener,noreferrer");
         } catch (err) {
-          setError(err?.message || "Hindi ma-generate ang QR. Subukan ulit.");
+          setError("Hindi ma-open ang PayMongo site. Subukan ulit.");
         } finally {
           setLoading(false);
         }
@@ -3007,41 +2995,6 @@
 
       return (
         <>
-          {/* QR Code Modal — inline sa loob ng app, walang redirect */}
-          {qrData && (
-            <div style={{ position:"fixed", inset:0, zIndex:1000, background:"rgba(0,0,0,.65)", backdropFilter:"blur(6px)", display:"flex", alignItems:"center", justifyContent:"center", padding:24 }}
-              onClick={() => setQrData(null)}>
-              <div className="pop" onClick={e => e.stopPropagation()} style={{ background:"#fff", borderRadius:24, padding:"28px 24px", width:"100%", maxWidth:340, boxShadow:"0 20px 60px rgba(0,0,0,.2)", textAlign:"center" }}>
-                <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:16 }}>
-                  <div style={{ fontSize:16, fontWeight:800, color:"#111" }}>
-                    <Ic n="qrcode" style={{ marginRight:6, color:"#6D28D9" }} />Bayad via QR Ph
-                  </div>
-                  <button onClick={() => setQrData(null)} style={{ width:32, height:32, borderRadius:8, background:"#F3F4F6", border:"none", cursor:"pointer", display:"flex", alignItems:"center", justifyContent:"center" }}>
-                    <Ic n="xmark" />
-                  </button>
-                </div>
-
-                <div style={{ background:"#F5F3FF", borderRadius:16, padding:16, marginBottom:14, border:"2px solid #DDD6FE", display:"inline-block" }}>
-                  <img src={qrData.qrImageUrl} alt="QR Ph" style={{ width:200, height:200, objectFit:"contain", borderRadius:8, display:"block" }} />
-                </div>
-
-                <div style={{ background:"#FEF3C7", borderRadius:12, padding:"10px 14px", marginBottom:14, textAlign:"left" }}>
-                  <div style={{ fontSize:11, color:"#92400E", marginBottom:2, fontWeight:700 }}>Halaga</div>
-                  <div style={{ fontSize:22, fontWeight:800, color:"#92400E" }}>{fmt(order.total)}</div>
-                </div>
-
-                <div style={{ fontSize:12, color:"#6B7280", lineHeight:1.6, marginBottom:14 }}>
-                  I-scan ang QR code gamit ang iyong banking app na may <strong>QR Ph</strong> support — GCash, Maya, BPI, BDO, UnionBank, at iba pa.
-                </div>
-
-                <div style={{ fontSize:11, color:"#7C3AED", background:"#F5F3FF", borderRadius:10, padding:"8px 12px", display:"flex", alignItems:"flex-start", gap:6, textAlign:"left" }}>
-                  <Ic n="circle-info" style={{ marginTop:1, flexShrink:0 }} />
-                  <span>Pagkatapos magbayad, awtomatikong ma-a-update ang status ng iyong order. Pwede mong isara ito.</span>
-                </div>
-              </div>
-            </div>
-          )}
-
           <div style={{ marginTop:14 }}>
             <button
               onClick={handlePay}
@@ -3055,8 +3008,8 @@
               }}
             >
               {loading
-                ? <><Ic n="spinner" className="spin" /> Ginagawa ang QR code...</>
-                : <><Ic n="qrcode" /> Magbayad via QR Ph</>
+                ? <><Ic n="spinner" className="spin" /> Binubuksan ang PayMongo...</>
+                : <><Ic n="qrcode" /> Buksan ang PayMongo</>
               }
             </button>
             {error && (
