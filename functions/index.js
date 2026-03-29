@@ -278,7 +278,7 @@ async function sendBatchNotification(tokenEntries, { title, body, type, link }) 
  * at tanggalin ang queue entry pagkatapos.
  */
 exports.processNotificationQueue = onValueCreated(
-  { ref: "notification_queue/{pushId}", region: "us-central1" },
+  { ref: "notification_queue/{pushId}", region: "asia-southeast1" },
   async (event) => {
     const data = event.data.val();
     if (!data) return;
@@ -518,7 +518,7 @@ exports.notifyPreorder = onSchedule(
  * Bagong order → i-notify ang lahat ng riders.
  */
 exports.onNewOrder = onValueCreated(
-  { ref: "orders/{orderId}", region: "us-central1" },
+  { ref: "orders/{orderId}", region: "asia-southeast1" },
   async (event) => {
     const order = event.data.val();
     if (!order || order.status !== "pending" || order.riderId) return;
@@ -544,7 +544,7 @@ exports.onNewOrder = onValueCreated(
  *   - pricesUpdatedAt      → notify customer
  */
 exports.onOrderUpdated = onValueUpdated(
-  { ref: "orders/{orderId}", region: "us-central1" },
+  { ref: "orders/{orderId}", region: "asia-southeast1" },
   async (event) => {
     const before = event.data.before.val() || {};
     const after = event.data.after.val() || {};
