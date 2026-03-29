@@ -630,19 +630,17 @@ exports.onOrderUpdated = onValueUpdated(
 );
 
 // ─────────────────────────────────────────────────────────────────────────────
-// CALLABLE: CREATE PAYMONGO CHECKOUT SESSION
+// CALLABLE: CREATE PAYMONGO QR PH (inline — walang redirect)
 // ─────────────────────────────────────────────────────────────────────────────
 
 /**
- * Gumagawa ng PayMongo checkout session para sa isang order.
- * Tinatawag mula sa user app — ibinabalik ang checkout_url para i-redirect ang user.
+ * Gumagawa ng PayMongo Payment Intent + QR Ph payment method.
+ * Ibinabalik ang QR image URL at paymentIntentId para ipakita ng app inline.
  */
-exports.createPaymongoCheckout = onCall(
+exports.createPaymongoQR = onCall(
   { region: "us-central1", secrets: [PAYMONGO_SECRET_KEY] },
   async (request) => {
-    if (!request.auth) {
-      throw new Error("Kailangan mag-login bago magbayad.");
-    }
+    if (!request.auth) throw new Error("Kailangan mag-login bago magbayad.");
 
     const { orderId } = request.data || {};
     if (!orderId) throw new Error("Walang orderId.");
@@ -652,11 +650,7 @@ exports.createPaymongoCheckout = onCall(
     if (!orderSnap.exists()) throw new Error("Hindi mahanap ang order.");
 
     const order = orderSnap.val();
-
-    // Siguraduhing ang user ang may-ari ng order
     if (order.uid !== request.auth.uid) throw new Error("Hindi mo order ito.");
-
-    // Huwag payagan kung bayad na
     if (order.paymentStatus === "paid") throw new Error("Bayad na ang order na ito.");
 
     const amountCentavos = Math.round((Number(order.total) || 0) * 100);
@@ -664,61 +658,76 @@ exports.createPaymongoCheckout = onCall(
 
     const secretKey = PAYMONGO_SECRET_KEY.value();
     const authHeader = "Basic " + Buffer.from(secretKey + ":").toString("base64");
-    const baseUrl = "https://bayango.ph/bayango-user.html";
+    const headers = { "Content-Type": "application/json", Authorization: authHeader };
 
-    const body = {
-      data: {
-        attributes: {
-          billing: {
-            name: order.customer?.name || "Customer",
-            phone: order.customer?.phone || null,
-          },
-          send_email_receipt: false,
-          show_description: true,
-          show_line_items: true,
-          cancel_url: `${baseUrl}?section=orders`,
-          success_url: `${baseUrl}?section=orders&payment=success`,
-          description: `BayanGo Order #${String(orderId).slice(-6)}`,
-          line_items: [
-            {
-              currency: "PHP",
-              amount: amountCentavos,
-              name: `BayanGo Order #${String(orderId).slice(-6)}`,
-              quantity: 1,
-            },
-          ],
-          payment_method_types: ["qrph"],
-          metadata: { orderId },
-        },
-      },
-    };
-
-    const res = await fetch("https://api.paymongo.com/v1/checkout_sessions", {
+    // 1. Gumawa ng Payment Intent
+    const intentRes = await fetch("https://api.paymongo.com/v1/payment_intents", {
       method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: authHeader,
-      },
-      body: JSON.stringify(body),
+      headers,
+      body: JSON.stringify({
+        data: {
+          attributes: {
+            amount: amountCentavos,
+            currency: "PHP",
+            payment_method_allowed: ["qrph"],
+            capture_type: "automatic",
+            description: `BayanGo Order #${String(orderId).slice(-6)}`,
+            metadata: { orderId },
+          },
+        },
+      }),
     });
+    const intentJson = await intentRes.json();
+    if (!intentRes.ok) {
+      throw new Error(intentJson?.errors?.[0]?.detail || `PayMongo error ${intentRes.status}`);
+    }
+    const intentId = intentJson.data.id;
+    const clientKey = intentJson.data.attributes.client_key;
 
-    const json = await res.json();
-    if (!res.ok) {
-      const errMsg = json?.errors?.[0]?.detail || `PayMongo error ${res.status}`;
-      throw new Error(errMsg);
+    // 2. Gumawa ng QR Ph Payment Method
+    const methodRes = await fetch("https://api.paymongo.com/v1/payment_methods", {
+      method: "POST",
+      headers,
+      body: JSON.stringify({ data: { attributes: { type: "qrph" } } }),
+    });
+    const methodJson = await methodRes.json();
+    if (!methodRes.ok) {
+      throw new Error(methodJson?.errors?.[0]?.detail || `PayMongo error ${methodRes.status}`);
+    }
+    const methodId = methodJson.data.id;
+
+    // 3. I-attach ang payment method sa intent para makuha ang QR code
+    const attachRes = await fetch(`https://api.paymongo.com/v1/payment_intents/${intentId}/attach`, {
+      method: "POST",
+      headers,
+      body: JSON.stringify({
+        data: {
+          attributes: {
+            payment_method: methodId,
+            client_key: clientKey,
+          },
+        },
+      }),
+    });
+    const attachJson = await attachRes.json();
+    if (!attachRes.ok) {
+      throw new Error(attachJson?.errors?.[0]?.detail || `PayMongo attach error ${attachRes.status}`);
     }
 
-    const checkoutUrl = json?.data?.attributes?.checkout_url;
-    if (!checkoutUrl) throw new Error("Walang checkout URL mula sa PayMongo.");
+    const nextAction = attachJson.data?.attributes?.next_action;
+    const qrImageUrl = nextAction?.display_details?.qr_image_url || null;
+    const qrString   = nextAction?.display_details?.qr_string || null;
 
-    // I-save ang checkout session ID sa order para ma-track
+    if (!qrImageUrl) throw new Error("Hindi makuha ang QR code mula sa PayMongo.");
+
+    // I-save sa order para ma-track ng webhook
     await db.ref(`orders/${orderId}`).update({
-      paymongoCheckoutId: json?.data?.id || null,
+      paymongoIntentId: intentId,
       paymentStatus: "pending",
       paymentProvider: "paymongo",
       paymentUpdatedAt: Date.now(),
     });
 
-    return { checkoutUrl };
+    return { qrImageUrl, qrString, paymentIntentId: intentId };
   }
 );

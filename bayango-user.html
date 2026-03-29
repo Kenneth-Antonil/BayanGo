@@ -2968,18 +2968,19 @@
     function PaymongoPayButton({ order, fbFunctions }) {
       const [loading, setLoading] = React.useState(false);
       const [error,   setError]   = React.useState("");
+      const [qrData,  setQrData]  = React.useState(null); // { qrImageUrl, qrString }
 
       const handlePay = async () => {
         setError("");
         setLoading(true);
         try {
-          const fn = fbFunctions.httpsCallable("createPaymongoCheckout");
+          const fn = fbFunctions.httpsCallable("createPaymongoQR");
           const result = await fn({ orderId: order.id });
-          if (result.data?.checkoutUrl) {
-            window.location.href = result.data.checkoutUrl;
+          if (result.data?.qrImageUrl) {
+            setQrData({ qrImageUrl: result.data.qrImageUrl, qrString: result.data.qrString });
           }
         } catch (err) {
-          setError(err?.message || "Hindi ma-open ang payment. Subukan ulit.");
+          setError(err?.message || "Hindi ma-generate ang QR. Subukan ulit.");
         } finally {
           setLoading(false);
         }
@@ -2990,7 +2991,7 @@
           <div style={{ marginTop:14, borderRadius:14, background:"#DCFCE7", border:"2px solid #86EFAC", padding:"12px 14px", display:"flex", alignItems:"center", gap:10 }}>
             <Ic n="circle-check" style={{ color:"#166534", fontSize:20 }} />
             <div>
-              <div style={{ fontSize:13, fontWeight:800, color:"#166534" }}>Bayad na! (Online Payment)</div>
+              <div style={{ fontSize:13, fontWeight:800, color:"#166534" }}>Bayad na! (QR Ph)</div>
               <div style={{ fontSize:11, color:"#555" }}>Na-confirm na ang iyong online payment.</div>
             </div>
           </div>
@@ -2998,29 +2999,66 @@
       }
 
       return (
-        <div style={{ marginTop:14 }}>
-          <button
-            onClick={handlePay}
-            disabled={loading}
-            style={{
-              width:"100%", padding:"14px", borderRadius:14,
-              background: loading ? "#94A3B8" : "linear-gradient(135deg,#7C3AED,#6D28D9)",
-              color:"#fff", fontSize:14, fontWeight:800, border:"none", cursor: loading ? "not-allowed" : "pointer",
-              display:"flex", alignItems:"center", justifyContent:"center", gap:8,
-              boxShadow: loading ? "none" : "0 4px 16px rgba(109,40,217,.35)",
-            }}
-          >
-            {loading
-              ? <><Ic n="spinner" className="spin" /> Sandali lang...</>
-              : <><Ic n="qrcode" /> Magbayad via QR Ph</>
-            }
-          </button>
-          {error && (
-            <div style={{ marginTop:8, fontSize:12, color:"#DC2626", background:"#FEF2F2", borderRadius:8, padding:"8px 10px" }}>
-              {error}
+        <>
+          {/* QR Code Modal — inline sa loob ng app, walang redirect */}
+          {qrData && (
+            <div style={{ position:"fixed", inset:0, zIndex:1000, background:"rgba(0,0,0,.65)", backdropFilter:"blur(6px)", display:"flex", alignItems:"center", justifyContent:"center", padding:24 }}
+              onClick={() => setQrData(null)}>
+              <div className="pop" onClick={e => e.stopPropagation()} style={{ background:"#fff", borderRadius:24, padding:"28px 24px", width:"100%", maxWidth:340, boxShadow:"0 20px 60px rgba(0,0,0,.2)", textAlign:"center" }}>
+                <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:16 }}>
+                  <div style={{ fontSize:16, fontWeight:800, color:"#111" }}>
+                    <Ic n="qrcode" style={{ marginRight:6, color:"#6D28D9" }} />Bayad via QR Ph
+                  </div>
+                  <button onClick={() => setQrData(null)} style={{ width:32, height:32, borderRadius:8, background:"#F3F4F6", border:"none", cursor:"pointer", display:"flex", alignItems:"center", justifyContent:"center" }}>
+                    <Ic n="xmark" />
+                  </button>
+                </div>
+
+                <div style={{ background:"#F5F3FF", borderRadius:16, padding:16, marginBottom:14, border:"2px solid #DDD6FE", display:"inline-block" }}>
+                  <img src={qrData.qrImageUrl} alt="QR Ph" style={{ width:200, height:200, objectFit:"contain", borderRadius:8, display:"block" }} />
+                </div>
+
+                <div style={{ background:"#FEF3C7", borderRadius:12, padding:"10px 14px", marginBottom:14, textAlign:"left" }}>
+                  <div style={{ fontSize:11, color:"#92400E", marginBottom:2, fontWeight:700 }}>Halaga</div>
+                  <div style={{ fontSize:22, fontWeight:800, color:"#92400E" }}>{fmt(order.total)}</div>
+                </div>
+
+                <div style={{ fontSize:12, color:"#6B7280", lineHeight:1.6, marginBottom:14 }}>
+                  I-scan ang QR code gamit ang iyong banking app na may <strong>QR Ph</strong> support — GCash, Maya, BPI, BDO, UnionBank, at iba pa.
+                </div>
+
+                <div style={{ fontSize:11, color:"#7C3AED", background:"#F5F3FF", borderRadius:10, padding:"8px 12px", display:"flex", alignItems:"flex-start", gap:6, textAlign:"left" }}>
+                  <Ic n="circle-info" style={{ marginTop:1, flexShrink:0 }} />
+                  <span>Pagkatapos magbayad, awtomatikong ma-a-update ang status ng iyong order. Pwede mong isara ito.</span>
+                </div>
+              </div>
             </div>
           )}
-        </div>
+
+          <div style={{ marginTop:14 }}>
+            <button
+              onClick={handlePay}
+              disabled={loading}
+              style={{
+                width:"100%", padding:"14px", borderRadius:14,
+                background: loading ? "#94A3B8" : "linear-gradient(135deg,#7C3AED,#6D28D9)",
+                color:"#fff", fontSize:14, fontWeight:800, border:"none", cursor: loading ? "not-allowed" : "pointer",
+                display:"flex", alignItems:"center", justifyContent:"center", gap:8,
+                boxShadow: loading ? "none" : "0 4px 16px rgba(109,40,217,.35)",
+              }}
+            >
+              {loading
+                ? <><Ic n="spinner" className="spin" /> Ginagawa ang QR code...</>
+                : <><Ic n="qrcode" /> Magbayad via QR Ph</>
+              }
+            </button>
+            {error && (
+              <div style={{ marginTop:8, fontSize:12, color:"#DC2626", background:"#FEF2F2", borderRadius:8, padding:"8px 10px" }}>
+                {error}
+              </div>
+            )}
+          </div>
+        </>
       );
     }
 
