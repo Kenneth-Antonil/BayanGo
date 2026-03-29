@@ -754,11 +754,14 @@ exports.createPaymongoQR = onRequest(
       }
 
       const nextAction = attachJson.data?.attributes?.next_action;
-      const qrImageUrl = nextAction?.display_details?.qr_image_url || null;
-      const qrString   = nextAction?.display_details?.qr_string || null;
+      const dd = nextAction?.display_details || {};
+      const qrImageUrl = dd.qr_image_url || dd.qr_image || null;
+      const qrString   = dd.qr_string   || dd.qr_code  || null;
+
+      console.log("[createPaymongoQR] next_action:", JSON.stringify(nextAction));
 
       if (!qrImageUrl) {
-        console.error("[createPaymongoQR] No QR URL. next_action:", JSON.stringify(nextAction));
+        console.error("[createPaymongoQR] No QR URL found. next_action:", JSON.stringify(nextAction));
         res.status(502).json({ ok: false, error: "Hindi makuha ang QR code. Subukan ulit." });
         return;
       }
