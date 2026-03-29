@@ -2447,6 +2447,19 @@
       const [showNewForm,   setShowNewForm]   = useState(false);
       const [replyText,     setReplyText]     = useState("");
       const [replySending,  setReplySending]  = useState(false);
+      const [partnerApplications, setPartnerApplications] = useState([]);
+      const [applyingPartner, setApplyingPartner] = useState(false);
+      const [partnerForm, setPartnerForm] = useState({
+        storeName: "",
+        ownerName: "",
+        phone: "",
+        email: user?.email || "",
+        category: "",
+        location: "",
+        description: "",
+        monthlyBudget: "",
+        paymentReference: "",
+      });
 
       // Listen to user's own tickets
       useEffect(() => {
@@ -2471,6 +2484,28 @@
         }, err => console.error("Messages listener:", err.code));
         return () => msgsRef.off();
       }, [openTicket?.id]);
+
+      useEffect(() => {
+        if (!user?.uid) return;
+        setPartnerForm((prev) => ({
+          ...prev,
+          ownerName: prev.ownerName || name || user?.displayName || "",
+          phone: prev.phone || phone || "",
+          email: prev.email || user?.email || "",
+        }));
+      }, [user?.uid, name, phone, user?.email, user?.displayName]);
+
+      useEffect(() => {
+        if (!user?.uid) return;
+        const applicationsRef = _fbDb.ref("partner_applications").orderByChild("uid").equalTo(user.uid);
+        applicationsRef.on("value", (snap) => {
+          const list = [];
+          snap.forEach((child) => list.push({ id: child.key, ...child.val() }));
+          list.sort((a, b) => Number(b.updatedAt || b.createdAt || 0) - Number(a.updatedAt || a.createdAt || 0));
+          setPartnerApplications(list);
+        }, err => console.error("Partner apps listener:", err.code));
+        return () => applicationsRef.off();
+      }, [user?.uid]);
 
       const saveProfile = () => {
         setName(localName); setPhone(localPhone); setAddr(localAddr);
@@ -2531,6 +2566,49 @@
         }
       };
 
+      const submitPartnerApplication = async () => {
+        if (!partnerForm.storeName.trim() || !partnerForm.ownerName.trim() || !partnerForm.phone.trim() || !partnerForm.location.trim() || !partnerForm.description.trim()) {
+          alert("Pakikumpleto ang required fields para ma-submit ang application.");
+          return;
+        }
+        setApplyingPartner(true);
+        try {
+          await _fbDb.ref("partner_applications").push({
+            uid: user?.uid || null,
+            userEmail: user?.email || null,
+            storeName: partnerForm.storeName.trim(),
+            ownerName: partnerForm.ownerName.trim(),
+            contactPhone: partnerForm.phone.trim(),
+            contactEmail: partnerForm.email.trim(),
+            category: partnerForm.category.trim(),
+            location: partnerForm.location.trim(),
+            description: partnerForm.description.trim(),
+            monthlyBudget: Number(partnerForm.monthlyBudget || 0),
+            paymentReference: partnerForm.paymentReference.trim(),
+            status: "pending",
+            statusLabel: "Pending review",
+            adminNotes: "",
+            requestedMoreInfo: "",
+            createdAt: Date.now(),
+            updatedAt: Date.now(),
+          });
+          setPartnerForm((prev) => ({
+            ...prev,
+            storeName: "",
+            category: "",
+            location: "",
+            description: "",
+            monthlyBudget: "",
+            paymentReference: "",
+          }));
+          alert("Na-submit na ang partner store application mo. Hintayin ang review ng admin.");
+        } catch (err) {
+          alert("Hindi na-submit ang application: " + (err.message || err.code));
+        } finally {
+          setApplyingPartner(false);
+        }
+      };
+
       const initials = (user?.displayName || user?.email || "?")
         .split(" ").map(w => w[0]).join("").toUpperCase().slice(0,2);
       const deliveredOrders = orders.filter(o => o.status === "delivered" || o.status === "cancelled");
@@ -2553,6 +2631,7 @@
         { key:"info",    label:"Profile",    icon:"user" },
         { key:"history", label:"Kasaysayan", icon:"clock-rotate-left" },
         { key:"support", label:"Support",    icon:"headset", badge: myTickets.filter(t=>t.status==="open").length },
+        { key:"partner", label:"Partner",    icon:"handshake-angle", badge: partnerApplications.filter(a=>a.status==="more_info").length },
       ];
 
       return (
@@ -2706,6 +2785,69 @@
                       <div style={{ fontSize:11, color:"#aaa", marginTop:6 }}>{fmtTs(t.createdAt)}</div>
                       <div style={{ fontSize:12, color:"#166534", marginTop:4, display:"flex", alignItems:"center", gap:4 }}><Ic n="chevron-right" size={10} />Buksan ang conversation</div>
                     </button>
+                  );
+                })}
+              </div>
+            )}
+
+            {/* ── Partner Store Application ── */}
+            {activeSection === "partner" && (
+              <div>
+                <div style={{ background:"#ECFDF3", border:"1px solid #BBF7D0", borderRadius:16, padding:14, marginBottom:12 }}>
+                  <div style={{ fontSize:14, fontWeight:800, color:"#166534", marginBottom:4 }}><Ic n="star" style={{ marginRight:6 }} />Maging Featured Partner Store</div>
+                  <div style={{ fontSize:12, color:"#15803D", lineHeight:1.55 }}>
+                    Kapag approved ka, magkakaroon ka ng sariling <strong>Partner PWA App</strong> para mag-manage ng products at tumanggap ng orders.
+                  </div>
+                </div>
+
+                <div style={{ background:"#fff", borderRadius:18, padding:18, border:"1px solid #E5E7EB", boxShadow:"0 2px 8px rgba(0,0,0,.05)", marginBottom:14 }}>
+                  <div style={{ fontSize:13, fontWeight:800, color:"#111", marginBottom:12 }}><Ic n="file-signature" style={{ marginRight:6, color:"#166534" }} />Partner Application Form</div>
+                  {[
+                    { key:"storeName", label:"Store Name *", placeholder:"Hal. Aling Nena Mini Mart" },
+                    { key:"ownerName", label:"Owner Name *", placeholder:"Buong pangalan ng owner" },
+                    { key:"phone", label:"Contact Number *", placeholder:"09XXXXXXXXX" },
+                    { key:"email", label:"Email", placeholder:"email@example.com" },
+                    { key:"category", label:"Store Category", placeholder:"Hal. Grocery / Pharmacy / Food" },
+                    { key:"location", label:"Store Address *", placeholder:"Kumpletong address ng store" },
+                    { key:"monthlyBudget", label:"Featured Budget / month (₱)", placeholder:"Hal. 2500" },
+                    { key:"paymentReference", label:"Payment Ref No.", placeholder:"GCash ref / transfer ID" },
+                  ].map((field) => (
+                    <div key={field.key} style={{ marginBottom:10 }}>
+                      <div style={{ fontSize:11, fontWeight:700, color:"#6B7280", marginBottom:5 }}>{field.label}</div>
+                      <input value={partnerForm[field.key]} onChange={(e) => setPartnerForm((prev) => ({ ...prev, [field.key]: e.target.value }))} placeholder={field.placeholder} style={{ width:"100%", border:"1px solid #D1D5DB", borderRadius:10, padding:"10px 11px", fontSize:13, outline:"none" }} />
+                    </div>
+                  ))}
+                  <div style={{ marginBottom:10 }}>
+                    <div style={{ fontSize:11, fontWeight:700, color:"#6B7280", marginBottom:5 }}>Store Description *</div>
+                    <textarea value={partnerForm.description} onChange={(e) => setPartnerForm((prev) => ({ ...prev, description: e.target.value }))} placeholder="Ano ang products/services ng store mo? Ilagay din ang operating hours." rows={4} style={{ width:"100%", border:"1px solid #D1D5DB", borderRadius:10, padding:"10px 11px", fontSize:13, outline:"none", resize:"vertical", fontFamily:"inherit" }} />
+                  </div>
+                  <button onClick={submitPartnerApplication} disabled={applyingPartner} style={{ width:"100%", padding:"12px 14px", borderRadius:12, background:applyingPartner ? "#9CA3AF" : "linear-gradient(135deg,#166534,#22C55E)", color:"#fff", fontSize:13, fontWeight:800 }}>
+                    {applyingPartner ? "Nagse-send..." : "Submit Partner Application"}
+                  </button>
+                </div>
+
+                <div style={{ fontSize:12, fontWeight:800, color:"#111", marginBottom:10 }}><Ic n="list-check" style={{ marginRight:6, color:"#166534" }} />Application History</div>
+                {partnerApplications.length === 0 ? (
+                  <div style={{ background:"#fff", border:"1px solid #E5E7EB", borderRadius:14, padding:14, fontSize:12, color:"#9CA3AF" }}>
+                    Wala ka pang na-submit na partner application.
+                  </div>
+                ) : partnerApplications.map((app) => {
+                  const statusMeta = {
+                    pending: { bg:"#FEF3C7", color:"#92400E", label:"Pending" },
+                    approved: { bg:"#DCFCE7", color:"#166534", label:"Approved" },
+                    declined: { bg:"#FEE2E2", color:"#B91C1C", label:"Declined" },
+                    more_info: { bg:"#DBEAFE", color:"#1D4ED8", label:"Need more info" },
+                  }[app.status] || { bg:"#F3F4F6", color:"#4B5563", label: app.status || "Unknown" };
+                  return (
+                    <div key={app.id} style={{ background:"#fff", border:"1px solid #E5E7EB", borderRadius:14, padding:14, marginBottom:10 }}>
+                      <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", gap:8 }}>
+                        <div style={{ fontSize:13, fontWeight:800, color:"#111" }}>{app.storeName || "Untitled store"}</div>
+                        <div style={{ padding:"3px 9px", borderRadius:20, fontSize:11, fontWeight:700, background:statusMeta.bg, color:statusMeta.color }}>{statusMeta.label}</div>
+                      </div>
+                      <div style={{ fontSize:11, color:"#9CA3AF", marginTop:4 }}>{fmtTs(app.createdAt)}</div>
+                      {app.adminNotes ? <div style={{ marginTop:8, fontSize:12, color:"#374151" }}><strong>Admin note:</strong> {app.adminNotes}</div> : null}
+                      {app.requestedMoreInfo ? <div style={{ marginTop:6, fontSize:12, color:"#1D4ED8" }}><strong>Kulang na info:</strong> {app.requestedMoreInfo}</div> : null}
+                    </div>
                   );
                 })}
               </div>

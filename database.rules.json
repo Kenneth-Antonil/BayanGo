@@ -183,6 +183,88 @@
         ".read":  "auth != null && auth.uid === $uid",
         ".write": "auth != null && auth.uid === $uid"
       }
+    },
+
+    // ─────────────────────────────────────────────────────────────────────────
+    // PARTNER STORE APPLICATIONS
+    // - Any authenticated user can submit/read their own applications
+    // - Admins can read/write all applications and request more info.
+    // ─────────────────────────────────────────────────────────────────────────
+    "partner_applications": {
+      ".read": "auth != null && (
+        root.child('admins').child(auth.uid).val() === true ||
+        (query.orderByChild === 'uid' && query.equalTo === auth.uid)
+      )",
+      "$applicationId": {
+        ".read": "auth != null && (
+          data.child('uid').val() === auth.uid ||
+          root.child('admins').child(auth.uid).val() === true
+        )",
+        ".write": "auth != null && (
+          (!data.exists() && newData.child('uid').val() === auth.uid) ||
+          (data.exists() && data.child('uid').val() === auth.uid) ||
+          root.child('admins').child(auth.uid).val() === true
+        )"
+      }
+    },
+
+    // ─────────────────────────────────────────────────────────────────────────
+    // PARTNER STORES
+    // - Partner owners can read/write only their own store record.
+    // - Admins can read/write all stores and assign approvals.
+    // ─────────────────────────────────────────────────────────────────────────
+    "partner_stores": {
+      ".read": "auth != null && root.child('admins').child(auth.uid).val() === true",
+      ".write": "auth != null && root.child('admins').child(auth.uid).val() === true",
+      "$storeId": {
+        ".read": "auth != null && (
+          root.child('admins').child(auth.uid).val() === true ||
+          data.child('ownerUid').val() === auth.uid
+        )",
+        ".write": "auth != null && (
+          root.child('admins').child(auth.uid).val() === true ||
+          data.child('ownerUid').val() === auth.uid
+        )"
+      }
+    },
+
+    // ─────────────────────────────────────────────────────────────────────────
+    // PARTNER PRODUCTS / ORDERS
+    // - Admins can fully manage all entries.
+    // - Partners can manage only entries under their own partnerStoreId.
+    // - Riders can read partner orders so they can pick up when prepared.
+    // ─────────────────────────────────────────────────────────────────────────
+    "partner_products": {
+      ".read": "auth != null && root.child('admins').child(auth.uid).val() === true",
+      "$productId": {
+        ".read": "auth != null && (
+          root.child('admins').child(auth.uid).val() === true ||
+          root.child('partner_stores').child(data.child('partnerStoreId').val()).child('ownerUid').val() === auth.uid
+        )",
+        ".write": "auth != null && (
+          root.child('admins').child(auth.uid).val() === true ||
+          root.child('partner_stores').child(newData.child('partnerStoreId').val()).child('ownerUid').val() === auth.uid
+        )"
+      }
+    },
+    "partner_orders": {
+      ".read": "auth != null && (
+        root.child('admins').child(auth.uid).val() === true ||
+        root.child('riders').child(auth.uid).val() === true
+      )",
+      "$orderId": {
+        ".read": "auth != null && (
+          root.child('admins').child(auth.uid).val() === true ||
+          root.child('riders').child(auth.uid).val() === true ||
+          data.child('uid').val() === auth.uid ||
+          root.child('partner_stores').child(data.child('partnerStoreId').val()).child('ownerUid').val() === auth.uid
+        )",
+        ".write": "auth != null && (
+          root.child('admins').child(auth.uid).val() === true ||
+          root.child('riders').child(auth.uid).val() === true ||
+          root.child('partner_stores').child(data.child('partnerStoreId').val()).child('ownerUid').val() === auth.uid
+        )"
+      }
     }
 
   }

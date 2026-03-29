@@ -1,0 +1,223 @@
+<!DOCTYPE html>
+<html lang="tl">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <title>BayanGo Partner App</title>
+  <meta name="theme-color" content="#166534" />
+  <link rel="manifest" href="bayango-partner-manifest.json" />
+  <link rel="icon" href="https://i.imgur.com/wL8wcBB.jpeg" />
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;700;800&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" />
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: 'Plus Jakarta Sans', sans-serif; background: #F8FAF8; color: #111827; }
+    button { font-family: inherit; border: none; cursor: pointer; }
+    input, textarea, select { font-family: inherit; }
+  </style>
+</head>
+<body>
+  <div id="root"></div>
+
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.23.2/babel.min.js"></script>
+
+  <script type="text/babel" data-presets="react">
+    const { useState, useEffect } = React;
+    const Ic = ({ n, size=14, style }) => <i className={`fa-solid fa-${n}`} style={{ fontSize:size, lineHeight:1, ...style }} />;
+
+    const FIREBASE_CONFIG = {
+      apiKey: "AIzaSyC0AQ3rkH-fhxlThobjDDtrvxttAfFLXTE",
+      authDomain: "bayango-315c6.firebaseapp.com",
+      projectId: "bayango-315c6",
+      storageBucket: "bayango-315c6.firebasestorage.app",
+      messagingSenderId: "199013441811",
+      appId: "1:199013441811:web:315a38f03ddc9b676e3ae6",
+      databaseURL: "https://bayango-315c6-default-rtdb.asia-southeast1.firebasedatabase.app",
+    };
+
+    let _db=null, _fns=null, _auth=null, _authFns=null, _app=null, _initPromise=null;
+    async function initFirebase() {
+      if (_db && _auth) return { db:_db, fns:_fns, auth:_auth, authFns:_authFns };
+      if (_initPromise) return _initPromise;
+      _initPromise = (async () => {
+        const { initializeApp, getApps, getApp } = await import("https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js");
+        const { getDatabase, ref, push, set, update, remove, onValue, off, get, query: rtdbQuery, orderByChild, equalTo } = await import("https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js");
+        const { getAuth, signInWithPopup, GoogleAuthProvider, onAuthStateChanged, signOut } = await import("https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js");
+        _app = getApps().length ? getApp() : initializeApp(FIREBASE_CONFIG);
+        _db = getDatabase(_app, FIREBASE_CONFIG.databaseURL);
+        _auth = getAuth(_app);
+        _fns = { ref, push, set, update, remove, onValue, off, get, rtdbQuery, orderByChild, equalTo };
+        _authFns = { signInWithPopup, GoogleAuthProvider, onAuthStateChanged, signOut };
+        return { db:_db, fns:_fns, auth:_auth, authFns:_authFns };
+      })();
+      return _initPromise;
+    }
+
+    function App() {
+      const [ready, setReady] = useState(false);
+      const [user, setUser] = useState(null);
+      const [store, setStore] = useState(null);
+      const [tab, setTab] = useState("orders");
+      const [products, setProducts] = useState([]);
+      const [orders, setOrders] = useState([]);
+      const [form, setForm] = useState({ name:"", price:"", stock:"" });
+
+      useEffect(() => {
+        let unsubAuth, unsubStore, unsubProducts, unsubOrders;
+        (async () => {
+          const { db, fns, auth, authFns } = await initFirebase();
+          unsubAuth = authFns.onAuthStateChanged(auth, async (cu) => {
+            setUser(cu); setReady(true);
+            unsubStore?.(); unsubProducts?.(); unsubOrders?.();
+            setStore(null); setProducts([]); setOrders([]);
+            if (!cu) return;
+
+            const storesRef = fns.rtdbQuery(fns.ref(db, "partner_stores"), fns.orderByChild("ownerUid"), fns.equalTo(cu.uid));
+            unsubStore = fns.onValue(storesRef, (snap) => {
+              let found = null;
+              snap.forEach((child) => { if (!found) found = { id: child.key, ...child.val() }; });
+              setStore(found);
+            });
+
+            const productsRef = fns.rtdbQuery(fns.ref(db, "partner_products"), fns.orderByChild("ownerUid"), fns.equalTo(cu.uid));
+            fns.onValue(productsRef, (snap) => {
+              const list = [];
+              snap.forEach((c) => list.push({ id:c.key, ...c.val() }));
+              list.sort((a,b)=>Number(b.createdAt||0)-Number(a.createdAt||0));
+              setProducts(list);
+            });
+            unsubProducts = () => fns.off(productsRef);
+
+            const ordersRef = fns.rtdbQuery(fns.ref(db, "partner_orders"), fns.orderByChild("ownerUid"), fns.equalTo(cu.uid));
+            fns.onValue(ordersRef, (snap) => {
+              const list = [];
+              snap.forEach((c) => list.push({ id:c.key, ...c.val() }));
+              list.sort((a,b)=>Number(b.createdAt||0)-Number(a.createdAt||0));
+              setOrders(list);
+            });
+            unsubOrders = () => fns.off(ordersRef);
+          });
+        })();
+        return () => { unsubAuth?.(); unsubStore?.(); unsubProducts?.(); unsubOrders?.(); };
+      }, []);
+
+      const login = async () => {
+        const { auth, authFns } = await initFirebase();
+        await authFns.signInWithPopup(auth, new authFns.GoogleAuthProvider());
+      };
+      const logout = async () => {
+        const { auth, authFns } = await initFirebase();
+        await authFns.signOut(auth);
+      };
+
+      const addProduct = async () => {
+        if (!store?.id || !form.name.trim()) return;
+        const { db, fns } = await initFirebase();
+        await fns.push(fns.ref(db, "partner_products"), {
+          ownerUid: user.uid,
+          partnerStoreId: store.id,
+          name: form.name.trim(),
+          price: Number(form.price || 0),
+          stock: Number(form.stock || 0),
+          active: true,
+          createdAt: Date.now(),
+          updatedAt: Date.now(),
+        });
+        setForm({ name:"", price:"", stock:"" });
+      };
+
+      const setOrderStatus = async (order, status) => {
+        const { db, fns } = await initFirebase();
+        const updates = { status, updatedAt: Date.now() };
+        if (status === "prepared") updates.preparedAt = Date.now();
+        await fns.update(fns.ref(db, "partner_orders/" + order.id), updates);
+      };
+
+      if (!ready) return <div style={{minHeight:"100vh", display:"grid", placeItems:"center"}}>Loading...</div>;
+      if (!user) return (
+        <div style={{minHeight:"100vh", display:"grid", placeItems:"center", padding:20}}>
+          <button onClick={login} style={{padding:"12px 16px", borderRadius:12, background:"#166534", color:"#fff", fontWeight:800}}>Sign in as Partner</button>
+        </div>
+      );
+
+      if (!store) return (
+        <div style={{maxWidth:640, margin:"0 auto", minHeight:"100vh", padding:20}}>
+          <div style={{background:"#fff", border:"1px solid #E5E7EB", borderRadius:16, padding:18}}>
+            <div style={{fontSize:16, fontWeight:800, color:"#166534", marginBottom:8}}>Wala pang approved partner store</div>
+            <div style={{fontSize:13, color:"#6B7280", lineHeight:1.5}}>Hintayin muna ang admin approval ng iyong Partner Application bago ma-activate ang app na ito.</div>
+            <button onClick={logout} style={{marginTop:12, padding:"10px 12px", borderRadius:10, background:"#F3F4F6", fontWeight:700}}>Sign out</button>
+          </div>
+        </div>
+      );
+
+      return (
+        <div style={{maxWidth:640, margin:"0 auto", minHeight:"100vh", paddingBottom:30}}>
+          <div style={{background:"#166534", color:"#fff", padding:"14px 16px", display:"flex", justifyContent:"space-between", alignItems:"center"}}>
+            <div>
+              <div style={{fontWeight:800}}>{store.storeName || "Partner Store"}</div>
+              <div style={{fontSize:11, opacity:.9}}>Owner: {user.displayName || user.email}</div>
+            </div>
+            <button onClick={logout} style={{background:"rgba(255,255,255,.18)", color:"#fff", borderRadius:10, padding:"8px 10px", fontSize:12}}>Logout</button>
+          </div>
+
+          <div style={{display:"grid", gridTemplateColumns:"1fr 1fr", background:"#fff", borderBottom:"1px solid #E5E7EB"}}>
+            {[{key:"orders",label:"Orders",icon:"receipt"},{key:"products",label:"Products",icon:"box"}].map(t=>(
+              <button key={t.key} onClick={()=>setTab(t.key)} style={{padding:"12px", fontWeight:800, fontSize:12, color:tab===t.key?"#166534":"#6B7280", borderBottom:tab===t.key?"3px solid #22C55E":"3px solid transparent"}}>
+                <Ic n={t.icon} style={{marginRight:6}} />{t.label}
+              </button>
+            ))}
+          </div>
+
+          {tab === "products" && (
+            <div style={{padding:16}}>
+              <div style={{background:"#fff", border:"1px solid #E5E7EB", borderRadius:14, padding:14, marginBottom:12}}>
+                <div style={{fontSize:13, fontWeight:800, marginBottom:8}}>Add Product</div>
+                <input placeholder="Product name" value={form.name} onChange={(e)=>setForm(f=>({...f,name:e.target.value}))} style={{width:"100%", marginBottom:8, padding:"10px", border:"1px solid #D1D5DB", borderRadius:10}} />
+                <div style={{display:"grid", gridTemplateColumns:"1fr 1fr", gap:8}}>
+                  <input placeholder="Price" value={form.price} onChange={(e)=>setForm(f=>({...f,price:e.target.value}))} style={{padding:"10px", border:"1px solid #D1D5DB", borderRadius:10}} />
+                  <input placeholder="Stock" value={form.stock} onChange={(e)=>setForm(f=>({...f,stock:e.target.value}))} style={{padding:"10px", border:"1px solid #D1D5DB", borderRadius:10}} />
+                </div>
+                <button onClick={addProduct} style={{marginTop:8, width:"100%", padding:"10px", borderRadius:10, background:"#166534", color:"#fff", fontWeight:800}}>Save Product</button>
+              </div>
+              {products.map((p)=>(
+                <div key={p.id} style={{background:"#fff", border:"1px solid #E5E7EB", borderRadius:12, padding:12, marginBottom:8, display:"flex", justifyContent:"space-between"}}>
+                  <div>
+                    <div style={{fontWeight:800}}>{p.name}</div>
+                    <div style={{fontSize:12, color:"#6B7280"}}>₱{Number(p.price||0).toLocaleString("en-PH")} • Stock {p.stock ?? 0}</div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+
+          {tab === "orders" && (
+            <div style={{padding:16}}>
+              {orders.length === 0 ? <div style={{background:"#fff", border:"1px solid #E5E7EB", borderRadius:12, padding:14, color:"#9CA3AF"}}>Wala pang orders.</div> : orders.map((o)=>(
+                <div key={o.id} style={{background:"#fff", border:"1px solid #E5E7EB", borderRadius:12, padding:14, marginBottom:10}}>
+                  <div style={{display:"flex", justifyContent:"space-between", gap:8}}>
+                    <div>
+                      <div style={{fontWeight:800}}>{o.customerName || "Customer"}</div>
+                      <div style={{fontSize:12, color:"#6B7280"}}>{o.customerPhone || ""}</div>
+                    </div>
+                    <div style={{fontSize:11, fontWeight:700, padding:"3px 9px", borderRadius:16, background:"#F3F4F6"}}>{(o.status||"pending").toUpperCase()}</div>
+                  </div>
+                  <div style={{fontSize:12, marginTop:8, color:"#374151"}}>{(o.items||[]).map(i=>`${i.name} x${i.qty||1}`).join(", ") || "No items"}</div>
+                  <div style={{display:"grid", gridTemplateColumns:"1fr 1fr 1fr", gap:8, marginTop:10}}>
+                    <button onClick={()=>setOrderStatus(o, "accepted")} style={{padding:"9px 8px", borderRadius:10, background:"#DBEAFE", color:"#1D4ED8", fontWeight:800, fontSize:11}}>Accept</button>
+                    <button onClick={()=>setOrderStatus(o, "preparing")} style={{padding:"9px 8px", borderRadius:10, background:"#FEF3C7", color:"#92400E", fontWeight:800, fontSize:11}}>Preparing</button>
+                    <button onClick={()=>setOrderStatus(o, "prepared")} style={{padding:"9px 8px", borderRadius:10, background:"#DCFCE7", color:"#166534", fontWeight:800, fontSize:11}}>Prepared</button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      );
+    }
+
+    ReactDOM.createRoot(document.getElementById('root')).render(<App />);
+  </script>
+</body>
+</html>
