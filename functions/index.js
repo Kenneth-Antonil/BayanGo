@@ -687,7 +687,7 @@ exports.createPaymongoCheckout = onCall(
               quantity: 1,
             },
           ],
-          payment_method_types: ["gcash", "card", "paymaya", "dob", "brankas_landbank", "brankas_bdo"],
+          payment_method_types: ["qrph"],
           metadata: { orderId },
         },
       },
