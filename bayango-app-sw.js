@@ -1,16 +1,14 @@
-const CACHE_NAME = 'bayango-offline-v2';
+const CACHE_NAME = 'bayango-offline-v3';
 const SHELL_ASSETS = [
   '/',
   '/index.html',
   '/bayango-user.html',
   '/bayango-rider.html',
   '/bayango-admin.html',
-  '/bayango-partner.html',
   '/admin.html',
   '/bayango-user-manifest.json',
   '/bayango-rider-manifest.json',
   '/bayango-admin-manifest.json',
-  '/bayango-partner-manifest.json',
   '/offline-mode.js',
   '/offline.html',
 ];
