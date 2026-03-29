@@ -2571,11 +2571,17 @@
           alert("Pakikumpleto ang required fields para ma-submit ang application.");
           return;
         }
+        const currentUser = _fbAuth?.currentUser || user || null;
+        const currentUid = currentUser?.uid || null;
+        if (!currentUid) {
+          alert("Kailangan naka-login muna bago mag-submit ng partner store application.");
+          return;
+        }
         setApplyingPartner(true);
         try {
           await _fbDb.ref("partner_applications").push({
-            uid: user?.uid || null,
-            userEmail: user?.email || null,
+            uid: currentUid,
+            userEmail: currentUser?.email || null,
             storeName: partnerForm.storeName.trim(),
             ownerName: partnerForm.ownerName.trim(),
             contactPhone: partnerForm.phone.trim(),
