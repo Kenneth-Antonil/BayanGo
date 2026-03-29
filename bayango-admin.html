@@ -815,7 +815,7 @@
       const [savingId, setSavingId] = useState(null);
 
       const updateApplication = async (app, status) => {
-        let adminNotes = window.prompt("Optional admin note para sa applicant:", app.adminNotes || "") ?? app.adminNotes || "";
+        let adminNotes = window.prompt("Optional admin note para sa applicant:", app.adminNotes || "") ?? (app.adminNotes || "");
         let requestedMoreInfo = app.requestedMoreInfo || "";
         if (status === "more_info") {
           requestedMoreInfo = window.prompt("Anong additional info ang kailangan?", app.requestedMoreInfo || "") || "";
