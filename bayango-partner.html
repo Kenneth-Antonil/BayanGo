@@ -157,6 +157,7 @@
         setSavingProduct(true);
         try {
           const { db, fns } = await initFirebase();
+          const normalizedImgUrl = await normalizeStorageImageUrl(form.imgUrl);
           const payload = {
             ownerUid: user.uid,
             partnerStoreId: store.id,
@@ -164,7 +165,7 @@
             price: Number(form.price || 0),
             stock: Number(form.stock || 0),
             description: form.description.trim(),
-            imgUrl: form.imgUrl.trim(),
+            imgUrl: normalizedImgUrl,
             active: true,
             updatedAt: Date.now(),
           };
@@ -222,6 +223,23 @@
         const ref = storageFns.storageRef(storage, path);
         await storageFns.uploadBytes(ref, file);
         return storageFns.getDownloadURL(ref);
+      };
+
+      const normalizeStorageImageUrl = async (url) => {
+        const raw = String(url || "").trim();
+        if (!raw) return "";
+        if (!raw.includes("firebasestorage.googleapis.com/v0/b/")) return raw;
+        if (raw.includes("alt=media")) return raw;
+        try {
+          const parsed = new URL(raw);
+          const name = parsed.searchParams.get("name");
+          if (!name) return raw;
+          const path = decodeURIComponent(name);
+          const { storage, storageFns } = await initFirebase();
+          return await storageFns.getDownloadURL(storageFns.storageRef(storage, path));
+        } catch (_) {
+          return raw;
+        }
       };
 
       const uploadProductImage = async (file) => {
