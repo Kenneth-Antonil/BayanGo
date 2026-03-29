@@ -1,7 +1,6 @@
 const { onSchedule } = require("firebase-functions/v2/scheduler");
 const { onValueCreated, onValueUpdated } = require("firebase-functions/v2/database");
 const { onRequest, onCall, HttpsError } = require("firebase-functions/v2/https");
-const { defineSecret } = require("firebase-functions/params");
 const { initializeApp } = require("firebase-admin/app");
 const { getDatabase } = require("firebase-admin/database");
 const { getMessaging } = require("firebase-admin/messaging");
@@ -9,7 +8,6 @@ const crypto = require("crypto");
 
 initializeApp();
 
-const PAYMONGO_SECRET_KEY = defineSecret("PAYMONGO_SECRET_KEY");
 
 const APP_ICON = "https://i.imgur.com/wL8wcBB.jpeg";
 const USER_APP_URL = "https://bayango.ph/bayango-user.html";
@@ -24,6 +22,7 @@ const ORDER_STATUS_LABELS = {
   cancelled: "Na-cancel ang order",
 };
 const PAYMONGO_WEBHOOK_SECRET = process.env.PAYMONGO_WEBHOOK_SECRET || "";
+// PAYMONGO_SECRET_KEY is injected as env var via secrets binding in onCall options
 
 function asBuffer(rawBody, fallback) {
   if (Buffer.isBuffer(rawBody)) return rawBody;
@@ -638,7 +637,7 @@ exports.onOrderUpdated = onValueUpdated(
  * Ibinabalik ang QR image URL at paymentIntentId para ipakita ng app inline.
  */
 exports.createPaymongoQR = onCall(
-  { region: "us-central1", secrets: [PAYMONGO_SECRET_KEY], timeoutSeconds: 60 },
+  { region: "us-central1", secrets: ["PAYMONGO_SECRET_KEY"], timeoutSeconds: 60 },
   async (request) => {
     try {
       if (!request.auth) throw new HttpsError("unauthenticated", "Kailangan mag-login bago magbayad.");
@@ -658,7 +657,7 @@ exports.createPaymongoQR = onCall(
       const amountCentavos = Math.round((Number(order.total) || 0) * 100);
       if (amountCentavos < 2000) throw new HttpsError("invalid-argument", "Minimum na bayad ay ₱20.");
 
-      const secretKey = PAYMONGO_SECRET_KEY.value();
+      const secretKey = process.env.PAYMONGO_SECRET_KEY || "";
       if (!secretKey) throw new HttpsError("internal", "Payment configuration error. Makipag-ugnayan sa admin.");
 
       const authHeader = "Basic " + Buffer.from(secretKey + ":").toString("base64");
