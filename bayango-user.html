@@ -219,6 +219,17 @@
       const factor = Number(marketPricing?.[product?.cat]) || DEFAULT_MARKET_FACTOR;
       return roundPrice(base * factor);
     };
+    const normalizeToCategoryId = (value) => {
+      const v = String(value || "").toLowerCase();
+      if (v.includes("isda") || v.includes("fish")) return "isda";
+      if (v.includes("karne") || v.includes("meat")) return "karne";
+      if (v.includes("gulay") || v.includes("vegetable")) return "gulay";
+      if (v.includes("prutas") || v.includes("fruit")) return "prutas";
+      if (v.includes("ulam") || v.includes("lutong")) return "ulam";
+      if (v.includes("gamot") || v.includes("pharma") || v.includes("medicine")) return "gamot";
+      if (v.includes("hardware")) return "hardware";
+      return "sari";
+    };
     const LEGAL_CONTENT = {
       about: {
         title: "About Us",
@@ -642,12 +653,47 @@
       }, []);
 
       useEffect(() => {
-        let unsubAuth, unsubOrders, unsubProducts, unsubMarketPricing;
+        let unsubAuth, unsubOrders, unsubProducts, unsubPartnerProducts, unsubPartnerStores, unsubMarketPricing;
         let activityIntervalId = null;
         let visibilityHandler = null;
         let usingOrdersFallback = false;
         let currentMarketPricing = {};
         const timeout = setTimeout(() => setLoading(false), 8000);
+
+        let baseProductsRaw = [];
+        let partnerProductsRaw = [];
+        let partnerStoresMap = {};
+        const refreshMergedProducts = () => {
+          const regularProducts = baseProductsRaw.map((entry) => ({
+            ...entry,
+            source: "market",
+          }));
+          const partnerProducts = partnerProductsRaw
+            .filter((raw) => raw.active !== false)
+            .map((raw) => {
+              const store = partnerStoresMap[raw.partnerStoreId] || {};
+              const mappedCat = normalizeToCategoryId(raw.cat || store.category);
+              return {
+                id: `partner_${raw.id}`,
+                source: "partner",
+                partnerProductId: raw.id,
+                partnerStoreId: raw.partnerStoreId || "",
+                ownerUid: raw.ownerUid || store.ownerUid || "",
+                storeName: store.storeName || "Partner Store",
+                storePhotoUrl: store.photoUrl || "",
+                name: String(raw.name || ""),
+                cat: mappedCat,
+                price: Number(raw.price || 0),
+                basePrice: Number(raw.price || 0),
+                autoPriceEnabled: false,
+                unit: String(raw.unit || "pc"),
+                stock: Number(raw.stock || 0) > 0,
+                img: raw.imgUrl || store.photoUrl || "",
+                description: raw.description || "",
+              };
+            });
+          setProducts([...regularProducts, ...partnerProducts]);
+        };
 
         const bindProducts = () => {
           if (!_fbDb) return;
@@ -665,10 +711,29 @@
                 price: computeLivePrice(normalized, currentMarketPricing),
               });
             });
-            setProducts(prods);
+            baseProductsRaw = prods;
+            refreshMergedProducts();
           }, err => {
             console.error("Products listener error:", err.code);
           });
+        };
+
+        const bindPartnerCatalog = () => {
+          if (!_fbDb) return;
+          _fbDb.ref("partner_products").off();
+          _fbDb.ref("partner_stores").off();
+          unsubPartnerProducts = _fbDb.ref("partner_products").on("value", snap => {
+            const list = [];
+            snap.forEach(child => list.push({ id: child.key, ...(child.val() || {}) }));
+            partnerProductsRaw = list;
+            refreshMergedProducts();
+          }, err => console.error("Partner products listener error:", err.code));
+          unsubPartnerStores = _fbDb.ref("partner_stores").on("value", snap => {
+            const map = {};
+            snap.forEach(child => { map[child.key] = { id: child.key, ...(child.val() || {}) }; });
+            partnerStoresMap = map;
+            refreshMergedProducts();
+          }, err => console.error("Partner stores listener error:", err.code));
         };
 
         const bindMarketPricing = () => {
@@ -689,6 +754,7 @@
         try {
           bindMarketPricing();
           bindProducts();
+          bindPartnerCatalog();
           _fbAuth.getRedirectResult().catch(err => console.error("Redirect result error:", err));
           unsubAuth = _fbAuth.onAuthStateChanged(currentUser => {
             clearTimeout(timeout);
@@ -784,6 +850,8 @@
             _fbDb.ref("orders").off();
             _fbDb.ref("partner_orders").off();
             _fbDb.ref("products").off();
+            _fbDb.ref("partner_products").off();
+            _fbDb.ref("partner_stores").off();
             _fbDb.ref("settings/marketPricing").off();
           }
           if (activityIntervalId) clearInterval(activityIntervalId);
@@ -797,14 +865,63 @@
         try {
           if (!_fbDb) throw new Error("RTDB not initialized");
           const uid = _fbAuth.currentUser?.uid || null;
-          await _fbDb.ref("orders").push({
+          const savedOrder = {
             ...order,
             uid,
             userId: uid,
             userEmail: _fbAuth.currentUser?.email || null,
             status: order?.status || "pending",
             createdAt: order?.createdAt || Date.now(),
-          });
+          };
+          await _fbDb.ref("orders").push(savedOrder);
+
+          const partnerItems = (order?.items || []).filter(i => i?.source === "partner" && i?.partnerStoreId && i?.ownerUid);
+          if (partnerItems.length > 0) {
+            const grouped = partnerItems.reduce((acc, item) => {
+              const key = `${item.partnerStoreId}__${item.ownerUid}`;
+              if (!acc[key]) {
+                acc[key] = {
+                  partnerStoreId: item.partnerStoreId,
+                  ownerUid: item.ownerUid,
+                  storeName: item.storeName || "Partner Store",
+                  items: [],
+                };
+              }
+              acc[key].items.push(item);
+              return acc;
+            }, {});
+
+            await Promise.all(
+              Object.values(grouped).map((group) => {
+                const partnerSubtotal = group.items.reduce((sum, item) => {
+                  const qty = Number(item.qty || 1);
+                  const weightUnit = Number(item.weightUnit || 1);
+                  return sum + Number(item.price || 0) * qty * weightUnit;
+                }, 0);
+                return _fbDb.ref("partner_orders").push({
+                  uid,
+                  ownerUid: group.ownerUid,
+                  partnerStoreId: group.partnerStoreId,
+                  storeName: group.storeName,
+                  customerName: order?.customer?.name || "",
+                  customerPhone: order?.customer?.phone || "",
+                  customerAddr: order?.customer?.address || "",
+                  status: "pending",
+                  items: group.items.map(i => ({
+                    id: i.partnerProductId || i.id,
+                    name: i.name,
+                    price: Number(i.price || 0),
+                    qty: Number(i.qty || 1),
+                    unit: i.unit || "pc",
+                    weightUnit: i.weightUnit || 1,
+                    imgUrl: i.img || "",
+                  })),
+                  total: partnerSubtotal,
+                  createdAt: Date.now(),
+                });
+              })
+            );
+          }
         } catch (err) {
           console.error("RTDB write failed:", err.code, err.message);
           setSyncError(err.code || err.message || "sync-failed");
@@ -1306,9 +1423,16 @@
       };
       const removeCustom = id => setCustomItems(prev => prev.filter(i => i.id !== id));
 
-      const filtered = products.filter(p =>
-        p.cat === activeCat && (searchQ === "" || p.name.toLowerCase().includes(searchQ.toLowerCase()))
-      );
+      const filtered = products.filter(p => {
+        const byCat = p.cat === activeCat;
+        if (!byCat) return false;
+        if (searchQ === "") return true;
+        const q = searchQ.toLowerCase();
+        return (
+          String(p.name || "").toLowerCase().includes(q) ||
+          String(p.storeName || "").toLowerCase().includes(q)
+        );
+      });
 
       useEffect(() => {
         if (!_fbDb) return;
@@ -1391,6 +1515,11 @@
             weightUnit: i.unit === "kg" ? i.weightUnit : undefined,
             totalKg: i.unit === "kg" ? +(i.qty * i.weightUnit).toFixed(2) : undefined,
             price: i.unit === "kg" ? i.price : i.price,
+            source: i.source || "market",
+            partnerStoreId: i.partnerStoreId || null,
+            partnerProductId: i.partnerProductId || null,
+            storeName: i.storeName || null,
+            ownerUid: i.ownerUid || null,
           })),
           ...customItems.map(i => ({ ...i, price: i.estPrice })),
         ];
@@ -1640,6 +1769,11 @@
                     </div>
                   </div>
                   <div style={{ padding:"11px 14px 14px" }}>
+                    {p.source === "partner" && (
+                      <div style={{ fontSize:10, fontWeight:800, color:"#7C3AED", marginBottom:4, display:"flex", alignItems:"center", gap:4 }}>
+                        <Ic n="store" /> {p.storeName || "Partner Store"}
+                      </div>
+                    )}
                     <div style={{ fontSize:13, fontWeight:700, color:"#111", marginBottom:2, lineHeight:1.25 }}>{p.name}</div>
                     <div style={{ fontSize:11, color:"#aaa", marginBottom:8 }}>per {p.unit}</div>
                     {p.unit === "kg" && (
@@ -1831,6 +1965,11 @@
                       </div>
                       <div style={{ flex:1 }}>
                         <div style={{ fontSize:14, fontWeight:700, color:"#111" }}>{item.name}</div>
+                        {item.source === "partner" && (
+                          <div style={{ fontSize:10, color:"#7C3AED", fontWeight:700 }}>
+                            <Ic n="store" style={{marginRight:4}} />{item.storeName || "Partner Store"}
+                          </div>
+                        )}
                         <div style={{ fontSize:12, color:"#999" }}>
                           {item.unit === "kg"
                             ? `${fmt(item.price * item.weightUnit)} / ${item.weightUnit === 0.25 ? "¼kg" : item.weightUnit === 0.5 ? "½kg" : "1kg"}`
@@ -2053,6 +2192,7 @@
                     <div key={i.id} style={{ display:"flex", justifyContent:"space-between", padding:"5px 0", fontSize:13, color:"#555" }}>
                       <span>
                         {i.name}
+                        {i.source === "partner" ? ` (${i.storeName || "Partner Store"})` : ""}
                         {i.unit === "kg"
                           ? ` ×${i.qty} (${i.weightUnit === 0.25 ? "¼kg" : i.weightUnit === 0.5 ? "½kg" : "1kg"} bawat isa)`
                           : ` ×${i.qty}`}
@@ -2442,7 +2582,6 @@
           }}>
             {[
               { key:"shop",    icon:"cart-shopping", label:"Tindahan" },
-              { key:"stores",  icon:"store",         label:"Stores",  badge: 0 },
               { key:"orders",  icon:"box",           label:"Orders",  badge: activeOrders.length + partnerOrders.filter(o => o.status !== "delivered" && o.status !== "cancelled").length },
             ].map(t => (
               <button key={t.key} onClick={() => setActivePage(t.key)} style={{

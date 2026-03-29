@@ -15,6 +15,7 @@
     button { font-family: inherit; border: none; cursor: pointer; }
     input, textarea, select { font-family: inherit; }
     @keyframes slideUp { from { transform:translateY(30px); opacity:0; } to { transform:translateY(0); opacity:1; } }
+    @keyframes spin { to { transform:rotate(360deg); } }
     .slide-up { animation: slideUp .28s ease; }
   </style>
 </head>
@@ -40,20 +41,23 @@
       databaseURL: "https://bayango-315c6-default-rtdb.asia-southeast1.firebasedatabase.app",
     };
 
-    let _db=null, _fns=null, _auth=null, _authFns=null, _initPromise=null;
+    let _db=null, _fns=null, _auth=null, _authFns=null, _storage=null, _storageFns=null, _initPromise=null;
     async function initFirebase() {
-      if (_db && _auth) return { db:_db, fns:_fns, auth:_auth, authFns:_authFns };
+      if (_db && _auth && _storage) return { db:_db, fns:_fns, auth:_auth, authFns:_authFns, storage:_storage, storageFns:_storageFns };
       if (_initPromise) return _initPromise;
       _initPromise = (async () => {
         const { initializeApp, getApps, getApp } = await import("https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js");
         const { getDatabase, ref, push, set, update, remove, onValue, off, get, query: rtdbQuery, orderByChild, equalTo } = await import("https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js");
         const { getAuth, signInWithPopup, GoogleAuthProvider, onAuthStateChanged, signOut } = await import("https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js");
+        const { getStorage, ref: storageRef, uploadBytes, getDownloadURL } = await import("https://www.gstatic.com/firebasejs/10.12.0/firebase-storage.js");
         const app = getApps().length ? getApp() : initializeApp(FIREBASE_CONFIG);
         _db = getDatabase(app, FIREBASE_CONFIG.databaseURL);
         _auth = getAuth(app);
+        _storage = getStorage(app);
         _fns = { ref, push, set, update, remove, onValue, off, get, rtdbQuery, orderByChild, equalTo };
+        _storageFns = { storageRef, uploadBytes, getDownloadURL };
         _authFns = { signInWithPopup, GoogleAuthProvider, onAuthStateChanged, signOut };
-        return { db:_db, fns:_fns, auth:_auth, authFns:_authFns };
+        return { db:_db, fns:_fns, auth:_auth, authFns:_authFns, storage:_storage, storageFns:_storageFns };
       })();
       return _initPromise;
     }
@@ -80,6 +84,8 @@
       const [savingProduct, setSavingProduct]   = useState(false);
       const [deletingId, setDeletingId] = useState(null);
       const [ordersFilter, setOrdersFilter]     = useState("active");
+      const [uploadingProductImage, setUploadingProductImage] = useState(false);
+      const [uploadingStorePhoto, setUploadingStorePhoto] = useState(false);
 
       useEffect(() => {
         let unsubAuth, unsubStore, unsubProducts, unsubOrders, unsubNotif;
@@ -207,6 +213,44 @@
         }
       };
 
+      const uploadImage = async (file, pathPrefix) => {
+        if (!file) return "";
+        const { storage, storageFns } = await initFirebase();
+        const ext = (file.name || "jpg").split(".").pop().replace(/[^a-zA-Z0-9]/g, "") || "jpg";
+        const safePrefix = String(pathPrefix || "uploads").replace(/[^a-zA-Z0-9/_-]/g, "");
+        const path = `${safePrefix}/${Date.now()}_${Math.random().toString(36).slice(2,8)}.${ext}`;
+        const ref = storageFns.storageRef(storage, path);
+        await storageFns.uploadBytes(ref, file);
+        return storageFns.getDownloadURL(ref);
+      };
+
+      const uploadProductImage = async (file) => {
+        if (!file || !store?.id) return;
+        setUploadingProductImage(true);
+        try {
+          const url = await uploadImage(file, `partner_products/${store.id}`);
+          setForm(f => ({ ...f, imgUrl: url }));
+        } catch (err) {
+          alert("Hindi ma-upload ang larawan: " + (err.message || err.code));
+        } finally {
+          setUploadingProductImage(false);
+        }
+      };
+
+      const uploadStorePhoto = async (file) => {
+        if (!file || !store?.id) return;
+        setUploadingStorePhoto(true);
+        try {
+          const { db, fns } = await initFirebase();
+          const url = await uploadImage(file, `partner_stores/${store.id}`);
+          await fns.update(fns.ref(db, "partner_stores/" + store.id), { photoUrl: url, updatedAt: Date.now() });
+        } catch (err) {
+          alert("Hindi ma-upload ang larawan ng store: " + (err.message || err.code));
+        } finally {
+          setUploadingStorePhoto(false);
+        }
+      };
+
       if (!ready) return (
         <div style={{minHeight:"100vh", display:"grid", placeItems:"center", background:"#F0FDF4"}}>
           <div style={{textAlign:"center"}}>
@@ -283,11 +327,19 @@
             padding:"14px 16px", display:"flex", justifyContent:"space-between", alignItems:"center",
             boxShadow:"0 4px 14px rgba(22,101,52,.3)",
           }}>
-            <div>
+            <div style={{display:"flex", alignItems:"center", gap:10}}>
+              <div style={{width:42, height:42, borderRadius:12, overflow:"hidden", background:"rgba(255,255,255,.18)", display:"grid", placeItems:"center", flexShrink:0}}>
+                {store.photoUrl
+                  ? <img src={store.photoUrl} alt={store.storeName || "Store"} style={{width:"100%", height:"100%", objectFit:"cover"}} />
+                  : <Ic n="store" size={18} style={{color:"#fff"}} />
+                }
+              </div>
+              <div>
               <div style={{fontWeight:800, fontSize:16}}>{store.storeName || "Partner Store"}</div>
               <div style={{fontSize:11, opacity:.85, marginTop:2}}>
                 <Ic n="tag" style={{marginRight:4}} />{store.category || "General"}
                 <span style={{marginLeft:10}}><Ic n="location-dot" style={{marginRight:4}} />{store.location || ""}</span>
+              </div>
               </div>
             </div>
             <button onClick={logout} style={{background:"rgba(255,255,255,.18)", color:"#fff", borderRadius:10, padding:"8px 12px", fontSize:12, fontWeight:700}}>
@@ -329,6 +381,26 @@
           {tab === "products" && (
             <div style={{padding:"14px 16px"}}>
               <div style={{background:"#fff", border:"1px solid #E5E7EB", borderRadius:16, padding:16, marginBottom:14}}>
+                <div style={{fontSize:14, fontWeight:800, marginBottom:10, color:"#166534"}}>
+                  <Ic n="palette" style={{marginRight:6}} />Pagandahin ang Store Mo
+                </div>
+                <div style={{display:"flex", alignItems:"center", gap:12}}>
+                  <div style={{width:70, height:70, borderRadius:14, overflow:"hidden", background:"#F0FDF4", display:"grid", placeItems:"center", flexShrink:0}}>
+                    {store.photoUrl
+                      ? <img src={store.photoUrl} alt={store.storeName || "Store"} style={{width:"100%", height:"100%", objectFit:"cover"}} />
+                      : <Ic n="image" size={22} style={{color:"#86EFAC"}} />
+                    }
+                  </div>
+                  <label style={{display:"inline-flex", alignItems:"center", gap:8, padding:"10px 12px", borderRadius:10, background:"#F0FDF4", border:"1px solid #BBF7D0", color:"#166534", fontSize:12, fontWeight:800, cursor:"pointer"}}>
+                    <Ic n={uploadingStorePhoto ? "spinner" : "arrow-up-from-bracket"} style={uploadingStorePhoto ? {animation:"spin 1s linear infinite"} : {}} />
+                    {uploadingStorePhoto ? "Ina-upload..." : "Upload Store Photo"}
+                    <input type="file" accept="image/*" style={{display:"none"}} onChange={e => { if (e.target.files?.[0]) uploadStorePhoto(e.target.files[0]); e.target.value = ""; }} />
+                  </label>
+                </div>
+                <div style={{fontSize:11, color:"#6B7280", marginTop:8}}>Pwede mag-upload diretso mula sa phone o PC. Hindi kailangan ng image link.</div>
+              </div>
+
+              <div style={{background:"#fff", border:"1px solid #E5E7EB", borderRadius:16, padding:16, marginBottom:14}}>
                 <div style={{fontSize:14, fontWeight:800, marginBottom:12, color:"#166534"}}>
                   <Ic n={editingProduct ? "pen" : "plus"} style={{marginRight:6}} />
                   {editingProduct ? `I-edit: ${editingProduct.name}` : "Magdagdag ng Product"}
@@ -368,6 +440,11 @@
                   onChange={e => setForm(f => ({...f, imgUrl:e.target.value}))}
                   style={{width:"100%", marginBottom:10, padding:"10px 12px", border:"1px solid #D1D5DB", borderRadius:10, fontSize:13}}
                 />
+                <label style={{display:"inline-flex", alignItems:"center", gap:8, padding:"10px 12px", borderRadius:10, background:"#F0FDF4", border:"1px solid #BBF7D0", color:"#166534", fontSize:12, fontWeight:800, cursor:"pointer", marginBottom:10}}>
+                  <Ic n={uploadingProductImage ? "spinner" : "camera"} style={uploadingProductImage ? {animation:"spin 1s linear infinite"} : {}} />
+                  {uploadingProductImage ? "Ina-upload..." : "Upload Product Photo"}
+                  <input type="file" accept="image/*" style={{display:"none"}} onChange={e => { if (e.target.files?.[0]) uploadProductImage(e.target.files[0]); e.target.value = ""; }} />
+                </label>
                 <div style={{display:"grid", gridTemplateColumns: editingProduct ? "1fr 1fr" : "1fr", gap:8}}>
                   <button onClick={saveProduct} disabled={savingProduct} style={{
                     padding:"11px", borderRadius:12, background:"#166534", color:"#fff", fontWeight:800, fontSize:13,
