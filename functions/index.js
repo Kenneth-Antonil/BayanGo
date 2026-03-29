@@ -1,6 +1,6 @@
 const { onSchedule } = require("firebase-functions/v2/scheduler");
 const { onValueCreated, onValueUpdated } = require("firebase-functions/v2/database");
-const { onRequest, onCall } = require("firebase-functions/v2/https");
+const { onRequest, onCall, HttpsError } = require("firebase-functions/v2/https");
 const { defineSecret } = require("firebase-functions/params");
 const { initializeApp } = require("firebase-admin/app");
 const { getDatabase } = require("firebase-admin/database");
@@ -640,21 +640,21 @@ exports.onOrderUpdated = onValueUpdated(
 exports.createPaymongoQR = onCall(
   { region: "us-central1", secrets: [PAYMONGO_SECRET_KEY] },
   async (request) => {
-    if (!request.auth) throw new Error("Kailangan mag-login bago magbayad.");
+    if (!request.auth) throw new HttpsError("unauthenticated", "Kailangan mag-login bago magbayad.");
 
     const { orderId } = request.data || {};
-    if (!orderId) throw new Error("Walang orderId.");
+    if (!orderId) throw new HttpsError("invalid-argument", "Walang orderId.");
 
     const db = getDatabase();
     const orderSnap = await db.ref(`orders/${orderId}`).get();
-    if (!orderSnap.exists()) throw new Error("Hindi mahanap ang order.");
+    if (!orderSnap.exists()) throw new HttpsError("not-found", "Hindi mahanap ang order.");
 
     const order = orderSnap.val();
-    if (order.uid !== request.auth.uid) throw new Error("Hindi mo order ito.");
-    if (order.paymentStatus === "paid") throw new Error("Bayad na ang order na ito.");
+    if (order.uid !== request.auth.uid) throw new HttpsError("permission-denied", "Hindi mo order ito.");
+    if (order.paymentStatus === "paid") throw new HttpsError("failed-precondition", "Bayad na ang order na ito.");
 
     const amountCentavos = Math.round((Number(order.total) || 0) * 100);
-    if (amountCentavos < 2000) throw new Error("Minimum na bayad ay ₱20.");
+    if (amountCentavos < 2000) throw new HttpsError("invalid-argument", "Minimum na bayad ay ₱20.");
 
     const secretKey = PAYMONGO_SECRET_KEY.value();
     const authHeader = "Basic " + Buffer.from(secretKey + ":").toString("base64");
@@ -679,7 +679,7 @@ exports.createPaymongoQR = onCall(
     });
     const intentJson = await intentRes.json();
     if (!intentRes.ok) {
-      throw new Error(intentJson?.errors?.[0]?.detail || `PayMongo error ${intentRes.status}`);
+      throw new HttpsError("internal", intentJson?.errors?.[0]?.detail || `PayMongo error ${intentRes.status}`);
     }
     const intentId = intentJson.data.id;
     const clientKey = intentJson.data.attributes.client_key;
@@ -692,7 +692,7 @@ exports.createPaymongoQR = onCall(
     });
     const methodJson = await methodRes.json();
     if (!methodRes.ok) {
-      throw new Error(methodJson?.errors?.[0]?.detail || `PayMongo error ${methodRes.status}`);
+      throw new HttpsError("internal", methodJson?.errors?.[0]?.detail || `PayMongo error ${methodRes.status}`);
     }
     const methodId = methodJson.data.id;
 
@@ -711,14 +711,14 @@ exports.createPaymongoQR = onCall(
     });
     const attachJson = await attachRes.json();
     if (!attachRes.ok) {
-      throw new Error(attachJson?.errors?.[0]?.detail || `PayMongo attach error ${attachRes.status}`);
+      throw new HttpsError("internal", attachJson?.errors?.[0]?.detail || `PayMongo attach error ${attachRes.status}`);
     }
 
     const nextAction = attachJson.data?.attributes?.next_action;
     const qrImageUrl = nextAction?.display_details?.qr_image_url || null;
     const qrString   = nextAction?.display_details?.qr_string || null;
 
-    if (!qrImageUrl) throw new Error("Hindi makuha ang QR code mula sa PayMongo.");
+    if (!qrImageUrl) throw new HttpsError("internal", "Hindi makuha ang QR code mula sa PayMongo.");
 
     // I-save sa order para ma-track ng webhook
     await db.ref(`orders/${orderId}`).update({
