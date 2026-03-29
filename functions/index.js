@@ -640,6 +640,23 @@ exports.onOrderUpdated = onValueUpdated(
 exports.createPaymongoQR = onRequest(
   { region: "us-central1", secrets: ["PAYMONGO_SECRET_KEY"], timeoutSeconds: 60, cors: true },
   async (req, res) => {
+    const readJsonSafe = async (httpRes) => {
+      const raw = await httpRes.text();
+      if (!raw) return {};
+      try {
+        return JSON.parse(raw);
+      } catch {
+        return { _raw: raw };
+      }
+    };
+
+    const extractPaymongoError = (payload, fallbackMessage) => {
+      if (payload?.errors?.[0]?.detail) return payload.errors[0].detail;
+      if (payload?.errors?.[0]?.title) return payload.errors[0].title;
+      if (typeof payload?._raw === "string" && payload._raw.trim()) return payload._raw.slice(0, 300);
+      return fallbackMessage;
+    };
+
     if (req.method !== "POST") {
       res.status(405).json({ ok: false, error: "Method not allowed" });
       return;
@@ -712,9 +729,9 @@ exports.createPaymongoQR = onRequest(
           },
         }),
       });
-      const intentJson = await intentRes.json();
+      const intentJson = await readJsonSafe(intentRes);
       if (!intentRes.ok) {
-        const msg = intentJson?.errors?.[0]?.detail || `PayMongo error ${intentRes.status}`;
+        const msg = extractPaymongoError(intentJson, `PayMongo error ${intentRes.status}`);
         console.error("[createPaymongoQR] Intent error:", msg);
         res.status(502).json({ ok: false, error: msg });
         return;
@@ -728,9 +745,9 @@ exports.createPaymongoQR = onRequest(
         headers: pmHeaders,
         body: JSON.stringify({ data: { attributes: { type: "qrph" } } }),
       });
-      const methodJson = await methodRes.json();
+      const methodJson = await readJsonSafe(methodRes);
       if (!methodRes.ok) {
-        const msg = methodJson?.errors?.[0]?.detail || `PayMongo error ${methodRes.status}`;
+        const msg = extractPaymongoError(methodJson, `PayMongo error ${methodRes.status}`);
         console.error("[createPaymongoQR] Method error:", msg);
         res.status(502).json({ ok: false, error: msg });
         return;
@@ -745,9 +762,9 @@ exports.createPaymongoQR = onRequest(
           data: { attributes: { payment_method: methodId, client_key: clientKey } },
         }),
       });
-      const attachJson = await attachRes.json();
+      const attachJson = await readJsonSafe(attachRes);
       if (!attachRes.ok) {
-        const msg = attachJson?.errors?.[0]?.detail || `PayMongo attach error ${attachRes.status}`;
+        const msg = extractPaymongoError(attachJson, `PayMongo attach error ${attachRes.status}`);
         console.error("[createPaymongoQR] Attach error:", msg);
         res.status(502).json({ ok: false, error: msg });
         return;
@@ -755,8 +772,9 @@ exports.createPaymongoQR = onRequest(
 
       const nextAction = attachJson.data?.attributes?.next_action;
       const dd = nextAction?.display_details || {};
-      const qrImageUrl = dd.qr_image_url || dd.qr_image || null;
       const qrString   = dd.qr_string   || dd.qr_code  || null;
+      const qrImageUrl = dd.qr_image_url || dd.qr_image ||
+        (qrString ? `https://api.qrserver.com/v1/create-qr-code/?size=240x240&data=${encodeURIComponent(qrString)}` : null);
 
       console.log("[createPaymongoQR] next_action:", JSON.stringify(nextAction));
 
