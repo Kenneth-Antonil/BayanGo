@@ -853,6 +853,37 @@
               createdAt: app.createdAt || Date.now(),
               updatedAt: Date.now(),
             });
+            if (app.uid) {
+              await fns.set(fns.ref(db, "notifications/" + app.uid + "/partner_approval"), {
+                type: "partner_approved",
+                storeName: app.storeName || "",
+                message: "Na-approve na ang iyong Partner Store application! Maaari mo nang gamitin ang BayanGo Partner App.",
+                adminNotes: adminNotes || "",
+                createdAt: Date.now(),
+                read: false,
+              });
+            }
+          }
+          if (status === "more_info" && app.uid) {
+            await fns.set(fns.ref(db, "notifications/" + app.uid + "/partner_more_info"), {
+              type: "partner_more_info",
+              storeName: app.storeName || "",
+              message: "Kailangan ng karagdagang impormasyon para sa iyong Partner Store application.",
+              requestedMoreInfo: requestedMoreInfo || "",
+              adminNotes: adminNotes || "",
+              createdAt: Date.now(),
+              read: false,
+            });
+          }
+          if (status === "declined" && app.uid) {
+            await fns.set(fns.ref(db, "notifications/" + app.uid + "/partner_declined"), {
+              type: "partner_declined",
+              storeName: app.storeName || "",
+              message: "Hindi na-approve ang iyong Partner Store application.",
+              adminNotes: adminNotes || "",
+              createdAt: Date.now(),
+              read: false,
+            });
           }
         } catch (err) {
           alert("Error: " + (err.message || err.code));

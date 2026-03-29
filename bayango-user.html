@@ -600,8 +600,9 @@
 
     /* ══════════════════ MAIN APP ══════════════════ */
     function App() {
-      const [products,    setProducts]    = useState([]);
-      const [orders,      setOrders]      = useState([]);
+      const [products,      setProducts]      = useState([]);
+      const [orders,        setOrders]        = useState([]);
+      const [partnerOrders, setPartnerOrders] = useState([]);
       const [user,        setUser]        = useState(null);
       const [loading,     setLoading]     = useState(true);
       const [isStandalone, setIsStandalone] = useState(isStandaloneMode());
@@ -756,8 +757,17 @@
                   trackUserAppUsage(currentUser).catch(err => console.error("Usage interval sync error:", err));
                 }
               }, 60 * 1000);
+              // Listen for this user's partner store orders
+              const partnerOrdersRef = _fbDb.ref("partner_orders").orderByChild("uid").equalTo(currentUser.uid);
+              partnerOrdersRef.on("value", snap => {
+                const list = [];
+                snap.forEach(child => list.push({ id: child.key, ...child.val() }));
+                setPartnerOrders(list.sort((a,b) => (b.createdAt||0) - (a.createdAt||0)));
+              }, err => console.error("Partner orders listener:", err.code));
+
             } else {
               setOrders([]);
+              setPartnerOrders([]);
               setPushError("");
               setPushBusy(false);
             }
@@ -772,6 +782,7 @@
           unsubAuth?.();
           if (_fbDb) {
             _fbDb.ref("orders").off();
+            _fbDb.ref("partner_orders").off();
             _fbDb.ref("products").off();
             _fbDb.ref("settings/marketPricing").off();
           }
@@ -1030,7 +1041,7 @@
 
       return (
         <>
-          <UserApp products={products} orders={orders} onOrder={addOrder} user={user} onLogout={handleLogout} gcashSettings={gcashSettings} onOpenLegal={setOpenLegalDoc} />
+          <UserApp products={products} orders={orders} partnerOrders={partnerOrders} onOrder={addOrder} user={user} onLogout={handleLogout} gcashSettings={gcashSettings} onOpenLegal={setOpenLegalDoc} />
           {pushPermission !== "granted" && (
             <div className="pop" style={{
               position:"fixed", bottom:"calc(env(safe-area-inset-bottom,0px) + 16px)", left:16, right:16, zIndex:9998,
@@ -1138,8 +1149,24 @@
     }
 
     /* ══════════════════ USER APP ══════════════════ */
-    function UserApp({ products, orders, onOrder, user, onLogout, gcashSettings, onOpenLegal }) {
+    function UserApp({ products, orders, partnerOrders, onOrder, user, onLogout, gcashSettings, onOpenLegal }) {
       const [activeCat,      setActiveCat]      = useState("isda");
+      const [partnerStores,  setPartnerStores]  = useState([]);
+
+      useEffect(() => {
+        if (!_fbDb) return;
+        const ref = _fbDb.ref("partner_stores");
+        ref.on("value", snap => {
+          const list = [];
+          snap.forEach(c => {
+            const v = c.val();
+            if (v && v.ownerUid) list.push({ id: c.key, ...v });
+          });
+          list.sort((a, b) => Number(b.approvedAt||b.createdAt||0) - Number(a.approvedAt||a.createdAt||0));
+          setPartnerStores(list);
+        }, err => console.error("Partner stores listener:", err.code));
+        return () => ref.off();
+      }, []);
       const [cart,           setCart]           = useState({});
       const [showCart,       setShowCart]       = useState(false);
       const [showCheckout,   setShowCheckout]   = useState(false);
@@ -2185,11 +2212,23 @@
 
           </> /* end shop page */}
 
+          {/* ── STORES PAGE ── */}
+          {activePage === "stores" && (
+            <PartnerStoresPage
+              stores={partnerStores}
+              user={user}
+              name={name}
+              phone={phone}
+              addr={addr}
+            />
+          )}
+
           {/* ── ORDERS PAGE ── */}
           {activePage === "orders" && (
             <OrdersErrorBoundary>
               <OrdersPage
                 orders={myOrders}
+                partnerOrders={partnerOrders}
                 onTrack={setShowTracker}
                 onTrackRider={setShowRiderMap}
                 canCancelOrder={canCancelOrder}
@@ -2403,7 +2442,8 @@
           }}>
             {[
               { key:"shop",    icon:"cart-shopping", label:"Tindahan" },
-              { key:"orders",  icon:"box",           label:"Orders", badge: activeOrders.length },
+              { key:"stores",  icon:"store",         label:"Stores",  badge: 0 },
+              { key:"orders",  icon:"box",           label:"Orders",  badge: activeOrders.length + partnerOrders.filter(o => o.status !== "delivered" && o.status !== "cancelled").length },
             ].map(t => (
               <button key={t.key} onClick={() => setActivePage(t.key)} style={{
                 flex:1, padding:"11px 0 9px", display:"flex", flexDirection:"column", alignItems:"center", gap:3,
@@ -2424,6 +2464,305 @@
             ))}
           </div>
 
+        </div>
+      );
+    }
+
+    /* ══════════════════ PARTNER STORES PAGE ══════════════════ */
+    function PartnerStoresPage({ stores, user, name, phone, addr }) {
+      const [selectedStore,  setSelectedStore]  = useState(null);
+      const [storeProducts,  setStoreProducts]  = useState([]);
+      const [cart,           setCart]           = useState({});
+      const [showCheckout,   setShowCheckout]   = useState(false);
+      const [placing,        setPlacing]        = useState(false);
+      const [orderDone,      setOrderDone]      = useState(false);
+      const [localName,      setLocalName]      = useState(name || "");
+      const [localPhone,     setLocalPhone]     = useState(phone || "");
+      const [localAddr,      setLocalAddr]      = useState(addr || "");
+      const [searchQ,        setSearchQ]        = useState("");
+
+      useEffect(() => {
+        setLocalName(name || "");
+        setLocalPhone(phone || "");
+        setLocalAddr(addr || "");
+      }, [name, phone, addr]);
+
+      useEffect(() => {
+        if (!selectedStore || !_fbDb) { setStoreProducts([]); return; }
+        const ref = _fbDb.ref("partner_products").orderByChild("partnerStoreId").equalTo(selectedStore.id);
+        ref.on("value", snap => {
+          const list = [];
+          snap.forEach(c => {
+            const v = c.val();
+            if (v && v.active !== false) list.push({ id: c.key, ...v });
+          });
+          list.sort((a, b) => Number(a.createdAt||0) - Number(b.createdAt||0));
+          setStoreProducts(list);
+        }, err => console.error("Store products listener:", err.code));
+        return () => ref.off();
+      }, [selectedStore?.id]);
+
+      const cartItems = Object.entries(cart)
+        .filter(([,q]) => q > 0)
+        .map(([id, qty]) => {
+          const prod = storeProducts.find(p => p.id === id);
+          return prod ? { ...prod, qty } : null;
+        }).filter(Boolean);
+
+      const cartTotal = cartItems.reduce((s, i) => s + i.price * i.qty, 0);
+      const cartCount = cartItems.reduce((s, i) => s + i.qty, 0);
+      const add = id => setCart(c => ({ ...c, [id]: (c[id]||0) + 1 }));
+      const rem = id => setCart(c => {
+        const n = { ...c };
+        if (n[id] > 1) n[id]--; else delete n[id];
+        return n;
+      });
+
+      const placeOrder = async () => {
+        if (!localName.trim() || !localPhone.trim()) {
+          alert("Ilagay ang iyong pangalan at phone number.");
+          return;
+        }
+        if (cartItems.length === 0) return;
+        setPlacing(true);
+        try {
+          const uid = _fbAuth?.currentUser?.uid || user?.uid;
+          await _fbDb.ref("partner_orders").push({
+            uid,
+            partnerStoreId: selectedStore.id,
+            ownerUid: selectedStore.ownerUid,
+            storeName: selectedStore.storeName,
+            customerName: localName.trim(),
+            customerPhone: localPhone.trim(),
+            customerAddr: localAddr.trim(),
+            items: cartItems.map(i => ({ id: i.id, name: i.name, price: i.price, qty: i.qty })),
+            total: cartTotal,
+            status: "pending",
+            createdAt: Date.now(),
+            updatedAt: Date.now(),
+          });
+          setCart({});
+          setShowCheckout(false);
+          setOrderDone(true);
+          setTimeout(() => setOrderDone(false), 3500);
+        } catch(err) {
+          alert("Hindi na-place ang order: " + (err.message || err.code));
+        } finally {
+          setPlacing(false);
+        }
+      };
+
+      const filteredStores = stores.filter(s =>
+        searchQ === "" ||
+        (s.storeName||"").toLowerCase().includes(searchQ.toLowerCase()) ||
+        (s.category||"").toLowerCase().includes(searchQ.toLowerCase()) ||
+        (s.location||"").toLowerCase().includes(searchQ.toLowerCase())
+      );
+
+      /* ── Store list ── */
+      if (!selectedStore) return (
+        <div style={{ padding:"0 0 20px" }}>
+          <div style={{ padding:"16px 20px 10px" }}>
+            <h2 style={{ fontSize:18, fontWeight:800, color:"#111", marginBottom:4 }}>
+              <Ic n="store" style={{marginRight:8, color:"#166534"}} />Mga Partner Stores
+            </h2>
+            <p style={{ fontSize:12, color:"#9CA3AF" }}>Local stores sa inyong lugar</p>
+          </div>
+
+          <div style={{ padding:"0 20px 12px" }}>
+            <div style={{ background:"#fff", borderRadius:14, padding:"10px 14px", display:"flex", alignItems:"center", gap:8, border:"1px solid #E5E7EB" }}>
+              <Ic n="magnifying-glass" size={15} style={{opacity:.4}} />
+              <input
+                placeholder="Maghanap ng store o kategorya..."
+                value={searchQ}
+                onChange={e => setSearchQ(e.target.value)}
+                style={{ flex:1, border:"none", outline:"none", fontSize:14, background:"transparent" }}
+              />
+              {searchQ && <button onClick={() => setSearchQ("")} style={{opacity:.4}}><Ic n="xmark" /></button>}
+            </div>
+          </div>
+
+          {filteredStores.length === 0 ? (
+            <div style={{ textAlign:"center", padding:"60px 20px" }}>
+              <Ic n="store-slash" size={40} style={{ display:"block", marginBottom:12, color:"#D1D5DB" }} />
+              <div style={{ fontSize:15, fontWeight:700, color:"#555" }}>
+                {stores.length === 0 ? "Wala pang partner stores" : "Walang nahanap"}
+              </div>
+              <div style={{ fontSize:12, color:"#aaa", marginTop:6 }}>
+                {stores.length === 0 ? "Magdadating na ang mga bagong stores soon." : "Subukan ng ibang keyword."}
+              </div>
+            </div>
+          ) : filteredStores.map(store => (
+            <div key={store.id} style={{ padding:"0 20px 10px" }}>
+              <button onClick={() => { setSelectedStore(store); setCart({}); }} style={{
+                width:"100%", textAlign:"left", background:"#fff",
+                borderRadius:16, padding:16,
+                border:"1px solid #E5E7EB", boxShadow:"0 2px 8px rgba(0,0,0,.05)",
+                display:"flex", alignItems:"center", gap:14,
+              }}>
+                <div style={{
+                  width:50, height:50, borderRadius:14, background:"#F0FDF4",
+                  display:"flex", alignItems:"center", justifyContent:"center", flexShrink:0,
+                }}>
+                  <Ic n="store" size={22} style={{ color:"#166534" }} />
+                </div>
+                <div style={{ flex:1, minWidth:0 }}>
+                  <div style={{ fontSize:15, fontWeight:800, color:"#111" }}>{store.storeName}</div>
+                  <div style={{ fontSize:12, color:"#6B7280", marginTop:2 }}>
+                    <Ic n="tag" style={{marginRight:4}} />{store.category || "General"}
+                  </div>
+                  <div style={{ fontSize:11, color:"#9CA3AF", marginTop:2 }}>
+                    <Ic n="location-dot" style={{marginRight:4}} />{store.location}
+                  </div>
+                </div>
+                <Ic n="chevron-right" size={13} style={{color:"#D1D5DB", flexShrink:0}} />
+              </button>
+            </div>
+          ))}
+        </div>
+      );
+
+      /* ── Store detail + products ── */
+      return (
+        <div style={{ paddingBottom: cartCount > 0 ? 140 : 20 }}>
+          <div style={{ background:"linear-gradient(135deg,#166534,#14532D)", color:"#fff", padding:"14px 16px" }}>
+            <button onClick={() => { setSelectedStore(null); setCart({}); }} style={{
+              background:"rgba(255,255,255,.18)", color:"#fff", borderRadius:10,
+              padding:"6px 12px", fontSize:12, fontWeight:700, marginBottom:10,
+              display:"inline-flex", alignItems:"center", gap:6,
+            }}>
+              <Ic n="arrow-left" /> Bumalik
+            </button>
+            <div style={{ fontSize:17, fontWeight:800 }}>{selectedStore.storeName}</div>
+            <div style={{ fontSize:12, opacity:.85, marginTop:3 }}>
+              <Ic n="tag" style={{marginRight:4}} />{selectedStore.category}
+              <span style={{marginLeft:12}}><Ic n="location-dot" style={{marginRight:4}} />{selectedStore.location}</span>
+            </div>
+          </div>
+
+          <div style={{ padding:"14px 16px" }}>
+            {storeProducts.length === 0 ? (
+              <div style={{ textAlign:"center", padding:"50px 0" }}>
+                <Ic n="box-open" size={34} style={{ display:"block", marginBottom:10, color:"#D1D5DB" }} />
+                <div style={{ fontSize:14, fontWeight:700, color:"#555" }}>Wala pang products</div>
+                <div style={{ fontSize:12, color:"#aaa", marginTop:4 }}>Hindi pa nag-a-add ng products ang store na ito.</div>
+              </div>
+            ) : (
+              <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:10 }}>
+                {storeProducts.map(p => (
+                  <div key={p.id} style={{
+                    background:"#fff", borderRadius:14, overflow:"hidden",
+                    border:"1px solid #E5E7EB", boxShadow:"0 1px 4px rgba(0,0,0,.05)",
+                    opacity: p.stock > 0 ? 1 : 0.5,
+                  }}>
+                    {p.imgUrl && (
+                      <img src={p.imgUrl} alt={p.name} style={{ width:"100%", height:100, objectFit:"cover" }} />
+                    )}
+                    <div style={{ padding:10 }}>
+                      <div style={{ fontSize:13, fontWeight:800, color:"#111", marginBottom:2 }}>{p.name}</div>
+                      {p.description && <div style={{ fontSize:10, color:"#9CA3AF", lineHeight:1.4, marginBottom:4 }}>{p.description}</div>}
+                      <div style={{ fontSize:14, fontWeight:800, color:"#166534", marginBottom:8 }}>
+                        ₱{Number(p.price||0).toLocaleString("en-PH")}
+                      </div>
+                      {p.stock > 0 ? (
+                        cart[p.id] > 0 ? (
+                          <div style={{ display:"flex", alignItems:"center", gap:6 }}>
+                            <button onClick={() => rem(p.id)} style={{
+                              width:30, height:30, borderRadius:8, background:"#FEE2E2", color:"#B91C1C", fontWeight:800, fontSize:16,
+                            }}>−</button>
+                            <span style={{ flex:1, textAlign:"center", fontSize:14, fontWeight:800 }}>{cart[p.id]}</span>
+                            <button onClick={() => add(p.id)} style={{
+                              width:30, height:30, borderRadius:8, background:"#DCFCE7", color:"#166534", fontWeight:800, fontSize:16,
+                            }}>+</button>
+                          </div>
+                        ) : (
+                          <button onClick={() => add(p.id)} style={{
+                            width:"100%", padding:"8px", borderRadius:10,
+                            background:"#166534", color:"#fff", fontWeight:700, fontSize:12,
+                          }}>I-add sa Cart</button>
+                        )
+                      ) : (
+                        <div style={{ fontSize:11, color:"#9CA3AF", fontWeight:700, textAlign:"center" }}>Wala nang stock</div>
+                      )}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+
+          {/* Float cart button */}
+          {cartCount > 0 && !showCheckout && (
+            <div style={{ position:"fixed", bottom:"calc(60px + env(safe-area-inset-bottom,0px) + 12px)", left:16, right:16, maxWidth:448, margin:"0 auto", zIndex:200 }}>
+              <button onClick={() => setShowCheckout(true)} style={{
+                width:"100%", padding:"14px 18px", borderRadius:16,
+                background:"linear-gradient(135deg,#166534,#22C55E)", color:"#fff",
+                fontSize:14, fontWeight:800, display:"flex", alignItems:"center", justifyContent:"space-between",
+                boxShadow:"0 6px 24px rgba(22,101,52,.45)",
+              }}>
+                <span style={{ background:"rgba(255,255,255,.25)", borderRadius:8, padding:"2px 8px", fontSize:12 }}>{cartCount} items</span>
+                <span>I-checkout · ₱{cartTotal.toLocaleString("en-PH")}</span>
+                <Ic n="bag-shopping" />
+              </button>
+            </div>
+          )}
+
+          {/* Checkout modal */}
+          {showCheckout && (
+            <div style={{ position:"fixed", inset:0, background:"rgba(0,0,0,.55)", zIndex:300, display:"flex", alignItems:"flex-end" }}
+              onClick={() => setShowCheckout(false)}>
+              <div className="pop" onClick={e => e.stopPropagation()} style={{
+                width:"100%", maxWidth:480, margin:"0 auto", background:"#fff",
+                borderRadius:"20px 20px 0 0", padding:20,
+                paddingBottom:"calc(20px + env(safe-area-inset-bottom,0px))",
+                maxHeight:"88vh", overflowY:"auto",
+              }}>
+                <div style={{ fontSize:16, fontWeight:800, marginBottom:14 }}>
+                  <Ic n="bag-shopping" style={{marginRight:8, color:"#166534"}} />I-checkout — {selectedStore.storeName}
+                </div>
+                <div style={{ background:"#F8FAF8", borderRadius:12, padding:12, marginBottom:14 }}>
+                  {cartItems.map(i => (
+                    <div key={i.id} style={{ display:"flex", justifyContent:"space-between", fontSize:13, marginBottom:5 }}>
+                      <span style={{color:"#374151"}}>{i.name} ×{i.qty}</span>
+                      <span style={{fontWeight:700}}>₱{(i.price*i.qty).toLocaleString("en-PH")}</span>
+                    </div>
+                  ))}
+                  <div style={{ borderTop:"1px dashed #E5E7EB", paddingTop:8, marginTop:4, display:"flex", justifyContent:"space-between", fontWeight:800, fontSize:15 }}>
+                    <span>Total</span>
+                    <span style={{color:"#166534"}}>₱{cartTotal.toLocaleString("en-PH")}</span>
+                  </div>
+                </div>
+                <label style={{ fontSize:12, fontWeight:700, color:"#666", display:"block", marginBottom:8 }}>Iyong Impormasyon</label>
+                <input value={localName} onChange={e => setLocalName(e.target.value)}
+                  placeholder="Pangalan *" style={{ width:"100%", border:"1px solid #E5E7EB", borderRadius:10, padding:"10px 12px", marginBottom:8, fontSize:14 }} />
+                <input value={localPhone} onChange={e => setLocalPhone(e.target.value)}
+                  placeholder="Phone / Mobile Number *" style={{ width:"100%", border:"1px solid #E5E7EB", borderRadius:10, padding:"10px 12px", marginBottom:8, fontSize:14 }} />
+                <input value={localAddr} onChange={e => setLocalAddr(e.target.value)}
+                  placeholder="Address (optional)" style={{ width:"100%", border:"1px solid #E5E7EB", borderRadius:10, padding:"10px 12px", marginBottom:12, fontSize:14 }} />
+                <div style={{ background:"#FEF3C7", borderRadius:10, padding:"10px 12px", marginBottom:14, fontSize:12, color:"#92400E" }}>
+                  <Ic n="circle-info" style={{marginRight:6}} />Makikipag-ugnayan sa iyo ang store para sa delivery o pickup details.
+                </div>
+                <button onClick={placeOrder} disabled={placing || !localName.trim() || !localPhone.trim()} style={{
+                  width:"100%", padding:"14px", borderRadius:14, fontWeight:800, fontSize:15,
+                  background: (!localName.trim() || !localPhone.trim()) ? "#D1D5DB" : "linear-gradient(135deg,#166534,#22C55E)",
+                  color:"#fff",
+                }}>
+                  {placing ? "Pinagse-send..." : "Mag-order Na!"}
+                </button>
+              </div>
+            </div>
+          )}
+
+          {orderDone && (
+            <div className="pop" style={{
+              position:"fixed", top:"calc(env(safe-area-inset-top,0px) + 16px)", left:20, right:20, zIndex:500,
+              background:"#166534", color:"#fff", padding:"14px 20px", borderRadius:16,
+              fontSize:14, fontWeight:700, boxShadow:"0 8px 32px rgba(0,0,0,.22)",
+              display:"flex", alignItems:"center", gap:10,
+            }}>
+              <Ic n="circle-check" size={22} /> Order placed! Makikipag-ugnayan sa iyo ang store.
+            </div>
+          )}
         </div>
       );
     }
@@ -3328,10 +3667,14 @@
       }
     }
 
-    function OrdersPage({ orders, onTrack, onTrackRider, canCancelOrder, cancelCountdownText, onCancelOrder, gcashSettings }) {
+    function OrdersPage({ orders, partnerOrders, onTrack, onTrackRider, canCancelOrder, cancelCountdownText, onCancelOrder, gcashSettings }) {
+      const pOrders   = partnerOrders || [];
       const active    = orders.filter(o => o.status !== "delivered" && o.status !== "cancelled");
       const completed = orders.filter(o => o.status === "delivered" || o.status === "cancelled");
-      const [ordersView, setOrdersView] = useState("active");
+      const pActive   = pOrders.filter(o => o.status !== "delivered" && o.status !== "cancelled");
+      const pDone     = pOrders.filter(o => o.status === "delivered" || o.status === "cancelled");
+      const [ordersView,  setOrdersView]  = useState("active");
+      const [ordersType,  setOrdersType]  = useState("palengke");
 
       const ST_COLOR = {
         pending:   { bg:"#F3F4F6", color:"#555",    label:"Pending",     icon:"hourglass-half" },
@@ -3449,20 +3792,121 @@
         );
       };
 
+      const P_ST = {
+        pending:   { bg:"#F3F4F6", color:"#555",    label:"Pending",   icon:"hourglass-half" },
+        accepted:  { bg:"#DBEAFE", color:"#1D4ED8", label:"Accepted",  icon:"thumbs-up" },
+        preparing: { bg:"#FEF3C7", color:"#92400E", label:"Preparing", icon:"fire-burner" },
+        prepared:  { bg:"#DCFCE7", color:"#166534", label:"Handa Na",  icon:"bag-shopping" },
+        delivered: { bg:"#F0FDF4", color:"#15803D", label:"Delivered", icon:"circle-check" },
+        cancelled: { bg:"#FEE2E2", color:"#B91C1C", label:"Cancelled", icon:"ban" },
+      };
+
+      const PartnerOrderCard = ({ o }) => {
+        const st = P_ST[o.status] || P_ST.pending;
+        const ts = o.createdAt ? new Date(o.createdAt) : new Date();
+        const P_STEPS = ["pending","accepted","preparing","prepared","delivered"];
+        const stepIdx = P_STEPS.indexOf(o.status);
+        return (
+          <div style={{ marginBottom:12, background:"#fff", borderRadius:18, padding:"16px", border:"1px solid #F0F0F0", boxShadow:"0 2px 8px rgba(0,0,0,.05)" }}>
+            <div style={{ display:"flex", justifyContent:"space-between", alignItems:"flex-start", marginBottom:10 }}>
+              <div style={{ flex:1, marginRight:10 }}>
+                <div style={{ fontSize:11, color:"#166534", fontWeight:700, marginBottom:2 }}>
+                  <Ic n="store" style={{marginRight:4}} />{o.storeName || "Partner Store"}
+                </div>
+                <div style={{ fontSize:13, fontWeight:800, color:"#111", overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>
+                  {(o.items||[]).map(i=>i.name).join(", ") || "—"}
+                </div>
+                <div style={{ fontSize:11, color:"#aaa", marginTop:2 }}>
+                  {ts.toLocaleDateString("en-PH")} {ts.toLocaleTimeString("en-PH",{hour:"2-digit",minute:"2-digit"})}
+                </div>
+              </div>
+              <div style={{ padding:"5px 10px", borderRadius:20, fontSize:11, fontWeight:700, whiteSpace:"nowrap", background:st.bg, color:st.color, display:"flex", alignItems:"center", gap:4 }}>
+                <Ic n={st.icon} />{st.label}
+              </div>
+            </div>
+            <div style={{ display:"flex", gap:4, marginBottom:8 }}>
+              {P_STEPS.filter(s => s !== "cancelled").map((s, i) => (
+                <div key={s} style={{ flex:1, height:4, borderRadius:4, background: i <= (o.status==="cancelled" ? -1 : stepIdx) ? "#22C55E" : "#E5E7EB" }} />
+              ))}
+            </div>
+            <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginTop:6, paddingTop:8, borderTop:"1px dashed #E5E7EB" }}>
+              <div style={{ fontSize:12, color:"#888" }}>{(o.items||[]).length} item{(o.items||[]).length!==1?"s":""}</div>
+              <div style={{ fontSize:14, fontWeight:800, color:"#166534" }}>₱{Number(o.total||0).toLocaleString("en-PH")}</div>
+            </div>
+          </div>
+        );
+      };
+
+      const totalOrders = orders.length + pOrders.length;
+
       return (
         <div style={{ padding:"0 0 20px" }}>
           <div style={{ padding:"20px 20px 4px" }}>
             <h2 style={{ fontSize:18, fontWeight:800, color:"#111", margin:0 }}><Ic n="box" style={{marginRight:8,color:"#166534"}} />Ang Orders Ko</h2>
           </div>
 
-          <div style={{ padding:"20px 20px 0" }}>
-            {orders.length === 0 ? (
+          <div style={{ padding:"12px 20px 0" }}>
+            {/* Order type switcher */}
+            {pOrders.length > 0 && (
+              <div style={{ display:"flex", gap:8, marginBottom:12, padding:4, background:"#F8FAF8", borderRadius:12, border:"1px solid #E5E7EB" }}>
+                <button onClick={() => setOrdersType("palengke")} style={{
+                  flex:1, padding:"9px 10px", borderRadius:9, fontSize:12, fontWeight:800,
+                  background: ordersType==="palengke" ? "#166534" : "transparent",
+                  color: ordersType==="palengke" ? "#fff" : "#475569",
+                }}>
+                  <Ic n="cart-shopping" style={{marginRight:5}} />Palengke ({orders.length})
+                </button>
+                <button onClick={() => setOrdersType("store")} style={{
+                  flex:1, padding:"9px 10px", borderRadius:9, fontSize:12, fontWeight:800,
+                  background: ordersType==="store" ? "#166534" : "transparent",
+                  color: ordersType==="store" ? "#fff" : "#475569",
+                }}>
+                  <Ic n="store" style={{marginRight:5}} />Stores ({pOrders.length})
+                </button>
+              </div>
+            )}
+
+            {totalOrders === 0 ? (
               <div style={{ textAlign:"center", padding:"60px 0", color:"#ccc" }}>
                 <Ic n="envelope-open" size={56} style={{ color:"#ccc", marginBottom:12, display:"block" }} />
                 <div style={{ fontSize:16, fontWeight:700, color:"#555" }}>Wala pang orders</div>
                 <div style={{ fontSize:13, marginTop:6, color:"#aaa" }}>Pumunta sa Tindahan para mag-order!</div>
               </div>
+            ) : ordersType === "store" ? (
+              /* ── Partner store orders view ── */
+              <>
+                <div style={{ display:"flex", gap:8, marginBottom:14, padding:4, background:"#F1F5F9", borderRadius:14, border:"1px solid #E2E8F0" }}>
+                  <button onClick={() => setOrdersView("active")} style={{
+                    flex:1, padding:"10px 12px", borderRadius:10, fontSize:12, fontWeight:800,
+                    background:ordersView==="active" ? "#166534" : "transparent",
+                    color:ordersView==="active" ? "#fff" : "#475569",
+                  }}>
+                    <Ic n="circle" style={{ marginRight:5, color: ordersView==="active" ? "#FCA5A5" : "#EF4444" }} />
+                    Active ({pActive.length})
+                  </button>
+                  <button onClick={() => setOrdersView("previous")} style={{
+                    flex:1, padding:"10px 12px", borderRadius:10, fontSize:12, fontWeight:800,
+                    background:ordersView==="previous" ? "#1E293B" : "transparent",
+                    color:ordersView==="previous" ? "#fff" : "#475569",
+                  }}>
+                    <Ic n="clock-rotate-left" style={{ marginRight:5 }} />
+                    Previous ({pDone.length})
+                  </button>
+                </div>
+                {(ordersView === "active" ? pActive : pDone).length > 0
+                  ? (ordersView === "active" ? pActive : pDone).map(o => <PartnerOrderCard key={o.id} o={o} />)
+                  : (
+                    <div style={{ textAlign:"center", padding:"44px 16px", border:"1px dashed #D1D5DB", borderRadius:16, background:"#fff" }}>
+                      <Ic n="store" size={34} style={{ color:"#9CA3AF", marginBottom:10 }} />
+                      <div style={{ fontSize:14, fontWeight:700, color:"#4B5563" }}>
+                        {ordersView === "active" ? "Walang active store orders" : "Wala pang previous store orders"}
+                      </div>
+                    </div>
+                  )
+                }
+              </>
             ) : (
+              /* ── Palengke orders view ── */
               <>
                 <div style={{
                   display:"flex", gap:8, marginBottom:14, padding:4,

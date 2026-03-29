@@ -215,13 +215,11 @@
     // - Admins can read/write all stores and assign approvals.
     // ─────────────────────────────────────────────────────────────────────────
     "partner_stores": {
-      ".read": "auth != null && root.child('admins').child(auth.uid).val() === true",
+      ".read": "auth != null",
       ".write": "auth != null && root.child('admins').child(auth.uid).val() === true",
+      ".indexOn": ["ownerUid"],
       "$storeId": {
-        ".read": "auth != null && (
-          root.child('admins').child(auth.uid).val() === true ||
-          data.child('ownerUid').val() === auth.uid
-        )",
+        ".read": "auth != null",
         ".write": "auth != null && (
           root.child('admins').child(auth.uid).val() === true ||
           data.child('ownerUid').val() === auth.uid
@@ -231,17 +229,16 @@
 
     // ─────────────────────────────────────────────────────────────────────────
     // PARTNER PRODUCTS / ORDERS
-    // - Admins can fully manage all entries.
-    // - Partners can manage only entries under their own partnerStoreId.
+    // - All authenticated users can read products (for browsing stores).
+    // - Partners can write only products under their own store.
+    // - Customers can create partner orders (write when uid matches).
     // - Riders can read partner orders so they can pick up when prepared.
     // ─────────────────────────────────────────────────────────────────────────
     "partner_products": {
-      ".read": "auth != null && root.child('admins').child(auth.uid).val() === true",
+      ".read": "auth != null",
+      ".indexOn": ["ownerUid", "partnerStoreId"],
       "$productId": {
-        ".read": "auth != null && (
-          root.child('admins').child(auth.uid).val() === true ||
-          root.child('partner_stores').child(data.child('partnerStoreId').val()).child('ownerUid').val() === auth.uid
-        )",
+        ".read": "auth != null",
         ".write": "auth != null && (
           root.child('admins').child(auth.uid).val() === true ||
           root.child('partner_stores').child(newData.child('partnerStoreId').val()).child('ownerUid').val() === auth.uid
@@ -251,8 +248,10 @@
     "partner_orders": {
       ".read": "auth != null && (
         root.child('admins').child(auth.uid).val() === true ||
-        root.child('riders').child(auth.uid).val() === true
+        root.child('riders').child(auth.uid).val() === true ||
+        (query.orderByChild === 'uid' && query.equalTo === auth.uid)
       )",
+      ".indexOn": ["uid", "ownerUid", "partnerStoreId"],
       "$orderId": {
         ".read": "auth != null && (
           root.child('admins').child(auth.uid).val() === true ||
@@ -261,9 +260,25 @@
           root.child('partner_stores').child(data.child('partnerStoreId').val()).child('ownerUid').val() === auth.uid
         )",
         ".write": "auth != null && (
+          (!data.exists() && newData.child('uid').val() === auth.uid) ||
           root.child('admins').child(auth.uid).val() === true ||
           root.child('riders').child(auth.uid).val() === true ||
           root.child('partner_stores').child(data.child('partnerStoreId').val()).child('ownerUid').val() === auth.uid
+        )"
+      }
+    },
+
+    // ─────────────────────────────────────────────────────────────────────────
+    // NOTIFICATIONS
+    // - Each user can read and write their own notifications.
+    // - Admins can write to any user's notifications (e.g. approval alerts).
+    // ─────────────────────────────────────────────────────────────────────────
+    "notifications": {
+      "$uid": {
+        ".read": "auth != null && auth.uid === $uid",
+        ".write": "auth != null && (
+          auth.uid === $uid ||
+          root.child('admins').child(auth.uid).val() === true
         )"
       }
     }
