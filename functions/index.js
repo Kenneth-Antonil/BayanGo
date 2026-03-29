@@ -638,96 +638,109 @@ exports.onOrderUpdated = onValueUpdated(
  * Ibinabalik ang QR image URL at paymentIntentId para ipakita ng app inline.
  */
 exports.createPaymongoQR = onCall(
-  { region: "us-central1", secrets: [PAYMONGO_SECRET_KEY] },
+  { region: "us-central1", secrets: [PAYMONGO_SECRET_KEY], timeoutSeconds: 60 },
   async (request) => {
-    if (!request.auth) throw new HttpsError("unauthenticated", "Kailangan mag-login bago magbayad.");
+    try {
+      if (!request.auth) throw new HttpsError("unauthenticated", "Kailangan mag-login bago magbayad.");
 
-    const { orderId } = request.data || {};
-    if (!orderId) throw new HttpsError("invalid-argument", "Walang orderId.");
+      const { orderId } = request.data || {};
+      if (!orderId) throw new HttpsError("invalid-argument", "Walang orderId.");
 
-    const db = getDatabase();
-    const orderSnap = await db.ref(`orders/${orderId}`).get();
-    if (!orderSnap.exists()) throw new HttpsError("not-found", "Hindi mahanap ang order.");
+      const db = getDatabase();
+      const orderSnap = await db.ref(`orders/${orderId}`).get();
+      if (!orderSnap.exists()) throw new HttpsError("not-found", "Hindi mahanap ang order.");
 
-    const order = orderSnap.val();
-    if (order.uid !== request.auth.uid) throw new HttpsError("permission-denied", "Hindi mo order ito.");
-    if (order.paymentStatus === "paid") throw new HttpsError("failed-precondition", "Bayad na ang order na ito.");
+      const order = orderSnap.val();
+      const orderUid = order.uid || order.userId;
+      if (orderUid !== request.auth.uid) throw new HttpsError("permission-denied", "Hindi mo order ito.");
+      if (order.paymentStatus === "paid") throw new HttpsError("failed-precondition", "Bayad na ang order na ito.");
 
-    const amountCentavos = Math.round((Number(order.total) || 0) * 100);
-    if (amountCentavos < 2000) throw new HttpsError("invalid-argument", "Minimum na bayad ay ₱20.");
+      const amountCentavos = Math.round((Number(order.total) || 0) * 100);
+      if (amountCentavos < 2000) throw new HttpsError("invalid-argument", "Minimum na bayad ay ₱20.");
 
-    const secretKey = PAYMONGO_SECRET_KEY.value();
-    const authHeader = "Basic " + Buffer.from(secretKey + ":").toString("base64");
-    const headers = { "Content-Type": "application/json", Authorization: authHeader };
+      const secretKey = PAYMONGO_SECRET_KEY.value();
+      if (!secretKey) throw new HttpsError("internal", "Payment configuration error. Makipag-ugnayan sa admin.");
 
-    // 1. Gumawa ng Payment Intent
-    const intentRes = await fetch("https://api.paymongo.com/v1/payment_intents", {
-      method: "POST",
-      headers,
-      body: JSON.stringify({
-        data: {
-          attributes: {
-            amount: amountCentavos,
-            currency: "PHP",
-            payment_method_allowed: ["qrph"],
-            capture_type: "automatic",
-            description: `BayanGo Order #${String(orderId).slice(-6)}`,
-            metadata: { orderId },
+      const authHeader = "Basic " + Buffer.from(secretKey + ":").toString("base64");
+      const headers = { "Content-Type": "application/json", Authorization: authHeader };
+
+      // 1. Gumawa ng Payment Intent
+      const intentRes = await fetch("https://api.paymongo.com/v1/payment_intents", {
+        method: "POST",
+        headers,
+        body: JSON.stringify({
+          data: {
+            attributes: {
+              amount: amountCentavos,
+              currency: "PHP",
+              payment_method_allowed: ["qrph"],
+              capture_type: "automatic",
+              description: `BayanGo Order #${String(orderId).slice(-6)}`,
+              metadata: { orderId },
+            },
           },
-        },
-      }),
-    });
-    const intentJson = await intentRes.json();
-    if (!intentRes.ok) {
-      throw new HttpsError("internal", intentJson?.errors?.[0]?.detail || `PayMongo error ${intentRes.status}`);
+        }),
+      });
+      const intentJson = await intentRes.json();
+      if (!intentRes.ok) {
+        const msg = intentJson?.errors?.[0]?.detail || `PayMongo error ${intentRes.status}`;
+        console.error("[createPaymongoQR] Intent error:", msg, JSON.stringify(intentJson));
+        throw new HttpsError("internal", msg);
+      }
+      const intentId = intentJson.data.id;
+      const clientKey = intentJson.data.attributes.client_key;
+
+      // 2. Gumawa ng QR Ph Payment Method
+      const methodRes = await fetch("https://api.paymongo.com/v1/payment_methods", {
+        method: "POST",
+        headers,
+        body: JSON.stringify({ data: { attributes: { type: "qrph" } } }),
+      });
+      const methodJson = await methodRes.json();
+      if (!methodRes.ok) {
+        const msg = methodJson?.errors?.[0]?.detail || `PayMongo error ${methodRes.status}`;
+        console.error("[createPaymongoQR] Method error:", msg, JSON.stringify(methodJson));
+        throw new HttpsError("internal", msg);
+      }
+      const methodId = methodJson.data.id;
+
+      // 3. I-attach ang payment method sa intent para makuha ang QR code
+      const attachRes = await fetch(`https://api.paymongo.com/v1/payment_intents/${intentId}/attach`, {
+        method: "POST",
+        headers,
+        body: JSON.stringify({
+          data: { attributes: { payment_method: methodId, client_key: clientKey } },
+        }),
+      });
+      const attachJson = await attachRes.json();
+      if (!attachRes.ok) {
+        const msg = attachJson?.errors?.[0]?.detail || `PayMongo attach error ${attachRes.status}`;
+        console.error("[createPaymongoQR] Attach error:", msg, JSON.stringify(attachJson));
+        throw new HttpsError("internal", msg);
+      }
+
+      const nextAction = attachJson.data?.attributes?.next_action;
+      const qrImageUrl = nextAction?.display_details?.qr_image_url || null;
+      const qrString   = nextAction?.display_details?.qr_string || null;
+
+      if (!qrImageUrl) {
+        console.error("[createPaymongoQR] No QR URL. next_action:", JSON.stringify(nextAction));
+        throw new HttpsError("internal", "Hindi makuha ang QR code. Subukan ulit.");
+      }
+
+      await db.ref(`orders/${orderId}`).update({
+        paymongoIntentId: intentId,
+        paymentStatus: "pending",
+        paymentProvider: "paymongo",
+        paymentUpdatedAt: Date.now(),
+      });
+
+      return { qrImageUrl, qrString, paymentIntentId: intentId };
+
+    } catch (err) {
+      if (err instanceof HttpsError) throw err;
+      console.error("[createPaymongoQR] Unexpected error:", err);
+      throw new HttpsError("internal", err?.message || "Hindi magawa ang payment. Subukan ulit.");
     }
-    const intentId = intentJson.data.id;
-    const clientKey = intentJson.data.attributes.client_key;
-
-    // 2. Gumawa ng QR Ph Payment Method
-    const methodRes = await fetch("https://api.paymongo.com/v1/payment_methods", {
-      method: "POST",
-      headers,
-      body: JSON.stringify({ data: { attributes: { type: "qrph" } } }),
-    });
-    const methodJson = await methodRes.json();
-    if (!methodRes.ok) {
-      throw new HttpsError("internal", methodJson?.errors?.[0]?.detail || `PayMongo error ${methodRes.status}`);
-    }
-    const methodId = methodJson.data.id;
-
-    // 3. I-attach ang payment method sa intent para makuha ang QR code
-    const attachRes = await fetch(`https://api.paymongo.com/v1/payment_intents/${intentId}/attach`, {
-      method: "POST",
-      headers,
-      body: JSON.stringify({
-        data: {
-          attributes: {
-            payment_method: methodId,
-            client_key: clientKey,
-          },
-        },
-      }),
-    });
-    const attachJson = await attachRes.json();
-    if (!attachRes.ok) {
-      throw new HttpsError("internal", attachJson?.errors?.[0]?.detail || `PayMongo attach error ${attachRes.status}`);
-    }
-
-    const nextAction = attachJson.data?.attributes?.next_action;
-    const qrImageUrl = nextAction?.display_details?.qr_image_url || null;
-    const qrString   = nextAction?.display_details?.qr_string || null;
-
-    if (!qrImageUrl) throw new HttpsError("internal", "Hindi makuha ang QR code mula sa PayMongo.");
-
-    // I-save sa order para ma-track ng webhook
-    await db.ref(`orders/${orderId}`).update({
-      paymongoIntentId: intentId,
-      paymentStatus: "pending",
-      paymentProvider: "paymongo",
-      paymentUpdatedAt: Date.now(),
-    });
-
-    return { qrImageUrl, qrString, paymentIntentId: intentId };
   }
 );
