@@ -2974,11 +2974,18 @@
         setError("");
         setLoading(true);
         try {
-          const fn = fbFunctions.httpsCallable("createPaymongoQR");
-          const result = await fn({ orderId: order.id });
-          if (result.data?.qrImageUrl) {
-            setQrData({ qrImageUrl: result.data.qrImageUrl, qrString: result.data.qrString });
-          }
+          const idToken = await _fbAuth.currentUser.getIdToken();
+          const res = await fetch(
+            "https://us-central1-bayango-315c6.cloudfunctions.net/createPaymongoQR",
+            {
+              method: "POST",
+              headers: { "Content-Type": "application/json", Authorization: `Bearer ${idToken}` },
+              body: JSON.stringify({ orderId: order.id }),
+            }
+          );
+          const data = await res.json();
+          if (!data.ok) throw new Error(data.error || "Hindi ma-generate ang QR.");
+          setQrData({ qrImageUrl: data.qrImageUrl, qrString: data.qrString });
         } catch (err) {
           setError(err?.message || "Hindi ma-generate ang QR. Subukan ulit.");
         } finally {
