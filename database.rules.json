@@ -191,6 +191,7 @@
     // - Admins can read/write all applications and request more info.
     // ─────────────────────────────────────────────────────────────────────────
     "partner_applications": {
+      ".indexOn": ["uid"],
       ".read": "auth != null && (
         root.child('admins').child(auth.uid).val() === true ||
         (query.orderByChild === 'uid' && query.equalTo === auth.uid)
