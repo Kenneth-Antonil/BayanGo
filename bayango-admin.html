@@ -290,6 +290,7 @@
       const [products, setProducts] = useState([]);
       const [orders,   setOrders]   = useState([]);
       const [tickets,  setTickets]  = useState([]);
+      const [partnerApplications, setPartnerApplications] = useState([]);
       const [vouchers, setVouchers] = useState([]);
       const [appUsageStats, setAppUsageStats] = useState({ activeUsers: 0, downloadedUsers: 0 });
       const [ready,    setReady]    = useState(false);
@@ -297,7 +298,7 @@
       const [marketPricing, setMarketPricing] = useState({});
 
       useEffect(() => {
-        let unsubOrders, unsubProducts, unsubTickets, unsubVouchers, unsubMarket, unsubAppUsage, unsubAuth;
+        let unsubOrders, unsubProducts, unsubTickets, unsubPartnerApps, unsubVouchers, unsubMarket, unsubAppUsage, unsubAuth;
         (async () => {
           const { db, fns, auth, authFns } = await initFirebase();
           const { onAuthStateChanged } = authFns;
@@ -310,12 +311,14 @@
             unsubOrders?.();
             unsubProducts?.();
             unsubTickets?.();
+            unsubPartnerApps?.();
             unsubVouchers?.();
             unsubAppUsage?.();
 
             if (!currentUser) {
               setOrders([]);
               setTickets([]);
+              setPartnerApplications([]);
               setVouchers([]);
               setAppUsageStats({ activeUsers: 0, downloadedUsers: 0 });
               return;
@@ -394,6 +397,15 @@
             }, err => console.error("Tickets snapshot error:", err.code, err.message));
             unsubTickets = () => fns.off(ticketsRef);
 
+            const partnerAppsRef = fns.rtdbQuery(fns.ref(db, "partner_applications"), fns.orderByChild("createdAt"));
+            fns.onValue(partnerAppsRef, snap => {
+              const list = [];
+              snap.forEach(c => list.push({ id:c.key, ...c.val() }));
+              list.sort((a,b) => Number(b.updatedAt || b.createdAt || 0) - Number(a.updatedAt || a.createdAt || 0));
+              setPartnerApplications(list);
+            }, err => console.error("Partner applications snapshot error:", err.code, err.message));
+            unsubPartnerApps = () => fns.off(partnerAppsRef);
+
             // Listen vouchers realtime
             const vouchersRef = fns.ref(db, "vouchers");
             fns.onValue(vouchersRef, snap => {
@@ -429,7 +441,7 @@
             unsubAppUsage = () => fns.off(usageRef);
           });
         })();
-        return () => { unsubOrders?.(); unsubProducts?.(); unsubTickets?.(); unsubVouchers?.(); unsubMarket?.(); unsubAppUsage?.(); unsubAuth?.(); };
+        return () => { unsubOrders?.(); unsubProducts?.(); unsubTickets?.(); unsubPartnerApps?.(); unsubVouchers?.(); unsubMarket?.(); unsubAppUsage?.(); unsubAuth?.(); };
       }, []);
 
       const addOrder = useCallback(async (order) => {
@@ -562,6 +574,7 @@
             marketPricing={marketPricing}
             onUpdateMarketPricing={updateMarketPricing}
             tickets={tickets}
+            partnerApplications={partnerApplications}
             vouchers={vouchers}
             onAddVoucher={addVoucher}
             onUpdateVoucher={updateVoucher}
@@ -798,8 +811,96 @@
       );
     }
 
+    function PartnerApplicationsPanel({ applications }) {
+      const [savingId, setSavingId] = useState(null);
+
+      const updateApplication = async (app, status) => {
+        let adminNotes = window.prompt("Optional admin note para sa applicant:", app.adminNotes || "") ?? app.adminNotes || "";
+        let requestedMoreInfo = app.requestedMoreInfo || "";
+        if (status === "more_info") {
+          requestedMoreInfo = window.prompt("Anong additional info ang kailangan?", app.requestedMoreInfo || "") || "";
+          if (!requestedMoreInfo.trim()) {
+            alert("Kailangan ilagay ang request details kapag 'Need more info'.");
+            return;
+          }
+        }
+        setSavingId(app.id);
+        try {
+          const { db, fns } = await initFirebase();
+          const payload = {
+            status,
+            statusLabel: status === "approved" ? "Approved" : status === "declined" ? "Declined" : status === "more_info" ? "Need more info" : "Pending",
+            adminNotes: adminNotes || "",
+            requestedMoreInfo: status === "more_info" ? requestedMoreInfo : "",
+            reviewedAt: Date.now(),
+            updatedAt: Date.now(),
+          };
+          await fns.update(fns.ref(db, "partner_applications/" + app.id), payload);
+
+          if (status === "approved") {
+            const storeRef = fns.ref(db, "partner_stores/" + app.id);
+            await fns.set(storeRef, {
+              ownerUid: app.uid || "",
+              applicationId: app.id,
+              storeName: app.storeName || "",
+              ownerName: app.ownerName || "",
+              contactPhone: app.contactPhone || "",
+              contactEmail: app.contactEmail || "",
+              category: app.category || "",
+              location: app.location || "",
+              isFeatured: true,
+              approvedAt: Date.now(),
+              createdAt: app.createdAt || Date.now(),
+              updatedAt: Date.now(),
+            });
+          }
+        } catch (err) {
+          alert("Error: " + (err.message || err.code));
+        } finally {
+          setSavingId(null);
+        }
+      };
+
+      return (
+        <div style={{ padding:"14px 20px 30px" }}>
+          <div style={{ background:"#fff", borderRadius:16, border:"1px solid #E5E7EB", padding:14, marginBottom:12 }}>
+            <div style={{ fontSize:14, fontWeight:800, color:"#166534", marginBottom:4 }}><Ic n="handshake-angle" style={{ marginRight:6 }} />Partner Store Applications</div>
+            <div style={{ fontSize:12, color:"#6B7280" }}>Approve / decline / request more info para sa featured partner stores.</div>
+          </div>
+          {applications.length === 0 ? (
+            <div style={{ background:"#fff", borderRadius:14, border:"1px solid #E5E7EB", padding:16, color:"#94A3B8", fontSize:13 }}>
+              Wala pang partner applications.
+            </div>
+          ) : applications.map((app) => (
+            <div key={app.id} style={{ background:"#fff", border:"1px solid #E5E7EB", borderRadius:14, padding:14, marginBottom:10 }}>
+              <div style={{ display:"flex", justifyContent:"space-between", gap:8 }}>
+                <div>
+                  <div style={{ fontSize:14, fontWeight:800, color:"#111" }}>{app.storeName || "Untitled Store"}</div>
+                  <div style={{ fontSize:12, color:"#6B7280", marginTop:3 }}>{app.ownerName} • {app.contactPhone}</div>
+                </div>
+                <div style={{ fontSize:11, fontWeight:700, borderRadius:20, padding:"3px 10px", background:"#F3F4F6", color:"#374151", alignSelf:"flex-start" }}>
+                  {(app.statusLabel || app.status || "pending").toUpperCase()}
+                </div>
+              </div>
+              <div style={{ fontSize:12, color:"#374151", marginTop:8 }}><strong>Address:</strong> {app.location || "—"}</div>
+              <div style={{ fontSize:12, color:"#374151", marginTop:4 }}><strong>Category:</strong> {app.category || "—"}</div>
+              <div style={{ fontSize:12, color:"#374151", marginTop:6, lineHeight:1.5 }}>{app.description || "—"}</div>
+              {app.paymentReference ? <div style={{ fontSize:11, color:"#1D4ED8", marginTop:7 }}><strong>Payment Ref:</strong> {app.paymentReference}</div> : null}
+              {app.requestedMoreInfo ? <div style={{ fontSize:11, color:"#1D4ED8", marginTop:7 }}><strong>Requested info:</strong> {app.requestedMoreInfo}</div> : null}
+              {app.adminNotes ? <div style={{ fontSize:11, color:"#166534", marginTop:4 }}><strong>Admin note:</strong> {app.adminNotes}</div> : null}
+              <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr 1fr", gap:8, marginTop:10 }}>
+                <button disabled={savingId === app.id} onClick={() => updateApplication(app, "approved")} style={{ padding:"9px 8px", borderRadius:10, background:"#DCFCE7", color:"#166534", fontSize:11, fontWeight:800 }}>Approve</button>
+                <button disabled={savingId === app.id} onClick={() => updateApplication(app, "more_info")} style={{ padding:"9px 8px", borderRadius:10, background:"#DBEAFE", color:"#1D4ED8", fontSize:11, fontWeight:800 }}>Need Info</button>
+                <button disabled={savingId === app.id} onClick={() => updateApplication(app, "declined")} style={{ padding:"9px 8px", borderRadius:10, background:"#FEE2E2", color:"#B91C1C", fontSize:11, fontWeight:800 }}>Decline</button>
+              </div>
+            </div>
+          ))}
+        </div>
+      );
+    }
+
     /* ══════════════════ ADMIN DASHBOARD ══════════════════ */
-    function AdminDashboard({ orders, onUpdateStatus, onBroadcast, products, onAddProduct, onUpdateProduct, onDeleteProduct, marketPricing, onUpdateMarketPricing, tickets, vouchers, onAddVoucher, onUpdateVoucher, onDeleteVoucher, appUsageStats }) {
+    function AdminDashboard({ orders, onUpdateStatus, onBroadcast, products, onAddProduct, onUpdateProduct, onDeleteProduct, marketPricing, onUpdateMarketPricing, tickets, partnerApplications, vouchers, onAddVoucher, onUpdateVoucher, onDeleteVoucher, appUsageStats }) {
       const [tab,          setTab]          = useState("orders");
       const [selected,     setSelected]     = useState(null);
       const [updating,     setUpdating]     = useState(null);
@@ -1066,6 +1167,7 @@
               { key:"orders",  label:"Mga Orders",  icon:"receipt" },
               { key:"grocery", label:"Grocery",      icon:"basket-shopping" },
               { key:"products",label:"Produkto",     icon:"store" },
+              { key:"partners",label:"Partners",     icon:"handshake-angle", badge: partnerApplications.filter(a=>a.status==="pending"||a.status==="more_info").length },
               { key:"vouchers",label:"Vouchers",     icon:"ticket" },
               { key:"settings",label:"Settings",     icon:"gear" },
               { key:"support", label:"Support",      icon:"headset", badge: tickets.filter(t=>t.status==="open").length },
@@ -1111,6 +1213,10 @@
               onUpdate={onUpdateVoucher}
               onDelete={onDeleteVoucher}
             />
+          )}
+
+          {tab === "partners" && (
+            <PartnerApplicationsPanel applications={partnerApplications} />
           )}
 
           {(tab === "orders" || tab === "settings") && <>
