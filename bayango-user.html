@@ -1291,11 +1291,15 @@
 
       const addCustom = () => {
         if (!newItemName.trim()) return;
+        const qtyInput = newItemQty.trim();
+        const qtyMatch = qtyInput.match(/^(\d+(?:\.\d+)?)\s*(.*)$/);
+        const parsedQty = qtyMatch ? Number(qtyMatch[1]) : 1;
+        const parsedUnit = qtyMatch ? qtyMatch[2].trim() : qtyInput;
         setCustomItems(prev => [...prev, {
           id: "cust_" + genId(),
           name: newItemName.trim(),
-          qty: 1,
-          unit: newItemQty.trim() || "pc",
+          qty: Number.isFinite(parsedQty) && parsedQty > 0 ? parsedQty : 1,
+          unit: parsedUnit || "pc",
           estPrice: parseFloat(newItemPrice) || 0,
           isCustom: true,
           img: null,
