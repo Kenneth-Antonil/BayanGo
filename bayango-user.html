@@ -1194,18 +1194,33 @@
       }, [user?.uid]);
       const [searchQ,        setSearchQ]        = useState("");
       const [orderPlaced,    setOrderPlaced]    = useState(false);
+      const USER_SECTIONS = new Set(["shop", "orders", "account"]);
+      const normalizeUserSection = (rawSection) => {
+        const section = String(rawSection || "").toLowerCase();
+        if (section === "profile") return "account";
+        if (section === "rider-tracker") return "orders";
+        return USER_SECTIONS.has(section) ? section : "shop";
+      };
       const getInitialPage = () => {
         try {
           const url = new URL(window.location.href);
           const section = (url.searchParams.get("section") || "").toLowerCase();
           const hash = (url.hash || "").replace("#", "").toLowerCase();
-          if (section === "rider-tracker" || section === "orders" || hash === "rider-tracker" || hash === "orders") {
-            return "orders";
-          }
+          return normalizeUserSection(section || hash);
         } catch {}
         return "shop";
       };
       const [activePage,     setActivePage]     = useState(getInitialPage);
+      const switchPage = useCallback((nextPage) => {
+        const normalizedPage = normalizeUserSection(nextPage);
+        setActivePage(normalizedPage);
+        try {
+          const url = new URL(window.location.href);
+          url.searchParams.set("section", normalizedPage);
+          url.hash = normalizedPage;
+          window.history.replaceState({}, "", url.toString());
+        } catch {}
+      }, []);
       const [customItems,    setCustomItems]    = useState([]);
       const [showCustomList, setShowCustomList] = useState(false);
       const [newItemName,    setNewItemName]    = useState("");
@@ -1503,7 +1518,7 @@
         const latestActive = myOrders.find(o => o.status !== "delivered");
         const targetOrder = latestTrackable || latestActive;
 
-        setActivePage("orders");
+        switchPage("orders");
         if (targetOrder) {
           if (targetOrder.status === "buying" || targetOrder.status === "otw") {
             setShowRiderMap(targetOrder);
@@ -1511,7 +1526,23 @@
             setShowTracker(targetOrder);
           }
         }
-      }, [myOrders, showRiderMap, showTracker]);
+      }, [myOrders, showRiderMap, showTracker, switchPage]);
+
+      useEffect(() => {
+        const handleSectionSwitch = () => {
+          try {
+            const url = new URL(window.location.href);
+            const section = url.searchParams.get("section") || url.hash.replace("#", "");
+            setActivePage(normalizeUserSection(section));
+          } catch {}
+        };
+        window.addEventListener("popstate", handleSectionSwitch);
+        window.addEventListener("hashchange", handleSectionSwitch);
+        return () => {
+          window.removeEventListener("popstate", handleSectionSwitch);
+          window.removeEventListener("hashchange", handleSectionSwitch);
+        };
+      }, []);
 
       return (
         <div style={{ maxWidth:480, margin:"0 auto", paddingBottom:80, background:"#F8FAF8", minHeight:"100vh", paddingTop:"calc(60px + env(safe-area-inset-top,0px))" }}>
@@ -1529,7 +1560,7 @@
             boxShadow:"0 4px 14px rgba(22,101,52,.28)",
           }}>
             <img src="https://i.imgur.com/h7HgGC0.png" style={{ height:40, objectFit:"contain" }} />
-            <button onClick={() => setActivePage("account")} style={{
+            <button onClick={() => switchPage("account")} style={{
               width:38, height:38, borderRadius:"50%", overflow:"hidden",
               border: activePage==="account" ? "2.5px solid #166534" : "2.5px solid #E5E7EB",
               padding:0, flexShrink:0, background:"#F0FDF4",
@@ -2444,7 +2475,7 @@
               { key:"shop",    icon:"cart-shopping", label:"Tindahan" },
               { key:"orders",  icon:"box",           label:"Orders",  badge: activeOrders.length },
             ].map(t => (
-              <button key={t.key} onClick={() => setActivePage(t.key)} style={{
+              <button key={t.key} onClick={() => switchPage(t.key)} style={{
                 flex:1, padding:"11px 0 9px", display:"flex", flexDirection:"column", alignItems:"center", gap:3,
                 color: activePage===t.key ? "#166534" : "#94A3B8",
                 borderTop: activePage===t.key ? "2px solid #166534" : "2px solid transparent",

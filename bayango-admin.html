@@ -800,7 +800,31 @@
 
     /* ══════════════════ ADMIN DASHBOARD ══════════════════ */
     function AdminDashboard({ orders, onUpdateStatus, onBroadcast, products, onAddProduct, onUpdateProduct, onDeleteProduct, marketPricing, onUpdateMarketPricing, tickets, vouchers, onAddVoucher, onUpdateVoucher, onDeleteVoucher, appUsageStats }) {
-      const [tab,          setTab]          = useState("orders");
+      const ADMIN_SECTIONS = new Set(["orders", "grocery", "products", "vouchers", "settings", "support"]);
+      const normalizeAdminSection = (rawSection) => {
+        const section = String(rawSection || "").toLowerCase();
+        if (section === "help") return "support";
+        return ADMIN_SECTIONS.has(section) ? section : "orders";
+      };
+      const getInitialAdminSection = () => {
+        try {
+          const url = new URL(window.location.href);
+          const section = url.searchParams.get("section") || url.hash.replace("#", "");
+          return normalizeAdminSection(section);
+        } catch {}
+        return "orders";
+      };
+      const [tab,          setTab]          = useState(getInitialAdminSection);
+      const switchTab = useCallback((nextTab) => {
+        const normalized = normalizeAdminSection(nextTab);
+        setTab(normalized);
+        try {
+          const url = new URL(window.location.href);
+          url.searchParams.set("section", normalized);
+          url.hash = normalized;
+          window.history.replaceState({}, "", url.toString());
+        } catch {}
+      }, []);
       const [selected,     setSelected]     = useState(null);
       const [updating,     setUpdating]     = useState(null);
       const [ordersView,   setOrdersView]   = useState("active");
@@ -854,6 +878,22 @@
         otw:       orders.filter(o => o.status === "otw" || o.status === "in_boat").length,
         delivered: orders.filter(o => o.status === "delivered").length,
       };
+
+      useEffect(() => {
+        const handleSectionSwitch = () => {
+          try {
+            const url = new URL(window.location.href);
+            const section = url.searchParams.get("section") || url.hash.replace("#", "");
+            setTab(normalizeAdminSection(section));
+          } catch {}
+        };
+        window.addEventListener("popstate", handleSectionSwitch);
+        window.addEventListener("hashchange", handleSectionSwitch);
+        return () => {
+          window.removeEventListener("popstate", handleSectionSwitch);
+          window.removeEventListener("hashchange", handleSectionSwitch);
+        };
+      }, []);
 
       useEffect(() => {
         (async () => {
@@ -1070,7 +1110,7 @@
               { key:"settings",label:"Settings",     icon:"gear" },
               { key:"support", label:"Support",      icon:"headset", badge: tickets.filter(t=>t.status==="open").length },
             ].map(t => (
-              <button key={t.key} onClick={() => setTab(t.key)} style={{
+              <button key={t.key} onClick={() => switchTab(t.key)} style={{
                 flex:1, padding:"14px 8px", fontSize:13, fontWeight:700,
                 color: tab===t.key ? "#166534" : "#888",
                 borderBottom: tab===t.key ? "3px solid #22C55E" : "3px solid transparent",

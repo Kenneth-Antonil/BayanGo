@@ -281,7 +281,31 @@
 
     /* ══════════════════ RIDER APP ══════════════════ */
     function RiderApp({ user, onLogout }) {
-      const [tab,             setTab]             = useState("available");
+      const RIDER_SECTIONS = new Set(["available", "deliveries", "earnings"]);
+      const normalizeRiderSection = (rawSection) => {
+        const section = String(rawSection || "").toLowerCase();
+        if (section === "orders") return "deliveries";
+        return RIDER_SECTIONS.has(section) ? section : "available";
+      };
+      const getInitialRiderSection = () => {
+        try {
+          const url = new URL(window.location.href);
+          const section = url.searchParams.get("section") || url.hash.replace("#", "");
+          return normalizeRiderSection(section);
+        } catch {}
+        return "available";
+      };
+      const [tab,             setTab]             = useState(getInitialRiderSection);
+      const switchTab = useCallback((nextTab) => {
+        const normalized = normalizeRiderSection(nextTab);
+        setTab(normalized);
+        try {
+          const url = new URL(window.location.href);
+          url.searchParams.set("section", normalized);
+          url.hash = normalized;
+          window.history.replaceState({}, "", url.toString());
+        } catch {}
+      }, []);
       const [availableOrders, setAvailableOrders] = useState([]);
       const [myOrders,        setMyOrders]        = useState([]);
       const [claiming,        setClaiming]        = useState(null);
@@ -440,7 +464,7 @@
             acceptedAt: Date.now(),
           });
           showToast("Na-accept! Pumunta ka na sa tindahan.");
-          setTab("deliveries");
+          switchTab("deliveries");
         } catch (err) {
           showToast("Error: " + (err.code || err.message));
         } finally {
@@ -631,6 +655,22 @@
         prevMyOrdersStatusRef.current = newPrev;
       }, [myOrders]);
 
+      useEffect(() => {
+        const handleSectionSwitch = () => {
+          try {
+            const url = new URL(window.location.href);
+            const section = url.searchParams.get("section") || url.hash.replace("#", "");
+            setTab(normalizeRiderSection(section));
+          } catch {}
+        };
+        window.addEventListener("popstate", handleSectionSwitch);
+        window.addEventListener("hashchange", handleSectionSwitch);
+        return () => {
+          window.removeEventListener("popstate", handleSectionSwitch);
+          window.removeEventListener("hashchange", handleSectionSwitch);
+        };
+      }, []);
+
       const buyingOrders    = myOrders.filter(o => o.status === "buying");
       const activeOrders    = myOrders.filter(o => o.status === "otw" || o.status === "in_boat");
       const deliveredOrders = myOrders.filter(o => o.status === "delivered");
@@ -713,7 +753,7 @@
               { key:"deliveries", icon:"motorcycle", label:"Deliveries", badge: buyingOrders.length + activeOrders.length },
               { key:"earnings",   icon:"coins",      label:"Earnings" },
             ].map(t => (
-              <button key={t.key} onClick={() => setTab(t.key)} style={{
+              <button key={t.key} onClick={() => switchTab(t.key)} style={{
                 flex:1, padding:"10px 0 8px", display:"flex", flexDirection:"column", alignItems:"center", gap:3,
                 color: tab === t.key ? "#1D4ED8" : "#94A3B8",
                 borderTop: tab === t.key ? "2px solid #1D4ED8" : "2px solid transparent",
