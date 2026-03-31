@@ -1233,6 +1233,7 @@
       const [voucherMsg,     setVoucherMsg]     = useState("");
       const [showVoucherList,setShowVoucherList]= useState(false);
       const [cartWeightUnit, setCartWeightUnit] = useState({});
+      const [paymentMethod,  setPaymentMethod]  = useState("COD");
 
       const cartCount = Object.values(cart).reduce((s,v) => s+v, 0);
       const cartItems = Object.entries(cart)
@@ -1369,6 +1370,16 @@
         setAppliedVoucher(latest);
       }, [appliedVoucher, vouchers, computeVoucherDiscount]);
 
+      useEffect(() => {
+        if (locationType === "Island" && paymentMethod !== "QRPH") {
+          setPaymentMethod("QRPH");
+          return;
+        }
+        if (locationType === "Mainland" && !["COD", "QRPH"].includes(paymentMethod)) {
+          setPaymentMethod("COD");
+        }
+      }, [locationType, paymentMethod]);
+
       const applyVoucher = () => {
         const code = voucherCode.trim().toUpperCase();
         if (!code) {
@@ -1444,6 +1455,7 @@
           deliveryBatch: batchInfo.batch,
           deliveryDate:  batchInfo.date,
           locationType,
+          paymentMethod,
         });
         setCart({});
         setCartWeightUnit({});
@@ -2218,10 +2230,40 @@
                   )}
                 </div>
 
+                <div style={{ marginBottom:14 }}>
+                  <label style={{ fontSize:12, fontWeight:700, color:"#666", display:"block", marginBottom:8 }}>
+                    <Ic n="wallet" style={{marginRight:5}} />Paraan ng Bayad
+                  </label>
+                  <div style={{ display:"grid", gridTemplateColumns: locationType === "Island" ? "1fr" : "1fr 1fr", gap:8 }}>
+                    {(locationType === "Island"
+                      ? [{ val:"QRPH", icon:"qrcode", label:"QR PH", desc:"QR PH lang para sa Island orders" }]
+                      : [
+                          { val:"COD",  icon:"money-bill-wave", label:"Cash on Delivery", desc:"Bayad pagdating ng order" },
+                          { val:"QRPH", icon:"qrcode",          label:"QR PH",           desc:"Scan QR PH at magbayad" },
+                        ]
+                    ).map(opt => (
+                      <button key={opt.val} type="button"
+                        onClick={() => setPaymentMethod(opt.val)}
+                        style={{
+                          padding:"12px 10px", borderRadius:14, textAlign:"center",
+                          border: paymentMethod === opt.val ? "2px solid #166534" : "1.5px solid #E5E7EB",
+                          background: paymentMethod === opt.val ? "#F0FDF4" : "#FAFAFA",
+                          transition:"all .18s",
+                        }}>
+                        <Ic n={opt.icon} size={18} style={{ color: paymentMethod === opt.val ? "#166534" : "#9CA3AF", marginBottom:4, display:"block" }} />
+                        <div style={{ fontSize:13, fontWeight:800, color: paymentMethod === opt.val ? "#166534" : "#374151" }}>{opt.label}</div>
+                        <div style={{ fontSize:10, color:"#9CA3AF", marginTop:2 }}>{opt.desc}</div>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
                 <div style={{ background:"#FEF3C7", borderRadius:12, padding:"12px 14px", marginBottom:18, display:"flex", gap:10 }}>
                   <Ic n="credit-card" size={18} style={{ color:"#92400E", marginTop:1 }} />
                   <div style={{ fontSize:12, color:"#92400E", lineHeight:1.5 }}>
-                    <strong>GCash o COD</strong> — Pag-deliver ng order, pwede kang magbayad via GCash o Cash on Delivery.
+                    {locationType === "Island"
+                      ? <><strong>QR PH only</strong> — Para sa Island orders, QR PH lang ang available na payment method.</>
+                      : <><strong>COD o QR PH</strong> — Pumili ng Cash on Delivery o QR PH para sa order mo.</>}
                   </div>
                 </div>
 
