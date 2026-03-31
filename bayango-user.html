@@ -3218,11 +3218,10 @@
             </div>
 
             {/* Map */}
-            <div style={{ position:"relative", flex:1, minHeight:300, background:"#E5E7EB" }}>
-              <div ref={mapRef} style={{ position:"absolute", inset:0 }} />
+            <div ref={mapRef} style={{ flex:1, minHeight:300, background:"#E5E7EB", position:"relative" }}>
               {mapError && (
                 <div style={{
-                  position:"absolute", inset:0, background:"#F8FAFC",
+                  position:"absolute", inset:0, background:"#F8FAFC", zIndex:10,
                   display:"flex", alignItems:"center", justifyContent:"center",
                   textAlign:"center", padding:"20px 24px", color:"#64748B", fontSize:13, fontWeight:600
                 }}>
