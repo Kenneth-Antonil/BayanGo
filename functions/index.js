@@ -475,7 +475,7 @@ exports.createPaymongoQrphCheckout = onRequest(
               quantity: 1,
             },
           ],
-          payment_method_types: ["gcash", "paymaya"],
+          payment_method_types: ["qrph"],
           metadata: {
             orderId,
           },
