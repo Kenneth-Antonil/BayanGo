@@ -174,6 +174,7 @@
     ];
 
     const DEFAULT_PRODUCTS = [];
+    const PAYMONGO_QRPH_CHECKOUT_URL = "https://us-central1-bayango-315c6.cloudfunctions.net/createPaymongoQrphCheckout";
 
     const ORDER_STATUSES = [
       { key:"pending",   label:"Pending",   icon:"hourglass-half", desc:"Nai-receive na ang order mo" },
@@ -818,11 +819,33 @@
             status: order?.status || "pending",
             createdAt: order?.createdAt || Date.now(),
           };
-          await _fbDb.ref("orders").push(savedOrder);
+          const orderRef = await _fbDb.ref("orders").push(savedOrder);
+          const orderId = orderRef?.key;
+
+          if (order?.paymentMethod === "QRPH" && orderId) {
+            const checkoutRes = await fetch(PAYMONGO_QRPH_CHECKOUT_URL, {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ orderId }),
+            });
+            const checkoutData = await checkoutRes.json().catch(() => ({}));
+
+            if (!checkoutRes.ok) {
+              console.error("PayMongo checkout create failed:", checkoutData);
+              throw new Error(checkoutData?.error || "paymongo-checkout-failed");
+            }
+
+            if (checkoutData?.checkoutUrl) {
+              window.open(checkoutData.checkoutUrl, "_blank", "noopener,noreferrer");
+            }
+          }
+
+          return orderId;
 
         } catch (err) {
           console.error("RTDB write failed:", err.code, err.message);
           setSyncError(err.code || err.message || "sync-failed");
+          throw err;
         }
       }, []);
 
@@ -1412,7 +1435,7 @@
         setVoucherMsg(`Voucher applied: ${found.code}`);
       };
 
-      const placeOrder = () => {
+      const placeOrder = async () => {
         if (!name || !phone || !addr || !hasPinnedLocation) {
           if (!hasPinnedLocation) {
             alert("I-pin muna ang exact location mo bago mag-order.");
@@ -1432,41 +1455,45 @@
           ...customItems.map(i => ({ ...i, price: i.estPrice })),
         ];
         const batchInfo = getDeliveryBatch();
-        onOrder({
-          items: allItems,
-          subtotal, customEstimate: customEstTotal, deliveryFee,
-          serviceFee, smallOrderFee,
-          firstTimeFreeShipping: isEligibleFirstOrderFreeShipping,
-          freeShipDiscount,
-          voucher: appliedVoucher ? {
-            id: appliedVoucher.id,
-            code: appliedVoucher.code,
-            type: appliedVoucher.type,
-            value: appliedVoucher.value,
-            minOrder: appliedVoucher.minOrder || 0,
-            discount: voucherDiscount,
-          } : null,
-          totalDiscount,
-          total,
-          zone: deliveryMetaLabel,
-          customer: { name, phone, address: addr, lat: customerLat, lng: customerLng },
-          status: "pending",
-          hasCustomItems: customItems.length > 0,
-          deliveryBatch: batchInfo.batch,
-          deliveryDate:  batchInfo.date,
-          locationType,
-          paymentMethod,
-        });
-        setCart({});
-        setCartWeightUnit({});
-        setCustomItems([]);
-        setVoucherCode("");
-        setAppliedVoucher(null);
-        setVoucherMsg("");
-        setShowCheckout(false);
-        setShowCart(false);
-        setOrderPlaced(true);
-        setTimeout(() => setOrderPlaced(false), 3500);
+        try {
+          await onOrder({
+            items: allItems,
+            subtotal, customEstimate: customEstTotal, deliveryFee,
+            serviceFee, smallOrderFee,
+            firstTimeFreeShipping: isEligibleFirstOrderFreeShipping,
+            freeShipDiscount,
+            voucher: appliedVoucher ? {
+              id: appliedVoucher.id,
+              code: appliedVoucher.code,
+              type: appliedVoucher.type,
+              value: appliedVoucher.value,
+              minOrder: appliedVoucher.minOrder || 0,
+              discount: voucherDiscount,
+            } : null,
+            totalDiscount,
+            total,
+            zone: deliveryMetaLabel,
+            customer: { name, phone, address: addr, lat: customerLat, lng: customerLng },
+            status: "pending",
+            hasCustomItems: customItems.length > 0,
+            deliveryBatch: batchInfo.batch,
+            deliveryDate:  batchInfo.date,
+            locationType,
+            paymentMethod,
+          });
+          setCart({});
+          setCartWeightUnit({});
+          setCustomItems([]);
+          setVoucherCode("");
+          setAppliedVoucher(null);
+          setVoucherMsg("");
+          setShowCheckout(false);
+          setShowCart(false);
+          setOrderPlaced(true);
+          setTimeout(() => setOrderPlaced(false), 3500);
+        } catch (err) {
+          alert("Hindi ma-process ang QR PH payment. Subukan ulit mamaya.");
+        }
       };
 
       const isOrderClosed = (order) => order?.status === "delivered" || order?.status === "cancelled";
@@ -2419,7 +2446,7 @@
                   </div>
                 )}
 
-                {/* GCash Payment Section (Island orders only, after buying status) */}
+                {/* QR PH Payment Section (Island orders only, after buying status) */}
                 {liveOrder.locationType === "Island" && (liveOrder.status === "buying" || liveOrder.status === "in_boat") && (
                   <div style={{ marginTop:18, borderRadius:16, border:"2px solid #3B82F6", background:"#EFF6FF", padding:"16px" }}>
                     {liveOrder.gcashPaymentConfirmed ? (
@@ -2428,19 +2455,27 @@
                           <Ic n="circle-check" size={18} style={{ color:"#166534" }} />
                         </div>
                         <div>
-                          <div style={{ fontSize:14, fontWeight:800, color:"#166534" }}>GCash Payment Confirmed!</div>
+                          <div style={{ fontSize:14, fontWeight:800, color:"#166534" }}>QR PH Payment Confirmed!</div>
                           <div style={{ fontSize:11, color:"#555" }}>Na-confirm na ng admin ang iyong bayad.</div>
                         </div>
                       </div>
                     ) : (
                       <>
                         <div style={{ fontSize:13, fontWeight:800, color:"#1D4ED8", marginBottom:10, display:"flex", alignItems:"center", gap:6 }}>
-                          <Ic n="qrcode" /> I-send ang GCash Payment
+                          <Ic n="qrcode" /> QR PH via PayMongo
                         </div>
+                        {liveOrder.paymongoCheckoutUrl && (
+                          <button onClick={() => window.open(liveOrder.paymongoCheckoutUrl, "_blank", "noopener,noreferrer")} style={{
+                            width:"100%", marginBottom:10, border:"none", borderRadius:10, padding:"11px 12px",
+                            background:"linear-gradient(135deg,#1D4ED8,#3B82F6)", color:"#fff", fontSize:13, fontWeight:800, cursor:"pointer",
+                          }}>
+                            <Ic n="bolt" style={{ marginRight:6 }} /> Buksan ang PayMongo QR PH Checkout
+                          </button>
+                        )}
                         {gcashSettings.qrUrl ? (
                           <div style={{ textAlign:"center", marginBottom:10 }}>
-                            <img src={gcashSettings.qrUrl} alt="GCash QR" style={{ width:180, height:180, objectFit:"contain", borderRadius:12, border:"2px solid #BFDBFE", background:"#fff", padding:4 }} />
-                            <div style={{ fontSize:10, color:"#94A3B8", marginTop:4 }}>I-scan ang QR sa GCash app</div>
+                            <img src={gcashSettings.qrUrl} alt="QR PH" style={{ width:180, height:180, objectFit:"contain", borderRadius:12, border:"2px solid #BFDBFE", background:"#fff", padding:4 }} />
+                            <div style={{ fontSize:10, color:"#94A3B8", marginTop:4 }}>Fallback QR kung hindi gumana ang PayMongo checkout</div>
                           </div>
                         ) : (
                           <div style={{ textAlign:"center", marginBottom:10, padding:"14px", background:"#fff", borderRadius:12, border:"2px dashed #BFDBFE" }}>
@@ -2454,7 +2489,7 @@
                           display:"flex", justifyContent:"space-between", alignItems:"center",
                         }}>
                           <div>
-                            <div style={{ fontSize:11, color:"#888", marginBottom:2 }}>GCash Number</div>
+                            <div style={{ fontSize:11, color:"#888", marginBottom:2 }}>Fallback GCash Number</div>
                             <div style={{ fontSize:17, fontWeight:800, color:"#1D4ED8", letterSpacing:1 }}>{gcashSettings.number || "—"}</div>
                           </div>
                           <Ic n="copy" style={{ color:"#93C5FD" }} />
@@ -2469,7 +2504,7 @@
                         </div>
                         <div style={{ fontSize:11, color:"#3B82F6", lineHeight:1.5, display:"flex", alignItems:"flex-start", gap:5 }}>
                           <Ic n="triangle-exclamation" style={{ marginTop:1, flexShrink:0 }} />
-                          <span>Hangga't hindi na-confirm ng admin ang iyong GCash payment, hindi mapapadala ang order sa bangka.</span>
+                          <span>Hangga't hindi na-confirm ng admin ang QR PH payment, hindi mapapadala ang order sa bangka.</span>
                         </div>
                       </>
                     )}
