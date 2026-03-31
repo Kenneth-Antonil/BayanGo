@@ -1,0 +1,11 @@
+# Firebase
+functions/.env
+functions/.env.local
+.firebase/
+
+# Node
+node_modules/
+functions/node_modules/
+
+# OS
+.DS_Store
