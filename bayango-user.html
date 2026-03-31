@@ -174,7 +174,6 @@
     ];
 
     const DEFAULT_PRODUCTS = [];
-    const PAYMONGO_QRPH_CHECKOUT_URL = "https://us-central1-bayango-315c6.cloudfunctions.net/createPaymongoQrphCheckout";
 
     const ORDER_STATUSES = [
       { key:"pending",   label:"Pending",   icon:"hourglass-half", desc:"Nai-receive na ang order mo" },
@@ -819,33 +818,11 @@
             status: order?.status || "pending",
             createdAt: order?.createdAt || Date.now(),
           };
-          const orderRef = await _fbDb.ref("orders").push(savedOrder);
-          const orderId = orderRef?.key;
-
-          if (order?.paymentMethod === "QRPH" && orderId) {
-            const checkoutRes = await fetch(PAYMONGO_QRPH_CHECKOUT_URL, {
-              method: "POST",
-              headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({ orderId }),
-            });
-            const checkoutData = await checkoutRes.json().catch(() => ({}));
-
-            if (!checkoutRes.ok) {
-              console.error("PayMongo checkout create failed:", checkoutData);
-              throw new Error(checkoutData?.error || "paymongo-checkout-failed");
-            }
-
-            if (checkoutData?.checkoutUrl) {
-              window.open(checkoutData.checkoutUrl, "_blank", "noopener,noreferrer");
-            }
-          }
-
-          return orderId;
+          await _fbDb.ref("orders").push(savedOrder);
 
         } catch (err) {
           console.error("RTDB write failed:", err.code, err.message);
           setSyncError(err.code || err.message || "sync-failed");
-          throw err;
         }
       }, []);
 
@@ -1217,33 +1194,18 @@
       }, [user?.uid]);
       const [searchQ,        setSearchQ]        = useState("");
       const [orderPlaced,    setOrderPlaced]    = useState(false);
-      const USER_SECTIONS = new Set(["shop", "orders", "account"]);
-      const normalizeUserSection = (rawSection) => {
-        const section = String(rawSection || "").toLowerCase();
-        if (section === "profile") return "account";
-        if (section === "rider-tracker") return "orders";
-        return USER_SECTIONS.has(section) ? section : "shop";
-      };
       const getInitialPage = () => {
         try {
           const url = new URL(window.location.href);
           const section = (url.searchParams.get("section") || "").toLowerCase();
           const hash = (url.hash || "").replace("#", "").toLowerCase();
-          return normalizeUserSection(section || hash);
+          if (section === "rider-tracker" || section === "orders" || hash === "rider-tracker" || hash === "orders") {
+            return "orders";
+          }
         } catch {}
         return "shop";
       };
       const [activePage,     setActivePage]     = useState(getInitialPage);
-      const switchPage = useCallback((nextPage) => {
-        const normalizedPage = normalizeUserSection(nextPage);
-        setActivePage(normalizedPage);
-        try {
-          const url = new URL(window.location.href);
-          url.searchParams.set("section", normalizedPage);
-          url.hash = normalizedPage;
-          window.history.replaceState({}, "", url.toString());
-        } catch {}
-      }, []);
       const [customItems,    setCustomItems]    = useState([]);
       const [showCustomList, setShowCustomList] = useState(false);
       const [newItemName,    setNewItemName]    = useState("");
@@ -1256,7 +1218,6 @@
       const [voucherMsg,     setVoucherMsg]     = useState("");
       const [showVoucherList,setShowVoucherList]= useState(false);
       const [cartWeightUnit, setCartWeightUnit] = useState({});
-      const [paymentMethod,  setPaymentMethod]  = useState("COD");
 
       const cartCount = Object.values(cart).reduce((s,v) => s+v, 0);
       const cartItems = Object.entries(cart)
@@ -1393,16 +1354,6 @@
         setAppliedVoucher(latest);
       }, [appliedVoucher, vouchers, computeVoucherDiscount]);
 
-      useEffect(() => {
-        if (locationType === "Island" && paymentMethod !== "QRPH") {
-          setPaymentMethod("QRPH");
-          return;
-        }
-        if (locationType === "Mainland" && !["COD", "QRPH"].includes(paymentMethod)) {
-          setPaymentMethod("COD");
-        }
-      }, [locationType, paymentMethod]);
-
       const applyVoucher = () => {
         const code = voucherCode.trim().toUpperCase();
         if (!code) {
@@ -1435,7 +1386,7 @@
         setVoucherMsg(`Voucher applied: ${found.code}`);
       };
 
-      const placeOrder = async () => {
+      const placeOrder = () => {
         if (!name || !phone || !addr || !hasPinnedLocation) {
           if (!hasPinnedLocation) {
             alert("I-pin muna ang exact location mo bago mag-order.");
@@ -1455,45 +1406,40 @@
           ...customItems.map(i => ({ ...i, price: i.estPrice })),
         ];
         const batchInfo = getDeliveryBatch();
-        try {
-          await onOrder({
-            items: allItems,
-            subtotal, customEstimate: customEstTotal, deliveryFee,
-            serviceFee, smallOrderFee,
-            firstTimeFreeShipping: isEligibleFirstOrderFreeShipping,
-            freeShipDiscount,
-            voucher: appliedVoucher ? {
-              id: appliedVoucher.id,
-              code: appliedVoucher.code,
-              type: appliedVoucher.type,
-              value: appliedVoucher.value,
-              minOrder: appliedVoucher.minOrder || 0,
-              discount: voucherDiscount,
-            } : null,
-            totalDiscount,
-            total,
-            zone: deliveryMetaLabel,
-            customer: { name, phone, address: addr, lat: customerLat, lng: customerLng },
-            status: "pending",
-            hasCustomItems: customItems.length > 0,
-            deliveryBatch: batchInfo.batch,
-            deliveryDate:  batchInfo.date,
-            locationType,
-            paymentMethod,
-          });
-          setCart({});
-          setCartWeightUnit({});
-          setCustomItems([]);
-          setVoucherCode("");
-          setAppliedVoucher(null);
-          setVoucherMsg("");
-          setShowCheckout(false);
-          setShowCart(false);
-          setOrderPlaced(true);
-          setTimeout(() => setOrderPlaced(false), 3500);
-        } catch (err) {
-          alert("Hindi ma-process ang QR PH payment. Subukan ulit mamaya.");
-        }
+        onOrder({
+          items: allItems,
+          subtotal, customEstimate: customEstTotal, deliveryFee,
+          serviceFee, smallOrderFee,
+          firstTimeFreeShipping: isEligibleFirstOrderFreeShipping,
+          freeShipDiscount,
+          voucher: appliedVoucher ? {
+            id: appliedVoucher.id,
+            code: appliedVoucher.code,
+            type: appliedVoucher.type,
+            value: appliedVoucher.value,
+            minOrder: appliedVoucher.minOrder || 0,
+            discount: voucherDiscount,
+          } : null,
+          totalDiscount,
+          total,
+          zone: deliveryMetaLabel,
+          customer: { name, phone, address: addr, lat: customerLat, lng: customerLng },
+          status: "pending",
+          hasCustomItems: customItems.length > 0,
+          deliveryBatch: batchInfo.batch,
+          deliveryDate:  batchInfo.date,
+          locationType,
+        });
+        setCart({});
+        setCartWeightUnit({});
+        setCustomItems([]);
+        setVoucherCode("");
+        setAppliedVoucher(null);
+        setVoucherMsg("");
+        setShowCheckout(false);
+        setShowCart(false);
+        setOrderPlaced(true);
+        setTimeout(() => setOrderPlaced(false), 3500);
       };
 
       const isOrderClosed = (order) => order?.status === "delivered" || order?.status === "cancelled";
@@ -1557,7 +1503,7 @@
         const latestActive = myOrders.find(o => o.status !== "delivered");
         const targetOrder = latestTrackable || latestActive;
 
-        switchPage("orders");
+        setActivePage("orders");
         if (targetOrder) {
           if (targetOrder.status === "buying" || targetOrder.status === "otw") {
             setShowRiderMap(targetOrder);
@@ -1565,23 +1511,7 @@
             setShowTracker(targetOrder);
           }
         }
-      }, [myOrders, showRiderMap, showTracker, switchPage]);
-
-      useEffect(() => {
-        const handleSectionSwitch = () => {
-          try {
-            const url = new URL(window.location.href);
-            const section = url.searchParams.get("section") || url.hash.replace("#", "");
-            setActivePage(normalizeUserSection(section));
-          } catch {}
-        };
-        window.addEventListener("popstate", handleSectionSwitch);
-        window.addEventListener("hashchange", handleSectionSwitch);
-        return () => {
-          window.removeEventListener("popstate", handleSectionSwitch);
-          window.removeEventListener("hashchange", handleSectionSwitch);
-        };
-      }, []);
+      }, [myOrders, showRiderMap, showTracker]);
 
       return (
         <div style={{ maxWidth:480, margin:"0 auto", paddingBottom:80, background:"#F8FAF8", minHeight:"100vh", paddingTop:"calc(60px + env(safe-area-inset-top,0px))" }}>
@@ -1599,7 +1529,7 @@
             boxShadow:"0 4px 14px rgba(22,101,52,.28)",
           }}>
             <img src="https://i.imgur.com/h7HgGC0.png" style={{ height:40, objectFit:"contain" }} />
-            <button onClick={() => switchPage("account")} style={{
+            <button onClick={() => setActivePage("account")} style={{
               width:38, height:38, borderRadius:"50%", overflow:"hidden",
               border: activePage==="account" ? "2.5px solid #166534" : "2.5px solid #E5E7EB",
               padding:0, flexShrink:0, background:"#F0FDF4",
@@ -2257,40 +2187,10 @@
                   )}
                 </div>
 
-                <div style={{ marginBottom:14 }}>
-                  <label style={{ fontSize:12, fontWeight:700, color:"#666", display:"block", marginBottom:8 }}>
-                    <Ic n="wallet" style={{marginRight:5}} />Paraan ng Bayad
-                  </label>
-                  <div style={{ display:"grid", gridTemplateColumns: locationType === "Island" ? "1fr" : "1fr 1fr", gap:8 }}>
-                    {(locationType === "Island"
-                      ? [{ val:"QRPH", icon:"qrcode", label:"QR PH", desc:"QR PH lang para sa Island orders" }]
-                      : [
-                          { val:"COD",  icon:"money-bill-wave", label:"Cash on Delivery", desc:"Bayad pagdating ng order" },
-                          { val:"QRPH", icon:"qrcode",          label:"QR PH",           desc:"Scan QR PH at magbayad" },
-                        ]
-                    ).map(opt => (
-                      <button key={opt.val} type="button"
-                        onClick={() => setPaymentMethod(opt.val)}
-                        style={{
-                          padding:"12px 10px", borderRadius:14, textAlign:"center",
-                          border: paymentMethod === opt.val ? "2px solid #166534" : "1.5px solid #E5E7EB",
-                          background: paymentMethod === opt.val ? "#F0FDF4" : "#FAFAFA",
-                          transition:"all .18s",
-                        }}>
-                        <Ic n={opt.icon} size={18} style={{ color: paymentMethod === opt.val ? "#166534" : "#9CA3AF", marginBottom:4, display:"block" }} />
-                        <div style={{ fontSize:13, fontWeight:800, color: paymentMethod === opt.val ? "#166534" : "#374151" }}>{opt.label}</div>
-                        <div style={{ fontSize:10, color:"#9CA3AF", marginTop:2 }}>{opt.desc}</div>
-                      </button>
-                    ))}
-                  </div>
-                </div>
-
                 <div style={{ background:"#FEF3C7", borderRadius:12, padding:"12px 14px", marginBottom:18, display:"flex", gap:10 }}>
                   <Ic n="credit-card" size={18} style={{ color:"#92400E", marginTop:1 }} />
                   <div style={{ fontSize:12, color:"#92400E", lineHeight:1.5 }}>
-                    {locationType === "Island"
-                      ? <><strong>QR PH only</strong> — Para sa Island orders, QR PH lang ang available na payment method.</>
-                      : <><strong>COD o QR PH</strong> — Pumili ng Cash on Delivery o QR PH para sa order mo.</>}
+                    <strong>GCash o COD</strong> — Pag-deliver ng order, pwede kang magbayad via GCash o Cash on Delivery.
                   </div>
                 </div>
 
@@ -2446,7 +2346,7 @@
                   </div>
                 )}
 
-                {/* QR PH Payment Section (Island orders only, after buying status) */}
+                {/* GCash Payment Section (Island orders only, after buying status) */}
                 {liveOrder.locationType === "Island" && (liveOrder.status === "buying" || liveOrder.status === "in_boat") && (
                   <div style={{ marginTop:18, borderRadius:16, border:"2px solid #3B82F6", background:"#EFF6FF", padding:"16px" }}>
                     {liveOrder.gcashPaymentConfirmed ? (
@@ -2455,27 +2355,19 @@
                           <Ic n="circle-check" size={18} style={{ color:"#166534" }} />
                         </div>
                         <div>
-                          <div style={{ fontSize:14, fontWeight:800, color:"#166534" }}>QR PH Payment Confirmed!</div>
+                          <div style={{ fontSize:14, fontWeight:800, color:"#166534" }}>GCash Payment Confirmed!</div>
                           <div style={{ fontSize:11, color:"#555" }}>Na-confirm na ng admin ang iyong bayad.</div>
                         </div>
                       </div>
                     ) : (
                       <>
                         <div style={{ fontSize:13, fontWeight:800, color:"#1D4ED8", marginBottom:10, display:"flex", alignItems:"center", gap:6 }}>
-                          <Ic n="qrcode" /> QR PH via PayMongo
+                          <Ic n="qrcode" /> I-send ang GCash Payment
                         </div>
-                        {liveOrder.paymongoCheckoutUrl && (
-                          <button onClick={() => window.open(liveOrder.paymongoCheckoutUrl, "_blank", "noopener,noreferrer")} style={{
-                            width:"100%", marginBottom:10, border:"none", borderRadius:10, padding:"11px 12px",
-                            background:"linear-gradient(135deg,#1D4ED8,#3B82F6)", color:"#fff", fontSize:13, fontWeight:800, cursor:"pointer",
-                          }}>
-                            <Ic n="bolt" style={{ marginRight:6 }} /> Buksan ang PayMongo QR PH Checkout
-                          </button>
-                        )}
                         {gcashSettings.qrUrl ? (
                           <div style={{ textAlign:"center", marginBottom:10 }}>
-                            <img src={gcashSettings.qrUrl} alt="QR PH" style={{ width:180, height:180, objectFit:"contain", borderRadius:12, border:"2px solid #BFDBFE", background:"#fff", padding:4 }} />
-                            <div style={{ fontSize:10, color:"#94A3B8", marginTop:4 }}>Fallback QR kung hindi gumana ang PayMongo checkout</div>
+                            <img src={gcashSettings.qrUrl} alt="GCash QR" style={{ width:180, height:180, objectFit:"contain", borderRadius:12, border:"2px solid #BFDBFE", background:"#fff", padding:4 }} />
+                            <div style={{ fontSize:10, color:"#94A3B8", marginTop:4 }}>I-scan ang QR sa GCash app</div>
                           </div>
                         ) : (
                           <div style={{ textAlign:"center", marginBottom:10, padding:"14px", background:"#fff", borderRadius:12, border:"2px dashed #BFDBFE" }}>
@@ -2489,7 +2381,7 @@
                           display:"flex", justifyContent:"space-between", alignItems:"center",
                         }}>
                           <div>
-                            <div style={{ fontSize:11, color:"#888", marginBottom:2 }}>Fallback GCash Number</div>
+                            <div style={{ fontSize:11, color:"#888", marginBottom:2 }}>GCash Number</div>
                             <div style={{ fontSize:17, fontWeight:800, color:"#1D4ED8", letterSpacing:1 }}>{gcashSettings.number || "—"}</div>
                           </div>
                           <Ic n="copy" style={{ color:"#93C5FD" }} />
@@ -2504,7 +2396,7 @@
                         </div>
                         <div style={{ fontSize:11, color:"#3B82F6", lineHeight:1.5, display:"flex", alignItems:"flex-start", gap:5 }}>
                           <Ic n="triangle-exclamation" style={{ marginTop:1, flexShrink:0 }} />
-                          <span>Hangga't hindi na-confirm ng admin ang QR PH payment, hindi mapapadala ang order sa bangka.</span>
+                          <span>Hangga't hindi na-confirm ng admin ang iyong GCash payment, hindi mapapadala ang order sa bangka.</span>
                         </div>
                       </>
                     )}
@@ -2552,7 +2444,7 @@
               { key:"shop",    icon:"cart-shopping", label:"Tindahan" },
               { key:"orders",  icon:"box",           label:"Orders",  badge: activeOrders.length },
             ].map(t => (
-              <button key={t.key} onClick={() => switchPage(t.key)} style={{
+              <button key={t.key} onClick={() => setActivePage(t.key)} style={{
                 flex:1, padding:"11px 0 9px", display:"flex", flexDirection:"column", alignItems:"center", gap:3,
                 color: activePage===t.key ? "#166534" : "#94A3B8",
                 borderTop: activePage===t.key ? "2px solid #166534" : "2px solid transparent",

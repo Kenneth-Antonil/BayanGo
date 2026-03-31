@@ -11,7 +11,6 @@ initializeApp();
 const APP_ICON = "https://i.imgur.com/wL8wcBB.jpeg";
 const USER_APP_URL = "https://bayango.ph/bayango-user.html";
 const RIDER_APP_URL = "https://bayango.ph/bayango-rider.html";
-const PAYMONGO_SECRET_KEY = process.env.PAYMONGO_SECRET_KEY || "";
 
 const ORDER_STATUS_LABELS = {
   pending:   "Nai-receive na ang order",
@@ -419,109 +418,6 @@ exports.paymongoWebhook = onRequest(
     }
 
     res.status(200).json({ ok: true, logged: true, orderUpdated: true, orderId, paymentState });
-  }
-);
-
-// ─────────────────────────────────────────────────────────────────────────────
-// HTTPS: CREATE PAYMONGO QRPH CHECKOUT SESSION
-// ─────────────────────────────────────────────────────────────────────────────
-exports.createPaymongoQrphCheckout = onRequest(
-  { region: "us-central1", cors: true },
-  async (req, res) => {
-    if (req.method !== "POST") {
-      res.status(405).json({ ok: false, error: "Method Not Allowed" });
-      return;
-    }
-
-    if (!PAYMONGO_SECRET_KEY) {
-      res.status(500).json({ ok: false, error: "Missing PAYMONGO_SECRET_KEY" });
-      return;
-    }
-
-    const orderId = String(req.body?.orderId || "").trim();
-    if (!orderId) {
-      res.status(400).json({ ok: false, error: "orderId is required" });
-      return;
-    }
-
-    const db = getDatabase();
-    const orderRef = db.ref(`orders/${orderId}`);
-    const orderSnap = await orderRef.get();
-    if (!orderSnap.exists()) {
-      res.status(404).json({ ok: false, error: "order_not_found" });
-      return;
-    }
-
-    const order = orderSnap.val() || {};
-    const totalPhp = Number(order.total || 0);
-    if (!Number.isFinite(totalPhp) || totalPhp <= 0) {
-      res.status(400).json({ ok: false, error: "invalid_order_total" });
-      return;
-    }
-
-    const amount = Math.round(totalPhp * 100);
-    const auth = Buffer.from(`${PAYMONGO_SECRET_KEY}:`).toString("base64");
-    const successUrl = `${USER_APP_URL}#orders`;
-    const failUrl = `${USER_APP_URL}#orders`;
-
-    const payload = {
-      data: {
-        attributes: {
-          line_items: [
-            {
-              currency: "PHP",
-              amount,
-              name: `BayanGo Order ${orderId.slice(-6)}`,
-              quantity: 1,
-            },
-          ],
-          payment_method_types: ["gcash", "paymaya"],
-          metadata: {
-            orderId,
-          },
-          send_email_receipt: false,
-          show_description: true,
-          show_line_items: true,
-          description: `QR PH payment for order ${orderId}`,
-          success_url: successUrl,
-          cancel_url: failUrl,
-        },
-      },
-    };
-
-    const response = await fetch("https://api.paymongo.com/v1/checkout_sessions", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Basic ${auth}`,
-      },
-      body: JSON.stringify(payload),
-    });
-
-    const json = await response.json().catch(() => ({}));
-    if (!response.ok) {
-      console.error("PayMongo checkout session error", response.status, json);
-      res.status(502).json({ ok: false, error: "paymongo_api_error", details: json });
-      return;
-    }
-
-    const checkoutId = json?.data?.id || null;
-    const checkoutUrl = json?.data?.attributes?.checkout_url || null;
-
-    await orderRef.update({
-      paymentProvider: "paymongo",
-      paymentStatus: "pending",
-      paymentUpdatedAt: Date.now(),
-      paymongoCheckoutId: checkoutId,
-      paymongoCheckoutUrl: checkoutUrl,
-    });
-
-    res.status(200).json({
-      ok: true,
-      orderId,
-      checkoutId,
-      checkoutUrl,
-    });
   }
 );
 
