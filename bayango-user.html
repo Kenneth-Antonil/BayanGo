@@ -1534,7 +1534,7 @@
       }, [myOrders, showRiderMap, showTracker]);
 
       return (
-        <div style={{ maxWidth:480, margin:"0 auto", paddingBottom:80, background:"#F8FAF8", minHeight:"100vh", paddingTop:"calc(60px + env(safe-area-inset-top,0px))" }}>
+        <div style={{ maxWidth:480, margin:"0 auto", paddingBottom:80, background:"#F3F4F6", minHeight:"100vh", paddingTop:"calc(72px + env(safe-area-inset-top,0px))" }}>
 
           {/* ── Slim Header ── */}
           <div style={{
@@ -1545,12 +1545,17 @@
             paddingTop:"env(safe-area-inset-top,0px)",
             paddingLeft:16, paddingRight:16,
             display:"flex", alignItems:"center", justifyContent:"space-between",
-            height:"calc(60px + env(safe-area-inset-top,0px))",
+            height:"calc(68px + env(safe-area-inset-top,0px))",
             boxShadow:"0 4px 14px rgba(22,101,52,.28)",
           }}>
-            <img src="https://i.imgur.com/h7HgGC0.png" style={{ height:40, objectFit:"contain" }} />
+            <div style={{ display:"flex", flexDirection:"column" }}>
+              <img src="https://i.imgur.com/h7HgGC0.png" style={{ height:40, objectFit:"contain" }} />
+              <div style={{ fontSize:11, color:"rgba(255,255,255,.75)", fontWeight:600, display:"flex", alignItems:"center", gap:4, marginTop:2 }}>
+                <Ic n="location-dot" size={10} /> Binangonan Public Market
+              </div>
+            </div>
             <button onClick={() => setActivePage("account")} style={{
-              width:38, height:38, borderRadius:"50%", overflow:"hidden",
+              width:42, height:42, borderRadius:"50%", overflow:"hidden",
               border: activePage==="account" ? "2.5px solid #166534" : "2.5px solid #E5E7EB",
               padding:0, flexShrink:0, background:"#F0FDF4",
               display:"flex", alignItems:"center", justifyContent:"center",
@@ -1571,7 +1576,7 @@
 
           {/* ── Search ── */}
           <div style={{ padding:"16px 20px 0" }}>
-            <div style={{ background:"#fff", borderRadius:16, padding:"12px 16px", display:"flex", alignItems:"center", gap:10, boxShadow:"0 1px 4px rgba(0,0,0,.07)", border:"1px solid #E9ECEF" }}>
+            <div style={{ background:"#F0F0F0", borderRadius:24, padding:"13px 18px", display:"flex", alignItems:"center", gap:10, boxShadow:"0 1px 4px rgba(0,0,0,.07)", border:"none" }}>
               <Ic n="magnifying-glass" size={17} style={{ opacity:.35 }} />
               <input placeholder="Maghanap ng produkto..." value={searchQ}
                 onChange={e => setSearchQ(e.target.value)}
@@ -1587,16 +1592,21 @@
           <div style={{ display:"flex", gap:8, padding:"14px 20px", overflowX:"auto", scrollbarWidth:"none" }}>
             {CATEGORIES.map(cat => (
               <button key={cat.id} onClick={() => setActiveCat(cat.id)} style={{
-                padding:"10px 18px", borderRadius:30, whiteSpace:"nowrap",
-                fontSize:13, fontWeight:700, display:"flex", alignItems:"center", gap:6,
+                padding:"10px 6px", borderRadius:16, whiteSpace:"nowrap", width:72, flexShrink:0,
+                fontSize:11, fontWeight:700, display:"flex", flexDirection:"column", alignItems:"center", gap:6,
                 background: activeCat===cat.id ? cat.color : "#fff",
                 color: activeCat===cat.id ? "#fff" : "#555",
-                boxShadow: activeCat===cat.id ? `0 4px 14px ${cat.color}40` : "0 1px 3px rgba(0,0,0,.06)",
-                border: activeCat===cat.id ? "none" : "1px solid #E5E7EB",
-                transition:"all .22s ease",
-                transform: activeCat===cat.id ? "scale(1.04)" : "scale(1)"
+                boxShadow: activeCat===cat.id ? `0 4px 14px ${cat.color}40` : "0 1px 4px rgba(0,0,0,.07)",
+                border: "none",
+                transition:"all .18s ease",
               }}>
-                <Ic n={cat.icon} size={14} />{cat.label}
+                <div style={{
+                  width:38, height:38, borderRadius:12, display:"flex", alignItems:"center", justifyContent:"center",
+                  background: activeCat===cat.id ? "rgba(255,255,255,.25)" : `${cat.color}18`,
+                }}>
+                  <Ic n={cat.icon} size={18} style={{ color: activeCat===cat.id ? "#fff" : cat.color }} />
+                </div>
+                {cat.label}
               </button>
             ))}
           </div>
@@ -1604,10 +1614,13 @@
           {/* ── Custom List Entry ── */}
           <div style={{ padding:"0 20px 14px" }}>
             <button onClick={() => setShowCustomList(true)} style={{
-              width:"100%", background:"#F0FDF4", border:"2px dashed #86EFAC", borderRadius:16,
+              width:"100%", background:"linear-gradient(135deg,#F0FDF4,#DCFCE7)", border:"none", borderRadius:20,
               padding:"13px 16px", display:"flex", alignItems:"center", gap:12,
+              boxShadow:"0 2px 10px rgba(22,101,52,.10)",
             }}>
-              <Ic n="list-check" size={26} style={{ color:"#22C55E" }} />
+              <div style={{ width:48, height:48, borderRadius:14, background:"#22C55E", display:"flex", alignItems:"center", justifyContent:"center" }}>
+                <Ic n="list-check" size={22} style={{ color:"#fff" }} />
+              </div>
               <div style={{ flex:1, textAlign:"left" }}>
                 <div style={{ fontSize:14, fontWeight:700, color:"#166534" }}>Custom List</div>
                 <div style={{ fontSize:12, color:"#6B7280" }}>
@@ -1627,15 +1640,15 @@
 
           {/* ── Section Label ── */}
           <div style={{ padding:"0 20px 10px", display:"flex", justifyContent:"space-between", alignItems:"center" }}>
-            <h2 style={{ fontSize:15, fontWeight:800, color:"#111", display:"flex", alignItems:"center", gap:6 }}>
+            <h2 style={{ fontSize:17, fontWeight:800, color:"#111", display:"flex", alignItems:"center", gap:6, borderLeft:"3px solid #22C55E", paddingLeft:10 }}>
               <Ic n={CATEGORIES.find(c=>c.id===activeCat)?.icon} style={{color:CATEGORIES.find(c=>c.id===activeCat)?.color}} />
               {CATEGORIES.find(c=>c.id===activeCat)?.label}
             </h2>
-            <span style={{ fontSize:12, color:"#999", fontWeight:500 }}>{filtered.length} items</span>
+            <span style={{ background:"#F0FDF4", color:"#166534", borderRadius:20, padding:"2px 10px", fontSize:12, fontWeight:700 }}>{filtered.length} items</span>
           </div>
 
           <div style={{ padding:"0 20px 12px" }}>
-            <div style={{ background:"#FFFBEB", border:"1px solid #FDE68A", borderRadius:12, padding:"10px 12px", color:"#92400E", fontSize:12, fontWeight:600, display:"flex", alignItems:"flex-start", gap:8 }}>
+            <div style={{ background:"#FFF9F0", border:"1px solid #FDE68A", borderRadius:20, padding:"8px 12px", color:"#92400E", fontSize:11, fontWeight:600, display:"flex", alignItems:"flex-start", gap:8 }}>
               <Ic n="triangle-exclamation" style={{ marginTop:1 }} />
               <span>Paalala: Ang mga prices na naka-post ay maaaring magbago depende sa presyo sa palengke.</span>
             </div>
@@ -1643,12 +1656,12 @@
 
           {/* ── Products Grid ── */}
           <div style={{ padding:`0 20px ${totalItemCount > 0 && !showCart ? "138px" : "16px"}` }}>
-            <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:12 }}>
+            <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:14 }}>
               {filtered.map((p, i) => (
                 <div key={p.id} className="fade-up" style={{
                   animationDelay:`${i*.05}s`,
-                  background:"#fff", borderRadius:18, overflow:"hidden",
-                  border:"1px solid #F0F0F0", boxShadow:"0 2px 8px rgba(0,0,0,.04)",
+                  background:"#fff", borderRadius:20, overflow:"hidden",
+                  border:"none", boxShadow:"0 3px 14px rgba(0,0,0,.09)",
                   opacity:p.stock?1:.5, position:"relative"
                 }}>
                   {!p.stock && (
@@ -1659,7 +1672,7 @@
                     }}>SOLD OUT</div>
                   )}
                   <div style={{
-                    height:96, overflow:"hidden",
+                    height:120, overflow:"hidden",
                     background:`linear-gradient(135deg,${CATEGORIES.find(c=>c.id===p.cat)?.color}12,${CATEGORIES.find(c=>c.id===p.cat)?.color}06)`,
                     display:"flex", alignItems:"center", justifyContent:"center"
                   }}>
@@ -1670,9 +1683,9 @@
                       <Ic n={CATEGORIES.find(c=>c.id===p.cat)?.icon} size={40} style={{color:CATEGORIES.find(c=>c.id===p.cat)?.color,opacity:.5}} />
                     </div>
                   </div>
-                  <div style={{ padding:"11px 14px 14px" }}>
-                    <div style={{ fontSize:13, fontWeight:700, color:"#111", marginBottom:2, lineHeight:1.25 }}>{p.name}</div>
-                    <div style={{ fontSize:11, color:"#aaa", marginBottom:8 }}>per {p.unit}</div>
+                  <div style={{ padding:"12px 12px 14px" }}>
+                    <div style={{ fontSize:13, fontWeight:800, color:"#111", marginBottom:2, lineHeight:1.25 }}>{p.name}</div>
+                    <div style={{ fontSize:10, color:"#B0B0B0", marginBottom:8 }}>per {p.unit}</div>
                     {p.unit === "kg" && (
                       <div style={{ display:"flex", gap:4, marginBottom:10 }}>
                         {[{w:0.25,l:"¼kg"},{w:0.5,l:"½kg"},{w:1,l:"1kg"}].map(({w,l}) => {
@@ -1703,15 +1716,15 @@
                       {p.stock && (
                         cart[p.id] ? (
                           <div style={{ display:"flex", alignItems:"center", gap:5 }}>
-                            <button onClick={() => rem(p.id)} style={{ width:28, height:28, borderRadius:8, background:"#F3F4F6", fontSize:16, fontWeight:700, color:"#555", display:"flex", alignItems:"center", justifyContent:"center" }}>−</button>
+                            <button onClick={() => rem(p.id)} style={{ width:30, height:30, borderRadius:"50%", background:"#F3F4F6", fontSize:16, fontWeight:700, color:"#555", display:"flex", alignItems:"center", justifyContent:"center" }}>−</button>
                             <span style={{ fontSize:14, fontWeight:800, minWidth:16, textAlign:"center" }}>{cart[p.id]}</span>
-                            <button onClick={() => add(p.id)} style={{ width:28, height:28, borderRadius:8, background:"#22C55E", fontSize:16, fontWeight:700, color:"#fff", display:"flex", alignItems:"center", justifyContent:"center" }}>+</button>
+                            <button onClick={() => add(p.id)} style={{ width:30, height:30, borderRadius:"50%", background:"#22C55E", fontSize:16, fontWeight:700, color:"#fff", display:"flex", alignItems:"center", justifyContent:"center" }}>+</button>
                           </div>
                         ) : (
                           <button onClick={() => add(p.id)} style={{
-                            width:34, height:34, borderRadius:10, background:"#22C55E",
+                            width:36, height:36, borderRadius:"50%", background:"#22C55E",
                             color:"#fff", fontSize:20, display:"flex", alignItems:"center", justifyContent:"center",
-                            boxShadow:"0 3px 10px #22C55E40"
+                            boxShadow:"0 4px 12px rgba(34,197,94,.45)"
                           }}>+</button>
                         )
                       )}
@@ -1736,12 +1749,12 @@
               zIndex:100
             }}>
               <button onClick={() => setShowCart(true)} style={{
-                width:"100%", padding:"15px 24px", borderRadius:18,
+                width:"100%", padding:"17px 24px", borderRadius:20,
                 background:"linear-gradient(135deg,#166534,#22C55E)",
                 color:"#fff", display:"flex", alignItems:"center", justifyContent:"space-between",
-                boxShadow:"0 8px 32px rgba(22,101,52,.38)", fontSize:15, fontWeight:700
+                boxShadow:"0 8px 28px rgba(22,101,52,.42)", fontSize:15, fontWeight:700
               }}>
-                <span><Ic n="basket-shopping" style={{marginRight:6}} />Basket ({totalItemCount} item{totalItemCount>1?"s":""})</span>
+                <span><Ic n="basket-shopping" style={{marginRight:6}} />Basket <span style={{background:"rgba(255,255,255,.25)", borderRadius:20, padding:"2px 10px", marginLeft:6}}>({totalItemCount} item{totalItemCount>1?"s":""})</span></span>
                 <span style={{ fontSize:16, fontWeight:800 }}>~{fmt(subtotal + customEstTotal)}</span>
               </button>
             </div>
@@ -2492,15 +2505,18 @@
             {[
               { key:"shop",    icon:"cart-shopping", label:"Tindahan" },
               { key:"orders",  icon:"box",           label:"Orders",  badge: activeOrders.length },
+              { key:"account", icon:"user",          label:"Account" },
             ].map(t => (
               <button key={t.key} onClick={() => setActivePage(t.key)} style={{
-                flex:1, padding:"11px 0 9px", display:"flex", flexDirection:"column", alignItems:"center", gap:3,
+                flex:1, padding:"10px 0 8px", display:"flex", flexDirection:"column", alignItems:"center", gap:3,
                 color: activePage===t.key ? "#166534" : "#94A3B8",
-                borderTop: activePage===t.key ? "2px solid #166534" : "2px solid transparent",
                 position:"relative",
               }}>
                 <Ic n={t.icon} size={22} />
                 <span style={{ fontSize:10, fontWeight:700 }}>{t.label}</span>
+                {activePage === t.key && (
+                  <div style={{ width:20, height:3, borderRadius:3, background:"#22C55E", marginTop:1 }} />
+                )}
                 {t.badge > 0 && (
                   <span style={{
                     position:"absolute", top:6, right:"calc(50% - 18px)",
