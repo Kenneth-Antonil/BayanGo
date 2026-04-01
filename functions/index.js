@@ -5,6 +5,7 @@ const { initializeApp } = require("firebase-admin/app");
 const { getAuth } = require("firebase-admin/auth");
 const { getDatabase } = require("firebase-admin/database");
 const { getMessaging } = require("firebase-admin/messaging");
+const { getStorage } = require("firebase-admin/storage");
 const crypto = require("crypto");
 
 initializeApp();
@@ -133,6 +134,12 @@ function setCors(res, origin = "") {
   res.set("Vary", "Origin");
   res.set("Access-Control-Allow-Headers", "Content-Type, Authorization");
   res.set("Access-Control-Allow-Methods", "POST, OPTIONS");
+}
+
+function toPublicDownloadUrl(bucketName, objectPath, token) {
+  const encodedPath = encodeURIComponent(objectPath);
+  const encodedToken = encodeURIComponent(token);
+  return `https://firebasestorage.googleapis.com/v0/b/${bucketName}/o/${encodedPath}?alt=media&token=${encodedToken}`;
 }
 
 async function verifyAdminRequest(req) {
@@ -614,6 +621,89 @@ exports.sendBroadcastNotification = onRequest(
       targetCount: tokens.length,
       requestedBy: caller.email || caller.uid,
     });
+  }
+);
+
+// ─────────────────────────────────────────────────────────────────────────────
+// HTTPS: ADMIN UPLOAD GCASH QR (SERVER-SIDE STORAGE WRITE; AVOIDS BROWSER CORS)
+// ─────────────────────────────────────────────────────────────────────────────
+exports.uploadGcashQrImage = onRequest(
+  { region: "us-central1", memory: "256MiB" },
+  async (req, res) => {
+    setCors(res, req.get("origin") || "");
+    if (req.method === "OPTIONS") {
+      res.status(204).send("");
+      return;
+    }
+    if (req.method !== "POST") {
+      res.status(405).json({ ok: false, error: "Method Not Allowed" });
+      return;
+    }
+
+    let caller;
+    try {
+      caller = await verifyAdminRequest(req);
+    } catch (err) {
+      console.warn("QR upload auth verification failed:", err?.message || err);
+      res.status(401).json({ ok: false, error: "Unauthorized" });
+      return;
+    }
+    if (!caller) {
+      res.status(401).json({ ok: false, error: "Unauthorized" });
+      return;
+    }
+
+    const dataUrl = String(req.body?.dataUrl || "");
+    const originalName = String(req.body?.fileName || "qr_upload.jpg").replace(/[^\w.\-]/g, "_");
+    const contentType = String(req.body?.contentType || "").trim();
+    if (!dataUrl.startsWith("data:image/")) {
+      res.status(400).json({ ok: false, error: "invalid_image_payload" });
+      return;
+    }
+
+    const match = dataUrl.match(/^data:(image\/[a-zA-Z0-9.+-]+);base64,(.+)$/);
+    if (!match) {
+      res.status(400).json({ ok: false, error: "invalid_data_url_format" });
+      return;
+    }
+
+    const detectedType = match[1];
+    const base64Payload = match[2];
+    const finalType = contentType.startsWith("image/") ? contentType : detectedType;
+    const bytes = Buffer.from(base64Payload, "base64");
+    if (!bytes.length || bytes.length >= 5 * 1024 * 1024) {
+      res.status(413).json({ ok: false, error: "image_too_large_or_empty" });
+      return;
+    }
+
+    const safeName = originalName || `qr_${Date.now()}.jpg`;
+    const objectPath = `gcash_qr/qr_${Date.now()}_${safeName}`;
+    const downloadToken = crypto.randomUUID();
+
+    try {
+      const bucket = getStorage().bucket();
+      const file = bucket.file(objectPath);
+      await file.save(bytes, {
+        metadata: {
+          contentType: finalType,
+          metadata: {
+            firebaseStorageDownloadTokens: downloadToken,
+          },
+        },
+        resumable: false,
+      });
+      const bucketName = bucket.name;
+      const publicUrl = toPublicDownloadUrl(bucketName, objectPath, downloadToken);
+      res.status(200).json({
+        ok: true,
+        objectPath,
+        bucket: bucketName,
+        url: publicUrl,
+      });
+    } catch (err) {
+      console.error("Failed to upload QR image", err);
+      res.status(500).json({ ok: false, error: "storage_upload_failed" });
+    }
   }
 );
 
