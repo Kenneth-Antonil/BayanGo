@@ -494,9 +494,17 @@
       // Render actual app with logout bar
       return (
         <>
-          <div style={{ background:"#000", color:"#fff", padding:"8px 20px", display:"flex", justifyContent:"space-between", alignItems:"center", fontSize:12 }}>
-            <span style={{color:"#aaa"}}>Admin: <b style={{color:"#fff"}}>{user.displayName || user.email}</b></span>
-            <button onClick={handleLogout} style={{ color:"#EF4444", fontWeight:"bold" }}>Sign Out</button>
+          <div style={{
+            position:"sticky", top:0, zIndex:20,
+            background:"linear-gradient(135deg,#0B3B1C,#166534)",
+            color:"#fff", padding:"10px 20px",
+            display:"flex", justifyContent:"space-between", alignItems:"center", fontSize:12,
+            boxShadow:"0 8px 24px rgba(15,23,42,.18)"
+          }}>
+            <span style={{color:"rgba(255,255,255,.82)"}}>
+              Admin: <b style={{color:"#fff"}}>{user.displayName || user.email}</b>
+            </span>
+            <button onClick={handleLogout} style={{ color:"#FCA5A5", fontWeight:"bold" }}>Sign Out</button>
           </div>
           <AdminDashboard
             orders={orders} onUpdateStatus={updateOrderStatus} onBroadcast={sendBroadcast}
@@ -1010,10 +1018,29 @@
       const activeRiders = [...new Set(orders.filter(o => o.status === "otw" && o.riderId).map(o => o.riderId))].length;
 
       return (
-        <div style={{ maxWidth:640, margin:"0 auto", minHeight:"100vh", background:"#F8FAF8", paddingBottom:40 }}>
+        <div style={{ maxWidth:1100, margin:"0 auto", minHeight:"100vh", background:"#F8FAF8", paddingBottom:40 }}>
+
+          <div style={{ padding:"14px 20px 8px" }}>
+            <div style={{
+              background:"linear-gradient(140deg,#052E16,#166534,#22C55E)",
+              color:"#fff", borderRadius:18, padding:"16px 18px",
+              boxShadow:"0 12px 30px rgba(22,101,52,.28)"
+            }}>
+              <div style={{ fontSize:11, opacity:.8, letterSpacing:".08em", textTransform:"uppercase", fontWeight:700 }}>
+                BayanGo Admin
+              </div>
+              <div style={{ fontSize:20, fontWeight:800, marginTop:4 }}>Dashboard Overview</div>
+              <div style={{ fontSize:12, opacity:.82, marginTop:4 }}>
+                Orders: {activeOrders.length} active • {deliveredOrders.length} delivered
+              </div>
+            </div>
+          </div>
 
           {/* ── Tab Bar ── */}
-          <div style={{ display:"flex", background:"#fff", borderBottom:"1px solid #E5E7EB", padding:"0 20px" }}>
+          <div style={{
+            display:"flex", background:"#fff", borderBottom:"1px solid #E5E7EB", padding:"0 20px",
+            overflowX:"auto", gap:2, position:"sticky", top:56, zIndex:10
+          }}>
             {[
               { key:"orders",  label:"Mga Orders",  icon:"receipt" },
               { key:"grocery", label:"Grocery",      icon:"basket-shopping" },
@@ -1023,7 +1050,7 @@
               { key:"support", label:"Support",      icon:"headset", badge: tickets.filter(t=>t.status==="open").length },
             ].map(t => (
               <button key={t.key} onClick={() => setTab(t.key)} style={{
-                flex:1, padding:"14px 8px", fontSize:13, fontWeight:700,
+                flex:"0 0 auto", minWidth:124, padding:"14px 10px", fontSize:13, fontWeight:700,
                 color: tab===t.key ? "#166534" : "#888",
                 borderBottom: tab===t.key ? "3px solid #22C55E" : "3px solid transparent",
                 display:"flex", alignItems:"center", justifyContent:"center", gap:7,
