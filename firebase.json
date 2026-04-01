@@ -13,5 +13,8 @@
         "firebase-debug.*.log"
       ]
     }
-  ]
+  ],
+  "storage": {
+    "rules": "storage.rules"
+  }
 }

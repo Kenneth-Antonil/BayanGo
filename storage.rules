@@ -1,0 +1,30 @@
+rules_version = '2';
+service firebase.storage {
+  match /b/{bucket}/o {
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    // Public-facing images can be viewed by anyone with the URL.
+    // Uploads require authenticated app sessions.
+    match /gcash_qr/{allPaths=**} {
+      allow read: if true;
+      allow write: if isSignedIn();
+    }
+
+    match /products/{allPaths=**} {
+      allow read: if true;
+      allow write: if isSignedIn();
+    }
+
+    match /order_proofs/{allPaths=**} {
+      allow read: if isSignedIn();
+      allow write: if isSignedIn();
+    }
+
+    // Default deny for any other object paths.
+    match /{allPaths=**} {
+      allow read, write: if false;
+    }
+  }
+}
