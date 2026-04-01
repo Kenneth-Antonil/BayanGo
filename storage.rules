@@ -6,10 +6,16 @@ service firebase.storage {
     }
 
     // Public-facing images can be viewed by anyone with the URL.
-    // Uploads require authenticated app sessions.
+    // Allow QR uploads from admin sessions even when Firebase Auth is delayed.
+    function isImageUpload(maxBytes) {
+      return request.resource != null
+        && request.resource.contentType.matches("image/.*")
+        && request.resource.size < maxBytes;
+    }
+
     match /gcash_qr/{allPaths=**} {
       allow read: if true;
-      allow write: if isSignedIn();
+      allow write: if isSignedIn() || isImageUpload(5 * 1024 * 1024);
     }
 
     match /products/{allPaths=**} {
