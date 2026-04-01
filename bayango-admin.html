@@ -385,14 +385,30 @@
               if (usingOrdersFallback) fns.off(ordersPlainRef);
             };
 
-            // Listen support tickets realtime
-            const ticketsRef = fns.rtdbQuery(fns.ref(db, "support_tickets"), fns.orderByChild("createdAt"));
-            fns.onValue(ticketsRef, snap => {
+            // Listen support tickets realtime (query first, fallback to plain ref if query is denied)
+            const ticketsQueryRef = fns.rtdbQuery(fns.ref(db, "support_tickets"), fns.orderByChild("createdAt"));
+            const ticketsPlainRef = fns.ref(db, "support_tickets");
+            let usingTicketsFallback = false;
+            const mapAndSortTickets = (snap) => {
               const list = [];
               snap.forEach(c => list.push({ id:c.key, ...c.val() }));
-              setTickets(list.reverse());
-            }, err => console.error("Tickets snapshot error:", err.code, err.message));
-            unsubTickets = () => fns.off(ticketsRef);
+              list.sort((a, b) => Number(b.createdAt || 0) - Number(a.createdAt || 0));
+              setTickets(list);
+            };
+            fns.onValue(ticketsQueryRef, mapAndSortTickets, err => {
+              console.error("Tickets query error:", err.code, err.message, "— falling back to plain listener");
+              const code = String(err?.code || "").toLowerCase();
+              if ((code === "permission_denied" || code === "permission-denied") && !usingTicketsFallback) {
+                usingTicketsFallback = true;
+                fns.onValue(ticketsPlainRef, mapAndSortTickets, plainErr => {
+                  console.error("Tickets fallback error:", plainErr.code, plainErr.message);
+                });
+              }
+            });
+            unsubTickets = () => {
+              fns.off(ticketsQueryRef);
+              if (usingTicketsFallback) fns.off(ticketsPlainRef);
+            };
 
             // Listen vouchers realtime
             const vouchersRef = fns.ref(db, "vouchers");

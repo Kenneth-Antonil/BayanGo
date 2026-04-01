@@ -2609,23 +2609,32 @@
         setTicketSending(true);
         try {
           const senderName = name || user?.displayName || user?.email || "User";
+          const subjectText = ticketSubject.trim();
+          const msgText = ticketMsg.trim();
           const newTicketRef = _fbDb.ref("support_tickets").push();
           const ticketId = newTicketRef.key;
-          await newTicketRef.set({
-            uid:       user?.uid || null,
+          const ticketData = {
+            uid:       user.uid,
+            userName:  senderName,
             name:      senderName,
             email:     user?.email || null,
             phone:     phone || null,
-            subject:   ticketSubject.trim(),
+            subject:   subjectText,
             status:    "open",
             createdAt: Date.now(),
-          });
+          };
+          await newTicketRef.set(ticketData);
+          // Verify the write persisted on the server
+          const confirmSnap = await newTicketRef.once("value");
+          if (!confirmSnap.exists()) {
+            throw new Error("Ticket was not saved. Please try again.");
+          }
           const msgsRef = _fbDb.ref("support_messages/" + ticketId);
-          await msgsRef.push({ text: ticketMsg.trim(), senderType:"user", senderName, createdAt: Date.now() });
-          await msgsRef.push({ text: "Salamat sa iyong mensahe! Natanggap na namin ang iyong concern. Tutugon kami sa lalong madaling panahon. — BayanGo Support 💚", senderType:"bot", senderName:"BayanGo Support", createdAt: Date.now() + 1 });
+          await msgsRef.push({ text: msgText, senderType:"user", senderName, createdAt: Date.now() });
+          await msgsRef.push({ text: "Salamat sa iyong mensahe! Natanggap na namin ang iyong concern. Tutugon kami sa lalong madaling panahon. — BayanGo Support", senderType:"bot", senderName:"BayanGo Support", createdAt: Date.now() + 1 });
           setTicketSubject(""); setTicketMsg("");
           setShowNewForm(false);
-          setOpenTicket({ id: ticketId, subject: ticketSubject.trim(), status:"open" });
+          setOpenTicket({ id: ticketId, subject: subjectText, status:"open", ...ticketData });
         } catch (err) {
           alert("Hindi ma-send ang ticket: " + (err.message || err.code));
         } finally {
