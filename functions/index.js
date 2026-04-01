@@ -235,7 +235,9 @@ async function getAllRiderTokens() {
 }
 
 /**
- * Kuha lahat ng FCM tokens ng mga admin batay sa `admins/$uid === true`.
+ * Kuha lahat ng FCM tokens ng mga admin batay sa:
+ *   1) `admins/$uid === true`, at
+ *   2) token entry na may `role === "admin"`.
  */
 async function getAllAdminTokens() {
   const db = getDatabase();
@@ -257,7 +259,7 @@ async function getAllAdminTokens() {
     if (!adminUidSet.has(userSnap.key)) return;
     userSnap.forEach((tokenSnap) => {
       const data = tokenSnap.val();
-      if (data?.token && data?.enabled !== false) {
+      if (data?.token && data?.enabled !== false && data?.role === "admin") {
         entries.push({ uid: userSnap.key, tokenKey: tokenSnap.key, token: data.token });
       }
     });
