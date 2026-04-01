@@ -2556,6 +2556,11 @@
       const [showNewForm,   setShowNewForm]   = useState(false);
       const [replyText,     setReplyText]     = useState("");
       const [replySending,  setReplySending]  = useState(false);
+      const [supportCall,   setSupportCall]   = useState({ status:"idle", callId:"", note:"" });
+      const pcRef = useRef(null);
+      const localStreamRef = useRef(null);
+      const remoteAudioRef = useRef(null);
+      const callUnsubsRef = useRef([]);
 
       // Listen to user's own tickets
       useEffect(() => {
@@ -2580,6 +2585,16 @@
         }, err => console.error("Messages listener:", err.code));
         return () => msgsRef.off();
       }, [openTicket?.id]);
+
+      useEffect(() => () => {
+        callUnsubsRef.current.forEach(fn => { try { fn(); } catch(_){} });
+        callUnsubsRef.current = [];
+        if (pcRef.current) { try { pcRef.current.close(); } catch(_) {} pcRef.current = null; }
+        if (localStreamRef.current) {
+          localStreamRef.current.getTracks().forEach(t => t.stop());
+          localStreamRef.current = null;
+        }
+      }, []);
 
 
 
@@ -2639,6 +2654,100 @@
           alert("Hindi ma-send: " + (err.message || err.code));
         } finally {
           setReplySending(false);
+        }
+      };
+
+      const endSupportCall = async (manual = true) => {
+        const callId = supportCall.callId;
+        callUnsubsRef.current.forEach(fn => { try { fn(); } catch(_){} });
+        callUnsubsRef.current = [];
+        if (pcRef.current) { try { pcRef.current.close(); } catch(_) {} pcRef.current = null; }
+        if (localStreamRef.current) {
+          localStreamRef.current.getTracks().forEach(t => t.stop());
+          localStreamRef.current = null;
+        }
+        if (callId) {
+          try {
+            await _fbDb.ref("support_calls/" + callId).update({
+              status: manual ? "ended" : "completed",
+              endedAt: Date.now(),
+            });
+          } catch (_) {}
+        }
+        setSupportCall({ status:"idle", callId:"", note:"" });
+      };
+
+      const startSupportCall = async () => {
+        if (!openTicket?.id) return;
+        if (!openTicket.assignedAdminUid) return alert("Wala pang assigned support agent sa ticket na ito.");
+        if (supportCall.status !== "idle") return;
+        try {
+          const stream = await navigator.mediaDevices.getUserMedia({ audio:true, video:false });
+          localStreamRef.current = stream;
+          const pc = new RTCPeerConnection({ iceServers:[{ urls:"stun:stun.l.google.com:19302" }] });
+          pcRef.current = pc;
+          stream.getTracks().forEach(track => pc.addTrack(track, stream));
+          pc.ontrack = (evt) => {
+            if (remoteAudioRef.current && evt.streams?.[0]) {
+              remoteAudioRef.current.srcObject = evt.streams[0];
+            }
+          };
+
+          const callRef = _fbDb.ref("support_calls").push();
+          const callId = callRef.key;
+          const presenceSnap = await _fbDb.ref("support_call_presence/" + openTicket.assignedAdminUid).once("value");
+          const adminBusy = presenceSnap.val()?.status === "busy";
+          await callRef.set({
+            ticketId: openTicket.id,
+            uid: user?.uid || null,
+            userName: name || user?.displayName || user?.email || "User",
+            assignedAdminUid: openTicket.assignedAdminUid,
+            assignedAdminName: openTicket.assignedAdminName || "Support",
+            status: adminBusy ? "queued" : "ringing",
+            queuedAt: adminBusy ? Date.now() : null,
+            createdAt: Date.now(),
+          });
+          if (adminBusy) {
+            await _fbDb.ref("support_call_queue/" + openTicket.assignedAdminUid + "/" + callId).set({
+              ticketId: openTicket.id,
+              uid: user?.uid || null,
+              createdAt: Date.now(),
+            });
+          }
+          setSupportCall({ status: adminBusy ? "queued" : "ringing", callId, note: adminBusy ? "Agent busy. Naka-queue ang call mo." : "Calling support..." });
+
+          pc.onicecandidate = (evt) => {
+            if (!evt.candidate) return;
+            _fbDb.ref("support_call_signals/" + callId + "/userCandidates").push(evt.candidate.toJSON()).catch(()=>{});
+          };
+          const offer = await pc.createOffer({ offerToReceiveAudio:true });
+          await pc.setLocalDescription(offer);
+          await _fbDb.ref("support_calls/" + callId + "/offer").set(offer.toJSON());
+
+          const onCall = _fbDb.ref("support_calls/" + callId);
+          const callCb = onCall.on("value", async (snap) => {
+            const val = snap.val() || {};
+            if (val.answer && pc.currentRemoteDescription == null) {
+              await pc.setRemoteDescription(new RTCSessionDescription(val.answer));
+            }
+            if (["ended","cancelled","completed","rejected"].includes(val.status)) {
+              endSupportCall(false);
+            } else {
+              setSupportCall(s => ({ ...s, status: val.status || s.status, note: val.status === "queued" ? "Naka-queue pa rin ang call..." : s.note }));
+            }
+          });
+          callUnsubsRef.current.push(() => onCall.off("value", callCb));
+
+          const userCandRef = _fbDb.ref("support_call_signals/" + callId + "/adminCandidates");
+          const candCb = userCandRef.on("child_added", snap => {
+            const cand = snap.val();
+            if (cand) pc.addIceCandidate(new RTCIceCandidate(cand)).catch(()=>{});
+          });
+          callUnsubsRef.current.push(() => userCandRef.off("child_added", candCb));
+        } catch (err) {
+          console.error("Support call failed:", err);
+          alert("Hindi ma-start ang call: " + (err.message || err.code || "Unknown error"));
+          endSupportCall(false);
         }
       };
 
@@ -2850,6 +2959,17 @@
                   <div style={{ fontSize:11, color:"#aaa", marginTop:4 }}>
                     {(() => { const st=ST_TICKET[openTicket.status]||ST_TICKET.open; return <span style={{ padding:"2px 8px", borderRadius:10, background:st.bg, color:st.color, fontWeight:700 }}>{st.label}</span>; })()}
                   </div>
+                  <div style={{ display:"flex", gap:8, marginTop:10 }}>
+                    <button onClick={startSupportCall} disabled={openTicket.status==="closed" || supportCall.status!=="idle"} style={{ padding:"8px 12px", borderRadius:10, background:(openTicket.status==="closed" || supportCall.status!=="idle")?"#E5E7EB":"linear-gradient(135deg,#166534,#22C55E)", color:(openTicket.status==="closed" || supportCall.status!=="idle")?"#94A3B8":"#fff", fontSize:12, fontWeight:700 }}>
+                      <Ic n="phone" style={{ marginRight:6 }} />Call Support
+                    </button>
+                    {supportCall.status !== "idle" && (
+                      <button onClick={() => endSupportCall(true)} style={{ padding:"8px 12px", borderRadius:10, background:"#FEE2E2", color:"#B91C1C", fontSize:12, fontWeight:700 }}>
+                        End Call
+                      </button>
+                    )}
+                  </div>
+                  {supportCall.status !== "idle" && <div style={{ marginTop:8, fontSize:11, color:"#64748B" }}>{supportCall.note || `Call status: ${supportCall.status}`}</div>}
                 </div>
 
                 {/* Messages */}
@@ -2891,6 +3011,7 @@
                 )}
               </div>
             )}
+            <audio ref={remoteAudioRef} autoPlay playsInline />
 
           </div>
         </div>
