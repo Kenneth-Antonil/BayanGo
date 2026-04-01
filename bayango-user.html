@@ -49,14 +49,6 @@
       height:100vh; background:#fff; gap:0; padding:24px;
     }
     .splash-logo { width:76px; height:76px; object-fit:contain; animation:splashFadeIn .5s ease both; }
-    .splash-wordmark {
-      font-size:22px; font-weight:900; color:#166534; margin-top:18px; letter-spacing:-.3px;
-      animation:splashFadeIn .5s .1s ease both;
-    }
-    .splash-tagline {
-      font-size:12px; color:#9CA3AF; margin-top:4px; font-weight:500; letter-spacing:.02em;
-      animation:splashFadeIn .5s .15s ease both;
-    }
     .splash-dots {
       display:flex; gap:7px; margin-top:44px; animation:splashFadeIn .4s .25s ease both;
     }
@@ -66,10 +58,6 @@
     }
     .splash-dots span:nth-child(2) { animation-delay:.15s; }
     .splash-dots span:nth-child(3) { animation-delay:.3s; }
-    .splash-caption {
-      font-size:12px; color:#9CA3AF; margin-top:10px; font-weight:600;
-      animation:splashFadeIn .4s .3s ease both;
-    }
   </style>
 </head>
 <body>
@@ -114,10 +102,7 @@
   <div id="root">
     <div class="splash-shell">
       <img class="splash-logo" src="https://i.imgur.com/1W159zD.png" alt="BayanGo" />
-      <div class="splash-wordmark">BayanGo</div>
-      <div class="splash-tagline">Binangonan Concierge</div>
       <div class="splash-dots"><span></span><span></span><span></span></div>
-      <div class="splash-caption">Loading...</div>
     </div>
   </div>
 
@@ -470,10 +455,7 @@
       return (
         <div className="splash-shell">
           <img className="splash-logo" src="https://i.imgur.com/1W159zD.png" alt="BayanGo" />
-          <div className="splash-wordmark">BayanGo</div>
-          <div className="splash-tagline">Binangonan Concierge</div>
           <div className="splash-dots"><span /><span /><span /></div>
-          <div className="splash-caption">{message}</div>
         </div>
       );
     }
