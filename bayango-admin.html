@@ -834,11 +834,20 @@
 
       const uploadQrImage = async (file) => {
         if (!file) return;
+        if (!String(file.type || "").startsWith("image/")) {
+          alert("Please upload an image file.");
+          return;
+        }
+        if (file.size >= 5 * 1024 * 1024) {
+          alert("Image must be smaller than 5MB.");
+          return;
+        }
         setQrUploading(true);
         try {
           const st = await initStorage();
           const storageRef = st.ref(st.storage, `gcash_qr/qr_${Date.now()}_${file.name}`);
-          await st.uploadBytes(storageRef, file);
+          const metadata = { contentType: file.type || "image/jpeg" };
+          await st.uploadBytes(storageRef, file, metadata);
           const url = await st.getDownloadURL(storageRef);
           setGcashSettings(s => ({ ...s, qrUrl: url }));
         } catch (err) {
