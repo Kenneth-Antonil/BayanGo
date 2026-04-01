@@ -164,7 +164,7 @@
     async function initStorage() {
       if (!_app) await initFirebase();
       const mod = await import("https://www.gstatic.com/firebasejs/10.12.0/firebase-storage.js");
-      return { storage: mod.getStorage(_app), ref: mod.ref, uploadBytes: mod.uploadBytes, getDownloadURL: mod.getDownloadURL };
+      return { storage: mod.getStorage(_app), getStorage: mod.getStorage, ref: mod.ref, uploadBytes: mod.uploadBytes, getDownloadURL: mod.getDownloadURL };
     }
 
     async function normalizeStorageDownloadUrl(rawUrl) {
@@ -845,13 +845,40 @@
         setQrUploading(true);
         try {
           const st = await initStorage();
-          const storageRef = st.ref(st.storage, `gcash_qr/qr_${Date.now()}_${file.name}`);
+          const objectPath = `gcash_qr/qr_${Date.now()}_${file.name}`;
           const metadata = { contentType: file.type || "image/jpeg" };
-          await st.uploadBytes(storageRef, file, metadata);
+          let storageRef = st.ref(st.storage, objectPath);
+          try {
+            await st.uploadBytes(storageRef, file, metadata);
+          } catch (firstErr) {
+            const configuredBucket = FIREBASE_CONFIG.storageBucket || "";
+            const fallbackBucket = configuredBucket.endsWith(".firebasestorage.app")
+              ? configuredBucket.replace(".firebasestorage.app", ".appspot.com")
+              : "";
+            if (!fallbackBucket || !String(firstErr?.code || "").includes("unauthorized")) throw firstErr;
+            const fallbackStorage = st.getStorage(_app, `gs://${fallbackBucket}`);
+            storageRef = st.ref(fallbackStorage, objectPath);
+            await st.uploadBytes(storageRef, file, metadata);
+          }
           const url = await st.getDownloadURL(storageRef);
           setGcashSettings(s => ({ ...s, qrUrl: url }));
         } catch (err) {
-          alert("Unable to upload QR: " + (err.message || err.code));
+          const code = String(err?.code || "");
+          const serverResponse = String(err?.serverResponse || "");
+          if (code.includes("unauthorized") || serverResponse.includes("403")) {
+            alert(
+              "Unable to upload QR (403 Forbidden).\n\n" +
+              "Possible causes:\n" +
+              "1) Firebase Storage Rules are still blocking uploads.\n" +
+              "2) App Check is enforced but this app has no App Check token.\n" +
+              "3) Storage bucket mismatch (firebasestorage.app vs appspot.com).\n\n" +
+              "Run: firebase deploy --only storage\n" +
+              "Then retry while signed in as admin."
+            );
+          } else {
+            alert("Unable to upload QR: " + (err.message || err.code));
+          }
+          console.error("QR upload failed:", err);
         } finally { setQrUploading(false); }
       };
 
