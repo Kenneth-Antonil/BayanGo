@@ -187,6 +187,14 @@
       { key:"in_boat",   label:"In the Boat", icon:"ship",           desc:"On the boat and heading to you" },
       { key:"delivered", label:"Delivered",   icon:"circle-check",   desc:"Delivered!" },
     ];
+    const ORDER_STATUS_COLORS = {
+      pending:   { bg:"#F3F4F6", color:"#555",    label:"Pending",      icon:"hourglass-half" },
+      buying:    { bg:"#FEF3C7", color:"#92400E", label:"Buying",       icon:"cart-shopping"  },
+      otw:       { bg:"#DBEAFE", color:"#1D4ED8", label:"OTW",          icon:"motorcycle"     },
+      in_boat:   { bg:"#EFF6FF", color:"#1D4ED8", label:"In the Boat",  icon:"ship"           },
+      delivered: { bg:"#DCFCE7", color:"#166534", label:"Delivered",    icon:"circle-check"   },
+      cancelled: { bg:"#FEE2E2", color:"#B91C1C", label:"Cancelled",    icon:"ban"            },
+    };
     const getOrderStatuses = (order) => order?.locationType === "Island" ? ISLAND_ORDER_STATUSES : ORDER_STATUSES;
 
     const BINANGONAN_PUBLIC_MARKET = { lat:14.4584, lng:121.1971, label:"Binangonan Public Market" };
@@ -2627,14 +2635,7 @@
         .split(" ").map(w => w[0]).join("").toUpperCase().slice(0,2);
       const deliveredOrders = orders.filter(o => o.status === "delivered" || o.status === "cancelled");
       const activeOrders    = orders.filter(o => o.status !== "delivered" && o.status !== "cancelled");
-      const ST_COLOR = {
-        pending:   { bg:"#F3F4F6", color:"#555",    label:"Pending",      icon:"hourglass-half" },
-        buying:    { bg:"#FEF3C7", color:"#92400E",  label:"Buying",       icon:"cart-shopping"  },
-        otw:       { bg:"#DBEAFE", color:"#1D4ED8",  label:"OTW",          icon:"motorcycle"     },
-        in_boat:   { bg:"#EFF6FF", color:"#1D4ED8",  label:"In the Boat",  icon:"ship"           },
-        delivered: { bg:"#DCFCE7", color:"#166534",  label:"Delivered",    icon:"circle-check"   },
-        cancelled: { bg:"#FEE2E2", color:"#B91C1C",  label:"Cancelled",    icon:"ban"            },
-      };
+      const ST_COLOR = ORDER_STATUS_COLORS;
       const ST_TICKET = {
         open:     { bg:"#FEF3C7", color:"#92400E", label:"Open"     },
         resolved: { bg:"#DCFCE7", color:"#166534", label:"Resolved" },
@@ -3026,14 +3027,7 @@
       const [riderLoc, setRiderLoc] = useState(null);
       const [lastUpdate, setLastUpdate] = useState(null);
       const [mapError, setMapError] = useState("");
-      const ST_COLOR = {
-        pending:   { bg:"#F3F4F6", color:"#555", label:"Pending", icon:"hourglass-half" },
-        buying:    { bg:"#FEF3C7", color:"#92400E", label:"Buying", icon:"cart-shopping" },
-        otw:       { bg:"#DBEAFE", color:"#1D4ED8", label:"OTW", icon:"motorcycle" },
-        in_boat:   { bg:"#EFF6FF", color:"#1D4ED8", label:"In the Boat", icon:"ship" },
-        delivered: { bg:"#DCFCE7", color:"#166534", label:"Delivered", icon:"circle-check" },
-        cancelled: { bg:"#FEE2E2", color:"#B91C1C", label:"Cancelled", icon:"ban" },
-      };
+      const ST_COLOR = ORDER_STATUS_COLORS;
 
       // Binangonan center as default
       const BINANG_CENTER = [14.4584, 121.1971];
@@ -3286,14 +3280,7 @@
       const completed = orders.filter(o => o.status === "delivered" || o.status === "cancelled");
       const [ordersView,  setOrdersView]  = useState("active");
 
-      const ST_COLOR = {
-        pending:   { bg:"#F3F4F6", color:"#555",    label:"Pending",     icon:"hourglass-half" },
-        buying:    { bg:"#FEF3C7", color:"#92400E", label:"Buying",      icon:"cart-shopping" },
-        otw:       { bg:"#DBEAFE", color:"#1D4ED8", label:"OTW",         icon:"motorcycle" },
-        in_boat:   { bg:"#EFF6FF", color:"#1D4ED8", label:"In the Boat", icon:"ship" },
-        delivered: { bg:"#DCFCE7", color:"#166534", label:"Delivered",   icon:"circle-check" },
-        cancelled: { bg:"#FEE2E2", color:"#B91C1C", label:"Cancelled",   icon:"ban" },
-      };
+      const ST_COLOR = ORDER_STATUS_COLORS;
 
       const OrderCard = ({ o }) => {
         const st = ST_COLOR[o.status] || ST_COLOR.pending;
