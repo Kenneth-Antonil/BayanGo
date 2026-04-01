@@ -10,8 +10,8 @@ const crypto = require("crypto");
 initializeApp();
 
 const APP_ICON = "https://i.imgur.com/wL8wcBB.jpeg";
-const USER_APP_URL = "https://bayango.ph/bayango-user.html";
-const RIDER_APP_URL = "https://bayango.ph/bayango-rider.html";
+const USER_APP_URL = "https://bayango.store/bayango-user.html";
+const RIDER_APP_URL = "https://bayango.store/bayango-rider.html";
 
 const ORDER_STATUS_LABELS = {
   pending:   "Nai-receive na ang order",
@@ -24,8 +24,6 @@ const ORDER_STATUS_LABELS = {
 const PAYMONGO_WEBHOOK_SECRET = process.env.PAYMONGO_WEBHOOK_SECRET || "";
 const PAYMONGO_SECRET_KEY = process.env.PAYMONGO_SECRET_KEY || "";
 const ADMIN_ALLOWED_ORIGINS = [
-  "https://bayango.ph",
-  "https://www.bayango.ph",
   "https://bayango.store",
   "https://www.bayango.store",
   "http://localhost:5000",
