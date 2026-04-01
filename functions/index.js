@@ -907,6 +907,73 @@ exports.onNewSupportTicket = onValueCreated(
 );
 
 /**
+ * Bagong support message → i-notify ang admins (kung user ang nag-send)
+ * o i-notify ang user (kung admin ang nag-send).
+ */
+exports.onNewSupportMessage = onValueCreated(
+  { ref: "support_messages/{ticketId}/{messageId}", region: "asia-southeast1" },
+  async (event) => {
+    const msg = event.data.val() || {};
+    const ticketId = event.params.ticketId;
+    const senderType = msg.senderType || "user";
+    const text = String(msg.text || "").trim().slice(0, 120);
+
+    const db = getDatabase();
+    const ticketSnap = await db.ref(`support_tickets/${ticketId}`).get();
+    if (!ticketSnap.exists()) return;
+    const ticket = ticketSnap.val();
+
+    if (senderType === "admin") {
+      // Admin replied → notify the ticket owner
+      const uid = ticket.uid;
+      if (!uid) return;
+      const userTokens = await getUserTokens(uid);
+      if (userTokens.length) {
+        const result = await sendBatchNotification(userTokens, {
+          title: "Support Reply",
+          body: text || "You have a new reply on your support ticket.",
+          type: "support_message_admin",
+          link: `${USER_APP_URL}#support`,
+        });
+        console.log(`[onNewSupportMessage ${ticketId}] admin→user Sent:${result.sent} Failed:${result.failed}`);
+      }
+    } else {
+      // User sent a message → notify all admins
+      const customerName = String(ticket.userName || ticket.name || "Customer").trim();
+      const adminTokens = await getAllAdminTokens();
+      if (adminTokens.length) {
+        const result = await sendBatchNotification(adminTokens, {
+          title: `Support: ${customerName}`,
+          body: text || "New message on a support ticket.",
+          type: "support_message_user",
+          link: `${ADMIN_APP_URL}#support`,
+        });
+        console.log(`[onNewSupportMessage ${ticketId}] user→admins Sent:${result.sent} Failed:${result.failed}`);
+      }
+
+      // Also create notification records for admins
+      const adminsSnap = await db.ref("admins").get();
+      if (!adminsSnap.exists()) return;
+      const notificationPayload = {
+        type: "support_message_user",
+        title: `Support: ${customerName}`,
+        body: text || "New message on a support ticket.",
+        ticketId,
+        createdAt: Date.now(),
+        read: false,
+      };
+      const writes = [];
+      adminsSnap.forEach((adminSnap) => {
+        if (adminSnap.val() === true) {
+          writes.push(db.ref(`notifications/${adminSnap.key}`).push(notificationPayload));
+        }
+      });
+      if (writes.length) await Promise.all(writes);
+    }
+  }
+);
+
+/**
  * Order na-update → i-notify ang customer at/o rider depende sa kung ano ang nagbago:
  *   - status nagbago       → notify customer; kung cancelled at may rider → notify rider din
  *   - riderId nai-assign   → notify rider

@@ -2544,6 +2544,14 @@
       const remoteAudioRef = useRef(null);
       const callUnsubsRef = useRef([]);
 
+      // Restore cached tickets while waiting for Firebase
+      useEffect(() => {
+        try {
+          const cached = localStorage.getItem("bayango_my_tickets");
+          if (cached) setMyTickets(JSON.parse(cached));
+        } catch (_) {}
+      }, []);
+
       // Listen to user's own tickets
       useEffect(() => {
         if (!user?.uid) return;
@@ -2551,7 +2559,9 @@
         ticketsRef.on("value", snap => {
           const list = [];
           snap.forEach(child => list.push({ id: child.key, ...child.val() }));
-          setMyTickets(list.reverse());
+          const sorted = list.reverse();
+          setMyTickets(sorted);
+          try { localStorage.setItem("bayango_my_tickets", JSON.stringify(sorted)); } catch (_) {}
         }, err => console.error("Tickets listener:", err.code));
         return () => ticketsRef.off();
       }, [user?.uid]);
