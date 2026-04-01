@@ -389,16 +389,6 @@
       );
     }
     const genId = () => Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
-    async function getPushVapidKey() {
-      try {
-        const snap = await _fbDb.ref("settings/pushVapidKey").once("value");
-        return String(snap.val() || "").trim();
-      } catch (err) {
-        console.error("Unable to read push vapid key:", err);
-        return "";
-      }
-    }
-
     const sanitizeTokenKey = (token) => encodeURIComponent(String(token || "")).replace(/\./g, "%2E");
     const ACTIVE_USER_WINDOW_MS = 5 * 60 * 1000;
 
@@ -438,9 +428,7 @@
         const swReg = await navigator.serviceWorker.register("/firebase-messaging-sw.js");
         await navigator.serviceWorker.ready;
         const messaging = firebase.messaging(_fbApp);
-        const vapidKey = await getPushVapidKey();
-        if (!vapidKey) return;
-        const token = await messaging.getToken({ vapidKey, serviceWorkerRegistration: swReg });
+        const token = await messaging.getToken({ serviceWorkerRegistration: swReg });
         if (!token) return;
 
         const tokenKey = sanitizeTokenKey(token);

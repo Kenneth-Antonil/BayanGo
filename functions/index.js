@@ -2,6 +2,7 @@ const { onSchedule } = require("firebase-functions/v2/scheduler");
 const { onValueCreated, onValueUpdated } = require("firebase-functions/v2/database");
 const { onRequest } = require("firebase-functions/v2/https");
 const { initializeApp } = require("firebase-admin/app");
+const { getAuth } = require("firebase-admin/auth");
 const { getDatabase } = require("firebase-admin/database");
 const { getMessaging } = require("firebase-admin/messaging");
 const crypto = require("crypto");
@@ -22,6 +23,12 @@ const ORDER_STATUS_LABELS = {
 };
 const PAYMONGO_WEBHOOK_SECRET = process.env.PAYMONGO_WEBHOOK_SECRET || "";
 const PAYMONGO_SECRET_KEY = process.env.PAYMONGO_SECRET_KEY || "";
+const ADMIN_ALLOWED_ORIGINS = [
+  "https://bayango.ph",
+  "https://www.bayango.ph",
+  "http://localhost:5000",
+  "http://127.0.0.1:5000",
+];
 
 function asBuffer(rawBody, fallback) {
   if (Buffer.isBuffer(rawBody)) return rawBody;
@@ -112,6 +119,25 @@ function derivePaymentState(eventType = "", attrs = {}) {
   if (eventType.includes("failed") || status === "failed") return "failed";
   if (eventType.includes("cancel") || status === "cancelled") return "cancelled";
   return "pending";
+}
+
+function setCors(res, origin = "") {
+  const allowedOrigin = ADMIN_ALLOWED_ORIGINS.includes(origin) ? origin : ADMIN_ALLOWED_ORIGINS[0];
+  res.set("Access-Control-Allow-Origin", allowedOrigin);
+  res.set("Access-Control-Allow-Headers", "Content-Type, Authorization");
+  res.set("Access-Control-Allow-Methods", "POST, OPTIONS");
+}
+
+async function verifyAdminRequest(req) {
+  const authHeader = req.get("authorization") || "";
+  if (!authHeader.toLowerCase().startsWith("bearer ")) return null;
+  const idToken = authHeader.slice(7).trim();
+  if (!idToken) return null;
+
+  const decoded = await getAuth().verifyIdToken(idToken);
+  if (!decoded?.uid || !decoded?.email) return null;
+  if (!String(decoded.email).toLowerCase().endsWith("@bayango.ph")) return null;
+  return decoded;
 }
 
 /**
@@ -521,6 +547,60 @@ exports.createPaymongoQrphCheckout = onRequest(
       orderId,
       checkoutId,
       checkoutUrl,
+    });
+  }
+);
+
+// ─────────────────────────────────────────────────────────────────────────────
+// HTTPS: ADMIN BROADCAST TO ALL CUSTOMER TOKENS
+// ─────────────────────────────────────────────────────────────────────────────
+exports.sendBroadcastNotification = onRequest(
+  { region: "us-central1" },
+  async (req, res) => {
+    setCors(res, req.get("origin") || "");
+    if (req.method === "OPTIONS") {
+      res.status(204).send("");
+      return;
+    }
+    if (req.method !== "POST") {
+      res.status(405).json({ ok: false, error: "Method Not Allowed" });
+      return;
+    }
+
+    let caller;
+    try {
+      caller = await verifyAdminRequest(req);
+    } catch (err) {
+      console.warn("Broadcast auth verification failed:", err?.message || err);
+      res.status(401).json({ ok: false, error: "Unauthorized" });
+      return;
+    }
+    if (!caller) {
+      res.status(401).json({ ok: false, error: "Unauthorized" });
+      return;
+    }
+
+    const title = String(req.body?.title || "").trim();
+    const body = String(req.body?.body || "").trim();
+    if (!title || !body) {
+      res.status(400).json({ ok: false, error: "title and body are required" });
+      return;
+    }
+
+    const tokens = await getAllCustomerTokens();
+    const result = await sendBatchNotification(tokens, {
+      title,
+      body,
+      type: "broadcast",
+      link: USER_APP_URL,
+    });
+
+    res.status(200).json({
+      ok: true,
+      sent: result.sent,
+      failed: result.failed,
+      targetCount: tokens.length,
+      requestedBy: caller.email || caller.uid,
     });
   }
 );
