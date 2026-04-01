@@ -14,10 +14,10 @@ const RIDER_APP_URL = "https://bayango.ph/bayango-rider.html";
 
 const ORDER_STATUS_LABELS = {
   pending:   "Nai-receive na ang order",
-  buying:    "Binibili na sa palengke",
-  otw:       "Papunta na sa'yo",
+  buying:    "Now buying from the market",
+  otw:       "On the way to you",
   in_boat:   "Nasa bangka na",
-  delivered: "Na-deliver na!",
+  delivered: "Delivered!",
   cancelled: "Na-cancel ang order",
 };
 const PAYMONGO_WEBHOOK_SECRET = process.env.PAYMONGO_WEBHOOK_SECRET || "";
@@ -399,10 +399,10 @@ exports.paymongoWebhook = onRequest(
 
     if (order?.uid) {
       let title = "Payment Update";
-      let body = "Na-receive namin ang payment update mo.";
+      let body = "We received your payment update.";
 
       if (paymentState === "paid") {
-        title = "✅ Bayad Confirmed";
+        title = "✅ Payment Confirmed";
         body = `Order #${String(orderId).slice(-6)} paid na. Ihahanda na namin ito ngayon!`;
       } else if (paymentState === "failed") {
         title = "⚠️ Payment Failed";
@@ -530,7 +530,7 @@ exports.createPaymongoQrphCheckout = onRequest(
 // ─────────────────────────────────────────────────────────────────────────────
 
 /**
- * 8:00 AM — Bukas na ang AM Batch, mag-order na para sa tanghalian.
+ * 8:00 AM — AM Batch is open — place your lunch order now.
  * Cut-off: 10:00 AM | Delivery: 11:00 AM
  */
 exports.notifyAmBatchOpen = onSchedule(
@@ -538,8 +538,8 @@ exports.notifyAmBatchOpen = onSchedule(
   async () => {
     const tokens = await getAllCustomerTokens();
     const result = await sendBatchNotification(tokens, {
-      title: "BayanGo — Pabili para sa Tanghalian!",
-      body: "Mag-order na ngayon. Cut-off sa 10:00 AM, delivery sa 11:00 AM.",
+      title: "BayanGo — Order for Lunch!",
+      body: "Order now. Cut-off is 10:00 AM, delivery is 11:00 AM.",
       type: "batch_reminder_am_open",
     });
     console.log(`[AM Batch Open 8AM] Sent: ${result.sent}, Failed: ${result.failed}`);
@@ -556,7 +556,7 @@ exports.notifyAmBatchWarning = onSchedule(
     const tokens = await getAllCustomerTokens();
     const result = await sendBatchNotification(tokens, {
       title: "1 Oras Na Lang! — AM Batch",
-      body: "Mag-order na agad! Cut-off sa 10:00 AM, delivery sa 11:00 AM ngayon.",
+      body: "Order now! Cut-off is 10:00 AM, delivery is 11:00 AM today.",
       type: "batch_reminder_am_warning",
     });
     console.log(`[AM Batch 1hr Warning 9AM] Sent: ${result.sent}, Failed: ${result.failed}`);
@@ -564,7 +564,7 @@ exports.notifyAmBatchWarning = onSchedule(
 );
 
 /**
- * 12:00 PM — Bukas na ang PM Batch, puwede nang mag-order para sa hapon.
+ * 12:00 PM — PM Batch is open — you can now order for the afternoon.
  * Cut-off: 3:00 PM | Delivery: 4:00 PM
  */
 exports.notifyPmBatchOpen = onSchedule(
@@ -572,8 +572,8 @@ exports.notifyPmBatchOpen = onSchedule(
   async () => {
     const tokens = await getAllCustomerTokens();
     const result = await sendBatchNotification(tokens, {
-      title: "BayanGo — Pabili para sa Hapon!",
-      body: "Mag-order na ngayon. Cut-off sa 3:00 PM, delivery sa 4:00 PM.",
+      title: "BayanGo — Order for the Afternoon!",
+      body: "Order now. Cut-off is 3:00 PM, delivery is 4:00 PM.",
       type: "batch_reminder_pm_open",
     });
     console.log(`[PM Batch Open 12PM] Sent: ${result.sent}, Failed: ${result.failed}`);
@@ -590,7 +590,7 @@ exports.notifyPmBatchWarning = onSchedule(
     const tokens = await getAllCustomerTokens();
     const result = await sendBatchNotification(tokens, {
       title: "1 Oras Na Lang! — PM Batch",
-      body: "Mag-order na agad! Cut-off sa 3:00 PM, delivery sa 4:00 PM ngayon.",
+      body: "Order now! Cut-off is 3:00 PM, delivery is 4:00 PM today.",
       type: "batch_reminder_pm_warning",
     });
     console.log(`[PM Batch 1hr Warning 2PM] Sent: ${result.sent}, Failed: ${result.failed}`);
@@ -606,8 +606,8 @@ exports.notifyPreorder = onSchedule(
   async () => {
     const tokens = await getAllCustomerTokens();
     const result = await sendBatchNotification(tokens, {
-      title: "BayanGo — Pre-order para Bukas!",
-      body: "Mag-order na ngayon para ma-deliver bukas ng 11:00 AM. Huwag makalimot!",
+      title: "BayanGo — Pre-order for Tomorrow!",
+      body: "Order now for delivery tomorrow at 11:00 AM. Don't forget!",
       type: "batch_reminder_preorder",
     });
     console.log(`[Pre-order Reminder 8PM] Sent: ${result.sent}, Failed: ${result.failed}`);
@@ -631,8 +631,8 @@ exports.onNewOrder = onValueCreated(
     if (!riderTokens.length) return;
 
     const result = await sendBatchNotification(riderTokens, {
-      title: "BayanGo: Bagong Order!",
-      body: `May bagong order mula kay ${order.customer?.name || "customer"}. Buksan ang app para tanggapin.`,
+      title: "BayanGo: New Order!",
+      body: `New order from ${order.customer?.name || "customer"}. Open the app to accept it.`,
       type: "new_order",
       link: RIDER_APP_URL,
     });
@@ -673,7 +673,7 @@ exports.onOrderUpdated = onValueUpdated(
         if (riderTokens.length) {
           await sendBatchNotification(riderTokens, {
             title: "BayanGo: Order Cancelled",
-            body: `Order #${String(orderId).slice(-6)} ay na-cancel ng customer.`,
+            body: `Order #${String(orderId).slice(-6)} was cancelled by the customer.`,
             type: "order_cancelled",
             link: RIDER_APP_URL,
           });
@@ -686,8 +686,8 @@ exports.onOrderUpdated = onValueUpdated(
       const riderTokens = await getUserTokens(after.riderId);
       if (riderTokens.length) {
         await sendBatchNotification(riderTokens, {
-          title: "May order na ipinasa sa'yo",
-          body: `Order #${String(orderId).slice(-6)} para kay ${after.customer?.name || "customer"}.`,
+          title: "An order has been assigned to you",
+          body: `Order #${String(orderId).slice(-6)} for ${after.customer?.name || "customer"}.`,
           type: "assigned_order",
           link: RIDER_APP_URL,
         });
@@ -700,7 +700,7 @@ exports.onOrderUpdated = onValueUpdated(
       if (userTokens.length) {
         await sendBatchNotification(userTokens, {
           title: "GCash Payment Confirmed!",
-          body: `Order #${String(orderId).slice(-6)}: Na-confirm na ang iyong GCash payment. Ihahanda na ang order mo!`,
+          body: `Order #${String(orderId).slice(-6)}: Your GCash payment has been confirmed. Your order is now being prepared!`,
           type: "gcash_confirmed",
           link: `${USER_APP_URL}#orders`,
         });
@@ -714,13 +714,13 @@ exports.onOrderUpdated = onValueUpdated(
       const userTokens = await getUserTokens(uid);
       if (userTokens.length) {
         const notifPayload = hasProof ? {
-          title: "Nabili na ang order mo!",
+          title: "Your order has been purchased!",
           body: `Order #${String(orderId).slice(-6)}: Tapos na ang pamimili at may proof of order na. Total: ₱${Number(total).toLocaleString("en-PH")}`,
           type: "order_bought_with_proof",
           link: `${USER_APP_URL}#orders`,
         } : {
-          title: "Order Update — Tingnan ang iyong bayad",
-          body: `Order #${String(orderId).slice(-6)}: Na-update na ang actual na presyo. Total: ₱${Number(total).toLocaleString("en-PH")}`,
+          title: "Order Update — Check your payment",
+          body: `Order #${String(orderId).slice(-6)}: Actual pricing has been updated. Total: ₱${Number(total).toLocaleString("en-PH")}`,
           type: "prices_updated",
           link: `${USER_APP_URL}#orders`,
         };

@@ -1,10 +1,10 @@
 <!DOCTYPE html>
-<html lang="tl">
+<html lang="en">
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
   <title>BayanGo — Binangonan Concierge</title>
-  <meta name="description" content="Kami na ang mamamalengke para sa'yo sa Binangonan!" />
+  <meta name="description" content="We'll handle the market shopping for you in Binangonan!" />
   <meta name="theme-color" content="#166534" />
   <meta name="mobile-web-app-capable" content="yes" />
   <meta name="apple-mobile-web-app-capable" content="yes" />
@@ -88,9 +88,9 @@
       var isIOS     = /iPad|iPhone|iPod/.test(ua);
       var isAndroid = /Android/.test(ua);
 
-      var androidSteps = '<div style="display:flex;align-items:flex-start;gap:12px;margin-bottom:14px"><div style="background:#166534;color:#fff;border-radius:50%;min-width:26px;height:26px;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:13px">1</div><p style="font-size:14px;color:#374151;line-height:1.55;margin-top:2px">I-tap ang <strong>⋮</strong> (tatlong tuldok) sa kanang sulok sa itaas ng screen.</p></div><div style="display:flex;align-items:flex-start;gap:12px"><div style="background:#166534;color:#fff;border-radius:50%;min-width:26px;height:26px;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:13px">2</div><p style="font-size:14px;color:#374151;line-height:1.55;margin-top:2px">Piliin ang <strong>"Open in Chrome"</strong> o <strong>"Open in Browser"</strong>.</p></div>';
+      var androidSteps = '<div style="display:flex;align-items:flex-start;gap:12px;margin-bottom:14px"><div style="background:#166534;color:#fff;border-radius:50%;min-width:26px;height:26px;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:13px">1</div><p style="font-size:14px;color:#374151;line-height:1.55;margin-top:2px">Tap <strong>⋮</strong> (three dots) at the top-right corner of the screen.</p></div><div style="display:flex;align-items:flex-start;gap:12px"><div style="background:#166534;color:#fff;border-radius:50%;min-width:26px;height:26px;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:13px">2</div><p style="font-size:14px;color:#374151;line-height:1.55;margin-top:2px">Choose <strong>"Open in Chrome"</strong> or <strong>"Open in Browser"</strong>.</p></div>';
 
-      var iosSteps = '<div style="display:flex;align-items:flex-start;gap:12px;margin-bottom:14px"><div style="background:#166534;color:#fff;border-radius:50%;min-width:26px;height:26px;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:13px">1</div><p style="font-size:14px;color:#374151;line-height:1.55;margin-top:2px">I-tap ang <strong>⋯</strong> (tatlong tuldok) sa ibaba o sa kanang sulok ng screen.</p></div><div style="display:flex;align-items:flex-start;gap:12px"><div style="background:#166534;color:#fff;border-radius:50%;min-width:26px;height:26px;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:13px">2</div><p style="font-size:14px;color:#374151;line-height:1.55;margin-top:2px">Piliin ang <strong>"Open in Safari"</strong> o <strong>"Open in Browser"</strong>.</p></div>';
+      var iosSteps = '<div style="display:flex;align-items:flex-start;gap:12px;margin-bottom:14px"><div style="background:#166534;color:#fff;border-radius:50%;min-width:26px;height:26px;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:13px">1</div><p style="font-size:14px;color:#374151;line-height:1.55;margin-top:2px">Tap <strong>⋯</strong> (three dots) at the bottom or right side of the screen.</p></div><div style="display:flex;align-items:flex-start;gap:12px"><div style="background:#166534;color:#fff;border-radius:50%;min-width:26px;height:26px;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:13px">2</div><p style="font-size:14px;color:#374151;line-height:1.55;margin-top:2px">Choose <strong>"Open in Safari"</strong> or <strong>"Open in Browser"</strong>.</p></div>';
 
       var genericSteps = '<div style="display:flex;align-items:flex-start;gap:12px;margin-bottom:14px"><div style="background:#166534;color:#fff;border-radius:50%;min-width:26px;height:26px;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:13px">1</div><p style="font-size:14px;color:#374151;line-height:1.55;margin-top:2px">I-tap ang menu ng iyong browser.</p></div><div style="display:flex;align-items:flex-start;gap:12px"><div style="background:#166534;color:#fff;border-radius:50%;min-width:26px;height:26px;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:13px">2</div><p style="font-size:14px;color:#374151;line-height:1.55;margin-top:2px">Piliin ang <strong>"Open in Browser"</strong> o <strong>"Open in Chrome"</strong>.</p></div>';
 
@@ -100,11 +100,11 @@
       el.style.cssText = 'position:fixed;inset:0;background:#fff;z-index:99999;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:36px 24px;font-family:sans-serif;text-align:center;overflow-y:auto';
       el.innerHTML =
         '<img src="https://i.imgur.com/1W159zD.png" alt="BayanGo" style="width:60px;height:60px;object-fit:contain;margin-bottom:16px" />'
-        + '<div style="font-size:20px;font-weight:800;color:#166534;margin-bottom:8px">Buksan sa Chrome o Safari</div>'
-        + '<p style="font-size:13px;color:#6B7280;max-width:300px;line-height:1.65;margin-bottom:24px">Hindi gumagana ang pag-install ng <strong>BayanGo</strong> sa built-in browser ng Facebook, Instagram, o TikTok. Sundan ang mga hakbang para buksan sa tamang browser:</p>'
+        + '<div style="font-size:20px;font-weight:800;color:#166534;margin-bottom:8px">Open in Chrome or Safari</div>'
+        + '<p style="font-size:13px;color:#6B7280;max-width:300px;line-height:1.65;margin-bottom:24px">Installing <strong>BayanGo</strong> does not work in the built-in browser of Facebook, Instagram, or TikTok. Follow these steps to open it in a supported browser:</p>'
         + '<div style="text-align:left;width:100%;max-width:320px;margin-bottom:24px">' + steps + '</div>'
         + '<div style="padding:14px 18px;background:#F0FDF4;border-radius:12px;max-width:320px;width:100%;border:1px solid #BBF7D0">'
-        + '<p style="font-size:12px;color:#166534;font-weight:600;line-height:1.6">Pagkatapos buksan sa Chrome o Safari, maaari mo nang i-install ang BayanGo sa iyong home screen!</p>'
+        + '<p style="font-size:12px;color:#166534;font-weight:600;line-height:1.6">After opening in Chrome or Safari, you can install BayanGo on your home screen!</p>'
         + '</div>';
 
       document.body.appendChild(el);
@@ -117,7 +117,7 @@
       <div class="splash-wordmark">BayanGo</div>
       <div class="splash-tagline">Binangonan Concierge</div>
       <div class="splash-dots"><span></span><span></span><span></span></div>
-      <div class="splash-caption">Naglo-load...</div>
+      <div class="splash-caption">Loading...</div>
     </div>
   </div>
 
@@ -163,29 +163,29 @@
     );
 
     const CATEGORIES = [
-      { id:"isda",     label:"Isda",          icon:"fish",               color:"#0EA5E9" },
-      { id:"karne",    label:"Karne",          icon:"drumstick-bite",     color:"#EF4444" },
-      { id:"gulay",    label:"Gulay",          icon:"leaf",               color:"#22C55E" },
-      { id:"prutas",   label:"Prutas",         icon:"apple-whole",        color:"#F97316" },
-      { id:"ulam",     label:"Lutong Ulam",    icon:"bowl-food",          color:"#A855F7" },
-      { id:"sari",     label:"Sari-Sari",      icon:"store",              color:"#EC4899" },
-      { id:"gamot",    label:"Gamot",          icon:"pills",              color:"#14B8A6" },
+      { id:"isda",     label:"Fish",          icon:"fish",               color:"#0EA5E9" },
+      { id:"karne",    label:"Meat",          icon:"drumstick-bite",     color:"#EF4444" },
+      { id:"gulay",    label:"Vegetables",          icon:"leaf",               color:"#22C55E" },
+      { id:"prutas",   label:"Fruits",         icon:"apple-whole",        color:"#F97316" },
+      { id:"ulam",     label:"Cooked Meals",    icon:"bowl-food",          color:"#A855F7" },
+      { id:"sari",     label:"General Goods",      icon:"store",              color:"#EC4899" },
+      { id:"gamot",    label:"Medicine",          icon:"pills",              color:"#14B8A6" },
       { id:"hardware", label:"Hardware",       icon:"screwdriver-wrench", color:"#F59E0B" },
     ];
 
     const DEFAULT_PRODUCTS = [];
 
     const ORDER_STATUSES = [
-      { key:"pending",   label:"Pending",   icon:"hourglass-half", desc:"Nai-receive na ang order mo" },
-      { key:"buying",    label:"Buying",    icon:"cart-shopping",  desc:"Binibili na sa palengke" },
-      { key:"otw",       label:"OTW",       icon:"motorcycle",     desc:"Papunta na sa'yo" },
-      { key:"delivered", label:"Delivered", icon:"circle-check",   desc:"Na-deliver na!" },
+      { key:"pending",   label:"Pending",   icon:"hourglass-half", desc:"Your order has been received" },
+      { key:"buying",    label:"Buying",    icon:"cart-shopping",  desc:"Now buying from the market" },
+      { key:"otw",       label:"OTW",       icon:"motorcycle",     desc:"On the way to you" },
+      { key:"delivered", label:"Delivered", icon:"circle-check",   desc:"Delivered!" },
     ];
     const ISLAND_ORDER_STATUSES = [
-      { key:"pending",   label:"Pending",     icon:"hourglass-half", desc:"Nai-receive na ang order mo" },
-      { key:"buying",    label:"Buying",      icon:"cart-shopping",  desc:"Binibili na sa palengke" },
-      { key:"in_boat",   label:"In the Boat", icon:"ship",           desc:"Nakasakay na sa bangka papunta sa'yo" },
-      { key:"delivered", label:"Delivered",   icon:"circle-check",   desc:"Na-deliver na!" },
+      { key:"pending",   label:"Pending",     icon:"hourglass-half", desc:"Your order has been received" },
+      { key:"buying",    label:"Buying",      icon:"cart-shopping",  desc:"Now buying from the market" },
+      { key:"in_boat",   label:"In the Boat", icon:"ship",           desc:"On the boat and heading to you" },
+      { key:"delivered", label:"Delivered",   icon:"circle-check",   desc:"Delivered!" },
     ];
     const getOrderStatuses = (order) => order?.locationType === "Island" ? ISLAND_ORDER_STATUSES : ORDER_STATUSES;
 
@@ -239,11 +239,11 @@
         sections: [
           {
             heading: "Sino ang BayanGo",
-            body: "Ang BayanGo ay local concierge app para sa Binangonan na tumutulong sa mabilis at maayos na pamamalengke. Layunin naming gawing simple ang pag-order ng fresh goods at basic essentials para sa mga pamilya sa mainland at island areas."
+            body: "BayanGo is a local concierge app for Binangonan that helps make market shopping fast and reliable. Our goal is to make ordering fresh goods and daily essentials simple for families in mainland and island areas."
           },
           {
             heading: "Aming Misyon",
-            body: "Ihatid ang tamang produkto sa tamang oras, may malinaw na updates sa order status, at may maaasahang customer support para sa bawat order."
+            body: "Deliver the right products on time, provide clear order status updates, and dependable customer support for every order."
           },
           {
             heading: "Contact",
@@ -258,19 +258,19 @@
         sections: [
           {
             heading: "Anong data ang kinokolekta",
-            body: "Kinokolekta namin ang basic account details (email, pangalan, phone, address), order details, at location pin mo para maihatid nang tama ang order."
+            body: "We collect basic account details (email, name, phone, address), order details, and your location pin so we can deliver your order accurately."
           },
           {
-            heading: "Paano ginagamit ang data",
-            body: "Ginagamit ang data para sa pagproseso ng orders, delivery coordination, customer support, at pag-send ng order notifications kung in-allow mo ang notifications."
+            heading: "How data is used",
+            body: "Data is used for order processing, delivery coordination, customer support, and sending order notifications if you allow notifications."
           },
           {
             heading: "Pag-share ng impormasyon",
-            body: "Hindi namin ibinebenta ang personal data mo. Ibinabahagi lang ang kinakailangang impormasyon sa rider/admin para ma-fulfill ang order at support request."
+            body: "We do not sell your personal data. We only share necessary information with riders/admins to fulfill orders and support requests."
           },
           {
             heading: "Data protection",
-            body: "Gumagamit ang app ng secured backend services. Maaari mong i-update ang profile details mo anumang oras sa Account settings."
+            body: "The app uses secure backend services. You can update your profile details anytime in Account settings."
           },
         ],
       },
@@ -281,19 +281,19 @@
         sections: [
           {
             heading: "Paggamit ng serbisyo",
-            body: "Sa paggamit ng BayanGo, sumasang-ayon kang magbigay ng tama at kumpletong delivery impormasyon at sundin ang mga patakaran ng app."
+            body: "By using BayanGo, you agree to provide accurate and complete delivery information and follow app policies."
           },
           {
             heading: "Order at presyo",
-            body: "Ang presyo, availability, at estimated totals ay maaaring magbago depende sa market conditions. Ire-reflect sa app ang final computed total bago ma-place ang order."
+            body: "Prices, availability, and estimated totals may change based on market conditions. The final computed total will be shown in the app before order placement."
           },
           {
             heading: "Cancellation at delivery",
-            body: "May limitadong cancellation window para sa eligible orders. Kapag na-assign na ang rider o lampas na sa allowed window, maaaring hindi na ma-cancel ang order."
+            body: "There is a limited cancellation window for eligible orders. Once a rider is assigned or the allowed window has passed, the order may no longer be cancelable."
           },
           {
             heading: "Liability",
-            body: "Sisiguraduhin ng BayanGo ang maayos na serbisyo, ngunit maaaring magkaroon ng delays dahil sa panahon, trapiko, o availability ng item."
+            body: "BayanGo strives to provide reliable service, but delays may happen due to weather, traffic, or item availability."
           },
         ],
       },
@@ -452,7 +452,7 @@
     // _fbApp and _fbAuth are already initialized via <script> tags above
 
     /* ══════════════════ INSTALL GATE ══════════════════ */
-    function SplashScreen({ message = "Naglo-load..." }) {
+    function SplashScreen({ message = "Loading..." }) {
       return (
         <div className="splash-shell">
           <img className="splash-logo" src="https://i.imgur.com/1W159zD.png" alt="BayanGo" />
@@ -516,17 +516,17 @@
 
       // iOS: manual steps lang, walang beforeinstallprompt
       const iosSteps = [
-        { num:1, icon:"safari", text:'Buksan ang link na ito sa <strong>Safari</strong> browser (hindi Chrome).' },
-        { num:2, icon:"arrow-up-from-bracket", text:'I-tap ang <strong>Share button</strong> — yung parisukat na may pataas na arrow, nasa ibaba ng screen.' },
+        { num:1, icon:"safari", text:'Open this link in the <strong>Safari</strong> browser (not Chrome).' },
+        { num:2, icon:"arrow-up-from-bracket", text:'Tap the <strong>Share button</strong> — the square with an upward arrow at the bottom of the screen.' },
         { num:3, icon:"plus-square", text:'Scroll pababa at i-tap ang <strong>"Add to Home Screen"</strong>.' },
-        { num:4, icon:"check", text:'I-tap ang <strong>"Add"</strong> sa kanang sulok sa itaas. Tapos na!' },
+        { num:4, icon:"check", text:'Tap <strong>"Add"</strong> in the top-right corner. Done!' },
       ];
 
       // Android: walang auto-prompt, manual steps
       const androidManualSteps = [
-        { num:1, icon:"ellipsis-vertical", text:'I-tap ang <strong>⋮</strong> (tatlong tuldok) sa kanang sulok sa itaas ng Chrome.' },
-        { num:2, icon:"mobile-screen", text:'Piliin ang <strong>"Add to Home Screen"</strong> o <strong>"Install App"</strong>.' },
-        { num:3, icon:"check", text:'I-tap ang <strong>"Add"</strong> o <strong>"Install"</strong>. Tapos na!' },
+        { num:1, icon:"ellipsis-vertical", text:'Tap <strong>⋮</strong> (three dots) at the top-right corner of Chrome.' },
+        { num:2, icon:"mobile-screen", text:'Choose <strong>"Add to Home Screen"</strong> or <strong>"Install App"</strong>.' },
+        { num:3, icon:"check", text:'Tap <strong>"Add"</strong> or <strong>"Install"</strong>. Done!' },
       ];
 
       const showManualSteps = _isIOS || (_isAndroid && !canPromptInstall);
@@ -548,7 +548,7 @@
               </div>
               <h2 style={{ marginTop:12, fontSize:26, lineHeight:1.15, fontWeight:800 }}>I-download ang BayanGo App</h2>
               <p style={{ marginTop:8, fontSize:14, lineHeight:1.55, opacity:.95 }}>
-                I-install sa iyong home screen para sa mas mabilis na order at instant na notifications.
+                Install on your home screen for faster ordering and instant notifications.
               </p>
             </div>
 
@@ -592,7 +592,7 @@
               {/* Features list */}
               <div style={{ border:"1px solid #E5E7EB", borderRadius:14, padding:"13px", display:"grid", gap:11 }}>
                 {[
-                  ["mobile-screen", "Mas mabilis at stable na pag-order"],
+                  ["mobile-screen", "Faster and more stable ordering"],
                   ["bell", "Abisuhan kung kailan darating ang order"],
                   ["shield-halved", "Mas secure ang iyong account"],
                 ].map(([icon, text]) => (
@@ -832,12 +832,12 @@
 
       const getFriendlyError = (code) => {
         const map = {
-          'auth/user-not-found':     'Walang account na may email na ito.',
+          'auth/user-not-found':     'No account found with this email.',
           'auth/wrong-password':     'Mali ang password.',
           'auth/invalid-credential': 'Mali ang email o password.',
           'auth/email-already-in-use': 'Ginagamit na ang email na ito.',
           'auth/weak-password':      'Masyadong mahina ang password (min. 6 characters).',
-          'auth/invalid-email':      'Hindi valid ang email address.',
+          'auth/invalid-email':      'Invalid email address.',
           'auth/too-many-requests':  'Napakaraming pagtatangka. Subukan ulit mamaya.',
           'auth/popup-blocked':      'Nablock ang popup. Subukan ulit.',
         };
@@ -884,11 +884,11 @@
         const signupPhone = authPhone.trim();
         const signupAddr = authAddr.trim();
         if (!signupName || !signupPhone || !signupAddr) {
-          setAuthError("Kumpletuhin ang pangalan, mobile number, at address.");
+          setAuthError("Complete your name, mobile number, and address.");
           return;
         }
         if (authPassword !== authConfirm) {
-          setAuthError("Hindi magkaparehong password.");
+          setAuthError("Passwords do not match.");
           return;
         }
         setAuthLoading(true);
@@ -924,10 +924,10 @@
           await enablePushForUser(user, { requestPermission: true });
           setPushPermission(typeof Notification !== "undefined" ? Notification.permission : "default");
           if (typeof Notification !== "undefined" && Notification.permission !== "granted") {
-            setPushError("Hindi na-allow ang notifications. I-check ang browser/site settings.");
+            setPushError("Notifications are not allowed. Check your browser/site settings.");
           }
         } catch (err) {
-          setPushError(err?.message || "Hindi ma-enable ang push notifications.");
+          setPushError(err?.message || "Unable to enable push notifications.");
         } finally {
           setPushBusy(false);
         }
@@ -949,7 +949,7 @@
             <div style={{ minHeight:"100vh", display:"flex", alignItems:"center", justifyContent:"center", flexDirection:"column", gap:20, padding:"20px 24px" }}>
               <div className="fade-up" style={{ textAlign:"center" }}>
                 <img src="https://i.imgur.com/1W159zD.png" style={{ height:108, maxWidth:"72vw", objectFit:"contain", marginBottom:12 }} />
-                <p style={{ color:"#666", fontSize:15, marginTop:4 }}>Palengke sa'yo. Mag-sign in para makapag-order.</p>
+                <p style={{ color:"#666", fontSize:15, marginTop:4 }}>Market shopping made easy. Sign in to place an order.</p>
               </div>
 
               {authMode === "options" && (
@@ -970,9 +970,9 @@
                     <Ic n="envelope" style={{marginRight:8}} />Sign in with Email
                   </button>
                   <div style={{ textAlign:"center", fontSize:13, color:"#888", marginTop:4 }}>
-                    Wala pang account?{" "}
+                    No account yet?{" "}
                     <button onClick={() => { setAuthMode("email-signup"); setAuthError(""); }} style={{ color:"#166534", fontWeight:700, textDecoration:"underline", fontSize:13 }}>
-                      Mag-sign up
+                      Sign up
                     </button>
                   </div>
                 </div>
@@ -981,7 +981,7 @@
               {(authMode === "email-signin" || authMode === "email-signup") && (
                 <div className="fade-up" style={{ width:"100%", maxWidth:360, display:"flex", flexDirection:"column", gap:12 }}>
                   <h2 style={{ textAlign:"center", fontSize:20, fontWeight:800, color:"#166534", marginBottom:4 }}>
-                    {authMode === "email-signup" ? "Gumawa ng Account" : "Mag-sign in"}
+                    {authMode === "email-signup" ? "Create Account" : "Sign in"}
                   </h2>
 
                 {authError && (
@@ -1030,13 +1030,13 @@
                     fontSize:15, fontWeight:700, color:"#fff", opacity: authLoading ? 0.7 : 1, marginTop:4,
                   }}
                 >
-                  {authLoading ? "Loading..." : authMode === "email-signup" ? "Gumawa ng Account" : "Mag-sign in"}
+                  {authLoading ? "Loading..." : authMode === "email-signup" ? "Create Account" : "Sign in"}
                 </button>
 
                 <div style={{ textAlign:"center", fontSize:13, color:"#888" }}>
                   {authMode === "email-signup"
-                    ? <>May account na? <button onClick={() => { setAuthMode("email-signin"); setAuthError(""); }} style={{ color:"#166534", fontWeight:700, textDecoration:"underline", fontSize:13 }}>Mag-sign in</button></>
-                    : <>Wala pang account? <button onClick={() => { setAuthMode("email-signup"); setAuthError(""); }} style={{ color:"#166534", fontWeight:700, textDecoration:"underline", fontSize:13 }}>Mag-sign up</button></>
+                    ? <>Already have an account? <button onClick={() => { setAuthMode("email-signin"); setAuthError(""); }} style={{ color:"#166534", fontWeight:700, textDecoration:"underline", fontSize:13 }}>Sign in</button></>
+                    : <>No account yet? <button onClick={() => { setAuthMode("email-signup"); setAuthError(""); }} style={{ color:"#166534", fontWeight:700, textDecoration:"underline", fontSize:13 }}>Sign up</button></>
                   }
                 </div>
 
@@ -1092,7 +1092,7 @@
             }}>
               <Ic n="triangle-exclamation" />
               <div>
-                <div>Hindi ma-sync ang order sa admin</div>
+                <div>Failed to sync order with admin</div>
                 <div style={{ fontSize:11, fontWeight:400, opacity:0.85, marginTop:2 }}>Error: {syncError}</div>
               </div>
               <button onClick={() => setSyncError(null)} style={{ color:"#fff", opacity:.7, fontSize:16, marginLeft:8 }}><Ic n="xmark" /></button>
@@ -1120,7 +1120,7 @@
       } else if (totalSecs < PM_CUTOFF) {
         return { batch:"PM", date:todayStr, cutoffLabel:"3:00 PM",  deliveryLabel:"4:00 PM",  timeLabel:"4:00 PM Ngayon",  secsToDeadline: PM_CUTOFF - totalSecs };
       } else {
-        return { batch:"AM", date:tomorrowStr, cutoffLabel:"10:00 AM", deliveryLabel:"11:00 AM", timeLabel:"11:00 AM Bukas", secsToDeadline: (24 * 3600 - totalSecs) + AM_CUTOFF };
+        return { batch:"AM", date:tomorrowStr, cutoffLabel:"10:00 AM", deliveryLabel:"11:00 AM", timeLabel:"11:00 AM Tomorrow", secsToDeadline: (24 * 3600 - totalSecs) + AM_CUTOFF };
       }
     }
 
@@ -1273,7 +1273,7 @@
           return { canUse:false, reason:`Need ${fmt(voucher.minOrder)} minimum order` };
         }
         const discount = computeVoucherDiscount(voucher);
-        if (discount <= 0) return { canUse:false, reason:"Not applicable sa cart mo" };
+        if (discount <= 0) return { canUse:false, reason:"Not applicable to your cart" };
         return { canUse:true, reason:`Pwede gamitin ngayon • save ${fmt(discount)}` };
       }, [computeVoucherDiscount, fmt, itemsTotal]);
       const describeVoucher = (voucher) => {
@@ -1383,7 +1383,7 @@
         }
         const discount = computeVoucherDiscount(found);
         if (discount <= 0) {
-          setVoucherMsg("Hindi applicable ang voucher sa current cart.");
+          setVoucherMsg("Voucher is not applicable to the current cart.");
           setAppliedVoucher(null);
           return;
         }
@@ -1404,7 +1404,7 @@
       const placeOrder = async () => {
         if (!name || !phone || !addr || !hasPinnedLocation) {
           if (!hasPinnedLocation) {
-            alert("I-pin muna ang exact location mo bago mag-order.");
+            alert("Please pin your exact location before placing an order.");
           }
           return;
         }
@@ -1458,7 +1458,7 @@
           setOrderPlaced(true);
           setTimeout(() => setOrderPlaced(false), 3500);
         } catch (err) {
-          alert("Hindi ma-process ang order. Subukan ulit mamaya.");
+          alert("Unable to process order. Please try again later.");
         }
       };
 
@@ -1481,17 +1481,17 @@
         const createdAtMs = getOrderCreatedAtMs(order);
         if (!createdAtMs) return "";
         const remainingMs = ORDER_CANCEL_WINDOW_MS - (Date.now() - createdAtMs);
-        if (remainingMs <= 0) return "Pwede mo nang i-cancel ang order na ito.";
+        if (remainingMs <= 0) return "You can now cancel this order.";
         const mins = Math.ceil(remainingMs / 60000);
-        return `Pwede mo i-cancel kapag lampas 15 minuto (${mins} min pa).`;
+        return `You can cancel after 15 minutes (${mins} min pa).`;
       };
       const handleCancelOrder = async (order) => {
         if (!order?.id || !_fbDb) return;
         if (!canCancelOrder(order)) {
-          alert("Hindi pa puwedeng i-cancel. Hintayin muna ang 15 minutes na walang rider.");
+          alert("You cannot cancel yet. Please wait 15 minutes with no assigned rider.");
           return;
         }
-        const sure = window.confirm("Sigurado ka bang gusto mong i-cancel ang order na ito?");
+        const sure = window.confirm("Are you sure you want to cancel this order?");
         if (!sure) return;
         try {
           await _fbDb.ref(`orders/${order.id}`).update({
@@ -1501,7 +1501,7 @@
             updatedAt: Date.now(),
           });
         } catch (err) {
-          alert("Hindi ma-cancel ang order: " + (err.message || err.code || "Unknown error"));
+          alert("Unable to cancel order: " + (err.message || err.code || "Unknown error"));
         }
       };
 
@@ -1573,7 +1573,7 @@
           <div style={{ padding:"16px 20px 0" }}>
             <div style={{ background:"#fff", borderRadius:16, padding:"12px 16px", display:"flex", alignItems:"center", gap:10, boxShadow:"0 1px 4px rgba(0,0,0,.07)", border:"1px solid #E9ECEF" }}>
               <Ic n="magnifying-glass" size={17} style={{ opacity:.35 }} />
-              <input placeholder="Maghanap ng produkto..." value={searchQ}
+              <input placeholder="Search products..." value={searchQ}
                 onChange={e => setSearchQ(e.target.value)}
                 style={{ flex:1, border:"none", outline:"none", fontSize:15, fontWeight:500, background:"transparent", color:"#111" }} />
               {searchQ && <button onClick={() => setSearchQ("")} style={{ opacity:.4, fontSize:16 }}><Ic n="xmark" /></button>}
@@ -1637,7 +1637,7 @@
           <div style={{ padding:"0 20px 12px" }}>
             <div style={{ background:"#FFFBEB", border:"1px solid #FDE68A", borderRadius:12, padding:"10px 12px", color:"#92400E", fontSize:12, fontWeight:600, display:"flex", alignItems:"flex-start", gap:8 }}>
               <Ic n="triangle-exclamation" style={{ marginTop:1 }} />
-              <span>Paalala: Ang mga prices na naka-post ay maaaring magbago depende sa presyo sa palengke.</span>
+              <span>Reminder: Posted prices may change based on current market prices.</span>
             </div>
           </div>
 
@@ -1723,7 +1723,7 @@
             {filtered.length === 0 && (
               <div style={{ textAlign:"center", padding:"50px 0", color:"#bbb" }}>
                 <Ic n="face-meh" size={48} style={{ color:"#bbb", marginBottom:10, display:"block" }} />
-                <div style={{ fontSize:14, fontWeight:600 }}>Walang makitang produkto</div>
+                <div style={{ fontSize:14, fontWeight:600 }}>No products found</div>
               </div>
             )}
           </div>
@@ -1766,7 +1766,7 @@
 
                 {/* Add Item Form */}
                 <div style={{ padding:"16px 24px", borderBottom:"1px solid #E5E7EB", background:"#F9FAFB" }}>
-                  <div style={{ fontSize:12, fontWeight:700, color:"#555", marginBottom:10 }}>Magdagdag ng Item</div>
+                  <div style={{ fontSize:12, fontWeight:700, color:"#555", marginBottom:10 }}>Add Item</div>
                   <input
                     placeholder="Pangalan ng item (hal. Bagoong, Sukang Iloko...)"
                     value={newItemName} onChange={e => setNewItemName(e.target.value)}
@@ -1799,7 +1799,7 @@
                   {customItems.length === 0 ? (
                     <div style={{ textAlign:"center", padding:"40px 0", color:"#bbb" }}>
                       <Ic n="clipboard" size={40} style={{ color:"#bbb", marginBottom:8, display:"block" }} />
-                      <div style={{ fontSize:13, fontWeight:600 }}>Walang custom items pa</div>
+                      <div style={{ fontSize:13, fontWeight:600 }}>No custom items yet</div>
                     </div>
                   ) : (
                     customItems.map(item => (
@@ -1956,7 +1956,7 @@
                 {/* Pin Location Button */}
                 <div style={{ marginBottom:18 }}>
                   <label style={{ fontSize:12, fontWeight:700, color:"#666", display:"block", marginBottom:8 }}>
-                    <Ic n="map-pin" style={{marginRight:5}} />Exact na Lokasyon (para sa rider)
+                    <Ic n="map-pin" style={{marginRight:5}} />Exact Location (for the rider)
                   </label>
                   <button onClick={() => setShowLocPicker(true)} style={{
                     width:"100%", padding:"14px 16px", borderRadius:14,
@@ -1979,16 +1979,16 @@
                             <Ic n="circle-check" style={{marginRight:4}} />Naka-pin na ang location!
                           </div>
                           <div style={{ fontSize:11, color:"#888", marginTop:2 }}>
-                            {customerLat.toFixed(5)}, {customerLng.toFixed(5)} — I-tap para baguhin
+                            {customerLat.toFixed(5)}, {customerLng.toFixed(5)} — Tap to change
                           </div>
                         </>
                       ) : (
                         <>
                           <div style={{ fontSize:14, fontWeight:700, color:"#92400E" }}>
-                            I-pin ang exact location mo
+                            Pin your exact location
                           </div>
                           <div style={{ fontSize:11, color:"#888", marginTop:2 }}>
-                            Para alam ng rider kung saan ka exactly
+                            So the rider knows exactly where you are
                           </div>
                         </>
                       )}
@@ -2033,7 +2033,7 @@
                   {showVoucherList && (
                     <div style={{ marginTop:8, border:"1px solid #DCFCE7", background:"#F8FFF9", borderRadius:10, padding:"8px 10px", display:"grid", gap:8 }}>
                       {vouchers.filter(v => v.active !== false).length === 0 ? (
-                        <div style={{ fontSize:11, color:"#6B7280" }}>Walang available voucher sa ngayon.</div>
+                        <div style={{ fontSize:11, color:"#6B7280" }}>No vouchers available right now.</div>
                       ) : (
                         vouchers
                           .filter(v => v.active !== false)
@@ -2074,7 +2074,7 @@
                   )}
                   {isFirstTimeUser && (
                     <div style={{ marginTop:6, fontSize:11, color:"#166534", background:"#F0FDF4", borderRadius:8, padding:"6px 8px" }}>
-                      <Ic n="circle-check" style={{marginRight:4}} />Automatic FREE Shipping sa first order mo.
+                      <Ic n="circle-check" style={{marginRight:4}} />Automatic FREE shipping on your first order.
                     </div>
                   )}
                 </div>
@@ -2133,7 +2133,7 @@
                   </div>
                   {customItems.length > 0 && (
                     <div style={{ marginTop:8, fontSize:11, color:"#92400E", background:"#FEF9C3", borderRadius:8, padding:"6px 10px" }}>
-                      <Ic n="triangle-exclamation" style={{marginRight:4}} />Ang total ay approximate dahil may custom items. Ang final na bayad ay depende sa aktwal na presyo.
+                      <Ic n="triangle-exclamation" style={{marginRight:4}} />Total is approximate because there are custom items. Final payment depends on actual prices.
                     </div>
                   )}
                 </div>
@@ -2213,9 +2213,9 @@
                   </label>
                   <div style={{ display:"grid", gridTemplateColumns: locationType === "Island" ? "1fr" : "1fr 1fr", gap:8 }}>
                     {(locationType === "Island"
-                      ? [{ val:"QRPH", icon:"qrcode", label:"QR PH", desc:"QR PH lang para sa Island orders" }]
+                      ? [{ val:"QRPH", icon:"qrcode", label:"QR PH", desc:"QR PH only for Island orders" }]
                       : [
-                          { val:"COD",  icon:"money-bill-wave", label:"Cash on Delivery", desc:"Bayad pagdating ng order" },
+                          { val:"COD",  icon:"money-bill-wave", label:"Cash on Delivery", desc:"Pay when the order arrives" },
                           { val:"QRPH", icon:"qrcode",          label:"QR PH",           desc:"Scan QR PH at magbayad" },
                         ]
                     ).map(opt => (
@@ -2240,7 +2240,7 @@
                   <div style={{ fontSize:12, color:"#92400E", lineHeight:1.5 }}>
                     {locationType === "Island"
                       ? <><strong>QR PH only</strong> — Para sa Island orders, QR PH lang ang available na payment method.</>
-                      : <><strong>COD o QR PH</strong> — Pumili ng Cash on Delivery o QR PH para sa order mo.</>}
+                      : <><strong>COD or QR PH</strong> — Choose Cash on Delivery or QR PH for your order.</>}
                   </div>
                 </div>
 
@@ -2250,7 +2250,7 @@
                   color:"#fff", fontSize:16, fontWeight:700,
                   boxShadow:(!name||!phone||!addr||!hasPinnedLocation)?"none":"0 4px 20px rgba(22,101,52,.35)",
                   transition:"all .2s"
-                }}>Mag-Order Na! <Ic n="bag-shopping" style={{marginLeft:6}} /></button>
+                }}>Place Order Now! <Ic n="bag-shopping" style={{marginLeft:6}} /></button>
                 {!hasPinnedLocation && (
                   <div style={{ marginTop:8, fontSize:11, color:"#B45309" }}>
                     <Ic n="triangle-exclamation" style={{marginRight:4}} />I-pin muna ang exact location bago mag-order.
@@ -2406,7 +2406,7 @@
                         </div>
                         <div>
                           <div style={{ fontSize:14, fontWeight:800, color:"#166534" }}>GCash Payment Confirmed!</div>
-                          <div style={{ fontSize:11, color:"#555" }}>Na-confirm na ng admin ang iyong bayad.</div>
+                          <div style={{ fontSize:11, color:"#555" }}>Your payment has been confirmed by admin.</div>
                         </div>
                       </div>
                     ) : (
@@ -2445,7 +2445,7 @@
                         </div>
                         <div style={{ fontSize:11, color:"#3B82F6", lineHeight:1.5, display:"flex", alignItems:"flex-start", gap:5 }}>
                           <Ic n="triangle-exclamation" style={{ marginTop:1, flexShrink:0 }} />
-                          <span>Hangga't hindi na-confirm ng admin ang GCash payment, hindi mapapadala ang order sa bangka.</span>
+                          <span>Until admin confirms GCash payment, the order cannot be sent by boat.</span>
                         </div>
                       </>
                     )}
@@ -2461,7 +2461,7 @@
                     display:"flex", alignItems:"center", justifyContent:"center", gap:8,
                     boxShadow:"0 4px 16px rgba(29,78,216,.35)",
                   }}>
-                    <Ic n="location-dot" /> Nasaan ang Rider?
+                    <Ic n="location-dot" /> Where is the Rider?
                     <div style={{ width:8, height:8, borderRadius:"50%", background:"#4ADE80", boxShadow:"0 0 6px #4ADE80", marginLeft:4 }} />
                   </button>
                 )}
@@ -2712,7 +2712,7 @@
                   )}
                 </div>
                 <button onClick={onLogout} style={{ width:"100%", marginTop:12, padding:"13px 0", borderRadius:14, background:"#FEF2F2", fontSize:13, fontWeight:700, color:"#EF4444", display:"flex", alignItems:"center", justifyContent:"center", gap:8 }}>
-                  <Ic n="right-from-bracket" />Mag-Log Out
+                  <Ic n="right-from-bracket" />Log Out
                 </button>
                 <div style={{ background:"#fff", borderRadius:16, marginTop:12, padding:14, border:"1px solid #ECFDF3", boxShadow:"0 2px 8px rgba(0,0,0,.04)" }}>
                   <div style={{ fontSize:11, color:"#94A3B8", fontWeight:700, textTransform:"uppercase", letterSpacing:".07em", marginBottom:8 }}>
@@ -2747,7 +2747,7 @@
                           <div style={{ marginTop:10 }}>
                             {canCancelOrder(o) ? (
                               <button onClick={() => handleCancelOrder(o)} style={{ width:"100%", padding:"10px 12px", borderRadius:10, background:"#FEF2F2", border:"1px solid #FCA5A5", color:"#B91C1C", fontSize:12, fontWeight:800 }}>
-                                I-cancel ang order
+                                Cancel order
                               </button>
                             ) : (
                               <div style={{ fontSize:11, color:"#B45309", background:"#FFFBEB", border:"1px solid #FDE68A", borderRadius:10, padding:"8px 10px", fontWeight:700 }}>
@@ -2785,7 +2785,7 @@
                   <div style={{ textAlign:"center", padding:"50px 0" }}>
                     <Ic n="inbox" size={48} style={{ color:"#ddd", marginBottom:12, display:"block" }} />
                     <div style={{ fontSize:14, fontWeight:700, color:"#555" }}>Wala pang tickets</div>
-                    <div style={{ fontSize:12, color:"#aaa", marginTop:6 }}>I-tap ang "Bagong Ticket" kung may concern ka.</div>
+                    <div style={{ fontSize:12, color:"#aaa", marginTop:6 }}>Tap "New Ticket" if you have a concern.</div>
                   </div>
                 ) : myTickets.map(t => {
                   const st = ST_TICKET[t.status] || ST_TICKET.open;
@@ -2796,7 +2796,7 @@
                         <div style={{ padding:"3px 10px", borderRadius:20, fontSize:11, fontWeight:700, background:st.bg, color:st.color, whiteSpace:"nowrap" }}>{st.label}</div>
                       </div>
                       <div style={{ fontSize:11, color:"#aaa", marginTop:6 }}>{fmtTs(t.createdAt)}</div>
-                      <div style={{ fontSize:12, color:"#166534", marginTop:4, display:"flex", alignItems:"center", gap:4 }}><Ic n="chevron-right" size={10} />Buksan ang conversation</div>
+                      <div style={{ fontSize:12, color:"#166534", marginTop:4, display:"flex", alignItems:"center", gap:4 }}><Ic n="chevron-right" size={10} />Open conversation</div>
                     </button>
                   );
                 })}
@@ -2813,14 +2813,14 @@
                   <div style={{ fontSize:14, fontWeight:800, color:"#111", marginBottom:16 }}><Ic n="headset" style={{marginRight:8,color:"#166534"}} />Bagong Support Ticket</div>
                   <div style={{ marginBottom:14 }}>
                     <div style={{ fontSize:11, fontWeight:700, color:"#555", textTransform:"uppercase", letterSpacing:".06em", marginBottom:6 }}>Paksa ng Concern</div>
-                    <input value={ticketSubject} onChange={e=>setTicketSubject(e.target.value)} placeholder="Hal: Hindi dumating ang order ko" style={{ width:"100%", fontSize:14, color:"#111", border:"1px solid #E5E7EB", borderRadius:10, padding:"10px 12px", outline:"none", boxSizing:"border-box" }} />
+                    <input value={ticketSubject} onChange={e=>setTicketSubject(e.target.value)} placeholder="e.g. My order did not arrive" style={{ width:"100%", fontSize:14, color:"#111", border:"1px solid #E5E7EB", borderRadius:10, padding:"10px 12px", outline:"none", boxSizing:"border-box" }} />
                   </div>
                   <div style={{ marginBottom:16 }}>
                     <div style={{ fontSize:11, fontWeight:700, color:"#555", textTransform:"uppercase", letterSpacing:".06em", marginBottom:6 }}>Detalye ng Concern</div>
                     <textarea value={ticketMsg} onChange={e=>setTicketMsg(e.target.value)} placeholder="Ilagay ang buong detalye ng iyong concern dito..." rows={4} style={{ width:"100%", fontSize:14, color:"#111", border:"1px solid #E5E7EB", borderRadius:10, padding:"10px 12px", outline:"none", resize:"vertical", fontFamily:"inherit", boxSizing:"border-box" }} />
                   </div>
                   <button onClick={sendTicket} disabled={ticketSending || !ticketSubject.trim() || !ticketMsg.trim()} style={{ width:"100%", padding:"13px 0", borderRadius:12, background:(!ticketSubject.trim()||!ticketMsg.trim())?"#E5E7EB":"linear-gradient(135deg,#166534,#22C55E)", color:(!ticketSubject.trim()||!ticketMsg.trim())?"#aaa":"#fff", fontSize:14, fontWeight:700, display:"flex", alignItems:"center", justifyContent:"center", gap:8 }}>
-                    {ticketSending ? <><Ic n="spinner" className="spin" />Nagse-send...</> : <><Ic n="paper-plane" />Ipadala ang Ticket</>}
+                    {ticketSending ? <><Ic n="spinner" className="spin" />Sending...</> : <><Ic n="paper-plane" />Send Ticket</>}
                   </button>
                 </div>
               </div>
@@ -2861,7 +2861,7 @@
                       </div>
                     );
                   })}
-                  {threadMsgs.length === 0 && <div style={{ textAlign:"center", padding:"20px 0", fontSize:12, color:"#ccc" }}>Walang messages pa.</div>}
+                  {threadMsgs.length === 0 && <div style={{ textAlign:"center", padding:"20px 0", fontSize:12, color:"#ccc" }}>No messages yet.</div>}
                 </div>
 
                 {/* Reply box */}
@@ -2998,7 +2998,7 @@
                 display:"flex", alignItems:"center", justifyContent:"center", gap:8,
               }}>
                 {detecting
-                  ? <><Ic n="spinner" className="spin" /> Hinahanap ang location mo...</>
+                  ? <><Ic n="spinner" className="spin" /> Finding your location...</>
                   : <><Ic n="crosshairs" /> Gamitin ang GPS Ko</>
                 }
               </button>
@@ -3050,7 +3050,7 @@
       useEffect(() => {
         if (!mapRef.current || mapInstanceRef.current) return;
         if (typeof L === "undefined" || !L?.map) {
-          setMapError("Hindi available ang mapa ngayon. Pakisubukan ulit mamaya.");
+          setMapError("Map is currently unavailable. Please try again later.");
           return;
         }
 
@@ -3158,7 +3158,7 @@
             }}>
               <div>
                 <div style={{ fontSize:16, fontWeight:800, display:"flex", alignItems:"center", gap:8 }}>
-                  <Ic n="location-dot" /> Nasaan ang Rider?
+                  <Ic n="location-dot" /> Where is the Rider?
                 </div>
                 {order.riderName && (
                   <div style={{ fontSize:12, opacity:.8, marginTop:3, display:"flex", alignItems:"center", gap:6 }}>
@@ -3367,7 +3367,7 @@
                 boxShadow:"0 2px 8px rgba(29,78,216,.25)",
               }}>
                 <Ic n="location-dot" />
-                Nasaan ang Rider?
+                Where is the Rider?
                 <div style={{ width:8, height:8, borderRadius:"50%", background:"#4ADE80", boxShadow:"0 0 6px #4ADE80" }} />
               </button>
             )}
@@ -3378,7 +3378,7 @@
                   background:"#FEF2F2", color:"#B91C1C", border:"1px solid #FCA5A5",
                   fontSize:12, fontWeight:800,
                 }}>
-                  I-cancel ang order (15+ min na walang rider)
+                  Cancel order (15+ min na walang rider)
                 </button>
               ) : (
                 <div style={{
@@ -3442,7 +3442,7 @@
                   ) : (
                     <div style={{ textAlign:"center", padding:"44px 16px", border:"1px dashed #D1D5DB", borderRadius:16, background:"#fff" }}>
                       <Ic n="box-open" size={34} style={{ color:"#9CA3AF", marginBottom:10 }} />
-                      <div style={{ fontSize:14, fontWeight:700, color:"#4B5563" }}>Walang active orders</div>
+                      <div style={{ fontSize:14, fontWeight:700, color:"#4B5563" }}>No active orders</div>
                       <div style={{ fontSize:12, marginTop:6, color:"#9CA3AF" }}>Kapag may ongoing order ka, dito ito lalabas.</div>
                     </div>
                   )

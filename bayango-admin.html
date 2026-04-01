@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="tl">
+<html lang="en">
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
@@ -41,8 +41,8 @@
   <div id="root"></div>
   <div id="fatal-error" style="display:none; min-height:100vh; padding:24px; background:#F8FAF8; font-family:'Plus Jakarta Sans',sans-serif; color:#111827;">
     <div style="max-width:620px; margin:40px auto; background:#fff; border:1px solid #E5E7EB; border-radius:16px; padding:20px; box-shadow:0 8px 30px rgba(0,0,0,.06);">
-      <h1 style="font-size:20px; margin-bottom:8px;">May loading error sa Admin</h1>
-      <p style="font-size:14px; color:#4B5563; margin-bottom:14px;">Nagka-problema habang ino-open ang dashboard. Paki-refresh muna ang page.</p>
+      <h1 style="font-size:20px; margin-bottom:8px;">Admin loading error</h1>
+      <p style="font-size:14px; color:#4B5563; margin-bottom:14px;">There was a problem opening the dashboard. Please refresh the page.</p>
       <pre id="fatal-error-msg" style="white-space:pre-wrap; word-break:break-word; font-size:12px; line-height:1.5; background:#F9FAFB; border:1px solid #E5E7EB; border-radius:10px; padding:12px; color:#991B1B;"></pre>
       <button onclick="window.location.reload()" style="margin-top:14px; background:#166534; color:#fff; padding:10px 14px; border:none; border-radius:10px; font-weight:700; cursor:pointer;">Refresh page</button>
     </div>
@@ -78,21 +78,21 @@
 
     /* ══════════════════ CONSTANTS ══════════════════ */
     const CATEGORIES = [
-      { id:"isda",     label:"Isda",          icon:"fish",               color:"#0EA5E9" },
-      { id:"karne",    label:"Karne",          icon:"drumstick-bite",     color:"#EF4444" },
-      { id:"gulay",    label:"Gulay",          icon:"leaf",               color:"#22C55E" },
-      { id:"prutas",   label:"Prutas",         icon:"apple-whole",        color:"#F97316" },
-      { id:"ulam",     label:"Lutong Ulam",    icon:"bowl-food",          color:"#A855F7" },
-      { id:"sari",     label:"Sari-Sari",      icon:"store",              color:"#EC4899" },
-      { id:"gamot",    label:"Gamot",          icon:"pills",              color:"#14B8A6" },
+      { id:"isda",     label:"Fish",          icon:"fish",               color:"#0EA5E9" },
+      { id:"karne",    label:"Meat",          icon:"drumstick-bite",     color:"#EF4444" },
+      { id:"gulay",    label:"Vegetables",          icon:"leaf",               color:"#22C55E" },
+      { id:"prutas",   label:"Fruits",         icon:"apple-whole",        color:"#F97316" },
+      { id:"ulam",     label:"Cooked Meals",    icon:"bowl-food",          color:"#A855F7" },
+      { id:"sari",     label:"General Goods",      icon:"store",              color:"#EC4899" },
+      { id:"gamot",    label:"Medicine",          icon:"pills",              color:"#14B8A6" },
       { id:"hardware", label:"Hardware",       icon:"screwdriver-wrench", color:"#F59E0B" },
     ];
 
     const ORDER_STATUSES = [
-      { key:"pending",   label:"Pending",   icon:"hourglass-half", desc:"Nai-receive na ang order mo" },
-      { key:"buying",    label:"Buying",    icon:"cart-shopping",  desc:"Binibili na sa palengke" },
-      { key:"otw",       label:"OTW",       icon:"motorcycle",     desc:"Papunta na sa'yo" },
-      { key:"delivered", label:"Delivered", icon:"circle-check",   desc:"Na-deliver na!" },
+      { key:"pending",   label:"Pending",   icon:"hourglass-half", desc:"Your order has been received" },
+      { key:"buying",    label:"Buying",    icon:"cart-shopping",  desc:"Now buying from the market" },
+      { key:"otw",       label:"OTW",       icon:"motorcycle",     desc:"On the way to you" },
+      { key:"delivered", label:"Delivered", icon:"circle-check",   desc:"Delivered!" },
     ];
 
     const DELIVERY_ZONES = [
@@ -210,7 +210,7 @@
 
     async function sendFcmToTokens(tokens, { title, body, data = {}, link }) {
       const rawJson = getServiceAccountJson();
-      if (!rawJson) throw new Error("Walang service account JSON. I-save muna sa admin panel.");
+      if (!rawJson) throw new Error("No service account JSON found. Please save it in the admin panel first.");
 
       let serviceAccount;
       try {
@@ -523,7 +523,7 @@
       if (!ready) return (
         <div style={{ minHeight:"100vh", background:"#F8FAF8", display:"flex", alignItems:"center", justifyContent:"center", flexDirection:"column", gap:16 }}>
           <Ic n="gear" size={48} className="spin" style={{ color:"#166534" }} />
-          <div style={{ fontSize:16, fontWeight:700, color:"#166534" }}>Nagkokonekta sa BayanGo...</div>
+          <div style={{ fontSize:16, fontWeight:700, color:"#166534" }}>Connecting to BayanGo...</div>
           <div style={{ fontSize:12, color:"#aaa" }}>Hinihintay ang Firebase</div>
         </div>
       );
@@ -534,7 +534,7 @@
           <div style={{ minHeight:"100vh", background:"#111", display:"flex", alignItems:"center", justifyContent:"center", flexDirection:"column", gap:20, padding:20 }}>
             <div className="fade-up" style={{ textAlign:"center" }}>
               <img src="https://i.imgur.com/h7HgGC0.png" style={{ height:108, maxWidth:"72vw", objectFit:"contain", marginBottom:10, filter:"drop-shadow(0 6px 28px rgba(0,0,0,.5))" }} />
-              <p style={{ color:"#888", fontSize:14 }}>Mag-sign in para pamahalaan ang orders.</p>
+              <p style={{ color:"#888", fontSize:14 }}>Sign in para pamahalaan ang orders.</p>
             </div>
             <button className="fade-up" onClick={handleGoogleLogin} style={{
               background:"#fff", border:"1px solid #ddd", padding:"12px 24px", borderRadius:12,
@@ -679,7 +679,7 @@
           {allBatchOrders.length === 0 ? (
             <div style={{ textAlign:"center", padding:"50px 0" }}>
               <Ic n="basket-shopping" size={48} style={{ marginBottom:10, color:"#ccc" }} />
-              <div style={{ fontSize:14, fontWeight:600, color:"#9CA3AF" }}>Walang orders para sa batch na ito.</div>
+              <div style={{ fontSize:14, fontWeight:600, color:"#9CA3AF" }}>No orders for this batch.</div>
             </div>
           ) : (
             <>
@@ -687,7 +687,7 @@
                 <div style={{ textAlign:"center", padding:"30px 0", background:"#F0FDF4", borderRadius:14, marginBottom:14, border:"1px solid #BBF7D0" }}>
                   <Ic n="circle-check" style={{ fontSize:28, color:"#22C55E", marginBottom:8 }} />
                   <div style={{ fontSize:14, fontWeight:700, color:"#166534" }}>Lahat ng orders ay tapos na!</div>
-                  <div style={{ fontSize:12, color:"#9CA3AF", marginTop:4 }}>Walang kailangang bilhin pa.</div>
+                  <div style={{ fontSize:12, color:"#9CA3AF", marginTop:4 }}>Nothing left to buy.</div>
                 </div>
               ) : (
                 <>
@@ -924,7 +924,7 @@
         try {
           const { db, fns } = await initFirebase();
           await fns.set(fns.ref(db, "settings/gcash"), gcashSettings);
-          alert("Na-save ang GCash settings!");
+          alert("GCash settings saved!");
         } catch (err) {
           alert("Error: " + (err.message || err.code));
         } finally { setGcashSaving(false); }
@@ -940,7 +940,7 @@
           const url = await st.getDownloadURL(storageRef);
           setGcashSettings(s => ({ ...s, qrUrl: url }));
         } catch (err) {
-          alert("Hindi ma-upload ang QR: " + (err.message || err.code));
+          alert("Unable to upload QR: " + (err.message || err.code));
         } finally { setQrUploading(false); }
       };
 
@@ -962,7 +962,7 @@
         }
         const rider = riders.find(r => r.uid === riderUid);
         if (!rider) {
-          alert("Hindi mahanap ang napiling rider.");
+          alert("Selected rider not found.");
           return;
         }
         setAssigningOrderId(order.id);
@@ -1019,7 +1019,7 @@
             proofImages: updatedProof, pricesUpdatedAt: Date.now(),
           });
           setSelected(s => s ? { ...s, items: updatedItems, subtotal, serviceFee, smallOrderFee, total, proofImages: updatedProof, pricesUpdatedAt: Date.now() } : s);
-          alert("Na-update na ang presyo at total!");
+          alert("Price and total updated!");
         } catch (err) {
           alert("Error: " + (err.message || err.code));
         } finally { setSavingPrices(false); }
@@ -1034,7 +1034,7 @@
           const url = await st.getDownloadURL(storageRef);
           setProofImages(prev => [...prev, url]);
         } catch (err) {
-          alert("Hindi ma-upload ang larawan: " + (err.message || err.code));
+          alert("Unable to upload image: " + (err.message || err.code));
         } finally { setUploadingProof(false); }
       };
 
@@ -1045,7 +1045,7 @@
         const next = flow[idx + 1];
         // Block island orders from going to in_boat without confirmed GCash payment
         if (order.locationType === "Island" && next === "in_boat" && !order.gcashPaymentConfirmed) {
-          alert("Hindi pa na-confirm ang GCash payment ng island order na ito. I-confirm muna bago i-advance.");
+          alert("GCash payment for this island order is not confirmed yet. Confirm it before advancing.");
           return;
         }
         setUpdating(order.id);
@@ -1170,12 +1170,12 @@
               {gcashSettings.qrUrl
                 ? <img src={gcashSettings.qrUrl} alt="GCash QR" style={{ width:140, height:140, objectFit:"contain", display:"block", margin:"0 auto 10px", borderRadius:10, border:"2px solid #BFDBFE" }} />
                 : <div style={{ textAlign:"center", marginBottom:10, padding:"10px", background:"#F8FAFC", borderRadius:10, border:"1.5px dashed #CBD5E1", color:"#94A3B8", fontSize:11 }}>
-                    Walang QR pa — mag-upload ng QR image
+                    No QR yet — upload a QR image
                   </div>
               }
               <label style={{ display:"block", width:"100%", marginBottom:8 }}>
                 <div style={{ width:"100%", padding:"9px 12px", borderRadius:10, background: qrUploading ? "#E5E7EB" : "#EFF6FF", color: qrUploading ? "#aaa" : "#1D4ED8", fontSize:12, fontWeight:700, textAlign:"center", cursor:"pointer", border:"1.5px solid #BFDBFE" }}>
-                  {qrUploading ? "Nag-u-upload..." : (gcashSettings.qrUrl ? "Palitan ang QR Image" : "I-upload ang QR Image")}
+                  {qrUploading ? "Uploading..." : (gcashSettings.qrUrl ? "Replace QR Image" : "Upload QR Image")}
                 </div>
                 <input type="file" accept="image/*" style={{ display:"none" }} disabled={qrUploading}
                   onChange={e => { if (e.target.files?.[0]) uploadQrImage(e.target.files[0]); e.target.value=""; }} />
@@ -1269,7 +1269,7 @@
             {filtered.length === 0 ? (
               <div style={{ textAlign:"center", padding:"60px 0", color:"#ccc" }}>
                 <Ic n="inbox" size={48} style={{ marginBottom:10, color:"#ccc" }} />
-                <div style={{ fontSize:14, fontWeight:600 }}>{ordersView === "archive" ? "Wala pang archived orders" : "Walang active orders"}</div>
+                <div style={{ fontSize:14, fontWeight:600 }}>{ordersView === "archive" ? "No archived orders yet" : "No active orders"}</div>
               </div>
             ) : filtered.map(order => {
               const st = STATUS_INFO[order.status] || STATUS_INFO.pending;
@@ -1445,7 +1445,7 @@
                     </div>
                     {riders.length === 0 && (
                       <div style={{ fontSize:11, color:"#6B7280", marginTop:8 }}>
-                        Walang available rider na may naka-enable na push token.
+                        No available rider has an enabled push token.
                       </div>
                     )}
                   </div>
@@ -1522,7 +1522,7 @@
                       )}
                       <label style={{ display:"flex", alignItems:"center", gap:6, padding:"8px 12px", borderRadius:10, border:"1.5px dashed #D1D5DB", cursor:"pointer", fontSize:12, color:"#555", background:"#fff" }}>
                         <Ic n={uploadingProof?"spinner":"camera"} className={uploadingProof?"fa-spin":""} />
-                        {uploadingProof ? "Ina-upload..." : "Mag-upload ng Resibo / Litrato"}
+                        {uploadingProof ? "Uploading..." : "Upload Receipt / Photo"}
                         <input type="file" accept="image/*" style={{ display:"none" }} onChange={async e => { if(e.target.files[0]) await uploadProofImage(e.target.files[0], selected.id); e.target.value=""; }} />
                       </label>
                     </div>
@@ -1591,7 +1591,7 @@
                   </button>
                 )}
                 {selected.status === "delivered" && (
-                  <div style={{ textAlign:"center", padding:"10px", fontSize:15, fontWeight:700, color:"#166534" }}><Ic n="circle-check" style={{ marginRight:6 }} />Na-deliver na ang order na ito!</div>
+                  <div style={{ textAlign:"center", padding:"10px", fontSize:15, fontWeight:700, color:"#166534" }}><Ic n="circle-check" style={{ marginRight:6 }} />Order delivered na ito!</div>
                 )}
               </div>
             </div>
@@ -2062,7 +2062,7 @@
                       </div>
                     </div>
                     <div style={{ fontSize:11, color:"#aaa" }}>{fmtDate(t.createdAt)}</div>
-                    <div style={{ fontSize:12, color:"#1D4ED8", marginTop:6, display:"flex", alignItems:"center", gap:4 }}><Ic n="chevron-right" size={10} />Buksan ang conversation</div>
+                    <div style={{ fontSize:12, color:"#1D4ED8", marginTop:6, display:"flex", alignItems:"center", gap:4 }}><Ic n="chevron-right" size={10} />Open conversation</div>
                   </button>
                 );
               })}
@@ -2107,7 +2107,7 @@
                     </div>
                   );
                 })}
-                {threadMsgs.length === 0 && <div style={{ textAlign:"center", padding:"30px 0", fontSize:12, color:"#ccc" }}>Walang messages pa.</div>}
+                {threadMsgs.length === 0 && <div style={{ textAlign:"center", padding:"30px 0", fontSize:12, color:"#ccc" }}>No messages yet.</div>}
               </div>
 
               {/* Reply */}
@@ -2404,7 +2404,7 @@
           <div style={{ padding:"16px 20px 0" }}>
             <div style={{ background:"#fff", borderRadius:16, padding:"12px 16px", display:"flex", alignItems:"center", gap:10, boxShadow:"0 1px 4px rgba(0,0,0,.07)", border:"1px solid #E9ECEF" }}>
               <Ic n="magnifying-glass" style={{ opacity:.35, fontSize:17 }} />
-              <input placeholder="Maghanap ng produkto..." value={searchQ}
+              <input placeholder="Search products..." value={searchQ}
                 onChange={e => setSearchQ(e.target.value)}
                 style={{ flex:1, border:"none", outline:"none", fontSize:15, fontWeight:500, background:"transparent", color:"#111" }} />
               {searchQ && <button onClick={() => setSearchQ("")} style={{ opacity:.4, fontSize:16 }}>✕</button>}
@@ -2493,7 +2493,7 @@
             {filtered.length === 0 && (
               <div style={{ textAlign:"center", padding:"50px 0", color:"#bbb" }}>
                 <Ic n="face-meh" size={48} style={{ marginBottom:10, color:"#bbb" }} />
-                <div style={{ fontSize:14, fontWeight:600 }}>Walang makitang produkto</div>
+                <div style={{ fontSize:14, fontWeight:600 }}>No products found</div>
               </div>
             )}
           </div>
@@ -2661,7 +2661,7 @@
                   color:"#fff", fontSize:16, fontWeight:700,
                   boxShadow:(!name||!phone||!addr)?"none":"0 4px 20px rgba(22,101,52,.35)",
                   transition:"all .2s"
-                }}>Mag-Order Na! <Ic n="circle-check" style={{ marginLeft:4 }} /></button>
+                }}>Place Order Now! <Ic n="circle-check" style={{ marginLeft:4 }} /></button>
               </div>
             </div>
           )}
