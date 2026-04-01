@@ -257,7 +257,7 @@ async function getAllAdminTokens() {
     if (!adminUidSet.has(userSnap.key)) return;
     userSnap.forEach((tokenSnap) => {
       const data = tokenSnap.val();
-      if (data?.token && data?.enabled !== false) {
+      if (data?.token && data?.enabled !== false && data?.role !== "rider") {
         entries.push({ uid: userSnap.key, tokenKey: tokenSnap.key, token: data.token });
       }
     });
