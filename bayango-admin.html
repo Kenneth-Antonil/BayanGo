@@ -507,6 +507,7 @@
             <button onClick={handleLogout} style={{ color:"#FCA5A5", fontWeight:"bold" }}>Sign Out</button>
           </div>
           <AdminDashboard
+            user={user}
             orders={orders} onUpdateStatus={updateOrderStatus} onBroadcast={sendBroadcast}
             products={products} onAddProduct={addProduct}
             onUpdateProduct={updateProduct} onDeleteProduct={deleteProduct}
@@ -750,7 +751,7 @@
     }
 
     /* ══════════════════ ADMIN DASHBOARD ══════════════════ */
-    function AdminDashboard({ orders, onUpdateStatus, onBroadcast, products, onAddProduct, onUpdateProduct, onDeleteProduct, marketPricing, onUpdateMarketPricing, tickets, vouchers, onAddVoucher, onUpdateVoucher, onDeleteVoucher, appUsageStats }) {
+    function AdminDashboard({ user, orders, onUpdateStatus, onBroadcast, products, onAddProduct, onUpdateProduct, onDeleteProduct, marketPricing, onUpdateMarketPricing, tickets, vouchers, onAddVoucher, onUpdateVoucher, onDeleteVoucher, appUsageStats }) {
       const [tab,          setTab]          = useState("orders");
       const [selected,     setSelected]     = useState(null);
       const [updating,     setUpdating]     = useState(null);
