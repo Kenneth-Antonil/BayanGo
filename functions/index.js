@@ -144,8 +144,13 @@ async function verifyAdminRequest(req) {
   if (!idToken) return null;
 
   const decoded = await getAuth().verifyIdToken(idToken);
-  if (!decoded?.uid || !decoded?.email) return null;
-  if (!String(decoded.email).toLowerCase().endsWith("@bayango.ph")) return null;
+  if (!decoded?.uid) return null;
+
+  // Match admin authorization with RTDB security rules:
+  // admins/$uid === true
+  const adminSnap = await getDatabase().ref(`admins/${decoded.uid}`).get();
+  if (adminSnap.val() !== true) return null;
+
   return decoded;
 }
 
