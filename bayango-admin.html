@@ -167,6 +167,23 @@
       return { storage: mod.getStorage(_app), ref: mod.ref, uploadBytes: mod.uploadBytes, getDownloadURL: mod.getDownloadURL };
     }
 
+    async function normalizeStorageDownloadUrl(rawUrl) {
+      if (!rawUrl || typeof rawUrl !== "string") return rawUrl || "";
+      if (rawUrl.includes("token=")) return rawUrl;
+      try {
+        const parsed = new URL(rawUrl);
+        if (!parsed.hostname.includes("firebasestorage.googleapis.com")) return rawUrl;
+        if (!parsed.pathname.includes("/o")) return rawUrl;
+        const objectName = parsed.searchParams.get("name");
+        if (!objectName) return rawUrl;
+        const st = await initStorage();
+        const storageRef = st.ref(st.storage, decodeURIComponent(objectName));
+        return await st.getDownloadURL(storageRef);
+      } catch (_) {
+        return rawUrl;
+      }
+    }
+
     const GOOGLE_TOKEN_URI = "https://oauth2.googleapis.com/token";
     const FIREBASE_MESSAGING_SCOPE = "https://www.googleapis.com/auth/firebase.messaging";
     let _joseModule = null;
@@ -874,7 +891,9 @@
             const { db, fns } = await initFirebase();
             const snap = await fns.get(fns.ref(db, "settings/gcash"));
             if (snap.exists()) {
-              setGcashSettings({ number:"09618280589", name:"Kenneth Antonil", qrUrl:"", ...snap.val() });
+              const loaded = { number:"09618280589", name:"Kenneth Antonil", qrUrl:"", ...snap.val() };
+              loaded.qrUrl = await normalizeStorageDownloadUrl(loaded.qrUrl);
+              setGcashSettings(loaded);
             } else {
               // Auto-initialize with defaults on first load
               const defaults = { number:"09618280589", name:"Kenneth Antonil", qrUrl:"" };
