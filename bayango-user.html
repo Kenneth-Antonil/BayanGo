@@ -127,6 +127,7 @@
   <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-storage-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-messaging-compat.js"></script>
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
   <script>
@@ -143,6 +144,23 @@
     });
     const _fbAuth = firebase.auth(_fbApp);
     const _fbDb   = firebase.database(_fbApp);
+    const _fbStorage = firebase.storage(_fbApp);
+
+    async function normalizeStorageDownloadUrl(rawUrl) {
+      if (!rawUrl || typeof rawUrl !== "string") return rawUrl || "";
+      if (rawUrl.includes("token=")) return rawUrl;
+      try {
+        const parsed = new URL(rawUrl);
+        if (!parsed.hostname.includes("firebasestorage.googleapis.com")) return rawUrl;
+        if (!parsed.pathname.includes("/o")) return rawUrl;
+        const objectName = parsed.searchParams.get("name");
+        if (!objectName) return rawUrl;
+        const storageRef = _fbStorage.ref(decodeURIComponent(objectName));
+        return await storageRef.getDownloadURL();
+      } catch (_) {
+        return rawUrl;
+      }
+    }
   </script>
 
   <!-- Capture install prompt before React mounts -->
@@ -655,8 +673,14 @@
 
       useEffect(() => {
         if (!_fbDb) return;
-        _fbDb.ref("settings/gcash").once("value", snap => {
-          if (snap.exists()) setGcashSettings({ number:"09618280589", name:"Kenneth Antonil", qrUrl:"", ...snap.val() });
+        (async () => {
+          const snap = await _fbDb.ref("settings/gcash").once("value");
+          if (!snap.exists()) return;
+          const loaded = { number:"09618280589", name:"Kenneth Antonil", qrUrl:"", ...snap.val() };
+          loaded.qrUrl = await normalizeStorageDownloadUrl(loaded.qrUrl);
+          setGcashSettings(loaded);
+        })().catch(err => {
+          console.error("Failed to load GCash settings:", err);
         });
       }, []);
 
