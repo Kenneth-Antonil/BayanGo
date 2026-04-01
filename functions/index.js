@@ -32,6 +32,10 @@ const ADMIN_ALLOWED_ORIGINS = [
   "http://127.0.0.1:5000",
 ];
 
+function normalizeOrigin(origin = "") {
+  return String(origin || "").trim().toLowerCase().replace(/\/+$/, "");
+}
+
 function asBuffer(rawBody, fallback) {
   if (Buffer.isBuffer(rawBody)) return rawBody;
   if (typeof rawBody === "string") return Buffer.from(rawBody, "utf8");
@@ -124,8 +128,11 @@ function derivePaymentState(eventType = "", attrs = {}) {
 }
 
 function setCors(res, origin = "") {
-  const allowedOrigin = ADMIN_ALLOWED_ORIGINS.includes(origin) ? origin : ADMIN_ALLOWED_ORIGINS[0];
+  const normalizedOrigin = normalizeOrigin(origin);
+  const allowedOriginSet = new Set(ADMIN_ALLOWED_ORIGINS.map(normalizeOrigin));
+  const allowedOrigin = allowedOriginSet.has(normalizedOrigin) ? normalizedOrigin : ADMIN_ALLOWED_ORIGINS[0];
   res.set("Access-Control-Allow-Origin", allowedOrigin);
+  res.set("Vary", "Origin");
   res.set("Access-Control-Allow-Headers", "Content-Type, Authorization");
   res.set("Access-Control-Allow-Methods", "POST, OPTIONS");
 }
