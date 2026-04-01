@@ -13,6 +13,7 @@ initializeApp();
 const APP_ICON = "https://i.imgur.com/wL8wcBB.jpeg";
 const USER_APP_URL = "https://bayango.store/bayango-user.html";
 const RIDER_APP_URL = "https://bayango.store/bayango-rider.html";
+const ADMIN_APP_URL = "https://bayango.store/bayango-admin.html";
 
 const ORDER_STATUS_LABELS = {
   pending:   "Nai-receive na ang order",
@@ -225,6 +226,43 @@ async function getAllRiderTokens() {
       }
     });
   });
+  const seen = new Set();
+  return entries.filter((t) => {
+    if (seen.has(t.token)) return false;
+    seen.add(t.token);
+    return true;
+  });
+}
+
+/**
+ * Kuha lahat ng FCM tokens ng mga admin batay sa `admins/$uid === true`.
+ */
+async function getAllAdminTokens() {
+  const db = getDatabase();
+  const [adminsSnap, tokensSnap] = await Promise.all([
+    db.ref("admins").get(),
+    db.ref("push_tokens").get(),
+  ]);
+
+  if (!adminsSnap.exists() || !tokensSnap.exists()) return [];
+
+  const adminUidSet = new Set();
+  adminsSnap.forEach((adminSnap) => {
+    if (adminSnap.val() === true) adminUidSet.add(adminSnap.key);
+  });
+  if (!adminUidSet.size) return [];
+
+  const entries = [];
+  tokensSnap.forEach((userSnap) => {
+    if (!adminUidSet.has(userSnap.key)) return;
+    userSnap.forEach((tokenSnap) => {
+      const data = tokenSnap.val();
+      if (data?.token && data?.enabled !== false) {
+        entries.push({ uid: userSnap.key, tokenKey: tokenSnap.key, token: data.token });
+      }
+    });
+  });
+
   const seen = new Set();
   return entries.filter((t) => {
     if (seen.has(t.token)) return false;
@@ -819,6 +857,52 @@ exports.onNewOrder = onValueCreated(
       link: RIDER_APP_URL,
     });
     console.log(`[onNewOrder ${event.params.orderId}] Sent:${result.sent} Failed:${result.failed}`);
+  }
+);
+
+/**
+ * Bagong support ticket → i-notify ang lahat ng admins.
+ */
+exports.onNewSupportTicket = onValueCreated(
+  { ref: "support_tickets/{ticketId}", region: "asia-southeast1" },
+  async (event) => {
+    const ticket = event.data.val() || {};
+    const ticketId = event.params.ticketId;
+    const subject = String(ticket.subject || "New support concern").trim();
+    const customerName = String(ticket.userName || ticket.name || "Customer").trim();
+
+    const adminTokens = await getAllAdminTokens();
+    if (adminTokens.length) {
+      const result = await sendBatchNotification(adminTokens, {
+        title: "New Support Ticket",
+        body: `${customerName}: ${subject}`,
+        type: "support_ticket_new",
+        link: `${ADMIN_APP_URL}#support`,
+      });
+      console.log(`[onNewSupportTicket ${ticketId}] Sent:${result.sent} Failed:${result.failed}`);
+    } else {
+      console.log(`[onNewSupportTicket ${ticketId}] No admin tokens found.`);
+    }
+
+    const db = getDatabase();
+    const adminsSnap = await db.ref("admins").get();
+    if (!adminsSnap.exists()) return;
+
+    const notificationPayload = {
+      type: "support_ticket_new",
+      title: "New Support Ticket",
+      body: `${customerName}: ${subject}`,
+      ticketId,
+      createdAt: Date.now(),
+      read: false,
+    };
+    const writes = [];
+    adminsSnap.forEach((adminSnap) => {
+      if (adminSnap.val() === true) {
+        writes.push(db.ref(`notifications/${adminSnap.key}`).push(notificationPayload));
+      }
+    });
+    if (writes.length) await Promise.all(writes);
   }
 );
 
