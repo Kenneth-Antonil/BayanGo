@@ -1,10 +1,10 @@
 <!DOCTYPE html>
-<html lang="tl">
+<html lang="en">
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
-  <title>BayanGo — Fresh mula sa Pritil, Hatid sa Pinto Mo</title>
-  <meta name="description" content="Simpleng pamamalengke para sa mga taga-Binangonan at Talim Island. Fresh goods mula sa Pritil, delivered sa pintuan mo." />
+  <title>BayanGo — Fresh from Pritil, Delivered to Your Door</title>
+  <meta name="description" content="Simple grocery shopping for Binangonan and Talim Island residents. Fresh goods from Pritil, delivered to your doorstep." />
   <meta name="theme-color" content="#166534" />
   <meta name="mobile-web-app-capable" content="yes" />
   <meta name="apple-mobile-web-app-capable" content="yes" />
@@ -342,8 +342,8 @@
     <!-- ── Hero ── -->
     <div class="hero fade-up">
       <img class="hero-logo" src="https://i.imgur.com/1W159zD.png" alt="BayanGo" />
-      <h1>Fresh mula sa <span>Pritil</span>,<br>Hatid sa Pinto mo!</h1>
-      <p class="sub">Simpleng pamamalengke para sa mga taga-Binangonan at Talim Island.</p>
+      <h1>Fresh from <span>Pritil</span>,<br>Delivered to Your Door!</h1>
+      <p class="sub">Simple market shopping for Binangonan and Talim Island residents.</p>
       <div class="hero-cta">
         <button id="installBtn" class="btn-main">
           <i class="fa-solid fa-download"></i>
@@ -373,29 +373,29 @@
           <div class="cat-icon" style="background:linear-gradient(135deg,#0EA5E9,#0284C7);">
             <i class="fa-solid fa-fish"></i>
           </div>
-          <div class="cat-label">Isda</div>
-          <div class="cat-desc">Sariwa mula sa palengke ng Binangonan</div>
+          <div class="cat-label">Fish</div>
+          <div class="cat-desc">Fresh from Binangonan public market</div>
         </div>
         <div class="cat-card">
           <div class="cat-icon" style="background:linear-gradient(135deg,#EF4444,#DC2626);">
             <i class="fa-solid fa-drumstick-bite"></i>
           </div>
-          <div class="cat-label">Karne</div>
-          <div class="cat-desc">Manok, baboy, at iba pang karne</div>
+          <div class="cat-label">Meat</div>
+          <div class="cat-desc">Chicken, pork, and other meats</div>
         </div>
         <div class="cat-card">
           <div class="cat-icon" style="background:linear-gradient(135deg,#22C55E,#16A34A);">
             <i class="fa-solid fa-leaf"></i>
           </div>
-          <div class="cat-label">Gulay</div>
-          <div class="cat-desc">Sariwang gulay sa araw-araw</div>
+          <div class="cat-label">Vegetables</div>
+          <div class="cat-desc">Fresh vegetables every day</div>
         </div>
         <div class="cat-card">
           <div class="cat-icon" style="background:linear-gradient(135deg,#F97316,#EA580C);">
             <i class="fa-solid fa-basket-shopping"></i>
           </div>
           <div class="cat-label">Grocery</div>
-          <div class="cat-desc">Prutas, sari-sari, gamot, at iba pa</div>
+          <div class="cat-desc">Fruits, general goods, medicine, and more</div>
         </div>
       </div>
     </div>
@@ -445,7 +445,7 @@
       <div id="tab-android" class="install-steps show">
         <div class="install-step">
           <div class="step-num">1</div>
-          <div class="step-text">Buksan ang page na ito sa <strong>Chrome</strong> browser.</div>
+          <div class="step-text">Open this page in the <strong>Chrome</strong> browser.</div>
         </div>
         <div class="install-step">
           <div class="step-num">2</div>
@@ -464,7 +464,7 @@
       <div id="tab-ios" class="install-steps">
         <div class="install-step">
           <div class="step-num">1</div>
-          <div class="step-text">Buksan ang page na ito sa <strong>Safari</strong> browser (hindi gagana sa Chrome sa iPhone).</div>
+          <div class="step-text">Open this page in the <strong>Safari</strong> browser (Chrome on iPhone will not work).</div>
         </div>
         <div class="install-step">
           <div class="step-num">2</div>
@@ -513,12 +513,12 @@
         return hh > 0 ? `${hh}h ${pad(mm)}m` : `${pad(mm)}m ${pad(ss)}s`;
       };
       if (totalSecs < AM_CUTOFF) {
-        return { text: `AM Batch — Delivery 11:00 AM · Cut-off sa ${secsLeft(AM_CUTOFF - totalSecs)}`, mode: 'am', urgent: (AM_CUTOFF - totalSecs) < 1800 };
+        return { text: `AM Batch — Delivery 11:00 AM · Cut-off in ${secsLeft(AM_CUTOFF - totalSecs)}`, mode: 'am', urgent: (AM_CUTOFF - totalSecs) < 1800 };
       } else if (totalSecs < PM_CUTOFF) {
-        return { text: `PM Batch — Delivery 4:00 PM · Cut-off sa ${secsLeft(PM_CUTOFF - totalSecs)}`, mode: 'pm', urgent: (PM_CUTOFF - totalSecs) < 1800 };
+        return { text: `PM Batch — Delivery 4:00 PM · Cut-off in ${secsLeft(PM_CUTOFF - totalSecs)}`, mode: 'pm', urgent: (PM_CUTOFF - totalSecs) < 1800 };
       } else {
         const secsToTomorrow = (24 * 3600 - totalSecs) + AM_CUTOFF;
-        return { text: `Susunod: AM Batch Bukas — Delivery 11:00 AM · Cut-off sa ${secsLeft(secsToTomorrow)}`, mode: 'am', urgent: false };
+        return { text: `Next: AM Batch Tomorrow — Delivery 11:00 AM · Cut-off in ${secsLeft(secsToTomorrow)}`, mode: 'am', urgent: false };
       }
     }
 
@@ -562,7 +562,7 @@
     window.addEventListener('beforeinstallprompt', (e) => {
       e.preventDefault();
       deferredPrompt = e;
-      helpNote.textContent = 'Ready na ang install. I-tap ang I-INSTALL button.';
+      helpNote.textContent = 'Install is ready. Tap the INSTALL button.';
     });
 
     window.addEventListener('appinstalled', setInstalled);
@@ -571,13 +571,13 @@
       if (isIOS) {
         showTab('ios');
         document.querySelector('.install-box').scrollIntoView({ behavior: 'smooth', block: 'start' });
-        helpNote.textContent = 'Sundin ang steps sa Safari para ma-install ang app.';
+        helpNote.textContent = 'Follow the Safari steps to install the app.';
         return;
       }
       if (!deferredPrompt) {
         showTab('android');
         document.querySelector('.install-box').scrollIntoView({ behavior: 'smooth', block: 'start' });
-        helpNote.textContent = 'I-tap ang ⋮ menu ng browser at piliin ang "Install App" o "Add to Home Screen."';
+        helpNote.textContent = 'Tap the browser ⋮ menu and choose "Install App" or "Add to Home Screen."';
         return;
       }
       btn.disabled = true;
@@ -586,7 +586,7 @@
         deferredPrompt.prompt();
         await deferredPrompt.userChoice;
       } catch {
-        helpNote.textContent = 'Hindi ma-open ang install prompt. Subukan ang browser menu.';
+        helpNote.textContent = 'Unable to open the install prompt. Try the browser menu.';
       } finally {
         deferredPrompt = null;
         btn.disabled = false;

@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="tl">
+<html lang="en">
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
@@ -66,7 +66,7 @@
       <div class="rider-splash-wordmark">BayanGo</div>
       <div class="rider-splash-badge">RIDER</div>
       <div class="rider-splash-dots"><span></span><span></span><span></span></div>
-      <div class="rider-splash-caption">Naghahanda...</div>
+      <div class="rider-splash-caption">Getting ready...</div>
     </div>
   </div>
 
@@ -206,7 +206,7 @@
     }
 
     /* ══════════════════ APP ══════════════════ */
-    function RiderSplash({ message = "Naghahanda..." }) {
+    function RiderSplash({ message = "Getting ready..." }) {
       return (
         <div className="rider-splash-shell">
           <img className="rider-splash-logo" src="https://i.imgur.com/1W159zD.png" alt="BayanGo Rider" />
@@ -273,7 +273,7 @@
             Sign in with Google
           </button>
           <p className="fade-up" style={{ color:"rgba(255,255,255,.55)", fontSize:12, animationDelay:".2s", textAlign:"center", lineHeight:1.6 }}>
-            Para sa mga BayanGo delivery riders lamang.
+            For BayanGo delivery riders only.
           </p>
         </div>
       );
@@ -371,10 +371,10 @@
                   playNotificationSound();
                   showLocalRiderNotification({
                     title: "BayanGo Rider",
-                    body: "May bagong order! Buksan ang Available tab.",
+                    body: "New order available! Open the Available tab.",
                     data: { type: "new_order" },
                   });
-                  showToast("May bagong order! Buksan ang Available tab.");
+                  showToast("New order available! Open the Available tab.");
                 }
               }
               lastAvailableOrderIdsRef.current = incomingOrderIds;
@@ -439,7 +439,7 @@
             status:     "buying",
             acceptedAt: Date.now(),
           });
-          showToast("Na-accept! Pumunta ka na sa tindahan.");
+          showToast("Accepted! Head to the store now.");
           setTab("deliveries");
         } catch (err) {
           showToast("Error: " + (err.code || err.message));
@@ -450,10 +450,10 @@
 
       const markOtw = async (order) => {
         const nextStatus = order.locationType === "Island" ? "in_boat" : "otw";
-        const toast      = order.locationType === "Island" ? "Nakasakay na sa bangka! Ingat!" : "OTW na! Mag-ingat sa daan.";
+        const toast      = order.locationType === "Island" ? "On the boat now! Stay safe!" : "On the way! Ride safe.";
         // Block island orders from going to in_boat without confirmed GCash payment
         if (order.locationType === "Island" && !order.gcashPaymentConfirmed) {
-          showToast("Hindi pa na-confirm ang GCash payment. Hintayin ang confirmation mula sa admin.");
+          showToast("GCash payment is not confirmed yet. Wait for admin confirmation.");
           return;
         }
         setMarkingOtw(order.id);
@@ -474,7 +474,7 @@
             status:      "delivered",
             deliveredAt: Date.now(),
           });
-          showToast("Na-deliver na! Good job!");
+          showToast("Delivered! Good job!");
         } catch (err) {
           showToast("Error: " + (err.code || err.message));
         } finally {
@@ -502,7 +502,7 @@
           const url = await st.getDownloadURL(storageRef);
           setRiderProofImages(prev => [...prev, url]);
         } catch (err) {
-          showToast("Hindi ma-upload ang larawan: " + (err.message || err.code));
+          showToast("Unable to upload image: " + (err.message || err.code));
         } finally { setUploadingRiderProof(false); }
       };
 
@@ -529,7 +529,7 @@
               await _fbDb.ref("notification_queue").push({
                 uid,
                 title: "BayanGo — Bayad na via GCash!",
-                body: `Handa na ang iyong order (₱${total.toLocaleString("en-PH")}). Mag-bayad na via GCash para maipadala sa bangka!`,
+                body: `Your order is ready (₱${total.toLocaleString("en-PH")}). Pay via GCash now so it can be sent by boat!`,
                 link: "https://bayango.ph/bayango-user.html?section=orders",
                 createdAt: Date.now(),
               });
@@ -537,7 +537,7 @@
               console.warn("Notification queue write failed:", notifErr);
             }
           }
-          showToast("Na-update na ang presyo! Total: ₱" + total.toLocaleString("en-PH"));
+          showToast("Price updated! Total: ₱" + total.toLocaleString("en-PH"));
           setPriceEditOrder(null);
         } catch (err) {
           showToast("Error: " + (err.message || err.code));
@@ -558,7 +558,7 @@
         try {
           await _fbDb.ref(`orders/${orderId}/riderChecklist/${itemKey}`).set(checked);
         } catch (err) {
-          showToast("Hindi na-save ang checklist: " + (err.code || err.message));
+          showToast("Failed to save checklist: " + (err.code || err.message));
         }
       };
 
@@ -616,10 +616,10 @@
           myOrders.forEach(o => {
             if (o.status === "cancelled" && prev[o.id] && prev[o.id] !== "cancelled") {
               const short = String(o.id).slice(-6);
-              showToast(`Order #${short} ay na-cancel ng customer.`);
+              showToast(`Order #${short} was cancelled by the customer.`);
               showLocalRiderNotification({
                 title: "BayanGo Rider",
-                body: `Order #${short} ay na-cancel ng customer.`,
+                body: `Order #${short} was cancelled by the customer.`,
                 data: { type: "order_cancelled", orderId: o.id },
               });
               playNotificationSound();
@@ -816,7 +816,7 @@
 
                   {/* Proof Photos */}
                   <div style={{ marginBottom:14 }}>
-                    <div style={{ fontSize:12, fontWeight:700, color:"#555", marginBottom:8 }}><Ic n="camera" style={{ marginRight:5 }} />Resibo / Litrato ng mga Items</div>
+                    <div style={{ fontSize:12, fontWeight:700, color:"#555", marginBottom:8 }}><Ic n="camera" style={{ marginRight:5 }} />Receipt / Photos of Items</div>
                     {riderProofImages.length > 0 && (
                       <div style={{ display:"flex", gap:8, flexWrap:"wrap", marginBottom:8 }}>
                         {riderProofImages.map((url, i) => (
@@ -832,7 +832,7 @@
                     <div style={{ display:"flex", gap:8 }}>
                       <label style={{ flex:1, display:"flex", alignItems:"center", justifyContent:"center", gap:8, padding:"11px 10px", borderRadius:12, border:"1.5px dashed #D1D5DB", cursor:"pointer", fontSize:13, color:"#555", background:"#FAFAFA" }}>
                         <Ic n={uploadingRiderProof?"spinner":"camera"} className={uploadingRiderProof?"fa-spin":""} style={{ color:"#7C3AED" }} />
-                        {uploadingRiderProof ? "Ina-upload..." : "Camera"}
+                        {uploadingRiderProof ? "Uploading..." : "Camera"}
                         <input type="file" accept="image/*" capture="environment" style={{ display:"none" }}
                           onChange={async e => { if(e.target.files[0]) await uploadRiderProofImage(e.target.files[0], order.id); e.target.value=""; }} />
                       </label>
@@ -926,7 +926,7 @@
                 </p>
                 {notifPermission === "denied" && (
                   <p style={{ fontSize:12, lineHeight:1.5, color:"#B91C1C", background:"#FEE2E2", borderRadius:12, padding:"10px 12px", marginBottom:12 }}>
-                    Na-block ang notifications. Pumunta sa browser/site settings at i-Allow ang notifications, tapos pindutin ulit ang button sa ibaba.
+                    Notifications are blocked. Go to browser/site settings, allow notifications, then press the button below again.
                   </p>
                 )}
                 <button
@@ -1087,7 +1087,7 @@
               <div ref={mapRef} style={{ position:"absolute", inset:0 }} />
             </div>
             <div style={{ background:"#fff", padding:"12px 18px calc(env(safe-area-inset-bottom,0px) + 12px)", borderTop:"1px solid #E2E8F0", fontSize:12, color:"#475569" }}>
-              {order.customer?.address || "Walang address"}
+              {order.customer?.address || "No address"}
             </div>
           </div>
         </div>
@@ -1099,7 +1099,7 @@
       if (availErr) return (
         <div style={{ textAlign:"center", padding:"60px 20px", color:"#94A3B8" }}>
           <Ic n="triangle-exclamation" size={52} style={{ marginBottom:12, color:"#EF4444" }} />
-          <div style={{ fontSize:15, fontWeight:700, color:"#EF4444" }}>Hindi ma-load ang orders</div>
+          <div style={{ fontSize:15, fontWeight:700, color:"#EF4444" }}>Unable to load orders</div>
           <div style={{ fontSize:12, marginTop:6, color:"#94A3B8" }}>{availErr}</div>
           <div style={{ fontSize:12, marginTop:8, color:"#94A3B8" }}>I-check ang Firestore security rules.</div>
         </div>
@@ -1107,7 +1107,7 @@
       if (orders.length === 0) return (
         <div style={{ textAlign:"center", padding:"60px 20px", color:"#94A3B8" }}>
           <Ic n="inbox" size={52} style={{ marginBottom:12, color:"#94A3B8" }} />
-          <div style={{ fontSize:15, fontWeight:700, color:"#64748B" }}>Walang available na orders</div>
+          <div style={{ fontSize:15, fontWeight:700, color:"#64748B" }}>No available orders</div>
           <div style={{ fontSize:13, marginTop:6 }}>Hintayin ang bagong orders</div>
         </div>
       );
@@ -1160,7 +1160,7 @@
                       <Ic n={isIsland ? "water" : "house"} style={{marginRight:3}} />
                       {isIsland ? "Island" : "Mainland"}
                     </div>
-                    <div style={{ fontSize:11, color:"#64748B" }}>Kita mo</div>
+                    <div style={{ fontSize:11, color:"#64748B" }}>Your earnings</div>
                     <div style={{ fontSize:22, fontWeight:800, color:"#1D4ED8" }}>{fmt(order.deliveryFee || 0)}</div>
                   </div>
                 </div>
@@ -1186,7 +1186,7 @@
                         fontSize:13, fontWeight:700, display:"flex", alignItems:"center", justifyContent:"center", gap:8,
                         boxShadow:"0 2px 10px rgba(5,150,105,.3)",
                       }}>
-                        <Ic n="diamond-turn-right" /> Navigate sa Google Maps
+                        <Ic n="diamond-turn-right" /> Navigate in Google Maps
                       </button>
                     </>
                   )}
@@ -1196,7 +1196,7 @@
                 <div style={{ marginBottom:14 }}>
                   <div style={{ fontSize:11, fontWeight:700, color:"#64748B", marginBottom:6 }}>LIST</div>
                   <button onClick={() => onOpenChecklist(order)} style={{ width:"100%", padding:"10px 12px", borderRadius:12, background:"#F8FAFC", border:"1px solid #E2E8F0", display:"flex", alignItems:"center", justifyContent:"space-between", color:"#334155", fontSize:13, fontWeight:700 }}>
-                    <span><Ic n="list-check" style={{ marginRight:6, color:"#1D4ED8" }} />Buksan ang list ({regularItems.length + customItems.length})</span>
+                    <span><Ic n="list-check" style={{ marginRight:6, color:"#1D4ED8" }} />Open list ({regularItems.length + customItems.length})</span>
                     <Ic n="chevron-right" style={{ color:"#94A3B8" }} />
                   </button>
                 </div>
@@ -1283,7 +1283,7 @@
                     fontSize:13, fontWeight:700, display:"flex", alignItems:"center", justifyContent:"center", gap:8,
                     boxShadow:"0 2px 10px rgba(5,150,105,.3)",
                   }}>
-                    <Ic n="diamond-turn-right" /> Navigate sa Google Maps
+                    <Ic n="diamond-turn-right" /> Navigate in Google Maps
                   </button>
                 </>
               )}
@@ -1291,12 +1291,12 @@
             <div style={{ marginBottom:12 }}>
               <div style={{ fontSize:11, fontWeight:700, color:"#64748B", marginBottom:6 }}>LIST</div>
               <button onClick={() => onOpenChecklist(order)} style={{ width:"100%", padding:"10px 12px", borderRadius:12, background:"#F8FAFC", border:"1px solid #E2E8F0", display:"flex", alignItems:"center", justifyContent:"space-between", color:"#334155", fontSize:13, fontWeight:700 }}>
-                <span><Ic n="list-check" style={{ marginRight:6, color:"#1D4ED8" }} />Buksan ang list ({regularItems.length + customItems.length})</span>
+                <span><Ic n="list-check" style={{ marginRight:6, color:"#1D4ED8" }} />Open list ({regularItems.length + customItems.length})</span>
                 <Ic n="chevron-right" style={{ color:"#94A3B8" }} />
               </button>
             </div>
             <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:12 }}>
-              <div style={{ fontSize:12, color:"#64748B" }}>Kita mo</div>
+              <div style={{ fontSize:12, color:"#64748B" }}>Your earnings</div>
               <div style={{ fontSize:18, fontWeight:800, color:"#1D4ED8" }}>{fmt(order.deliveryFee || 0)}</div>
             </div>
             {actionBtn}
@@ -1315,7 +1315,7 @@
                     <Ic n="clipboard-list" style={{ marginRight:6 }} />Master List ng Bibilhin
                   </div>
                   <div style={{ fontSize:12, color:"#64748B", marginTop:3 }}>
-                    Lahat ng items sa assigned orders na kasalukuyang binibili mo.
+                    All items in assigned orders that you are currently buying.
                   </div>
                 </div>
                 <div style={{ background:"#EFF6FF", color:"#1E3A8A", borderRadius:12, padding:"6px 10px", fontSize:11, fontWeight:800, whiteSpace:"nowrap" }}>
@@ -1339,7 +1339,7 @@
                       }}
                       style={{ padding:"7px 10px", borderRadius:9, border:"1px solid #BFDBFE", background:"#F8FAFF", color:"#1D4ED8", fontSize:11, fontWeight:700, flexShrink:0 }}
                     >
-                      Buksan
+                      Open
                     </button>
                   </div>
                   <div style={{ display:"grid", gap:6 }}>
@@ -1367,7 +1367,7 @@
           {buying.length > 0 && (
             <>
               <div style={{ fontSize:12, fontWeight:700, color:"#64748B", marginBottom:10, textTransform:"uppercase", letterSpacing:".08em" }}>
-                <Ic n="cart-shopping" style={{ marginRight:6 }} />Binibili ({buying.length})
+                <Ic n="cart-shopping" style={{ marginRight:6 }} />Buying ({buying.length})
               </div>
               {buying.map(order => {
                 const isIsland = order.locationType === "Island";
@@ -1380,7 +1380,7 @@
                         {isIsland && (
                           gcashPending
                             ? <div style={{ marginBottom:8, padding:"10px 12px", borderRadius:10, background:"#FEF3C7", color:"#92400E", fontSize:12, fontWeight:700, display:"flex", alignItems:"center", gap:6 }}>
-                                <Ic n="hourglass-half" /> Naghihintay ng GCash Payment Confirmation...
+                                <Ic n="hourglass-half" /> Waiting for GCash Payment Confirmation...
                               </div>
                             : <div style={{ marginBottom:8, padding:"10px 12px", borderRadius:10, background:"#DCFCE7", color:"#166534", fontSize:12, fontWeight:700, display:"flex", alignItems:"center", gap:6 }}>
                                 <Ic n="circle-check" /> GCash Payment Confirmed!
@@ -1392,7 +1392,7 @@
                           display:"flex", alignItems:"center", justifyContent:"center", gap:6,
                         }}>
                           <Ic n="receipt" />
-                          I-update ang Actual Presyo at Mag-upload ng Resibo
+                          Update Actual Price and Upload Receipt
                           {order.pricesUpdatedAt && <Ic n="circle-check" style={{ color:"#BBF7D0", marginLeft:2 }} />}
                         </button>
                         <button onClick={() => onOtw(order)} disabled={markingOtw === order.id || gcashPending} style={{
@@ -1402,12 +1402,12 @@
                           fontSize:15, fontWeight:800,
                         }}>
                           {markingOtw === order.id
-                            ? <span className="pulse">Ina-update...</span>
+                            ? <span className="pulse">Updating...</span>
                             : gcashPending
-                              ? <><Ic n="lock" style={{ marginRight:6 }} />Hindi pa pwede — GCash Hindi Pa Confirmed</>
+                              ? <><Ic n="lock" style={{ marginRight:6 }} />Not available yet — GCash not confirmed</>
                               : isIsland
-                                ? <><Ic n="ship" style={{ marginRight:6 }} />Tapos na! Nakasakay na sa bangka!</>
-                                : <><Ic n="motorcycle" style={{ marginRight:6 }} />Tapos na! OTW na ako!</>}
+                                ? <><Ic n="ship" style={{ marginRight:6 }} />Done! On the boat!</>
+                                : <><Ic n="motorcycle" style={{ marginRight:6 }} />Done! I'm on the way!</>}
                         </button>
                       </>
                     }
@@ -1437,7 +1437,7 @@
                       fontSize:15, fontWeight:800,
                       boxShadow: delivering ? "none" : "0 4px 16px rgba(5,150,105,.35)",
                     }}>
-                      {delivering === order.id ? <span className="pulse">Ina-update...</span> : <><Ic n="circle-check" style={{ marginRight:6 }} />Na-deliver na!</>}
+                      {delivering === order.id ? <span className="pulse">Updating...</span> : <><Ic n="circle-check" style={{ marginRight:6 }} />Delivered!</>}
                     </button>
                   }
                 />
@@ -1471,7 +1471,7 @@
                         {order.customer?.name}
                       </div>
                       <div style={{ fontSize:12, color: isCancelled ? "#B91C1C" : "#94A3B8", marginTop:2 }}>
-                        {isCancelled ? "Na-cancel ng customer" : `${ts.toLocaleDateString("en-PH")} ${ts.toLocaleTimeString("en-PH",{hour:"2-digit",minute:"2-digit"})}`}
+                        {isCancelled ? "Cancelled by customer" : `${ts.toLocaleDateString("en-PH")} ${ts.toLocaleTimeString("en-PH",{hour:"2-digit",minute:"2-digit"})}`}
                       </div>
                     </div>
                     {!isCancelled && <div style={{ fontSize:16, fontWeight:800, color:"#059669" }}>{fmt(order.deliveryFee || 0)}</div>}
@@ -1484,7 +1484,7 @@
           {buying.length === 0 && active.length === 0 && completed.length === 0 && (
             <div style={{ textAlign:"center", padding:"60px 20px", color:"#94A3B8" }}>
               <Ic n="motorcycle" size={52} style={{ marginBottom:12, color:"#94A3B8" }} />
-              <div style={{ fontSize:15, fontWeight:700, color:"#64748B" }}>Walang deliveries pa</div>
+              <div style={{ fontSize:15, fontWeight:700, color:"#64748B" }}>No deliveries yet</div>
               <div style={{ fontSize:13, marginTop:6 }}>Pumunta sa Available tab para kumuha ng order</div>
             </div>
           )}
@@ -1548,7 +1548,7 @@
             <div style={{ textAlign:"center", padding:"40px 20px", color:"#94A3B8" }}>
               <Ic n="coins" size={52} style={{ marginBottom:12, color:"#94A3B8" }} />
               <div style={{ fontSize:15, fontWeight:700, color:"#64748B" }}>Wala pang kita</div>
-              <div style={{ fontSize:13, marginTop:6 }}>Mag-deliver para magsimulang kumita!</div>
+              <div style={{ fontSize:13, marginTop:6 }}>Complete deliveries to start earning!</div>
             </div>
           )}
         </div>
