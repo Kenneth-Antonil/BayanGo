@@ -1018,27 +1018,66 @@
       const activeRiders = [...new Set(orders.filter(o => o.status === "otw" && o.riderId).map(o => o.riderId))].length;
 
       return (
-        <div style={{ maxWidth:1100, margin:"0 auto", minHeight:"100vh", background:"#F8FAF8", paddingBottom:40 }}>
+        <div style={{ maxWidth:1280, margin:"0 auto", minHeight:"100vh", background:"linear-gradient(180deg,#F1F5F9 0%,#F8FAF8 40%)", paddingBottom:40 }}>
 
           <div style={{ padding:"14px 20px 8px" }}>
             <div style={{
-              background:"linear-gradient(140deg,#052E16,#166534,#22C55E)",
-              color:"#fff", borderRadius:18, padding:"16px 18px",
-              boxShadow:"0 12px 30px rgba(22,101,52,.28)"
+              background:"radial-gradient(circle at top right,#34D399 0%,#166534 35%,#052E16 100%)",
+              color:"#fff", borderRadius:24, padding:"18px 20px",
+              boxShadow:"0 18px 34px rgba(15,23,42,.28)",
+              border:"1px solid rgba(255,255,255,.16)"
             }}>
-              <div style={{ fontSize:11, opacity:.8, letterSpacing:".08em", textTransform:"uppercase", fontWeight:700 }}>
-                BayanGo Admin
-              </div>
-              <div style={{ fontSize:20, fontWeight:800, marginTop:4 }}>Dashboard Overview</div>
-              <div style={{ fontSize:12, opacity:.82, marginTop:4 }}>
-                Orders: {activeOrders.length} active • {deliveredOrders.length} delivered
+              <div style={{ display:"grid", gridTemplateColumns:"2fr 1fr", gap:14, alignItems:"stretch" }}>
+                <div>
+                  <div style={{ fontSize:11, opacity:.8, letterSpacing:".08em", textTransform:"uppercase", fontWeight:700 }}>
+                    BayanGo Admin • Executive Panel
+                  </div>
+                  <div style={{ fontSize:24, fontWeight:800, marginTop:4 }}>Master Dashboard</div>
+                  <div style={{ fontSize:12, opacity:.9, marginTop:4 }}>
+                    Real-time operations view para sa orders, riders, growth at customer activity.
+                  </div>
+                </div>
+                <div style={{ background:"rgba(255,255,255,.08)", borderRadius:16, padding:"12px 14px", border:"1px solid rgba(255,255,255,.18)" }}>
+                  <div style={{ fontSize:11, opacity:.78, marginBottom:8 }}>Live Snapshot</div>
+                  <div style={{ display:"grid", gap:6 }}>
+                    <div style={{ display:"flex", justifyContent:"space-between", fontSize:12 }}>
+                      <span style={{ opacity:.85 }}>Active Orders</span>
+                      <b>{activeOrders.length}</b>
+                    </div>
+                    <div style={{ display:"flex", justifyContent:"space-between", fontSize:12 }}>
+                      <span style={{ opacity:.85 }}>Delivered</span>
+                      <b>{deliveredOrders.length}</b>
+                    </div>
+                    <div style={{ display:"flex", justifyContent:"space-between", fontSize:12 }}>
+                      <span style={{ opacity:.85 }}>On Duty Riders</span>
+                      <b>{activeRiders}</b>
+                    </div>
+                  </div>
+                </div>
               </div>
             </div>
           </div>
 
+          <div style={{ padding:"0 20px 12px", display:"grid", gridTemplateColumns:"repeat(4,minmax(0,1fr))", gap:10 }}>
+            {[
+              { label:"Total Orders", value:orders.length, icon:"chart-line", tone:"#0F172A", bg:"#E2E8F0" },
+              { label:"Revenue", value:`₱${totalRevenue.toLocaleString("en-PH",{minimumFractionDigits:0,maximumFractionDigits:0})}`, icon:"coins", tone:"#166534", bg:"#DCFCE7" },
+              { label:"Today's Orders", value:todayOrders.length, icon:"calendar-day", tone:"#1D4ED8", bg:"#DBEAFE" },
+              { label:"App Active Users", value:appUsageStats?.activeUsers || 0, icon:"users", tone:"#7C3AED", bg:"#EDE9FE" },
+            ].map(k => (
+              <div key={k.label} style={{ background:"#fff", borderRadius:16, padding:"12px 14px", border:"1px solid #E2E8F0", boxShadow:"0 6px 18px rgba(15,23,42,.05)" }}>
+                <div style={{ display:"inline-flex", width:34, height:34, borderRadius:10, alignItems:"center", justifyContent:"center", color:k.tone, background:k.bg }}>
+                  <Ic n={k.icon} />
+                </div>
+                <div style={{ fontSize:21, fontWeight:800, color:"#0F172A", marginTop:8 }}>{k.value}</div>
+                <div style={{ fontSize:11, color:"#64748B", fontWeight:700 }}>{k.label}</div>
+              </div>
+            ))}
+          </div>
+
           {/* ── Tab Bar ── */}
           <div style={{
-            display:"flex", background:"#fff", borderBottom:"1px solid #E5E7EB", padding:"0 20px",
+            display:"flex", background:"rgba(255,255,255,.88)", backdropFilter:"blur(8px)", borderBottom:"1px solid #E5E7EB", padding:"0 20px",
             overflowX:"auto", gap:2, position:"sticky", top:56, zIndex:10
           }}>
             {[
@@ -1148,7 +1187,7 @@
               { label:"Today's Orders",       value:todayOrders.length,                                                                                icon:"calendar-day", color:"#1D4ED8", bg:"#EFF6FF" },
               { label:"Active Riders",         value:activeRiders,                                                                                     icon:"motorcycle",   color:"#7C3AED", bg:"#F5F3FF" },
             ].map(s => (
-              <div key={s.label} style={{ background:s.bg, borderRadius:14, padding:"14px 12px", textAlign:"center", boxShadow:"0 1px 4px rgba(0,0,0,.06)" }}>
+              <div key={s.label} style={{ background:s.bg, borderRadius:16, padding:"14px 12px", textAlign:"center", boxShadow:"0 8px 22px rgba(15,23,42,.06)", border:"1px solid rgba(148,163,184,.18)" }}>
                 <div style={{ marginBottom:2 }}><Ic n={s.icon} size={20} style={{ color:s.color }} /></div>
                 <div style={{ fontSize:s.label==="Service Fee Revenue"?14:24, fontWeight:800, color:s.color, lineHeight:1.2, marginTop:2 }}>{s.value}</div>
                 <div style={{ fontSize:10, fontWeight:600, color:"#888", marginTop:2 }}>{s.label}</div>
@@ -1162,7 +1201,7 @@
               { label:"Active App Users", value:appUsageStats?.activeUsers || 0, icon:"mobile-screen", color:"#0891B2", bg:"#ECFEFF" },
               { label:"Downloaded App",   value:appUsageStats?.downloadedUsers || 0, icon:"download", color:"#16A34A", bg:"#F0FDF4" },
             ].map(s => (
-              <div key={s.label} style={{ background:s.bg, borderRadius:14, padding:"14px 12px", textAlign:"center", boxShadow:"0 1px 4px rgba(0,0,0,.06)" }}>
+              <div key={s.label} style={{ background:s.bg, borderRadius:16, padding:"14px 12px", textAlign:"center", boxShadow:"0 8px 22px rgba(15,23,42,.06)", border:"1px solid rgba(148,163,184,.18)" }}>
                 <div style={{ marginBottom:2 }}><Ic n={s.icon} size={20} style={{ color:s.color }} /></div>
                 <div style={{ fontSize:24, fontWeight:800, color:s.color, lineHeight:1.2, marginTop:2 }}>{s.value}</div>
                 <div style={{ fontSize:10, fontWeight:600, color:"#888", marginTop:2 }}>{s.label}</div>
@@ -1178,7 +1217,7 @@
               { key:"otw",       label:"OTW",       icon:"motorcycle",     color:"#8B5CF6" },
               { key:"delivered", label:"Done",      icon:"circle-check",   color:"#22C55E" },
             ].map(s => (
-              <div key={s.key} style={{ background:"#fff", borderRadius:14, padding:"12px 10px", textAlign:"center", boxShadow:"0 1px 4px rgba(0,0,0,.06)", border:`2px solid ${filterStatus===s.key?s.color:"transparent"}`, cursor:"pointer" }}
+              <div key={s.key} style={{ background:"#fff", borderRadius:16, padding:"12px 10px", textAlign:"center", boxShadow:"0 8px 18px rgba(15,23,42,.05)", border:`2px solid ${filterStatus===s.key?s.color:"#E2E8F0"}`, cursor:"pointer" }}
                 onClick={() => setFilterStatus(filterStatus===s.key?"all":s.key)}>
                 <div style={{ marginBottom:2 }}><Ic n={s.icon} size={20} style={{ color:s.color }} /></div>
                 <div style={{ fontSize:22, fontWeight:800, color:s.color, lineHeight:1.2 }}>{counts[s.key]}</div>
