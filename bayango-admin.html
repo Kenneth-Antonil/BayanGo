@@ -161,6 +161,55 @@
       return _initPromise;
     }
 
+    function sanitizeTokenKey(token) {
+      return encodeURIComponent(String(token || "")).replace(/\./g, "%2E");
+    }
+
+    async function enableAdminPush(user) {
+      if (!user?.uid) return;
+      if (!("serviceWorker" in navigator) || !("Notification" in window)) return;
+      try {
+        let permission = Notification.permission;
+        if (permission !== "granted") {
+          permission = await Notification.requestPermission();
+        }
+        if (permission !== "granted") return;
+
+        const { getMessaging, getToken, onMessage } = await import("https://www.gstatic.com/firebasejs/10.12.0/firebase-messaging.js");
+        const swReg = await navigator.serviceWorker.register("/firebase-messaging-sw.js");
+        await navigator.serviceWorker.ready;
+        const messaging = getMessaging(_app);
+        const token = await getToken(messaging, { serviceWorkerRegistration: swReg });
+        if (!token) return;
+
+        const { db, fns } = await initFirebase();
+        const tokenKey = sanitizeTokenKey(token);
+        await fns.set(fns.ref(db, `push_tokens/${user.uid}/${tokenKey}`), {
+          token,
+          uid: user.uid,
+          userEmail: user.email || null,
+          userName: user.displayName || null,
+          platform: navigator.userAgent || "web",
+          updatedAt: Date.now(),
+          enabled: true,
+        });
+
+        onMessage(messaging, (payload) => {
+          const title = payload?.notification?.title || "BayanGo Admin";
+          const body = payload?.notification?.body || "May bagong update.";
+          if (Notification.permission === "granted") {
+            new Notification(title, {
+              body,
+              icon: "https://i.imgur.com/wL8wcBB.jpeg",
+              data: payload?.data || {},
+            });
+          }
+        });
+      } catch (err) {
+        console.error("Admin push setup error:", err);
+      }
+    }
+
     async function initStorage() {
       if (!_app) await initFirebase();
       const mod = await import("https://www.gstatic.com/firebasejs/10.12.0/firebase-storage.js");
@@ -253,6 +302,9 @@
           unsubAuth = onAuthStateChanged(auth, (currentUser) => {
             setUser(currentUser);
             setReady(true);
+
+            // Register admin push tokens for receiving notifications
+            if (currentUser) enableAdminPush(currentUser);
 
             // Clean up any previous realtime listeners before re-establishing
             unsubOrders?.();
