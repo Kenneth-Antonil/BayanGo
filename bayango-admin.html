@@ -1104,7 +1104,7 @@
           </div>
 
           {tab === "support" && (
-            <SupportPanel tickets={tickets} />
+            <SupportPanel tickets={tickets} adminUser={user} />
           )}
 
           {tab === "grocery" && (
@@ -1944,13 +1944,19 @@
     }
 
     /* ══════════════════ SUPPORT PANEL ══════════════════ */
-    function SupportPanel({ tickets }) {
+    function SupportPanel({ tickets, adminUser }) {
       const [openTicket,    setOpenTicket]    = useState(null);
       const [threadMsgs,    setThreadMsgs]    = useState([]);
       const [filterStatus,  setFilterStatus]  = useState("all");
       const [statusBusy,    setStatusBusy]    = useState(null);
       const [replyText,     setReplyText]     = useState("");
       const [replySending,  setReplySending]  = useState(false);
+      const [incomingCalls, setIncomingCalls] = useState([]);
+      const [activeCall,    setActiveCall]    = useState(null);
+      const pcRef = useRef(null);
+      const localStreamRef = useRef(null);
+      const remoteAudioRef = useRef(null);
+      const callUnsubsRef = useRef([]);
 
       // Listen to messages of selected ticket
       useEffect(() => {
@@ -1966,6 +1972,40 @@
         });
         return () => { if (msgsRef) { initFirebase().then(({ fns }) => fns.off(msgsRef)); } };
       }, [openTicket?.id]);
+
+      useEffect(() => {
+        if (!adminUser?.uid) return;
+        let refCalls, refPresence;
+        initFirebase().then(({ db, fns }) => {
+          refCalls = fns.ref(db, "support_calls");
+          fns.onValue(refCalls, snap => {
+            const list = [];
+            snap.forEach(c => {
+              const v = c.val() || {};
+              if (v.assignedAdminUid === adminUser.uid && ["queued","ringing","connecting","active"].includes(v.status)) {
+                list.push({ id:c.key, ...v });
+              }
+            });
+            list.sort((a,b) => Number(a.createdAt || 0) - Number(b.createdAt || 0));
+            setIncomingCalls(list);
+          });
+          refPresence = fns.ref(db, "support_call_presence/" + adminUser.uid);
+          fns.set(refPresence, { status:"available", updatedAt: Date.now() }).catch(() => {});
+        });
+        return () => {
+          if (refCalls) initFirebase().then(({ fns }) => fns.off(refCalls));
+        };
+      }, [adminUser?.uid]);
+
+      useEffect(() => () => {
+        callUnsubsRef.current.forEach(fn => { try { fn(); } catch(_){} });
+        callUnsubsRef.current = [];
+        if (pcRef.current) { try { pcRef.current.close(); } catch(_) {} pcRef.current = null; }
+        if (localStreamRef.current) {
+          localStreamRef.current.getTracks().forEach(t => t.stop());
+          localStreamRef.current = null;
+        }
+      }, []);
 
       const markStatus = async (ticket, status) => {
         setStatusBusy(ticket.id);
@@ -1993,6 +2033,108 @@
         } finally { setReplySending(false); }
       };
 
+      const assignToMe = async (ticket) => {
+        if (!adminUser?.uid) return;
+        try {
+          const { db, fns } = await initFirebase();
+          await fns.update(fns.ref(db, "support_tickets/" + ticket.id), {
+            assignedAdminUid: adminUser.uid,
+            assignedAdminName: adminUser.displayName || adminUser.email || "Support Agent",
+            assignedAt: Date.now(),
+          });
+          if (openTicket?.id === ticket.id) {
+            setOpenTicket(t => ({
+              ...t,
+              assignedAdminUid: adminUser.uid,
+              assignedAdminName: adminUser.displayName || adminUser.email || "Support Agent",
+            }));
+          }
+        } catch (err) {
+          alert("Hindi ma-assign ang ticket: " + (err.message || err.code));
+        }
+      };
+
+      const finishCall = async (callId, status = "ended") => {
+        if (!adminUser?.uid) return;
+        callUnsubsRef.current.forEach(fn => { try { fn(); } catch(_){} });
+        callUnsubsRef.current = [];
+        if (pcRef.current) { try { pcRef.current.close(); } catch(_) {} pcRef.current = null; }
+        if (localStreamRef.current) {
+          localStreamRef.current.getTracks().forEach(t => t.stop());
+          localStreamRef.current = null;
+        }
+        const { db, fns } = await initFirebase();
+        await fns.update(fns.ref(db, "support_calls/" + callId), { status, endedAt: Date.now() }).catch(()=>{});
+        await fns.set(fns.ref(db, "support_call_presence/" + adminUser.uid), { status:"available", updatedAt: Date.now() }).catch(()=>{});
+        setActiveCall(null);
+
+        const queueRef = fns.ref(db, "support_call_queue/" + adminUser.uid);
+        const queueSnap = await fns.get(queueRef);
+        if (queueSnap.exists()) {
+          let first = null;
+          queueSnap.forEach(c => {
+            const v = c.val() || {};
+            if (!first || Number(v.createdAt || 0) < Number(first.createdAt || 0)) first = { id:c.key, ...v };
+          });
+          if (first?.id) {
+            await fns.remove(fns.ref(db, "support_call_queue/" + adminUser.uid + "/" + first.id)).catch(()=>{});
+            await fns.update(fns.ref(db, "support_calls/" + first.id), { status:"ringing", queuedAt:null }).catch(()=>{});
+          }
+        }
+      };
+
+      const acceptCall = async (call) => {
+        if (activeCall?.id) return alert("May ongoing call ka pa.");
+        try {
+          const { db, fns } = await initFirebase();
+          const stream = await navigator.mediaDevices.getUserMedia({ audio:true, video:false });
+          localStreamRef.current = stream;
+          const pc = new RTCPeerConnection({ iceServers:[{ urls:"stun:stun.l.google.com:19302" }] });
+          pcRef.current = pc;
+          stream.getTracks().forEach(track => pc.addTrack(track, stream));
+          pc.ontrack = (evt) => {
+            if (remoteAudioRef.current && evt.streams?.[0]) remoteAudioRef.current.srcObject = evt.streams[0];
+          };
+          pc.onicecandidate = (evt) => {
+            if (!evt.candidate) return;
+            fns.push(fns.ref(db, "support_call_signals/" + call.id + "/adminCandidates"), evt.candidate.toJSON()).catch(()=>{});
+          };
+          await fns.set(fns.ref(db, "support_call_presence/" + adminUser.uid), { status:"busy", currentCallId: call.id, updatedAt: Date.now() });
+          await fns.update(fns.ref(db, "support_calls/" + call.id), { status:"connecting", acceptedAt: Date.now() });
+
+          const callSnap = await fns.get(fns.ref(db, "support_calls/" + call.id + "/offer"));
+          const offer = callSnap.val();
+          if (!offer) throw new Error("Missing offer.");
+          await pc.setRemoteDescription(new RTCSessionDescription(offer));
+          const answer = await pc.createAnswer();
+          await pc.setLocalDescription(answer);
+          await fns.set(fns.ref(db, "support_calls/" + call.id + "/answer"), answer.toJSON());
+          await fns.update(fns.ref(db, "support_calls/" + call.id), { status:"active", startedAt: Date.now() });
+          setActiveCall(call);
+
+          const candRef = fns.ref(db, "support_call_signals/" + call.id + "/userCandidates");
+          fns.onValue(candRef, snap => {
+            snap.forEach(item => {
+              const cand = item.val();
+              if (cand) pc.addIceCandidate(new RTCIceCandidate(cand)).catch(()=>{});
+            });
+          });
+          callUnsubsRef.current.push(() => fns.off(candRef));
+
+          const callRef = fns.ref(db, "support_calls/" + call.id);
+          fns.onValue(callRef, snap => {
+            const val = snap.val() || {};
+            if (["ended","cancelled","completed","rejected"].includes(val.status)) {
+              finishCall(call.id, "completed");
+            }
+          });
+          callUnsubsRef.current.push(() => fns.off(callRef));
+        } catch (err) {
+          alert("Hindi ma-accept ang call: " + (err.message || err.code));
+          if (call?.id) finishCall(call.id, "rejected");
+        }
+      };
+
       const ST = {
         open:     { bg:"#FEF3C7", color:"#92400E", label:"Open",     icon:"envelope-open" },
         resolved: { bg:"#DCFCE7", color:"#166534", label:"Resolved", icon:"circle-check"  },
@@ -2014,6 +2156,17 @@
                 </button>
                 <h1 style={{ fontSize:20, fontWeight:800 }}>{openTicket.subject}</h1>
                 <div style={{ fontSize:12, opacity:.75, marginTop:4 }}>{openTicket.name} {openTicket.phone?"· "+openTicket.phone:""}</div>
+                <div style={{ marginTop:8 }}>
+                  {!openTicket.assignedAdminUid ? (
+                    <button onClick={() => assignToMe(openTicket)} style={{ padding:"7px 12px", borderRadius:999, background:"#DBEAFE", color:"#1D4ED8", fontSize:11, fontWeight:800 }}>
+                      Assign to me
+                    </button>
+                  ) : (
+                    <span style={{ fontSize:11, fontWeight:700, color:"rgba(255,255,255,.85)" }}>
+                      Assigned: {openTicket.assignedAdminName || openTicket.assignedAdminUid}
+                    </span>
+                  )}
+                </div>
               </div>
             ) : (
               <>
@@ -2025,6 +2178,26 @@
 
           {/* Ticket List */}
           {!openTicket && <>
+            {incomingCalls.length > 0 && (
+              <div style={{ margin:"14px 20px 0", background:"#EFF6FF", border:"1px solid #BFDBFE", borderRadius:14, padding:12 }}>
+                <div style={{ fontSize:12, fontWeight:800, color:"#1D4ED8", marginBottom:8 }}>Incoming Support Calls</div>
+                {incomingCalls.map(call => (
+                  <div key={call.id} style={{ display:"flex", justifyContent:"space-between", alignItems:"center", padding:"8px 0", borderTop:"1px solid #DBEAFE" }}>
+                    <div>
+                      <div style={{ fontSize:12, fontWeight:700, color:"#1E3A5F" }}>{call.userName || "User"} · {call.status}</div>
+                      <div style={{ fontSize:11, color:"#64748B" }}>{call.ticketId}</div>
+                    </div>
+                    {call.status !== "queued" && !activeCall?.id ? (
+                      <button onClick={() => acceptCall(call)} style={{ padding:"7px 11px", borderRadius:10, background:"#1D4ED8", color:"#fff", fontSize:11, fontWeight:800 }}>
+                        <Ic n="phone" style={{ marginRight:6 }} />Accept
+                      </button>
+                    ) : (
+                      <span style={{ fontSize:11, color:"#64748B", fontWeight:700 }}>{call.status === "queued" ? "Queued" : "Busy"}</span>
+                    )}
+                  </div>
+                ))}
+              </div>
+            )}
             <div style={{ display:"flex", gap:8, padding:"16px 20px 0", overflowX:"auto" }}>
               {[
                 { key:"all",      label:`Lahat (${tickets.length})` },
@@ -2065,6 +2238,12 @@
           {/* Thread View */}
           {openTicket && (
             <div style={{ padding:"16px 20px 0" }}>
+              {activeCall?.id && (
+                <div style={{ marginBottom:10, background:"#DCFCE7", border:"1px solid #86EFAC", borderRadius:10, padding:"8px 10px", display:"flex", alignItems:"center", justifyContent:"space-between" }}>
+                  <span style={{ fontSize:12, fontWeight:700, color:"#166534" }}><Ic n="phone" style={{ marginRight:6 }} />Call in progress</span>
+                  <button onClick={() => finishCall(activeCall.id, "ended")} style={{ padding:"6px 10px", borderRadius:8, background:"#FEE2E2", color:"#B91C1C", fontSize:11, fontWeight:800 }}>End</button>
+                </div>
+              )}
               {/* Status actions */}
               <div style={{ display:"flex", gap:8, marginBottom:16 }}>
                 {openTicket.status !== "resolved" && (
@@ -2116,6 +2295,7 @@
               )}
             </div>
           )}
+          <audio ref={remoteAudioRef} autoPlay playsInline />
         </div>
       );
     }
