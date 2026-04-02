@@ -953,7 +953,8 @@ exports.onOrderUpdated = onValueUpdated(
     try {
       const before = event.data.before.val() || {};
       const after = event.data.after.val() || {};
-      const uid = after.uid || after.userId;
+      const uid = after.uid || after.userId || before.uid || before.userId;
+      const db = getDatabase();
 
       // 1. Status changed → notify customer
       if (before.status !== after.status && uid) {
@@ -970,6 +971,16 @@ exports.onOrderUpdated = onValueUpdated(
             type: "order_status",
             link: `${USER_APP_URL}#orders`,
           });
+        } else {
+          // Fallback para makita pa rin sa notifications tab kahit walang active web push token.
+          await db.ref(`user_notifications/${uid}`).push({
+            title: "Order Update",
+            body: `Order #${String(orderId).slice(-6)}: ${statusMessage}`,
+            type: "order_status",
+            link: `${USER_APP_URL}#orders`,
+            createdAt: Date.now(),
+          });
+          console.warn(`[onOrderUpdated ${orderId}] No active push token for uid=${uid}; wrote fallback user_notifications entry.`);
         }
         // Kung cancelled at may rider → notify rider
         if (after.status === "cancelled" && after.riderId) {
