@@ -454,10 +454,7 @@
             n.onclick = () => {
               window.focus();
               n.close();
-              if (type === "support_message_admin" || type === "support_ticket_new" || type === "support_message_user") {
-                window.location.hash = "support";
-                window.location.reload();
-              } else if (type === "order_status" || type === "broadcast" || type === "gcash_payment_reminder") {
+              if (type === "order_status" || type === "broadcast" || type === "gcash_payment_reminder") {
                 window.location.search = "?section=orders";
               }
             };
@@ -1269,9 +1266,6 @@
           const hash = (url.hash || "").replace("#", "").toLowerCase();
           if (section === "rider-tracker" || section === "orders" || hash === "rider-tracker" || hash === "orders") {
             return "orders";
-          }
-          if (section === "support" || hash === "support") {
-            return "account";
           }
         } catch {}
         return "shop";
@@ -2594,7 +2588,6 @@
       const getInitialSection = () => {
         try {
           const hash = (window.location.hash || "").replace("#", "").toLowerCase();
-          if (hash === "support") return "support";
         } catch {}
         return "info";
       };

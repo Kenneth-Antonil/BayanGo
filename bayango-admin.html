@@ -221,10 +221,6 @@
             n.onclick = () => {
               window.focus();
               n.close();
-              if (type === "support_ticket_new" || type === "support_message_user") {
-                window.location.hash = "support";
-                window.location.reload();
-              }
             };
           }
         });
@@ -821,7 +817,6 @@
       const getInitialTab = () => {
         try {
           const hash = (window.location.hash || "").replace("#", "").toLowerCase();
-          if (hash === "support") return "support";
         } catch {}
         return "orders";
       };
