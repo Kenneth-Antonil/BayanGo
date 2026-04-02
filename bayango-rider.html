@@ -76,6 +76,7 @@
     }, "rider");
     const _fbAuth = firebase.auth(RIDER_FB_APP);
     const _fbDb   = firebase.database(RIDER_FB_APP);
+    const WEB_PUSH_VAPID_KEY = (window.BAYANGO_WEB_PUSH_VAPID_KEY || "").trim();
   </script>
 
   <script type="text/babel">
@@ -122,7 +123,19 @@
         const swReg = await navigator.serviceWorker.register("/firebase-messaging-sw.js");
         await navigator.serviceWorker.ready;
         const messaging = firebase.messaging(RIDER_FB_APP);
-        const token = await messaging.getToken({ serviceWorkerRegistration: swReg });
+        let token = null;
+        const getTokenOptions = { serviceWorkerRegistration: swReg };
+        if (WEB_PUSH_VAPID_KEY) {
+          getTokenOptions.vapidKey = WEB_PUSH_VAPID_KEY;
+        }
+        try {
+          token = await messaging.getToken(getTokenOptions);
+        } catch (err) {
+          const vapidErr = String(err?.code || "").includes("vapid") || String(err?.message || "").toLowerCase().includes("vapid");
+          if (!vapidErr || !WEB_PUSH_VAPID_KEY) throw err;
+          console.warn("VAPID key rejected. Retrying getToken without explicit vapidKey.");
+          token = await messaging.getToken({ serviceWorkerRegistration: swReg });
+        }
         if (!token) return;
 
         const tokenKey = sanitizeTokenKey(token);
@@ -151,6 +164,9 @@
         });
       } catch (err) {
         console.error("Rider push notification setup error:", err);
+        if (String(err?.code || "").includes("vapid") || String(err?.message || "").toLowerCase().includes("vapid")) {
+          console.error("Missing/invalid Web Push VAPID key. Set window.BAYANGO_WEB_PUSH_VAPID_KEY before loading the rider app.");
+        }
       }
     }
     async function showLocalRiderNotification({ title, body, data = {} }) {
