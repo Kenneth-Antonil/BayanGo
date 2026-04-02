@@ -130,7 +130,17 @@
     const _fbAuth = firebase.auth(_fbApp);
     const _fbDb   = firebase.database(_fbApp);
     const _fbStorage = firebase.storage(_fbApp);
-    const STATIC_WEB_PUSH_VAPID_KEY = (window.BAYANGO_WEB_PUSH_VAPID_KEY || "").trim();
+    function normalizeVapidKey(rawValue) {
+      if (!rawValue) return "";
+      if (typeof rawValue === "string") return rawValue.trim();
+      if (typeof rawValue === "object") {
+        const candidate = rawValue.publicKey || rawValue.vapidKey || rawValue.key || "";
+        return typeof candidate === "string" ? candidate.trim() : "";
+      }
+      return "";
+    }
+
+    const STATIC_WEB_PUSH_VAPID_KEY = normalizeVapidKey(window.BAYANGO_WEB_PUSH_VAPID_KEY);
     let cachedWebPushVapidKey = STATIC_WEB_PUSH_VAPID_KEY;
 
     async function resolveWebPushVapidKey() {
@@ -139,7 +149,7 @@
         const settingsPaths = ["settings/pushVapidKey", "app_settings/pushVapidKey"];
         for (const path of settingsPaths) {
           const snap = await _fbDb.ref(path).once("value");
-          const value = (snap.val() || "").toString().trim();
+          const value = normalizeVapidKey(snap.val());
           if (value) {
             cachedWebPushVapidKey = value;
             return value;
