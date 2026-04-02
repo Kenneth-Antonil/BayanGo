@@ -2667,16 +2667,44 @@
 
       const NOTIF_ICON = {
         order_status: "box",
-        batch_reminder: "clock",
+        order_cancelled: "ban",
+        assigned_order: "user-check",
+        new_order: "basket-shopping",
         gcash_payment_reminder: "money-bill",
+        gcash_confirmed: "circle-check",
+        order_bought_with_proof: "receipt",
+        prices_updated: "tags",
+        batch_reminder: "clock",
+        batch_reminder_am_open: "sun",
+        batch_reminder_am_warning: "clock",
+        batch_reminder_pm_open: "cloud-sun",
+        batch_reminder_pm_warning: "clock",
+        batch_reminder_preorder: "moon",
         broadcast: "bullhorn",
+        support_message_admin: "headset",
+        support_ticket_new: "ticket",
+        support_message_user: "comment",
       };
 
       const NOTIF_COLOR = {
         order_status: "#3B82F6",
+        order_cancelled: "#EF4444",
+        assigned_order: "#22C55E",
+        new_order: "#3B82F6",
+        gcash_payment_reminder: "#F59E0B",
+        gcash_confirmed: "#22C55E",
+        order_bought_with_proof: "#166534",
+        prices_updated: "#F97316",
         batch_reminder: "#F59E0B",
-        gcash_payment_reminder: "#22C55E",
+        batch_reminder_am_open: "#F59E0B",
+        batch_reminder_am_warning: "#EF4444",
+        batch_reminder_pm_open: "#F59E0B",
+        batch_reminder_pm_warning: "#EF4444",
+        batch_reminder_preorder: "#6366F1",
         broadcast: "#A855F7",
+        support_message_admin: "#14B8A6",
+        support_ticket_new: "#14B8A6",
+        support_message_user: "#14B8A6",
       };
 
       const timeAgo = (ts) => {
