@@ -640,7 +640,7 @@ exports.createPaymongoQrphCheckout = onRequest(
 // HTTPS: ADMIN BROADCAST TO ALL CUSTOMER TOKENS
 // ─────────────────────────────────────────────────────────────────────────────
 exports.sendBroadcastNotification = onRequest(
-  { region: "us-central1" },
+  { region: "us-central1", cors: ADMIN_ALLOWED_ORIGINS },
   async (req, res) => {
     setCors(res, req.get("origin") || "");
     if (req.method === "OPTIONS") {
@@ -694,7 +694,7 @@ exports.sendBroadcastNotification = onRequest(
 // HTTPS: ADMIN UPLOAD GCASH QR (SERVER-SIDE STORAGE WRITE; AVOIDS BROWSER CORS)
 // ─────────────────────────────────────────────────────────────────────────────
 exports.uploadGcashQrImage = onRequest(
-  { region: "us-central1", memory: "256MiB" },
+  { region: "us-central1", memory: "256MiB", cors: ADMIN_ALLOWED_ORIGINS },
   async (req, res) => {
     setCors(res, req.get("origin") || "");
     if (req.method === "OPTIONS") {
