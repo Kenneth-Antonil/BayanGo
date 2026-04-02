@@ -952,6 +952,18 @@
         }
       };
 
+      useEffect(() => {
+        if (!user || typeof Notification === "undefined") return;
+        const syncPushPermission = () => setPushPermission(Notification.permission);
+        syncPushPermission();
+        window.addEventListener("focus", syncPushPermission);
+        document.addEventListener("visibilitychange", syncPushPermission);
+        return () => {
+          window.removeEventListener("focus", syncPushPermission);
+          document.removeEventListener("visibilitychange", syncPushPermission);
+        };
+      }, [user]);
+
       if (loading) return <SplashScreen message="Ina-activate ang iyong app..." />;
 
       if (!isStandalone) {
@@ -1077,31 +1089,53 @@
         );
       }
 
+      if (pushPermission !== "granted") {
+        return (
+          <>
+            <div style={{ minHeight:"100vh", display:"flex", alignItems:"center", justifyContent:"center", padding:"20px 16px" }}>
+              <div className="fade-up" style={{
+                width:"100%", maxWidth:400, background:"#fff", border:"1px solid #D1FAE5", borderRadius:18,
+                boxShadow:"0 12px 30px rgba(0,0,0,.12)", padding:"20px 16px", display:"flex", flexDirection:"column", gap:12,
+              }}>
+                <div style={{ display:"flex", alignItems:"center", gap:10, color:"#166534", fontWeight:800, fontSize:18 }}>
+                  <Ic n="bell" />
+                  Enable Notifications
+                </div>
+                <div style={{ fontSize:14, color:"#374151", lineHeight:1.5 }}>
+                  Kailangan naka-enable ang notifications bago magamit ang app para makatanggap ka ng real-time order updates.
+                </div>
+                {pushPermission === "denied" && (
+                  <div style={{ fontSize:12, color:"#B91C1C", background:"#FEF2F2", border:"1px solid #FECACA", borderRadius:10, padding:"10px 12px" }}>
+                    Notifications are blocked. I-enable ito sa browser/site settings, tapos pindutin ulit ang button sa ibaba.
+                  </div>
+                )}
+                {pushError && (
+                  <div style={{ fontSize:12, color:"#B91C1C" }}>
+                    {pushError}
+                  </div>
+                )}
+                <button onClick={handleEnablePush} disabled={pushBusy} style={{
+                  background: pushBusy ? "#9CA3AF" : "#166534", color:"#fff", borderRadius:12, padding:"12px 14px",
+                  fontSize:14, fontWeight:700, border:"none",
+                }}>
+                  {pushBusy ? "Ina-activate..." : "Enable Notifications"}
+                </button>
+                <button onClick={handleLogout} style={{
+                  background:"#fff", color:"#4B5563", borderRadius:12, padding:"10px 12px",
+                  fontSize:13, fontWeight:700, border:"1px solid #D1D5DB",
+                }}>
+                  Sign out
+                </button>
+              </div>
+            </div>
+            <LegalModal docKey={openLegalDoc} onClose={() => setOpenLegalDoc(null)} />
+          </>
+        );
+      }
+
       return (
         <>
           <UserApp products={products} orders={orders} onOrder={addOrder} user={user} onLogout={handleLogout} gcashSettings={gcashSettings} onOpenLegal={setOpenLegalDoc} />
-          {pushPermission !== "granted" && (
-            <div className="pop" style={{
-              position:"fixed", bottom:"calc(env(safe-area-inset-bottom,0px) + 16px)", left:16, right:16, zIndex:9998,
-              background:"#fff", border:"1px solid #D1FAE5", borderRadius:14, boxShadow:"0 8px 24px rgba(0,0,0,.15)",
-              padding:"12px 14px", display:"flex", flexDirection:"column", gap:8,
-            }}>
-              <div style={{ display:"flex", alignItems:"center", gap:8, color:"#166534", fontWeight:800, fontSize:13 }}>
-                <Ic n="bell" />
-                I-enable ang order notifications
-              </div>
-              <div style={{ fontSize:12, color:"#4B5563" }}>
-                Para makatanggap ng update sa order status, i-allow ang notifications sa browser.
-              </div>
-              {pushError && <div style={{ fontSize:11, color:"#B91C1C" }}>{pushError}</div>}
-              <button onClick={handleEnablePush} disabled={pushBusy} style={{
-                background: pushBusy ? "#9CA3AF" : "#166534", color:"#fff", borderRadius:10, padding:"9px 12px",
-                fontSize:12, fontWeight:700,
-              }}>
-                {pushBusy ? "Ina-activate..." : "Enable Notifications"}
-              </button>
-            </div>
-          )}
           {syncError && (
             <div className="pop" style={{
               position:"fixed", top:"calc(env(safe-area-inset-top,0px) + 16px)", left:20, right:20, zIndex:9999,
