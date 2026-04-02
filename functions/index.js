@@ -162,16 +162,28 @@ async function verifyAdminRequest(req) {
 }
 
 /**
- * Kuha lahat ng FCM tokens ng mga customer (hindi riders).
- * Nag-filter ng tokens na may enabled !== false at walang role na "rider".
+ * Kuha lahat ng FCM tokens ng mga customer (hindi riders at hindi admins).
+ * Nag-filter ng tokens na may enabled !== false at walang role na "rider",
+ * at ine-exclude ang UIDs na nasa `admins/$uid === true`.
  */
 async function getAllCustomerTokens() {
   const db = getDatabase();
-  const snap = await db.ref("push_tokens").get();
-  if (!snap.exists()) return [];
+  const [tokensSnap, adminsSnap] = await Promise.all([
+    db.ref("push_tokens").get(),
+    db.ref("admins").get(),
+  ]);
+  if (!tokensSnap.exists()) return [];
+
+  const adminUidSet = new Set();
+  if (adminsSnap.exists()) {
+    adminsSnap.forEach((adminSnap) => {
+      if (adminSnap.val() === true) adminUidSet.add(adminSnap.key);
+    });
+  }
 
   const tokens = [];
-  snap.forEach((userSnap) => {
+  tokensSnap.forEach((userSnap) => {
+    if (adminUidSet.has(userSnap.key)) return;
     userSnap.forEach((tokenSnap) => {
       const data = tokenSnap.val();
       if (
