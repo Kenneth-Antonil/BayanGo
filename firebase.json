@@ -80,6 +80,21 @@
           ]
         }
       ]
+    },
+    {
+      "target": "merchant",
+      "public": "hosting/merchant",
+      "ignore": [
+        "firebase.json",
+        "**/.*",
+        "**/node_modules/**"
+      ],
+      "rewrites": [
+        {
+          "source": "**",
+          "destination": "/index.html"
+        }
+      ]
     }
   ],
   "functions": [
