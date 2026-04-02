@@ -130,7 +130,26 @@
     const _fbAuth = firebase.auth(_fbApp);
     const _fbDb   = firebase.database(_fbApp);
     const _fbStorage = firebase.storage(_fbApp);
-    const WEB_PUSH_VAPID_KEY = (window.BAYANGO_WEB_PUSH_VAPID_KEY || "").trim();
+    const STATIC_WEB_PUSH_VAPID_KEY = (window.BAYANGO_WEB_PUSH_VAPID_KEY || "").trim();
+    let cachedWebPushVapidKey = STATIC_WEB_PUSH_VAPID_KEY;
+
+    async function resolveWebPushVapidKey() {
+      if (cachedWebPushVapidKey) return cachedWebPushVapidKey;
+      try {
+        const settingsPaths = ["settings/pushVapidKey", "app_settings/pushVapidKey"];
+        for (const path of settingsPaths) {
+          const snap = await _fbDb.ref(path).once("value");
+          const value = (snap.val() || "").toString().trim();
+          if (value) {
+            cachedWebPushVapidKey = value;
+            return value;
+          }
+        }
+      } catch (err) {
+        console.warn("Unable to load Web Push VAPID key from DB settings:", err);
+      }
+      return "";
+    }
 
     async function normalizeStorageDownloadUrl(rawUrl) {
       if (!rawUrl || typeof rawUrl !== "string") return rawUrl || "";
@@ -414,16 +433,17 @@
         const swReg = await navigator.serviceWorker.register("/firebase-messaging-sw.js");
         await navigator.serviceWorker.ready;
         const messaging = firebase.messaging(_fbApp);
+        const webPushVapidKey = await resolveWebPushVapidKey();
         let token = null;
         const getTokenOptions = { serviceWorkerRegistration: swReg };
-        if (WEB_PUSH_VAPID_KEY) {
-          getTokenOptions.vapidKey = WEB_PUSH_VAPID_KEY;
+        if (webPushVapidKey) {
+          getTokenOptions.vapidKey = webPushVapidKey;
         }
         try {
           token = await messaging.getToken(getTokenOptions);
         } catch (err) {
           const vapidErr = String(err?.code || "").includes("vapid") || String(err?.message || "").toLowerCase().includes("vapid");
-          if (!vapidErr || !WEB_PUSH_VAPID_KEY) throw err;
+          if (!vapidErr || !webPushVapidKey) throw err;
           console.warn("VAPID key rejected. Retrying getToken without explicit vapidKey.");
           token = await messaging.getToken({ serviceWorkerRegistration: swReg });
         }
