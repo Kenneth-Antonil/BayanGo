@@ -77,7 +77,6 @@
     const _fbAuth = firebase.auth(RIDER_FB_APP);
     const _fbDb   = firebase.database(RIDER_FB_APP);
     const WEB_PUSH_VAPID_KEY = (window.BAYANGO_WEB_PUSH_VAPID_KEY || "").trim();
-    const REQUIRED_APP_CLAIM = "rider";
   </script>
 
   <script type="text/babel">
@@ -213,37 +212,11 @@
     function App() {
       const [user,  setUser]  = useState(null);
       const [ready, setReady] = useState(false);
-      const [authError, setAuthError] = useState("");
 
       useEffect(() => {
         // Handle redirect result (after signInWithRedirect)
         _fbAuth.getRedirectResult().catch(() => {});
-        const unsub = _fbAuth.onAuthStateChanged(async (u) => {
-          if (!u) {
-            setUser(null);
-            setAuthError("");
-            setReady(true);
-            return;
-          }
-          try {
-            const tokenResult = await u.getIdTokenResult(true);
-            if (tokenResult?.claims?.app !== REQUIRED_APP_CLAIM) {
-              setAuthError("Hindi naka-assign ang account mo sa Rider app. Paki-contact ang admin.");
-              await _fbAuth.signOut();
-              setUser(null);
-            } else {
-              setAuthError("");
-              setUser(u);
-            }
-          } catch (err) {
-            console.error("Rider claim verification failed:", err);
-            setAuthError("Hindi ma-verify ang account role. Subukan ulit.");
-            await _fbAuth.signOut();
-            setUser(null);
-          } finally {
-            setReady(true);
-          }
-        });
+        const unsub = _fbAuth.onAuthStateChanged(u => { setUser(u); setReady(true); });
         return () => unsub();
       }, []);
 
@@ -270,12 +243,12 @@
 
       if (!ready) return <RiderSplash message="Kinokonekta ang rider account..." />;
 
-      if (!user) return <LoginScreen onLogin={handleLogin} error={authError} />;
+      if (!user) return <LoginScreen onLogin={handleLogin} />;
       return <RiderApp user={user} onLogout={handleLogout} />;
     }
 
     /* ══════════════════ LOGIN ══════════════════ */
-    function LoginScreen({ onLogin, error }) {
+    function LoginScreen({ onLogin }) {
       return (
         <div style={{ minHeight:"100vh", background:"linear-gradient(160deg,#1E3A8A,#1D4ED8,#3B82F6)", display:"flex", flexDirection:"column", alignItems:"center", justifyContent:"center", gap:28, padding:24 }}>
           <div className="fade-up" style={{ textAlign:"center", color:"#fff" }}>
@@ -293,11 +266,6 @@
           <p className="fade-up" style={{ color:"rgba(255,255,255,.55)", fontSize:12, animationDelay:".2s", textAlign:"center", lineHeight:1.6 }}>
             For BayanGo delivery riders only.
           </p>
-          {error ? (
-            <p style={{ color:"#FEE2E2", background:"rgba(153,27,27,.45)", padding:"10px 12px", borderRadius:10, maxWidth:320, textAlign:"center", fontSize:12 }}>
-              {error}
-            </p>
-          ) : null}
         </div>
       );
     }

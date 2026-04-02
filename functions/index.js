@@ -1,5 +1,5 @@
 const { onSchedule } = require("firebase-functions/v2/scheduler");
-const { onValueCreated, onValueUpdated, onValueDeleted } = require("firebase-functions/v2/database");
+const { onValueCreated, onValueUpdated } = require("firebase-functions/v2/database");
 const { onRequest } = require("firebase-functions/v2/https");
 const { initializeApp } = require("firebase-admin/app");
 const { getAuth } = require("firebase-admin/auth");
@@ -32,52 +32,9 @@ const ADMIN_ALLOWED_ORIGINS = [
   "http://localhost:5000",
   "http://127.0.0.1:5000",
 ];
-const CLAIM_APP_USER = "user";
-const CLAIM_APP_RIDER = "rider";
-const CLAIM_APP_ADMIN = "admin";
 
 function normalizeOrigin(origin = "") {
   return String(origin || "").trim().toLowerCase().replace(/\/+$/, "");
-}
-
-function derivePrimaryAppClaim({ isAdmin, isRider }) {
-  if (isAdmin) return CLAIM_APP_ADMIN;
-  if (isRider) return CLAIM_APP_RIDER;
-  return CLAIM_APP_USER;
-}
-
-async function syncAppClaimsForUid(uid) {
-  if (!uid) return null;
-  const db = getDatabase();
-  const [adminSnap, riderSnap] = await Promise.all([
-    db.ref(`admins/${uid}`).get(),
-    db.ref(`riders/${uid}`).get(),
-  ]);
-
-  const isAdmin = adminSnap.val() === true;
-  const isRider = riderSnap.val() === true;
-  const app = derivePrimaryAppClaim({ isAdmin, isRider });
-
-  const auth = getAuth();
-  const userRecord = await auth.getUser(uid);
-  const existingClaims = userRecord.customClaims || {};
-  const nextClaims = {
-    ...existingClaims,
-    app,
-    isAdmin,
-    isRider,
-  };
-
-  if (
-    existingClaims.app === nextClaims.app &&
-    existingClaims.isAdmin === nextClaims.isAdmin &&
-    existingClaims.isRider === nextClaims.isRider
-  ) {
-    return { uid, app, isAdmin, isRider, changed: false };
-  }
-
-  await auth.setCustomUserClaims(uid, nextClaims);
-  return { uid, app, isAdmin, isRider, changed: true };
 }
 
 function asBuffer(rawBody, fallback) {
@@ -1190,84 +1147,6 @@ exports.onNewSupportMessage = onValueCreated(
       }
     } catch (err) {
       console.error(`[onNewSupportMessage ${ticketId}] Error:`, err);
-    }
-  }
-);
-
-exports.onAdminRoleChanged = onValueUpdated(
-  { ref: "admins/{uid}", region: "asia-southeast1" },
-  async (event) => {
-    const uid = event.params.uid;
-    try {
-      const result = await syncAppClaimsForUid(uid);
-      console.log("[onAdminRoleChanged]", result);
-    } catch (err) {
-      console.error(`[onAdminRoleChanged ${uid}] Error:`, err);
-    }
-  }
-);
-
-exports.onAdminRoleCreated = onValueCreated(
-  { ref: "admins/{uid}", region: "asia-southeast1" },
-  async (event) => {
-    const uid = event.params.uid;
-    try {
-      const result = await syncAppClaimsForUid(uid);
-      console.log("[onAdminRoleCreated]", result);
-    } catch (err) {
-      console.error(`[onAdminRoleCreated ${uid}] Error:`, err);
-    }
-  }
-);
-
-exports.onAdminRoleDeleted = onValueDeleted(
-  { ref: "admins/{uid}", region: "asia-southeast1" },
-  async (event) => {
-    const uid = event.params.uid;
-    try {
-      const result = await syncAppClaimsForUid(uid);
-      console.log("[onAdminRoleDeleted]", result);
-    } catch (err) {
-      console.error(`[onAdminRoleDeleted ${uid}] Error:`, err);
-    }
-  }
-);
-
-exports.onRiderRoleChanged = onValueUpdated(
-  { ref: "riders/{uid}", region: "asia-southeast1" },
-  async (event) => {
-    const uid = event.params.uid;
-    try {
-      const result = await syncAppClaimsForUid(uid);
-      console.log("[onRiderRoleChanged]", result);
-    } catch (err) {
-      console.error(`[onRiderRoleChanged ${uid}] Error:`, err);
-    }
-  }
-);
-
-exports.onRiderRoleCreated = onValueCreated(
-  { ref: "riders/{uid}", region: "asia-southeast1" },
-  async (event) => {
-    const uid = event.params.uid;
-    try {
-      const result = await syncAppClaimsForUid(uid);
-      console.log("[onRiderRoleCreated]", result);
-    } catch (err) {
-      console.error(`[onRiderRoleCreated ${uid}] Error:`, err);
-    }
-  }
-);
-
-exports.onRiderRoleDeleted = onValueDeleted(
-  { ref: "riders/{uid}", region: "asia-southeast1" },
-  async (event) => {
-    const uid = event.params.uid;
-    try {
-      const result = await syncAppClaimsForUid(uid);
-      console.log("[onRiderRoleDeleted]", result);
-    } catch (err) {
-      console.error(`[onRiderRoleDeleted ${uid}] Error:`, err);
     }
   }
 );
