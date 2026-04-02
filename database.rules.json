@@ -159,6 +159,109 @@
           root.child('admins').child(auth.uid).val() === true
         )"
       }
+    },
+
+    // ─────────────────────────────────────────────────────────────────────────
+    // SUPPORT TICKETS
+    // Users can create tickets (uid must match) and read their own via query.
+    // Admins can read all and update any ticket (assign, change status).
+    // ─────────────────────────────────────────────────────────────────────────
+    "support_tickets": {
+      ".indexOn": ["createdAt", "uid"],
+      ".read": "auth != null && (
+        root.child('admins').child(auth.uid).val() === true ||
+        (query.orderByChild === 'uid' && query.equalTo === auth.uid)
+      )",
+      "$ticketId": {
+        ".read": "auth != null && (
+          data.child('uid').val() === auth.uid ||
+          root.child('admins').child(auth.uid).val() === true
+        )",
+        ".write": "auth != null && (
+          (!data.exists() && newData.child('uid').val() === auth.uid) ||
+          root.child('admins').child(auth.uid).val() === true ||
+          (data.exists() && data.child('uid').val() === auth.uid)
+        )"
+      }
+    },
+
+    // ─────────────────────────────────────────────────────────────────────────
+    // SUPPORT MESSAGES
+    // Users can read/write messages on their own tickets.
+    // Admins can read/write messages on any ticket.
+    // ─────────────────────────────────────────────────────────────────────────
+    "support_messages": {
+      "$ticketId": {
+        ".indexOn": ["createdAt"],
+        ".read": "auth != null && (
+          root.child('support_tickets').child($ticketId).child('uid').val() === auth.uid ||
+          root.child('admins').child(auth.uid).val() === true
+        )",
+        ".write": "auth != null && (
+          root.child('support_tickets').child($ticketId).child('uid').val() === auth.uid ||
+          root.child('admins').child(auth.uid).val() === true
+        )"
+      }
+    },
+
+    // ─────────────────────────────────────────────────────────────────────────
+    // SUPPORT CALLS (WebRTC signaling)
+    // Users can create calls and read/write their own.
+    // Admins can read/write calls assigned to them.
+    // ─────────────────────────────────────────────────────────────────────────
+    "support_calls": {
+      "$callId": {
+        ".read": "auth != null && (
+          data.child('uid').val() === auth.uid ||
+          data.child('assignedAdminUid').val() === auth.uid ||
+          root.child('admins').child(auth.uid).val() === true
+        )",
+        ".write": "auth != null && (
+          (!data.exists() && newData.child('uid').val() === auth.uid) ||
+          data.child('uid').val() === auth.uid ||
+          data.child('assignedAdminUid').val() === auth.uid ||
+          root.child('admins').child(auth.uid).val() === true
+        )"
+      }
+    },
+
+    // ─────────────────────────────────────────────────────────────────────────
+    // SUPPORT CALL SIGNALS (ICE candidates for WebRTC)
+    // Same access as the parent call.
+    // ─────────────────────────────────────────────────────────────────────────
+    "support_call_signals": {
+      "$callId": {
+        ".read": "auth != null",
+        ".write": "auth != null"
+      }
+    },
+
+    // ─────────────────────────────────────────────────────────────────────────
+    // SUPPORT CALL PRESENCE (admin online/busy status)
+    // Admins write their own presence. Users can read (to check availability).
+    // ─────────────────────────────────────────────────────────────────────────
+    "support_call_presence": {
+      "$uid": {
+        ".read": "auth != null",
+        ".write": "auth != null && (
+          auth.uid === $uid ||
+          root.child('admins').child(auth.uid).val() === true
+        )"
+      }
+    },
+
+    // ─────────────────────────────────────────────────────────────────────────
+    // SUPPORT CALL QUEUE (queued calls when admin is busy)
+    // Admins manage their own queue. Users can write to queue their call.
+    // ─────────────────────────────────────────────────────────────────────────
+    "support_call_queue": {
+      "$adminUid": {
+        ".read": "auth != null && (
+          auth.uid === $adminUid ||
+          root.child('admins').child(auth.uid).val() === true
+        )",
+        ".write": "auth != null"
+      }
     }
 
   }
