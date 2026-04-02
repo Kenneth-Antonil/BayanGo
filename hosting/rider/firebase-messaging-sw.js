@@ -37,9 +37,14 @@ function resolveClickUrl(rawUrl, type) {
   return RIDER_APP_URL;
 }
 
+const SUPPORT_TYPES = ['support_ticket_new', 'support_message_user', 'support_message_admin'];
+
 messaging.onBackgroundMessage((payload) => {
   const title = payload?.notification?.title || 'BayanGo';
   const type = payload?.data?.type || '';
+
+  // Rider app should never show support notifications
+  if (SUPPORT_TYPES.includes(type)) return;
 
   const clickUrl = resolveClickUrl(payload?.data?.link || payload?.data?.click_action, type);
 

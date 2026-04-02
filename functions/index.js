@@ -195,7 +195,7 @@ async function getAllCustomerTokens() {
 /**
  * Kuha ang FCM tokens ng isang specific na user.
  */
-async function getUserTokens(uid) {
+async function getUserTokens(uid, { excludeRole } = {}) {
   if (!uid) return [];
   const db = getDatabase();
   const snap = await db.ref(`push_tokens/${uid}`).get();
@@ -204,6 +204,7 @@ async function getUserTokens(uid) {
   snap.forEach((t) => {
     const d = t.val();
     if (d?.token && d?.enabled !== false) {
+      if (excludeRole && d?.role === excludeRole) return;
       entries.push({ uid, tokenKey: t.key, token: d.token });
     }
   });
@@ -1017,7 +1018,7 @@ exports.onNewSupportMessage = onValueCreated(
       const uid = ticket.uid;
       if (!uid) return;
 
-      const userTokens = await getUserTokens(uid);
+      const userTokens = await getUserTokens(uid, { excludeRole: "rider" });
       if (!userTokens.length) return;
 
       const preview = message.text.length > 80 ? message.text.slice(0, 80) + "…" : message.text;
