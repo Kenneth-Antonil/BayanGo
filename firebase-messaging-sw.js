@@ -24,12 +24,6 @@ function resolveClickUrl(rawUrl, type) {
     console.warn('Invalid notification click URL. Falling back.', err);
   }
 
-  if (type === 'support_ticket_new' || type === 'support_message_user') {
-    return `${ADMIN_APP_URL}#support`;
-  }
-  if (type === 'support_message_admin') {
-    return `${USER_APP_URL}#support`;
-  }
   if (type === 'order_status' || type === 'broadcast' || type === 'gcash_payment_reminder') {
     return `${USER_APP_URL}?section=orders`;
   }
