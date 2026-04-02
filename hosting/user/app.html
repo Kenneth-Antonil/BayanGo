@@ -10,7 +10,7 @@
   <meta name="apple-mobile-web-app-capable" content="yes" />
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
   <meta name="apple-mobile-web-app-title" content="BayanGo" />
-  <link rel="manifest" href="manifest.json" />
+  <link rel="manifest" href="bayango-user-manifest.json" />
   <link rel="apple-touch-icon" href="https://i.imgur.com/wL8wcBB.jpeg" />
   <link rel="icon" href="https://i.imgur.com/wL8wcBB.jpeg" />
   <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
@@ -259,7 +259,7 @@
           },
           {
             heading: "Contact",
-            body: "Para sa concerns, maaari kang gumamit ng Support section sa app para direktang makapagpadala ng ticket sa BayanGo team."
+            body: "Para sa concerns, makipag-ugnayan sa BayanGo team gamit ang official Facebook page o contact number na ibinigay sa inyo."
           },
         ],
       },
@@ -454,10 +454,7 @@
             n.onclick = () => {
               window.focus();
               n.close();
-              if (type === "support_message_admin" || type === "support_ticket_new" || type === "support_message_user") {
-                window.location.hash = "support";
-                window.location.reload();
-              } else if (type === "order_status" || type === "broadcast" || type === "gcash_payment_reminder") {
+              if (type === "order_status" || type === "broadcast" || type === "gcash_payment_reminder") {
                 window.location.search = "?section=orders";
               }
             };
@@ -1269,9 +1266,6 @@
           const hash = (url.hash || "").replace("#", "").toLowerCase();
           if (section === "rider-tracker" || section === "orders" || hash === "rider-tracker" || hash === "orders") {
             return "orders";
-          }
-          if (section === "support" || hash === "support") {
-            return "account";
           }
         } catch {}
         return "shop";
@@ -2594,72 +2588,10 @@
       const getInitialSection = () => {
         try {
           const hash = (window.location.hash || "").replace("#", "").toLowerCase();
-          if (hash === "support") return "support";
         } catch {}
         return "info";
       };
       const [activeSection, setActiveSection] = useState(getInitialSection);
-
-      // Support
-      const [myTickets,     setMyTickets]     = useState([]);
-      const [openTicket,    setOpenTicket]    = useState(null);
-      const [threadMsgs,    setThreadMsgs]    = useState([]);
-      const [ticketSubject, setTicketSubject] = useState("");
-      const [ticketMsg,     setTicketMsg]     = useState("");
-      const [ticketSending, setTicketSending] = useState(false);
-      const [showNewForm,   setShowNewForm]   = useState(false);
-      const [replyText,     setReplyText]     = useState("");
-      const [replySending,  setReplySending]  = useState(false);
-      const [supportCall,   setSupportCall]   = useState({ status:"idle", callId:"", note:"" });
-      const pcRef = useRef(null);
-      const localStreamRef = useRef(null);
-      const remoteAudioRef = useRef(null);
-      const callUnsubsRef = useRef([]);
-
-      // Restore cached tickets while waiting for Firebase
-      useEffect(() => {
-        try {
-          const cached = localStorage.getItem("bayango_my_tickets");
-          if (cached) setMyTickets(JSON.parse(cached));
-        } catch (_) {}
-      }, []);
-
-      // Listen to user's own tickets
-      useEffect(() => {
-        if (!user?.uid) return;
-        const ticketsRef = _fbDb.ref("support_tickets").orderByChild("uid").equalTo(user.uid);
-        ticketsRef.on("value", snap => {
-          const list = [];
-          snap.forEach(child => list.push({ id: child.key, ...child.val() }));
-          const sorted = list.reverse();
-          setMyTickets(sorted);
-          try { localStorage.setItem("bayango_my_tickets", JSON.stringify(sorted)); } catch (_) {}
-        }, err => console.error("Tickets listener:", err.code));
-        return () => ticketsRef.off();
-      }, [user?.uid]);
-
-      // Listen to messages of selected ticket
-      useEffect(() => {
-        if (!openTicket) { setThreadMsgs([]); return; }
-        const msgsRef = _fbDb.ref("support_messages/" + openTicket.id).orderByChild("createdAt");
-        msgsRef.on("value", snap => {
-          const list = [];
-          snap.forEach(child => list.push({ id: child.key, ...child.val() }));
-          setThreadMsgs(list);
-        }, err => console.error("Messages listener:", err.code));
-        return () => msgsRef.off();
-      }, [openTicket?.id]);
-
-      useEffect(() => () => {
-        callUnsubsRef.current.forEach(fn => { try { fn(); } catch(_){} });
-        callUnsubsRef.current = [];
-        if (pcRef.current) { try { pcRef.current.close(); } catch(_) {} pcRef.current = null; }
-        if (localStreamRef.current) {
-          localStreamRef.current.getTracks().forEach(t => t.stop());
-          localStreamRef.current = null;
-        }
-      }, []);
-
 
 
       const saveProfile = () => {
@@ -2676,170 +2608,16 @@
         }
       };
 
-      const sendTicket = async () => {
-        if (!ticketSubject.trim() || !ticketMsg.trim()) return;
-        setTicketSending(true);
-        try {
-          const senderName = name || user?.displayName || user?.email || "User";
-          const subjectText = ticketSubject.trim();
-          const msgText = ticketMsg.trim();
-          const newTicketRef = _fbDb.ref("support_tickets").push();
-          const ticketId = newTicketRef.key;
-          const ticketData = {
-            uid:       user.uid,
-            userName:  senderName,
-            name:      senderName,
-            email:     user?.email || null,
-            phone:     phone || null,
-            subject:   subjectText,
-            status:    "open",
-            createdAt: Date.now(),
-          };
-          await newTicketRef.set(ticketData);
-          // Verify the write persisted on the server
-          const confirmSnap = await newTicketRef.once("value");
-          if (!confirmSnap.exists()) {
-            throw new Error("Ticket was not saved. Please try again.");
-          }
-          const msgsRef = _fbDb.ref("support_messages/" + ticketId);
-          await msgsRef.push({ text: msgText, senderType:"user", senderName, createdAt: Date.now() });
-          await msgsRef.push({ text: "Salamat sa iyong mensahe! Natanggap na namin ang iyong concern. Tutugon kami sa lalong madaling panahon. — BayanGo Support", senderType:"bot", senderName:"BayanGo Support", createdAt: Date.now() + 1 });
-          setTicketSubject(""); setTicketMsg("");
-          setShowNewForm(false);
-          setOpenTicket({ id: ticketId, subject: subjectText, status:"open", ...ticketData });
-        } catch (err) {
-          alert("Hindi ma-send ang ticket: " + (err.message || err.code));
-        } finally {
-          setTicketSending(false);
-        }
-      };
-
-      const sendReply = async () => {
-        if (!replyText.trim() || !openTicket) return;
-        setReplySending(true);
-        const senderName = name || user?.displayName || user?.email || "User";
-        try {
-          await _fbDb.ref("support_messages/" + openTicket.id).push({
-            text: replyText.trim(), senderType:"user", senderName, createdAt: Date.now(),
-          });
-          setReplyText("");
-        } catch (err) {
-          alert("Hindi ma-send: " + (err.message || err.code));
-        } finally {
-          setReplySending(false);
-        }
-      };
-
-      const endSupportCall = async (manual = true) => {
-        const callId = supportCall.callId;
-        callUnsubsRef.current.forEach(fn => { try { fn(); } catch(_){} });
-        callUnsubsRef.current = [];
-        if (pcRef.current) { try { pcRef.current.close(); } catch(_) {} pcRef.current = null; }
-        if (localStreamRef.current) {
-          localStreamRef.current.getTracks().forEach(t => t.stop());
-          localStreamRef.current = null;
-        }
-        if (callId) {
-          try {
-            await _fbDb.ref("support_calls/" + callId).update({
-              status: manual ? "ended" : "completed",
-              endedAt: Date.now(),
-            });
-          } catch (_) {}
-        }
-        setSupportCall({ status:"idle", callId:"", note:"" });
-      };
-
-      const startSupportCall = async () => {
-        if (!openTicket?.id) return;
-        if (!openTicket.assignedAdminUid) return alert("Wala pang assigned support agent sa ticket na ito.");
-        if (supportCall.status !== "idle") return;
-        try {
-          const stream = await navigator.mediaDevices.getUserMedia({ audio:true, video:false });
-          localStreamRef.current = stream;
-          const pc = new RTCPeerConnection({ iceServers:[{ urls:"stun:stun.l.google.com:19302" }] });
-          pcRef.current = pc;
-          stream.getTracks().forEach(track => pc.addTrack(track, stream));
-          pc.ontrack = (evt) => {
-            if (remoteAudioRef.current && evt.streams?.[0]) {
-              remoteAudioRef.current.srcObject = evt.streams[0];
-            }
-          };
-
-          const callRef = _fbDb.ref("support_calls").push();
-          const callId = callRef.key;
-          const presenceSnap = await _fbDb.ref("support_call_presence/" + openTicket.assignedAdminUid).once("value");
-          const adminBusy = presenceSnap.val()?.status === "busy";
-          await callRef.set({
-            ticketId: openTicket.id,
-            uid: user?.uid || null,
-            userName: name || user?.displayName || user?.email || "User",
-            assignedAdminUid: openTicket.assignedAdminUid,
-            assignedAdminName: openTicket.assignedAdminName || "Support",
-            status: adminBusy ? "queued" : "ringing",
-            queuedAt: adminBusy ? Date.now() : null,
-            createdAt: Date.now(),
-          });
-          if (adminBusy) {
-            await _fbDb.ref("support_call_queue/" + openTicket.assignedAdminUid + "/" + callId).set({
-              ticketId: openTicket.id,
-              uid: user?.uid || null,
-              createdAt: Date.now(),
-            });
-          }
-          setSupportCall({ status: adminBusy ? "queued" : "ringing", callId, note: adminBusy ? "Agent busy. Naka-queue ang call mo." : "Calling support..." });
-
-          pc.onicecandidate = (evt) => {
-            if (!evt.candidate) return;
-            _fbDb.ref("support_call_signals/" + callId + "/userCandidates").push(evt.candidate.toJSON()).catch(()=>{});
-          };
-          const offer = await pc.createOffer({ offerToReceiveAudio:true });
-          await pc.setLocalDescription(offer);
-          await _fbDb.ref("support_calls/" + callId + "/offer").set(offer.toJSON());
-
-          const onCall = _fbDb.ref("support_calls/" + callId);
-          const callCb = onCall.on("value", async (snap) => {
-            const val = snap.val() || {};
-            if (val.answer && pc.currentRemoteDescription == null) {
-              await pc.setRemoteDescription(new RTCSessionDescription(val.answer));
-            }
-            if (["ended","cancelled","completed","rejected"].includes(val.status)) {
-              endSupportCall(false);
-            } else {
-              setSupportCall(s => ({ ...s, status: val.status || s.status, note: val.status === "queued" ? "Naka-queue pa rin ang call..." : s.note }));
-            }
-          });
-          callUnsubsRef.current.push(() => onCall.off("value", callCb));
-
-          const userCandRef = _fbDb.ref("support_call_signals/" + callId + "/adminCandidates");
-          const candCb = userCandRef.on("child_added", snap => {
-            const cand = snap.val();
-            if (cand) pc.addIceCandidate(new RTCIceCandidate(cand)).catch(()=>{});
-          });
-          callUnsubsRef.current.push(() => userCandRef.off("child_added", candCb));
-        } catch (err) {
-          console.error("Support call failed:", err);
-          alert("Hindi ma-start ang call: " + (err.message || err.code || "Unknown error"));
-          endSupportCall(false);
-        }
-      };
-
 
       const initials = (user?.displayName || user?.email || "?")
         .split(" ").map(w => w[0]).join("").toUpperCase().slice(0,2);
       const deliveredOrders = orders.filter(o => o.status === "delivered" || o.status === "cancelled");
       const activeOrders    = orders.filter(o => o.status !== "delivered" && o.status !== "cancelled");
       const ST_COLOR = ORDER_STATUS_COLORS;
-      const ST_TICKET = {
-        open:     { bg:"#FEF3C7", color:"#92400E", label:"Open"     },
-        resolved: { bg:"#DCFCE7", color:"#166534", label:"Resolved" },
-        closed:   { bg:"#F3F4F6", color:"#555",    label:"Closed"   },
-      };
       const fmtTs = ts => { if(!ts) return ""; const d = ts.toDate?ts.toDate():new Date(ts); return d.toLocaleDateString("en-PH")+" "+d.toLocaleTimeString("en-PH",{hour:"2-digit",minute:"2-digit"}); };
       const SECTIONS = [
         { key:"info",    label:"Profile",    icon:"user" },
         { key:"history", label:"Kasaysayan", icon:"clock-rotate-left" },
-        { key:"support", label:"Support",    icon:"headset", badge: myTickets.filter(t=>t.status==="open").length },
       ];
 
       return (
@@ -2848,7 +2626,7 @@
           {/* Section Tabs */}
           <div style={{ display:"flex", background:"#fff", borderBottom:"1px solid #E5E7EB", padding:"0 16px" }}>
             {SECTIONS.map(s => (
-              <button key={s.key} onClick={() => { setActiveSection(s.key); setOpenTicket(null); setShowNewForm(false); }} style={{ flex:1, padding:"13px 4px", fontSize:12, fontWeight:700, color: activeSection===s.key ? "#166534" : "#94A3B8", borderBottom: activeSection===s.key ? "3px solid #22C55E" : "3px solid transparent", display:"flex", alignItems:"center", justifyContent:"center", gap:5, position:"relative" }}>
+              <button key={s.key} onClick={() => setActiveSection(s.key)} style={{ flex:1, padding:"13px 4px", fontSize:12, fontWeight:700, color: activeSection===s.key ? "#166534" : "#94A3B8", borderBottom: activeSection===s.key ? "3px solid #22C55E" : "3px solid transparent", display:"flex", alignItems:"center", justifyContent:"center", gap:5, position:"relative" }}>
                 <Ic n={s.icon} size={13} />{s.label}
                 {s.badge > 0 && <span style={{ position:"absolute", top:6, right:8, background:"#EF4444", color:"#fff", borderRadius:10, fontSize:9, fontWeight:800, padding:"1px 5px" }}>{s.badge}</span>}
               </button>
@@ -2967,124 +2745,6 @@
               </div>
             )}
 
-            {/* ── Support ── */}
-            {activeSection === "support" && !openTicket && !showNewForm && (
-              <div>
-                <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:16 }}>
-                  <span style={{ fontSize:14, fontWeight:800, color:"#111" }}><Ic n="headset" style={{marginRight:8,color:"#166534"}} />Aking Tickets</span>
-                  <button onClick={() => setShowNewForm(true)} style={{ padding:"8px 14px", borderRadius:20, background:"linear-gradient(135deg,#166534,#22C55E)", color:"#fff", fontSize:12, fontWeight:700, display:"flex", alignItems:"center", gap:6, boxShadow:"0 3px 10px rgba(22,101,52,.25)" }}>
-                    <Ic n="plus" />Bagong Ticket
-                  </button>
-                </div>
-                {myTickets.length === 0 ? (
-                  <div style={{ textAlign:"center", padding:"50px 0" }}>
-                    <Ic n="inbox" size={48} style={{ color:"#ddd", marginBottom:12, display:"block" }} />
-                    <div style={{ fontSize:14, fontWeight:700, color:"#555" }}>Wala pang tickets</div>
-                    <div style={{ fontSize:12, color:"#aaa", marginTop:6 }}>Tap "New Ticket" if you have a concern.</div>
-                  </div>
-                ) : myTickets.map(t => {
-                  const st = ST_TICKET[t.status] || ST_TICKET.open;
-                  return (
-                    <button key={t.id} onClick={() => setOpenTicket(t)} style={{ width:"100%", textAlign:"left", background:"#fff", borderRadius:16, padding:16, marginBottom:10, border:"1px solid #F0F0F0", boxShadow:"0 2px 8px rgba(0,0,0,.05)", display:"block" }}>
-                      <div style={{ display:"flex", justifyContent:"space-between", alignItems:"flex-start" }}>
-                        <div style={{ fontSize:14, fontWeight:800, color:"#111", flex:1, marginRight:10 }}>{t.subject}</div>
-                        <div style={{ padding:"3px 10px", borderRadius:20, fontSize:11, fontWeight:700, background:st.bg, color:st.color, whiteSpace:"nowrap" }}>{st.label}</div>
-                      </div>
-                      <div style={{ fontSize:11, color:"#aaa", marginTop:6 }}>{fmtTs(t.createdAt)}</div>
-                      <div style={{ fontSize:12, color:"#166534", marginTop:4, display:"flex", alignItems:"center", gap:4 }}><Ic n="chevron-right" size={10} />Open conversation</div>
-                    </button>
-                  );
-                })}
-              </div>
-            )}
-
-            {/* ── New Ticket Form ── */}
-            {activeSection === "support" && showNewForm && (
-              <div>
-                <button onClick={() => setShowNewForm(false)} style={{ display:"flex", alignItems:"center", gap:6, fontSize:13, fontWeight:700, color:"#166534", marginBottom:16 }}>
-                  <Ic n="arrow-left" />Bumalik
-                </button>
-                <div style={{ background:"#fff", borderRadius:18, padding:20, boxShadow:"0 2px 8px rgba(0,0,0,.05)", border:"1px solid #F0F0F0" }}>
-                  <div style={{ fontSize:14, fontWeight:800, color:"#111", marginBottom:16 }}><Ic n="headset" style={{marginRight:8,color:"#166534"}} />Bagong Support Ticket</div>
-                  <div style={{ marginBottom:14 }}>
-                    <div style={{ fontSize:11, fontWeight:700, color:"#555", textTransform:"uppercase", letterSpacing:".06em", marginBottom:6 }}>Paksa ng Concern</div>
-                    <input value={ticketSubject} onChange={e=>setTicketSubject(e.target.value)} placeholder="e.g. My order did not arrive" style={{ width:"100%", fontSize:14, color:"#111", border:"1px solid #E5E7EB", borderRadius:10, padding:"10px 12px", outline:"none", boxSizing:"border-box" }} />
-                  </div>
-                  <div style={{ marginBottom:16 }}>
-                    <div style={{ fontSize:11, fontWeight:700, color:"#555", textTransform:"uppercase", letterSpacing:".06em", marginBottom:6 }}>Detalye ng Concern</div>
-                    <textarea value={ticketMsg} onChange={e=>setTicketMsg(e.target.value)} placeholder="Ilagay ang buong detalye ng iyong concern dito..." rows={4} style={{ width:"100%", fontSize:14, color:"#111", border:"1px solid #E5E7EB", borderRadius:10, padding:"10px 12px", outline:"none", resize:"vertical", fontFamily:"inherit", boxSizing:"border-box" }} />
-                  </div>
-                  <button onClick={sendTicket} disabled={ticketSending || !ticketSubject.trim() || !ticketMsg.trim()} style={{ width:"100%", padding:"13px 0", borderRadius:12, background:(!ticketSubject.trim()||!ticketMsg.trim())?"#E5E7EB":"linear-gradient(135deg,#166534,#22C55E)", color:(!ticketSubject.trim()||!ticketMsg.trim())?"#aaa":"#fff", fontSize:14, fontWeight:700, display:"flex", alignItems:"center", justifyContent:"center", gap:8 }}>
-                    {ticketSending ? <><Ic n="spinner" className="spin" />Sending...</> : <><Ic n="paper-plane" />Send Ticket</>}
-                  </button>
-                </div>
-              </div>
-            )}
-
-            {/* ── Thread View ── */}
-            {activeSection === "support" && openTicket && (
-              <div>
-                <button onClick={() => setOpenTicket(null)} style={{ display:"flex", alignItems:"center", gap:6, fontSize:13, fontWeight:700, color:"#166534", marginBottom:16 }}>
-                  <Ic n="arrow-left" />Bumalik sa Tickets
-                </button>
-                <div style={{ background:"#fff", borderRadius:16, padding:14, marginBottom:12, border:"1px solid #F0F0F0" }}>
-                  <div style={{ fontSize:14, fontWeight:800, color:"#111" }}>{openTicket.subject}</div>
-                  <div style={{ fontSize:11, color:"#aaa", marginTop:4 }}>
-                    {(() => { const st=ST_TICKET[openTicket.status]||ST_TICKET.open; return <span style={{ padding:"2px 8px", borderRadius:10, background:st.bg, color:st.color, fontWeight:700 }}>{st.label}</span>; })()}
-                  </div>
-                  <div style={{ display:"flex", gap:8, marginTop:10 }}>
-                    <button onClick={startSupportCall} disabled={openTicket.status==="closed" || supportCall.status!=="idle"} style={{ padding:"8px 12px", borderRadius:10, background:(openTicket.status==="closed" || supportCall.status!=="idle")?"#E5E7EB":"linear-gradient(135deg,#166534,#22C55E)", color:(openTicket.status==="closed" || supportCall.status!=="idle")?"#94A3B8":"#fff", fontSize:12, fontWeight:700 }}>
-                      <Ic n="phone" style={{ marginRight:6 }} />Call Support
-                    </button>
-                    {supportCall.status !== "idle" && (
-                      <button onClick={() => endSupportCall(true)} style={{ padding:"8px 12px", borderRadius:10, background:"#FEE2E2", color:"#B91C1C", fontSize:12, fontWeight:700 }}>
-                        End Call
-                      </button>
-                    )}
-                  </div>
-                  {supportCall.status !== "idle" && <div style={{ marginTop:8, fontSize:11, color:"#64748B" }}>{supportCall.note || `Call status: ${supportCall.status}`}</div>}
-                </div>
-
-                {/* Messages */}
-                <div style={{ marginBottom:12 }}>
-                  {threadMsgs.map(m => {
-                    const isUser  = m.senderType === "user";
-                    const isBot   = m.senderType === "bot";
-                    const isAdmin = m.senderType === "admin";
-                    return (
-                      <div key={m.id} style={{ display:"flex", flexDirection:"column", alignItems: isUser?"flex-end":"flex-start", marginBottom:10 }}>
-                        {!isUser && <div style={{ fontSize:10, fontWeight:700, color: isBot?"#3B82F6":"#166534", marginBottom:3, paddingLeft:4 }}>{isBot ? "🤖 BayanGo Support" : "👤 Admin"}</div>}
-                        <div style={{
-                          maxWidth:"80%", padding:"10px 14px", borderRadius: isUser?"18px 18px 4px 18px":"18px 18px 18px 4px",
-                          background: isUser?"linear-gradient(135deg,#166534,#22C55E)":isBot?"#EFF6FF":"#F0FDF4",
-                          color: isUser?"#fff":"#111",
-                          fontSize:13, lineHeight:1.5,
-                          boxShadow:"0 1px 4px rgba(0,0,0,.08)",
-                        }}>
-                          {m.text}
-                        </div>
-                        <div style={{ fontSize:10, color:"#ccc", marginTop:3, paddingLeft:4, paddingRight:4 }}>{fmtTs(m.createdAt)}</div>
-                      </div>
-                    );
-                  })}
-                  {threadMsgs.length === 0 && <div style={{ textAlign:"center", padding:"20px 0", fontSize:12, color:"#ccc" }}>No messages yet.</div>}
-                </div>
-
-                {/* Reply box */}
-                {openTicket.status !== "closed" && (
-                  <div style={{ display:"flex", gap:8, alignItems:"flex-end" }}>
-                    <textarea value={replyText} onChange={e=>setReplyText(e.target.value)} placeholder="Isulat ang iyong reply..." rows={2} onKeyDown={e=>{ if(e.key==="Enter"&&!e.shiftKey){e.preventDefault();sendReply();} }} style={{ flex:1, fontSize:13, color:"#111", border:"1px solid #E5E7EB", borderRadius:12, padding:"10px 12px", outline:"none", resize:"none", fontFamily:"inherit", boxSizing:"border-box" }} />
-                    <button onClick={sendReply} disabled={replySending||!replyText.trim()} style={{ width:42, height:42, borderRadius:12, background: replyText.trim()?"linear-gradient(135deg,#166534,#22C55E)":"#E5E7EB", color: replyText.trim()?"#fff":"#aaa", display:"flex", alignItems:"center", justifyContent:"center", flexShrink:0 }}>
-                      {replySending ? <Ic n="spinner" className="spin" size={16} /> : <Ic n="paper-plane" size={16} />}
-                    </button>
-                  </div>
-                )}
-                {openTicket.status === "closed" && (
-                  <div style={{ textAlign:"center", padding:"12px 0", fontSize:12, color:"#aaa", fontWeight:600 }}>Ang ticket na ito ay sarado na.</div>
-                )}
-              </div>
-            )}
-            <audio ref={remoteAudioRef} autoPlay playsInline />
 
           </div>
         </div>
