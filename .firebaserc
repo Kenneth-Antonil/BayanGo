@@ -1,5 +1,20 @@
 {
   "projects": {
     "default": "bayango-315c6"
+  },
+  "targets": {
+    "bayango-315c6": {
+      "hosting": {
+        "user": [
+          "bayango-315c6"
+        ],
+        "admin": [
+          "bayango-admin"
+        ],
+        "rider": [
+          "bayango-rider"
+        ]
+      }
+    }
   }
 }

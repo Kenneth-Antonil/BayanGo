@@ -1,0 +1,23 @@
+{
+  "name": "BayanGo Admin",
+  "short_name": "BayanGo Admin",
+  "description": "BayanGo Admin Dashboard — Binangonan Concierge",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "background_color": "#0A0A0A",
+  "theme_color": "#0A0A0A",
+  "orientation": "portrait",
+  "icons": [
+    {
+      "src": "https://placehold.co/192x192/22C55E/000000?text=Admin",
+      "sizes": "192x192",
+      "type": "image/png"
+    },
+    {
+      "src": "https://placehold.co/512x512/22C55E/000000?text=Admin",
+      "sizes": "512x512",
+      "type": "image/png"
+    }
+  ]
+}
