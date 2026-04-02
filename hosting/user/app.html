@@ -1352,7 +1352,23 @@
       const [notifLastSeen, setNotifLastSeen]  = useState(() => {
         try { return parseInt(localStorage.getItem("bayango_notif_last_seen") || "0", 10); } catch { return 0; }
       });
+      const getDeletedNotifStorageKey = useCallback((uid) => `bayango_deleted_notifs_${uid || "anon"}`, []);
+      const [deletedNotifIds, setDeletedNotifIds] = useState({});
       const unreadNotifCount = notifications.filter(n => n.createdAt > notifLastSeen).length;
+
+      useEffect(() => {
+        if (!user?.uid) {
+          setDeletedNotifIds({});
+          return;
+        }
+        try {
+          const raw = localStorage.getItem(getDeletedNotifStorageKey(user.uid));
+          const parsed = raw ? JSON.parse(raw) : {};
+          setDeletedNotifIds(parsed && typeof parsed === "object" ? parsed : {});
+        } catch {
+          setDeletedNotifIds({});
+        }
+      }, [getDeletedNotifStorageKey, user?.uid]);
 
       // Listen for user notifications from RTDB
       useEffect(() => {
@@ -1361,13 +1377,32 @@
         const handler = ref.on("value", snap => {
           const arr = [];
           snap.forEach(child => {
-            arr.push({ id: child.key, ...child.val() });
+            const id = child.key;
+            if (deletedNotifIds[id]) return;
+            arr.push({ id, ...child.val() });
           });
           arr.sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
           setNotifications(arr);
         });
         return () => ref.off("value", handler);
-      }, [user?.uid]);
+      }, [deletedNotifIds, user?.uid]);
+
+      const deleteNotification = useCallback((notifId) => {
+        if (!notifId) return;
+        setDeletedNotifIds(prev => {
+          const next = { ...prev, [notifId]: Date.now() };
+          try {
+            if (user?.uid) localStorage.setItem(getDeletedNotifStorageKey(user.uid), JSON.stringify(next));
+          } catch {}
+          return next;
+        });
+        setNotifications(prev => prev.filter(n => n.id !== notifId));
+        if (user?.uid && _fbDb) {
+          _fbDb.ref("user_notifications/" + user.uid + "/" + notifId).remove().catch(err => {
+            console.warn("Unable to delete notification in backend:", err?.message || err);
+          });
+        }
+      }, [getDeletedNotifStorageKey, user?.uid]);
 
       const cartCount = Object.values(cart).reduce((s,v) => s+v, 0);
       const cartItems = Object.entries(cart)
@@ -2435,7 +2470,7 @@
           )}
 
           {activePage === "notifications" && (
-            <NotificationsPage notifications={notifications} onMarkSeen={() => {
+            <NotificationsPage notifications={notifications} onDelete={deleteNotification} onMarkSeen={() => {
               const now = Date.now();
               setNotifLastSeen(now);
               try { localStorage.setItem("bayango_notif_last_seen", String(now)); } catch {}
@@ -2672,7 +2707,7 @@
 
 
     /* ══════════════════ NOTIFICATIONS PAGE ══════════════════ */
-    function NotificationsPage({ notifications, onMarkSeen }) {
+    function NotificationsPage({ notifications, onDelete, onMarkSeen }) {
       useEffect(() => { onMarkSeen(); }, []);
 
       const NOTIF_ICON = {
@@ -2763,7 +2798,21 @@
                     <Ic n={icon} size={18} style={{ color }} />
                   </div>
                   <div style={{ flex:1, minWidth:0 }}>
-                    <div style={{ fontSize:14, fontWeight:700, color:"#111", marginBottom:2 }}>{n.title || "BayanGo"}</div>
+                    <div style={{ display:"flex", alignItems:"flex-start", justifyContent:"space-between", gap:8 }}>
+                      <div style={{ fontSize:14, fontWeight:700, color:"#111", marginBottom:2 }}>{n.title || "BayanGo"}</div>
+                      <button
+                        onClick={() => onDelete?.(n.id)}
+                        aria-label="Delete notification"
+                        title="Delete"
+                        style={{
+                          width:28, height:28, borderRadius:10, flexShrink:0,
+                          display:"flex", alignItems:"center", justifyContent:"center",
+                          background:"#F3F4F6", color:"#6B7280"
+                        }}
+                      >
+                        <Ic n="trash" size={12} />
+                      </button>
+                    </div>
                     <div style={{ fontSize:12, color:"#666", lineHeight:"1.4" }}>{n.body}</div>
                     <div style={{ fontSize:10, color:"#bbb", marginTop:4, fontWeight:600 }}>{timeAgo(n.createdAt)}</div>
                   </div>
