@@ -28,6 +28,7 @@ const PAYMONGO_SECRET_KEY = process.env.PAYMONGO_SECRET_KEY || "";
 const ADMIN_ALLOWED_ORIGINS = [
   "https://bayango.store",
   "https://www.bayango.store",
+  "https://admin.bayango.store",
   "http://localhost:5000",
   "http://127.0.0.1:5000",
 ];
