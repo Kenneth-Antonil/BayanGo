@@ -935,7 +935,7 @@ exports.onOrderUpdated = onValueUpdated(
         const statusMessage = after.status === "cancelled" && cancelReason
           ? `${statusLabel}. Reason: ${cancelReason}`
           : statusLabel;
-        const userTokens = await getUserTokens(uid);
+        const userTokens = await getUserTokens(uid, { excludeRole: "rider" });
         if (userTokens.length) {
           await sendBatchNotification(userTokens, {
             title: "Order Update",
@@ -973,7 +973,7 @@ exports.onOrderUpdated = onValueUpdated(
 
       // 3. GCash confirmed → notify customer
       if (!before.gcashPaymentConfirmed && after.gcashPaymentConfirmed && uid) {
-        const userTokens = await getUserTokens(uid);
+        const userTokens = await getUserTokens(uid, { excludeRole: "rider" });
         if (userTokens.length) {
           await sendBatchNotification(userTokens, {
             title: "GCash Payment Confirmed!",
@@ -988,7 +988,7 @@ exports.onOrderUpdated = onValueUpdated(
       if (before.pricesUpdatedAt !== after.pricesUpdatedAt && after.pricesUpdatedAt && uid) {
         const total = after.total || 0;
         const hasProof = Array.isArray(after.proofImages) && after.proofImages.length > 0;
-        const userTokens = await getUserTokens(uid);
+        const userTokens = await getUserTokens(uid, { excludeRole: "rider" });
         if (userTokens.length) {
           const notifPayload = hasProof ? {
             title: "Your order has been purchased!",
