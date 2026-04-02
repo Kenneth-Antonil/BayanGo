@@ -13,9 +13,9 @@ firebase.initializeApp({
 });
 
 const messaging = firebase.messaging();
-const USER_APP_URL = 'https://bayango.store/bayango-user.html';
-const RIDER_APP_URL = 'https://bayango.store/bayango-rider.html';
-const ADMIN_APP_URL = 'https://bayango.store/bayango-admin.html';
+const USER_APP_URL = '/index.html';
+const RIDER_APP_URL = '/index.html';
+const ADMIN_APP_URL = '/index.html';
 
 function resolveClickUrl(rawUrl, type) {
   try {

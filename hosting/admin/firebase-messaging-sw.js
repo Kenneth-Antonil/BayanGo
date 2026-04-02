@@ -13,9 +13,9 @@ firebase.initializeApp({
 });
 
 const messaging = firebase.messaging();
-const USER_APP_URL = 'https://bayango.store/bayango-user.html';
-const RIDER_APP_URL = 'https://bayango.store/bayango-rider.html';
-const ADMIN_APP_URL = 'https://bayango.store/bayango-admin.html';
+const USER_APP_URL = '/index.html';
+const RIDER_APP_URL = '/index.html';
+const ADMIN_APP_URL = '/index.html';
 
 function resolveClickUrl(rawUrl, type) {
   try {
@@ -61,19 +61,10 @@ self.addEventListener('notificationclick', (event) => {
     event.notification?.data?.clickUrl,
     event.notification?.data?.type || ''
   );
-  const isRiderTarget = target.includes('bayango-rider');
-
-  const isAdminTarget = target.includes('bayango-admin');
-
   event.waitUntil(
     clients.matchAll({ type: 'window', includeUncontrolled: true }).then((windowClients) => {
       for (const client of windowClients) {
-        const isMatch = isAdminTarget
-          ? client.url.includes('bayango-admin')
-          : isRiderTarget
-            ? client.url.includes('bayango-rider')
-            : client.url.includes('bayango-user');
-        if (isMatch && 'focus' in client) {
+        if (client.url.includes('/index.html') && 'focus' in client) {
           if ('navigate' in client) {
             return client.navigate(target).then(() => client.focus());
           }

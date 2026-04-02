@@ -212,11 +212,20 @@
           const title = payload?.notification?.title || "BayanGo Admin";
           const body = payload?.notification?.body || "May bagong update.";
           if (Notification.permission === "granted") {
-            new Notification(title, {
+            const type = payload?.data?.type || "";
+            const n = new Notification(title, {
               body,
               icon: "https://i.imgur.com/wL8wcBB.jpeg",
               data: payload?.data || {},
             });
+            n.onclick = () => {
+              window.focus();
+              n.close();
+              if (type === "support_ticket_new" || type === "support_message_user") {
+                window.location.hash = "support";
+                window.location.reload();
+              }
+            };
           }
         });
       } catch (err) {
@@ -809,7 +818,14 @@
 
     /* ══════════════════ ADMIN DASHBOARD ══════════════════ */
     function AdminDashboard({ user, orders, onUpdateStatus, onBroadcast, products, onAddProduct, onUpdateProduct, onDeleteProduct, marketPricing, onUpdateMarketPricing, vouchers, onAddVoucher, onUpdateVoucher, onDeleteVoucher, appUsageStats }) {
-      const [tab,          setTab]          = useState("orders");
+      const getInitialTab = () => {
+        try {
+          const hash = (window.location.hash || "").replace("#", "").toLowerCase();
+          if (hash === "support") return "support";
+        } catch {}
+        return "orders";
+      };
+      const [tab,          setTab]          = useState(getInitialTab);
       const [selected,     setSelected]     = useState(null);
       const [updating,     setUpdating]     = useState(null);
       const [ordersView,   setOrdersView]   = useState("active");

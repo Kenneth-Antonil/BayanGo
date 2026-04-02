@@ -949,3 +949,86 @@ exports.onOrderUpdated = onValueUpdated(
     }
   }
 );
+
+// ─────────────────────────────────────────────────────────────────────────────
+// RTDB-TRIGGERED: SUPPORT TICKET & MESSAGE NOTIFICATIONS
+// ─────────────────────────────────────────────────────────────────────────────
+
+/**
+ * Bagong support ticket → i-notify lahat ng admins.
+ */
+exports.onNewSupportTicket = onValueCreated(
+  { ref: "support_tickets/{ticketId}", region: "asia-southeast1" },
+  async (event) => {
+    const ticket = event.data.val();
+    if (!ticket) return;
+
+    const adminTokens = await getAllAdminTokens();
+    if (!adminTokens.length) return;
+
+    const customerName = ticket.userName || ticket.name || "Customer";
+    const subject = ticket.subject || "No subject";
+
+    const result = await sendBatchNotification(adminTokens, {
+      title: "New Support Ticket",
+      body: `${customerName}: ${subject}`,
+      type: "support_ticket_new",
+      link: `${ADMIN_APP_URL}#support`,
+    });
+    console.log(`[onNewSupportTicket ${event.params.ticketId}] Sent:${result.sent} Failed:${result.failed}`);
+  }
+);
+
+/**
+ * Bagong support message → i-notify ang admin (kung user ang nag-send)
+ * o i-notify ang customer (kung admin ang nag-send).
+ * Hindi nag-notify para sa bot messages.
+ */
+exports.onNewSupportMessage = onValueCreated(
+  { ref: "support_messages/{ticketId}/{messageId}", region: "asia-southeast1" },
+  async (event) => {
+    const message = event.data.val();
+    if (!message || !message.senderType || message.senderType === "bot") return;
+
+    const ticketId = event.params.ticketId;
+    const db = getDatabase();
+    const ticketSnap = await db.ref("support_tickets/" + ticketId).get();
+    if (!ticketSnap.exists()) return;
+    const ticket = ticketSnap.val();
+
+    if (message.senderType === "user") {
+      // User sent a message → notify all admins
+      const adminTokens = await getAllAdminTokens();
+      if (!adminTokens.length) return;
+
+      const senderName = message.senderName || ticket.userName || "Customer";
+      const preview = message.text.length > 80 ? message.text.slice(0, 80) + "…" : message.text;
+
+      const result = await sendBatchNotification(adminTokens, {
+        title: `Support: ${ticket.subject || "Ticket"}`,
+        body: `${senderName}: ${preview}`,
+        type: "support_message_user",
+        link: `${ADMIN_APP_URL}#support`,
+      });
+      console.log(`[onNewSupportMessage user→admin ${ticketId}] Sent:${result.sent} Failed:${result.failed}`);
+
+    } else if (message.senderType === "admin") {
+      // Admin sent a reply → notify the customer
+      const uid = ticket.uid;
+      if (!uid) return;
+
+      const userTokens = await getUserTokens(uid);
+      if (!userTokens.length) return;
+
+      const preview = message.text.length > 80 ? message.text.slice(0, 80) + "…" : message.text;
+
+      const result = await sendBatchNotification(userTokens, {
+        title: "BayanGo Support Reply",
+        body: preview,
+        type: "support_message_admin",
+        link: `${USER_APP_URL}#support`,
+      });
+      console.log(`[onNewSupportMessage admin→user ${ticketId}] Sent:${result.sent} Failed:${result.failed}`);
+    }
+  }
+);
