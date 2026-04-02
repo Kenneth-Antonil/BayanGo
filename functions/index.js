@@ -282,17 +282,21 @@ async function sendBatchNotification(tokenEntries, { title, body, type, link }) 
   const uniqueUids = [...new Set(tokenEntries.map((entry) => entry.uid).filter(Boolean))];
   if (uniqueUids.length) {
     const now = Date.now();
-    await Promise.all(
-      uniqueUids.map((uid) =>
-        db.ref(`user_notifications/${uid}`).push({
-          title: title || "BayanGo",
-          body: body || "",
-          type: type || "batch_reminder",
-          link: link || USER_APP_URL,
-          createdAt: now,
-        })
-      )
-    );
+    try {
+      await Promise.all(
+        uniqueUids.map((uid) =>
+          db.ref(`user_notifications/${uid}`).push({
+            title: title || "BayanGo",
+            body: body || "",
+            type: type || "batch_reminder",
+            link: link || USER_APP_URL,
+            createdAt: now,
+          })
+        )
+      );
+    } catch (err) {
+      console.error("Error writing to user_notifications:", err);
+    }
   }
 
   if (!tokenEntries.length) {
@@ -346,7 +350,8 @@ async function sendBatchNotification(tokenEntries, { title, body, type, link }) 
           const errCode = resp.error?.code;
           if (
             errCode === "messaging/invalid-registration-token" ||
-            errCode === "messaging/registration-token-not-registered"
+            errCode === "messaging/registration-token-not-registered" ||
+            errCode === "messaging/mismatched-sender-id"
           ) {
             const { uid, tokenKey } = chunk[idx];
             if (uid && tokenKey) {
@@ -395,32 +400,37 @@ exports.processNotificationQueue = onValueCreated(
       return;
     }
 
-    // Fetch push tokens for this specific user
-    const tokenSnap = await db.ref(`push_tokens/${uid}`).get();
-    const tokenEntries = [];
-    if (tokenSnap.exists()) {
-      tokenSnap.forEach((t) => {
-        const d = t.val();
-        if (d?.token && d?.enabled !== false) {
-          tokenEntries.push({ uid, tokenKey: t.key, token: d.token });
-        }
-      });
-    }
+    try {
+      // Fetch push tokens for this specific user
+      const tokenSnap = await db.ref(`push_tokens/${uid}`).get();
+      const tokenEntries = [];
+      if (tokenSnap.exists()) {
+        tokenSnap.forEach((t) => {
+          const d = t.val();
+          if (d?.token && d?.enabled !== false) {
+            tokenEntries.push({ uid, tokenKey: t.key, token: d.token });
+          }
+        });
+      }
 
-    if (tokenEntries.length === 0) {
-      console.log(`[notif_queue/${pushId}] No tokens for uid=${uid}. Skipping.`);
-    } else {
-      const result = await sendBatchNotification(tokenEntries, {
-        title,
-        body,
-        type: "gcash_payment_reminder",
-        link,
-      });
-      console.log(`[notif_queue/${pushId}] uid=${uid} Sent:${result.sent} Failed:${result.failed}`);
-    }
+      if (tokenEntries.length === 0) {
+        console.log(`[notif_queue/${pushId}] No tokens for uid=${uid}. Skipping.`);
+      } else {
+        const result = await sendBatchNotification(tokenEntries, {
+          title,
+          body,
+          type: "gcash_payment_reminder",
+          link,
+        });
+        console.log(`[notif_queue/${pushId}] uid=${uid} Sent:${result.sent} Failed:${result.failed}`);
+      }
 
-    // Clean up queue entry
-    await db.ref(`notification_queue/${pushId}`).remove();
+      // Clean up queue entry only after successful processing
+      await db.ref(`notification_queue/${pushId}`).remove();
+    } catch (err) {
+      console.error(`[notif_queue/${pushId}] Error processing notification for uid=${uid}:`, err);
+      // Do NOT remove the queue entry so it can be retried or inspected
+    }
   }
 );
 
@@ -774,13 +784,17 @@ exports.uploadGcashQrImage = onRequest(
 exports.notifyAmBatchOpen = onSchedule(
   { schedule: "0 8 * * *", timeZone: "Asia/Manila" },
   async () => {
-    const tokens = await getAllCustomerTokens();
-    const result = await sendBatchNotification(tokens, {
-      title: "BayanGo — Order for Lunch!",
-      body: "Order now. Cut-off is 10:00 AM, delivery is 11:00 AM.",
-      type: "batch_reminder_am_open",
-    });
-    console.log(`[AM Batch Open 8AM] Sent: ${result.sent}, Failed: ${result.failed}`);
+    try {
+      const tokens = await getAllCustomerTokens();
+      const result = await sendBatchNotification(tokens, {
+        title: "BayanGo — Order for Lunch!",
+        body: "Order now. Cut-off is 10:00 AM, delivery is 11:00 AM.",
+        type: "batch_reminder_am_open",
+      });
+      console.log(`[AM Batch Open 8AM] Sent: ${result.sent}, Failed: ${result.failed}`);
+    } catch (err) {
+      console.error("[AM Batch Open 8AM] Error:", err);
+    }
   }
 );
 
@@ -791,13 +805,17 @@ exports.notifyAmBatchOpen = onSchedule(
 exports.notifyAmBatchWarning = onSchedule(
   { schedule: "0 9 * * *", timeZone: "Asia/Manila" },
   async () => {
-    const tokens = await getAllCustomerTokens();
-    const result = await sendBatchNotification(tokens, {
-      title: "1 Oras Na Lang! — AM Batch",
-      body: "Order now! Cut-off is 10:00 AM, delivery is 11:00 AM today.",
-      type: "batch_reminder_am_warning",
-    });
-    console.log(`[AM Batch 1hr Warning 9AM] Sent: ${result.sent}, Failed: ${result.failed}`);
+    try {
+      const tokens = await getAllCustomerTokens();
+      const result = await sendBatchNotification(tokens, {
+        title: "1 Oras Na Lang! — AM Batch",
+        body: "Order now! Cut-off is 10:00 AM, delivery is 11:00 AM today.",
+        type: "batch_reminder_am_warning",
+      });
+      console.log(`[AM Batch 1hr Warning 9AM] Sent: ${result.sent}, Failed: ${result.failed}`);
+    } catch (err) {
+      console.error("[AM Batch 1hr Warning 9AM] Error:", err);
+    }
   }
 );
 
@@ -808,13 +826,17 @@ exports.notifyAmBatchWarning = onSchedule(
 exports.notifyPmBatchOpen = onSchedule(
   { schedule: "0 12 * * *", timeZone: "Asia/Manila" },
   async () => {
-    const tokens = await getAllCustomerTokens();
-    const result = await sendBatchNotification(tokens, {
-      title: "BayanGo — Order for the Afternoon!",
-      body: "Order now. Cut-off is 3:00 PM, delivery is 4:00 PM.",
-      type: "batch_reminder_pm_open",
-    });
-    console.log(`[PM Batch Open 12PM] Sent: ${result.sent}, Failed: ${result.failed}`);
+    try {
+      const tokens = await getAllCustomerTokens();
+      const result = await sendBatchNotification(tokens, {
+        title: "BayanGo — Order for the Afternoon!",
+        body: "Order now. Cut-off is 3:00 PM, delivery is 4:00 PM.",
+        type: "batch_reminder_pm_open",
+      });
+      console.log(`[PM Batch Open 12PM] Sent: ${result.sent}, Failed: ${result.failed}`);
+    } catch (err) {
+      console.error("[PM Batch Open 12PM] Error:", err);
+    }
   }
 );
 
@@ -825,13 +847,17 @@ exports.notifyPmBatchOpen = onSchedule(
 exports.notifyPmBatchWarning = onSchedule(
   { schedule: "0 14 * * *", timeZone: "Asia/Manila" },
   async () => {
-    const tokens = await getAllCustomerTokens();
-    const result = await sendBatchNotification(tokens, {
-      title: "1 Oras Na Lang! — PM Batch",
-      body: "Order now! Cut-off is 3:00 PM, delivery is 4:00 PM today.",
-      type: "batch_reminder_pm_warning",
-    });
-    console.log(`[PM Batch 1hr Warning 2PM] Sent: ${result.sent}, Failed: ${result.failed}`);
+    try {
+      const tokens = await getAllCustomerTokens();
+      const result = await sendBatchNotification(tokens, {
+        title: "1 Oras Na Lang! — PM Batch",
+        body: "Order now! Cut-off is 3:00 PM, delivery is 4:00 PM today.",
+        type: "batch_reminder_pm_warning",
+      });
+      console.log(`[PM Batch 1hr Warning 2PM] Sent: ${result.sent}, Failed: ${result.failed}`);
+    } catch (err) {
+      console.error("[PM Batch 1hr Warning 2PM] Error:", err);
+    }
   }
 );
 
@@ -842,13 +868,17 @@ exports.notifyPmBatchWarning = onSchedule(
 exports.notifyPreorder = onSchedule(
   { schedule: "0 20 * * *", timeZone: "Asia/Manila" },
   async () => {
-    const tokens = await getAllCustomerTokens();
-    const result = await sendBatchNotification(tokens, {
-      title: "BayanGo — Pre-order for Tomorrow!",
-      body: "Order now for delivery tomorrow at 11:00 AM. Don't forget!",
-      type: "batch_reminder_preorder",
-    });
-    console.log(`[Pre-order Reminder 8PM] Sent: ${result.sent}, Failed: ${result.failed}`);
+    try {
+      const tokens = await getAllCustomerTokens();
+      const result = await sendBatchNotification(tokens, {
+        title: "BayanGo — Pre-order for Tomorrow!",
+        body: "Order now for delivery tomorrow at 11:00 AM. Don't forget!",
+        type: "batch_reminder_preorder",
+      });
+      console.log(`[Pre-order Reminder 8PM] Sent: ${result.sent}, Failed: ${result.failed}`);
+    } catch (err) {
+      console.error("[Pre-order Reminder 8PM] Error:", err);
+    }
   }
 );
 
@@ -862,19 +892,23 @@ exports.notifyPreorder = onSchedule(
 exports.onNewOrder = onValueCreated(
   { ref: "orders/{orderId}", region: "asia-southeast1" },
   async (event) => {
-    const order = event.data.val();
-    if (!order || order.status !== "pending" || order.riderId) return;
+    try {
+      const order = event.data.val();
+      if (!order || order.status !== "pending" || order.riderId) return;
 
-    const riderTokens = await getAllRiderTokens();
-    if (!riderTokens.length) return;
+      const riderTokens = await getAllRiderTokens();
+      if (!riderTokens.length) return;
 
-    const result = await sendBatchNotification(riderTokens, {
-      title: "BayanGo: New Order!",
-      body: `New order from ${order.customer?.name || "customer"}. Open the app to accept it.`,
-      type: "new_order",
-      link: RIDER_APP_URL,
-    });
-    console.log(`[onNewOrder ${event.params.orderId}] Sent:${result.sent} Failed:${result.failed}`);
+      const result = await sendBatchNotification(riderTokens, {
+        title: "BayanGo: New Order!",
+        body: `New order from ${order.customer?.name || "customer"}. Open the app to accept it.`,
+        type: "new_order",
+        link: RIDER_APP_URL,
+      });
+      console.log(`[onNewOrder ${event.params.orderId}] Sent:${result.sent} Failed:${result.failed}`);
+    } catch (err) {
+      console.error(`[onNewOrder ${event.params.orderId}] Error:`, err);
+    }
   }
 );
 
@@ -888,86 +922,90 @@ exports.onNewOrder = onValueCreated(
 exports.onOrderUpdated = onValueUpdated(
   { ref: "orders/{orderId}", region: "asia-southeast1" },
   async (event) => {
-    const before = event.data.before.val() || {};
-    const after = event.data.after.val() || {};
     const orderId = event.params.orderId;
-    const uid = after.uid || after.userId;
+    try {
+      const before = event.data.before.val() || {};
+      const after = event.data.after.val() || {};
+      const uid = after.uid || after.userId;
 
-    // 1. Status changed → notify customer
-    if (before.status !== after.status && uid) {
-      const statusLabel = ORDER_STATUS_LABELS[after.status] || after.status;
-      const cancelReason = String(after.cancellationReason || "").trim();
-      const statusMessage = after.status === "cancelled" && cancelReason
-        ? `${statusLabel}. Reason: ${cancelReason}`
-        : statusLabel;
-      const userTokens = await getUserTokens(uid);
-      if (userTokens.length) {
-        await sendBatchNotification(userTokens, {
-          title: "Order Update",
-          body: `Order #${String(orderId).slice(-6)}: ${statusMessage}`,
-          type: "order_status",
-          link: `${USER_APP_URL}#orders`,
-        });
+      // 1. Status changed → notify customer
+      if (before.status !== after.status && uid) {
+        const statusLabel = ORDER_STATUS_LABELS[after.status] || after.status;
+        const cancelReason = String(after.cancellationReason || "").trim();
+        const statusMessage = after.status === "cancelled" && cancelReason
+          ? `${statusLabel}. Reason: ${cancelReason}`
+          : statusLabel;
+        const userTokens = await getUserTokens(uid);
+        if (userTokens.length) {
+          await sendBatchNotification(userTokens, {
+            title: "Order Update",
+            body: `Order #${String(orderId).slice(-6)}: ${statusMessage}`,
+            type: "order_status",
+            link: `${USER_APP_URL}#orders`,
+          });
+        }
+        // Kung cancelled at may rider → notify rider
+        if (after.status === "cancelled" && after.riderId) {
+          const riderTokens = await getUserTokens(after.riderId);
+          if (riderTokens.length) {
+            await sendBatchNotification(riderTokens, {
+              title: "BayanGo: Order Cancelled",
+              body: `Order #${String(orderId).slice(-6)} was cancelled by the customer.`,
+              type: "order_cancelled",
+              link: RIDER_APP_URL,
+            });
+          }
+        }
       }
-      // Kung cancelled at may rider → notify rider
-      if (after.status === "cancelled" && after.riderId) {
+
+      // 2. Rider na-assign (riderId added) → notify rider
+      if (!before.riderId && after.riderId) {
         const riderTokens = await getUserTokens(after.riderId);
         if (riderTokens.length) {
           await sendBatchNotification(riderTokens, {
-            title: "BayanGo: Order Cancelled",
-            body: `Order #${String(orderId).slice(-6)} was cancelled by the customer.`,
-            type: "order_cancelled",
+            title: "An order has been assigned to you",
+            body: `Order #${String(orderId).slice(-6)} for ${after.customer?.name || "customer"}.`,
+            type: "assigned_order",
             link: RIDER_APP_URL,
           });
         }
       }
-    }
 
-    // 2. Rider na-assign (riderId added) → notify rider
-    if (!before.riderId && after.riderId) {
-      const riderTokens = await getUserTokens(after.riderId);
-      if (riderTokens.length) {
-        await sendBatchNotification(riderTokens, {
-          title: "An order has been assigned to you",
-          body: `Order #${String(orderId).slice(-6)} for ${after.customer?.name || "customer"}.`,
-          type: "assigned_order",
-          link: RIDER_APP_URL,
-        });
+      // 3. GCash confirmed → notify customer
+      if (!before.gcashPaymentConfirmed && after.gcashPaymentConfirmed && uid) {
+        const userTokens = await getUserTokens(uid);
+        if (userTokens.length) {
+          await sendBatchNotification(userTokens, {
+            title: "GCash Payment Confirmed!",
+            body: `Order #${String(orderId).slice(-6)}: Your GCash payment has been confirmed. Your order is now being prepared!`,
+            type: "gcash_confirmed",
+            link: `${USER_APP_URL}#orders`,
+          });
+        }
       }
-    }
 
-    // 3. GCash confirmed → notify customer
-    if (!before.gcashPaymentConfirmed && after.gcashPaymentConfirmed && uid) {
-      const userTokens = await getUserTokens(uid);
-      if (userTokens.length) {
-        await sendBatchNotification(userTokens, {
-          title: "GCash Payment Confirmed!",
-          body: `Order #${String(orderId).slice(-6)}: Your GCash payment has been confirmed. Your order is now being prepared!`,
-          type: "gcash_confirmed",
-          link: `${USER_APP_URL}#orders`,
-        });
+      // 4. Prices updated → notify customer
+      if (before.pricesUpdatedAt !== after.pricesUpdatedAt && after.pricesUpdatedAt && uid) {
+        const total = after.total || 0;
+        const hasProof = Array.isArray(after.proofImages) && after.proofImages.length > 0;
+        const userTokens = await getUserTokens(uid);
+        if (userTokens.length) {
+          const notifPayload = hasProof ? {
+            title: "Your order has been purchased!",
+            body: `Order #${String(orderId).slice(-6)}: Tapos na ang pamimili at may proof of order na. Total: ₱${Number(total).toLocaleString("en-PH")}`,
+            type: "order_bought_with_proof",
+            link: `${USER_APP_URL}#orders`,
+          } : {
+            title: "Order Update — Check your payment",
+            body: `Order #${String(orderId).slice(-6)}: Actual pricing has been updated. Total: ₱${Number(total).toLocaleString("en-PH")}`,
+            type: "prices_updated",
+            link: `${USER_APP_URL}#orders`,
+          };
+          await sendBatchNotification(userTokens, notifPayload);
+        }
       }
-    }
-
-    // 4. Prices updated → notify customer
-    if (before.pricesUpdatedAt !== after.pricesUpdatedAt && after.pricesUpdatedAt && uid) {
-      const total = after.total || 0;
-      const hasProof = Array.isArray(after.proofImages) && after.proofImages.length > 0;
-      const userTokens = await getUserTokens(uid);
-      if (userTokens.length) {
-        const notifPayload = hasProof ? {
-          title: "Your order has been purchased!",
-          body: `Order #${String(orderId).slice(-6)}: Tapos na ang pamimili at may proof of order na. Total: ₱${Number(total).toLocaleString("en-PH")}`,
-          type: "order_bought_with_proof",
-          link: `${USER_APP_URL}#orders`,
-        } : {
-          title: "Order Update — Check your payment",
-          body: `Order #${String(orderId).slice(-6)}: Actual pricing has been updated. Total: ₱${Number(total).toLocaleString("en-PH")}`,
-          type: "prices_updated",
-          link: `${USER_APP_URL}#orders`,
-        };
-        await sendBatchNotification(userTokens, notifPayload);
-      }
+    } catch (err) {
+      console.error(`[onOrderUpdated ${orderId}] Error:`, err);
     }
   }
 );
@@ -982,22 +1020,26 @@ exports.onOrderUpdated = onValueUpdated(
 exports.onNewSupportTicket = onValueCreated(
   { ref: "support_tickets/{ticketId}", region: "asia-southeast1" },
   async (event) => {
-    const ticket = event.data.val();
-    if (!ticket) return;
+    try {
+      const ticket = event.data.val();
+      if (!ticket) return;
 
-    const adminTokens = await getAllAdminTokens();
-    if (!adminTokens.length) return;
+      const adminTokens = await getAllAdminTokens();
+      if (!adminTokens.length) return;
 
-    const customerName = ticket.userName || ticket.name || "Customer";
-    const subject = ticket.subject || "No subject";
+      const customerName = ticket.userName || ticket.name || "Customer";
+      const subject = ticket.subject || "No subject";
 
-    const result = await sendBatchNotification(adminTokens, {
-      title: "New Support Ticket",
-      body: `${customerName}: ${subject}`,
-      type: "support_ticket_new",
-      link: `${ADMIN_APP_URL}#support`,
-    });
-    console.log(`[onNewSupportTicket ${event.params.ticketId}] Sent:${result.sent} Failed:${result.failed}`);
+      const result = await sendBatchNotification(adminTokens, {
+        title: "New Support Ticket",
+        body: `${customerName}: ${subject}`,
+        type: "support_ticket_new",
+        link: `${ADMIN_APP_URL}#support`,
+      });
+      console.log(`[onNewSupportTicket ${event.params.ticketId}] Sent:${result.sent} Failed:${result.failed}`);
+    } catch (err) {
+      console.error(`[onNewSupportTicket ${event.params.ticketId}] Error:`, err);
+    }
   }
 );
 
@@ -1009,48 +1051,52 @@ exports.onNewSupportTicket = onValueCreated(
 exports.onNewSupportMessage = onValueCreated(
   { ref: "support_messages/{ticketId}/{messageId}", region: "asia-southeast1" },
   async (event) => {
-    const message = event.data.val();
-    if (!message || !message.senderType || message.senderType === "bot") return;
-
     const ticketId = event.params.ticketId;
-    const db = getDatabase();
-    const ticketSnap = await db.ref("support_tickets/" + ticketId).get();
-    if (!ticketSnap.exists()) return;
-    const ticket = ticketSnap.val();
+    try {
+      const message = event.data.val();
+      if (!message || !message.senderType || message.senderType === "bot") return;
 
-    if (message.senderType === "user") {
-      // User sent a message → notify all admins
-      const adminTokens = await getAllAdminTokens();
-      if (!adminTokens.length) return;
+      const db = getDatabase();
+      const ticketSnap = await db.ref("support_tickets/" + ticketId).get();
+      if (!ticketSnap.exists()) return;
+      const ticket = ticketSnap.val();
 
-      const senderName = message.senderName || ticket.userName || "Customer";
-      const preview = message.text.length > 80 ? message.text.slice(0, 80) + "…" : message.text;
+      if (message.senderType === "user") {
+        // User sent a message → notify all admins
+        const adminTokens = await getAllAdminTokens();
+        if (!adminTokens.length) return;
 
-      const result = await sendBatchNotification(adminTokens, {
-        title: `Support: ${ticket.subject || "Ticket"}`,
-        body: `${senderName}: ${preview}`,
-        type: "support_message_user",
-        link: `${ADMIN_APP_URL}#support`,
-      });
-      console.log(`[onNewSupportMessage user→admin ${ticketId}] Sent:${result.sent} Failed:${result.failed}`);
+        const senderName = message.senderName || ticket.userName || "Customer";
+        const preview = message.text.length > 80 ? message.text.slice(0, 80) + "…" : message.text;
 
-    } else if (message.senderType === "admin") {
-      // Admin sent a reply → notify the customer
-      const uid = ticket.uid;
-      if (!uid) return;
+        const result = await sendBatchNotification(adminTokens, {
+          title: `Support: ${ticket.subject || "Ticket"}`,
+          body: `${senderName}: ${preview}`,
+          type: "support_message_user",
+          link: `${ADMIN_APP_URL}#support`,
+        });
+        console.log(`[onNewSupportMessage user→admin ${ticketId}] Sent:${result.sent} Failed:${result.failed}`);
 
-      const userTokens = await getUserTokens(uid, { excludeRole: "rider" });
-      if (!userTokens.length) return;
+      } else if (message.senderType === "admin") {
+        // Admin sent a reply → notify the customer
+        const uid = ticket.uid;
+        if (!uid) return;
 
-      const preview = message.text.length > 80 ? message.text.slice(0, 80) + "…" : message.text;
+        const userTokens = await getUserTokens(uid, { excludeRole: "rider" });
+        if (!userTokens.length) return;
 
-      const result = await sendBatchNotification(userTokens, {
-        title: "BayanGo Support Reply",
-        body: preview,
-        type: "support_message_admin",
-        link: `${USER_APP_URL}#support`,
-      });
-      console.log(`[onNewSupportMessage admin→user ${ticketId}] Sent:${result.sent} Failed:${result.failed}`);
+        const preview = message.text.length > 80 ? message.text.slice(0, 80) + "…" : message.text;
+
+        const result = await sendBatchNotification(userTokens, {
+          title: "BayanGo Support Reply",
+          body: preview,
+          type: "support_message_admin",
+          link: `${USER_APP_URL}#support`,
+        });
+        console.log(`[onNewSupportMessage admin→user ${ticketId}] Sent:${result.sent} Failed:${result.failed}`);
+      }
+    } catch (err) {
+      console.error(`[onNewSupportMessage ${ticketId}] Error:`, err);
     }
   }
 );

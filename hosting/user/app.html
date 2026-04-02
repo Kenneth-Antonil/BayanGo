@@ -449,19 +449,36 @@
         }
         if (!token) return;
 
-        const tokenKey = sanitizeTokenKey(token);
-        await _fbDb.ref(`push_tokens/${user.uid}/${tokenKey}`).set({
-          token,
-          uid: user.uid,
-          userEmail: user.email || null,
-          userName: user.displayName || null,
-          role: "user",
-          platform: navigator.userAgent || "web",
-          updatedAt: Date.now(),
-          enabled: true,
-        });
+        // Save token to RTDB
+        const saveToken = async (t) => {
+          const tokenKey = sanitizeTokenKey(t);
+          await _fbDb.ref(`push_tokens/${user.uid}/${tokenKey}`).set({
+            token: t,
+            uid: user.uid,
+            userEmail: user.email || null,
+            userName: user.displayName || null,
+            role: "user",
+            platform: navigator.userAgent || "web",
+            updatedAt: Date.now(),
+            enabled: true,
+          });
+        };
+        await saveToken(token);
 
+        // Handle token refresh — FCM may rotate tokens at any time
         messaging.onMessage((payload) => {
+          // Re-fetch token on every foreground message to catch silent rotations
+          messaging.getToken(getTokenOptions).then(freshToken => {
+            if (freshToken && freshToken !== token) {
+              console.log("FCM token rotated, updating...");
+              // Remove old token entry
+              const oldKey = sanitizeTokenKey(token);
+              _fbDb.ref(`push_tokens/${user.uid}/${oldKey}`).remove().catch(() => {});
+              token = freshToken;
+              saveToken(freshToken).catch(err => console.error("Token refresh save error:", err));
+            }
+          }).catch(() => {});
+
           const title = payload?.notification?.title || "BayanGo";
           const body = payload?.notification?.body || "May bagong update ka.";
           if (Notification.permission === "granted") {
@@ -478,6 +495,22 @@
             };
           }
         });
+
+        // Periodically refresh token (every 30 min while app is open)
+        setInterval(async () => {
+          try {
+            const freshToken = await messaging.getToken(getTokenOptions);
+            if (freshToken && freshToken !== token) {
+              console.log("FCM token rotated (interval check), updating...");
+              const oldKey = sanitizeTokenKey(token);
+              _fbDb.ref(`push_tokens/${user.uid}/${oldKey}`).remove().catch(() => {});
+              token = freshToken;
+              await saveToken(freshToken);
+            }
+          } catch (err) {
+            console.warn("Token refresh interval error:", err);
+          }
+        }, 30 * 60 * 1000);
       } catch (err) {
         console.error("Push notification setup error:", err);
         if (String(err?.code || "").includes("vapid") || String(err?.message || "").toLowerCase().includes("vapid")) {
