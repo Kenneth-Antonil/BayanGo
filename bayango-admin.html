@@ -130,6 +130,7 @@
       measurementId:     "G-1EEGFZWB7E",
       databaseURL:       "https://bayango-315c6-default-rtdb.asia-southeast1.firebasedatabase.app",
     };
+    const WEB_PUSH_VAPID_KEY = (window.BAYANGO_WEB_PUSH_VAPID_KEY || "").trim();
 
     let _db = null;
     let _fns = null;
@@ -179,7 +180,19 @@
         const swReg = await navigator.serviceWorker.register("/firebase-messaging-sw.js");
         await navigator.serviceWorker.ready;
         const messaging = getMessaging(_app);
-        const token = await getToken(messaging, { serviceWorkerRegistration: swReg });
+        let token = null;
+        const getTokenOptions = { serviceWorkerRegistration: swReg };
+        if (WEB_PUSH_VAPID_KEY) {
+          getTokenOptions.vapidKey = WEB_PUSH_VAPID_KEY;
+        }
+        try {
+          token = await getToken(messaging, getTokenOptions);
+        } catch (err) {
+          const vapidErr = String(err?.code || "").includes("vapid") || String(err?.message || "").toLowerCase().includes("vapid");
+          if (!vapidErr || !WEB_PUSH_VAPID_KEY) throw err;
+          console.warn("VAPID key rejected. Retrying getToken without explicit vapidKey.");
+          token = await getToken(messaging, { serviceWorkerRegistration: swReg });
+        }
         if (!token) return;
 
         const { db, fns } = await initFirebase();
@@ -189,6 +202,7 @@
           uid: user.uid,
           userEmail: user.email || null,
           userName: user.displayName || null,
+          role: "admin",
           platform: navigator.userAgent || "web",
           updatedAt: Date.now(),
           enabled: true,
@@ -207,6 +221,9 @@
         });
       } catch (err) {
         console.error("Admin push setup error:", err);
+        if (String(err?.code || "").includes("vapid") || String(err?.message || "").toLowerCase().includes("vapid")) {
+          console.error("Missing/invalid Web Push VAPID key. Set window.BAYANGO_WEB_PUSH_VAPID_KEY before loading the admin app.");
+        }
       }
     }
 
