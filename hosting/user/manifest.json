@@ -3,7 +3,7 @@
   "short_name": "BayanGo",
   "description": "Kami na ang mamamalengke para sa'yo sa Binangonan! Mag-order ng pagkain, gulay, isda, at iba pa — ide-deliver namin sa'yo.",
   "id": "ph.bayango.app",
-  "start_url": "/",
+  "start_url": "/app.html",
   "scope": "/",
   "display": "standalone",
   "display_override": ["standalone", "minimal-ui"],
