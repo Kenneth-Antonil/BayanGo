@@ -474,9 +474,7 @@
             n.onclick = () => {
               window.focus();
               n.close();
-              if (type === "order_status" || type === "broadcast" || type === "gcash_payment_reminder") {
-                window.location.search = "?section=orders";
-              }
+              window.location.search = "?section=notifications";
             };
           }
         });
@@ -1287,6 +1285,9 @@
           if (section === "rider-tracker" || section === "orders" || hash === "rider-tracker" || hash === "orders") {
             return "orders";
           }
+          if (section === "notifications" || hash === "notifications") {
+            return "notifications";
+          }
         } catch {}
         return "shop";
       };
@@ -1304,6 +1305,26 @@
       const [showVoucherList,setShowVoucherList]= useState(false);
       const [cartWeightUnit, setCartWeightUnit] = useState({});
       const [paymentMethod,  setPaymentMethod]  = useState("COD");
+      const [notifications, setNotifications]  = useState([]);
+      const [notifLastSeen, setNotifLastSeen]  = useState(() => {
+        try { return parseInt(localStorage.getItem("bayango_notif_last_seen") || "0", 10); } catch { return 0; }
+      });
+      const unreadNotifCount = notifications.filter(n => n.createdAt > notifLastSeen).length;
+
+      // Listen for user notifications from RTDB
+      useEffect(() => {
+        if (!user?.uid || !_fbDb) return;
+        const ref = _fbDb.ref("user_notifications/" + user.uid).orderByChild("createdAt").limitToLast(50);
+        const handler = ref.on("value", snap => {
+          const arr = [];
+          snap.forEach(child => {
+            arr.push({ id: child.key, ...child.val() });
+          });
+          arr.sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
+          setNotifications(arr);
+        });
+        return () => ref.off("value", handler);
+      }, [user?.uid]);
 
       const cartCount = Object.values(cart).reduce((s,v) => s+v, 0);
       const cartItems = Object.entries(cart)
@@ -2370,6 +2391,14 @@
             </OrdersErrorBoundary>
           )}
 
+          {activePage === "notifications" && (
+            <NotificationsPage notifications={notifications} onMarkSeen={() => {
+              const now = Date.now();
+              setNotifLastSeen(now);
+              try { localStorage.setItem("bayango_notif_last_seen", String(now)); } catch {}
+            }} />
+          )}
+
           {activePage === "account" && (
             <AccountPage user={user} orders={myOrders} name={name} phone={phone} addr={addr}
               setName={setName} setPhone={setPhone} setAddr={setAddr} onLogout={onLogout}
@@ -2573,6 +2602,7 @@
             {[
               { key:"shop",    icon:"cart-shopping", label:"Tindahan" },
               { key:"orders",  icon:"box",           label:"Orders",  badge: activeOrders.length },
+              { key:"notifications", icon:"bell",    label:"Notifs",  badge: unreadNotifCount },
             ].map(t => (
               <button key={t.key} onClick={() => setActivePage(t.key)} style={{
                 flex:1, padding:"11px 0 9px", display:"flex", flexDirection:"column", alignItems:"center", gap:3,
@@ -2593,6 +2623,83 @@
             ))}
           </div>
 
+        </div>
+      );
+    }
+
+
+    /* ══════════════════ NOTIFICATIONS PAGE ══════════════════ */
+    function NotificationsPage({ notifications, onMarkSeen }) {
+      useEffect(() => { onMarkSeen(); }, []);
+
+      const NOTIF_ICON = {
+        order_status: "box",
+        batch_reminder: "clock",
+        gcash_payment_reminder: "money-bill",
+        broadcast: "bullhorn",
+      };
+
+      const NOTIF_COLOR = {
+        order_status: "#3B82F6",
+        batch_reminder: "#F59E0B",
+        gcash_payment_reminder: "#22C55E",
+        broadcast: "#A855F7",
+      };
+
+      const timeAgo = (ts) => {
+        if (!ts) return "";
+        const diff = Date.now() - ts;
+        const mins = Math.floor(diff / 60000);
+        if (mins < 1) return "Ngayon lang";
+        if (mins < 60) return mins + "m ago";
+        const hrs = Math.floor(mins / 60);
+        if (hrs < 24) return hrs + "h ago";
+        const days = Math.floor(hrs / 24);
+        if (days < 7) return days + "d ago";
+        return new Date(ts).toLocaleDateString("en-PH", { month:"short", day:"numeric" });
+      };
+
+      return (
+        <div style={{ padding:"16px 16px 20px" }}>
+          <h2 style={{ fontSize:20, fontWeight:800, color:"#111", marginBottom:4 }}>
+            <Ic n="bell" style={{ marginRight:8, color:"#166534" }} />Notifications
+          </h2>
+          <p style={{ fontSize:12, color:"#999", marginBottom:16 }}>Lahat ng updates mula sa BayanGo</p>
+
+          {notifications.length === 0 ? (
+            <div style={{ textAlign:"center", padding:"60px 20px", color:"#bbb" }}>
+              <Ic n="bell-slash" size={48} style={{ color:"#ddd", marginBottom:12, display:"block" }} />
+              <div style={{ fontSize:15, fontWeight:700, color:"#aaa" }}>Walang notifications</div>
+              <div style={{ fontSize:12, marginTop:4 }}>Mag-o-order ka muna para makatanggap ng updates!</div>
+            </div>
+          ) : (
+            notifications.map((n, i) => {
+              const icon = NOTIF_ICON[n.type] || "bell";
+              const color = NOTIF_COLOR[n.type] || "#166534";
+              return (
+                <div key={n.id} className="fade-up" style={{
+                  display:"flex", gap:12, padding:"14px 12px",
+                  background:"#fff", borderRadius:14, marginBottom:8,
+                  boxShadow:"0 1px 4px rgba(0,0,0,.05)",
+                  border:"1px solid #F0F0F0",
+                  animationDelay: (i * 0.04) + "s",
+                }}>
+                  <div style={{
+                    width:42, height:42, borderRadius:12, flexShrink:0,
+                    display:"flex", alignItems:"center", justifyContent:"center",
+                    background: color + "18",
+                  }}>
+                    <Ic n={icon} size={18} style={{ color }} />
+                  </div>
+                  <div style={{ flex:1, minWidth:0 }}>
+                    <div style={{ fontSize:14, fontWeight:700, color:"#111", marginBottom:2 }}>{n.title || "BayanGo"}</div>
+                    <div style={{ fontSize:12, color:"#666", lineHeight:"1.4" }}>{n.body}</div>
+                    <div style={{ fontSize:10, color:"#bbb", marginTop:4, fontWeight:600 }}>{timeAgo(n.createdAt)}</div>
+                  </div>
+                </div>
+              );
+            })
+          )}
         </div>
       );
     }
