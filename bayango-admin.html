@@ -1066,6 +1066,38 @@
         try { await onUpdateStatus(order, next); }
         finally { setUpdating(null); if (selected?.id === order.id) setSelected(s => ({...s, status:next})); }
       };
+      const cancelOrderByAdmin = async (order) => {
+        if (!order?.id) return;
+        if (order.status === "delivered" || order.status === "cancelled") {
+          alert("Hindi na puwedeng i-cancel ang order na ito.");
+          return;
+        }
+        let reason = "";
+        while (!reason.trim()) {
+          reason = window.prompt("Ilagay ang reason ng pagkaka-cancel ng order:", "");
+          if (reason === null) return;
+          if (!reason.trim()) alert("Required ang cancellation reason.");
+        }
+        if (!window.confirm("I-cancel ang order na ito?")) return;
+        setUpdating(order.id);
+        try {
+          const adminUid = auth?.currentUser?.uid || null;
+          const updates = {
+            status: "cancelled",
+            cancellationReason: reason.trim(),
+            cancelledBy: adminUid,
+            cancelledByRole: "admin",
+            cancelledAt: Date.now(),
+            updatedAt: Date.now(),
+          };
+          await fns.update(fns.ref(db, "orders/" + order.id), updates);
+          if (selected?.id === order.id) setSelected(s => ({ ...s, ...updates }));
+        } catch (err) {
+          alert("Hindi ma-cancel ang order: " + (err?.message || "Unknown error"));
+        } finally {
+          setUpdating(null);
+        }
+      };
 
       const STATUS_INFO = {
         pending:   { label:"Pending",     icon:"hourglass-half", bg:"#F3F4F6", color:"#555"    },
@@ -1386,6 +1418,12 @@
                       </span>
                     )}
                   </div>
+                  {order.status === "cancelled" && order.cancellationReason && (
+                    <div style={{ marginBottom:12, padding:"8px 10px", borderRadius:10, background:"#FEF2F2", border:"1px solid #FECACA", fontSize:11, color:"#991B1B", fontWeight:700 }}>
+                      <Ic n="circle-info" style={{ marginRight:4 }} />
+                      Reason: {order.cancellationReason}
+                    </div>
+                  )}
 
                   {/* GCash Payment Confirm (Island orders in buying) */}
                   {order.locationType === "Island" && order.status === "buying" && (
@@ -1409,6 +1447,14 @@
                       flex:1, padding:"10px", borderRadius:12, background:"#F9FAFB",
                       border:"1px solid #E5E7EB", fontSize:13, fontWeight:600, color:"#555"
                     }}><Ic n="clipboard" style={{ marginRight:4 }} />Details</button>
+                    {order.status !== "delivered" && order.status !== "cancelled" && (
+                      <button onClick={() => cancelOrderByAdmin(order)} disabled={updating === order.id} style={{
+                        padding:"10px 12px", borderRadius:12, border:"1px solid #FCA5A5",
+                        background:"#FEF2F2", color:"#B91C1C", fontSize:12, fontWeight:800,
+                      }}>
+                        {updating===order.id ? "..." : "Cancel"}
+                      </button>
+                    )}
                     {getNextLabel(order) && (
                       <button onClick={() => advance(order)} disabled={updating === order.id} style={{
                         flex:2, padding:"10px", borderRadius:12,
@@ -1449,6 +1495,12 @@
                   <div style={{ fontSize:13, color:"#555", marginTop:2 }}><Ic n="location-dot" style={{ marginRight:4 }} />{selected.customer?.address}</div>
                   <div style={{ fontSize:12, color:"#aaa", marginTop:4 }}>Zone: {selected.zone}</div>
                 </div>
+                {selected.status === "cancelled" && selected.cancellationReason && (
+                  <div style={{ background:"#FEF2F2", borderRadius:14, padding:"12px 14px", marginBottom:14, border:"1px solid #FECACA" }}>
+                    <div style={{ fontSize:11, fontWeight:800, color:"#B91C1C", marginBottom:4 }}>CANCELLATION REASON</div>
+                    <div style={{ fontSize:13, color:"#7F1D1D", fontWeight:600 }}>{selected.cancellationReason}</div>
+                  </div>
+                )}
 
                 {/* Rider */}
                 {selected.riderId && (
@@ -1638,6 +1690,15 @@
                 )}
 
                 {/* Status update */}
+                {selected.status !== "delivered" && selected.status !== "cancelled" && (
+                  <button onClick={() => cancelOrderByAdmin(selected)} disabled={updating === selected.id} style={{
+                    width:"100%", marginBottom:10, padding:"12px", borderRadius:14,
+                    background:"#FEF2F2", border:"1px solid #FCA5A5", color:"#B91C1C",
+                    fontSize:13, fontWeight:800,
+                  }}>
+                    {updating===selected.id ? "Cancelling..." : "Cancel Order (with reason)"}
+                  </button>
+                )}
                 {getNextLabel(selected) && (
                   <button onClick={() => advance(selected)} disabled={updating === selected.id} style={{
                     width:"100%", padding:"15px", borderRadius:16,
