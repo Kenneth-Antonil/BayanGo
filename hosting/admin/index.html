@@ -309,13 +309,15 @@
       const [products, setProducts] = useState([]);
       const [orders,   setOrders]   = useState([]);
       const [vouchers, setVouchers] = useState([]);
+      const [partnerApplications, setPartnerApplications] = useState([]);
+      const [partnerMerchants, setPartnerMerchants] = useState([]);
       const [appUsageStats, setAppUsageStats] = useState({ activeUsers: 0, downloadedUsers: 0 });
       const [ready,    setReady]    = useState(false);
       const [user,     setUser]     = useState(null);
       const [marketPricing, setMarketPricing] = useState({});
 
       useEffect(() => {
-        let unsubOrders, unsubProducts, unsubVouchers, unsubMarket, unsubAppUsage, unsubAuth;
+        let unsubOrders, unsubProducts, unsubVouchers, unsubMarket, unsubAppUsage, unsubAuth, unsubPartnerApplications, unsubPartnerMerchants;
         (async () => {
           const { db, fns, auth, authFns } = await initFirebase();
           const { onAuthStateChanged } = authFns;
@@ -438,9 +440,27 @@
               setAppUsageStats({ activeUsers, downloadedUsers });
             }, err => console.error("App usage snapshot error:", err.code, err.message));
             unsubAppUsage = () => fns.off(usageRef);
+
+            const partnerAppsRef = fns.ref(db, "partner_applications");
+            fns.onValue(partnerAppsRef, snap => {
+              const list = [];
+              snap.forEach(c => list.push({ id: c.key, ...(c.val() || {}) }));
+              list.sort((a, b) => Number(b.createdAt || 0) - Number(a.createdAt || 0));
+              setPartnerApplications(list);
+            });
+            unsubPartnerApplications = () => fns.off(partnerAppsRef);
+
+            const partnerMerchantsRef = fns.ref(db, "partner_merchants");
+            fns.onValue(partnerMerchantsRef, snap => {
+              const list = [];
+              snap.forEach(c => list.push({ id: c.key, ...(c.val() || {}) }));
+              list.sort((a, b) => String(a.storeName || "").localeCompare(String(b.storeName || "")));
+              setPartnerMerchants(list);
+            });
+            unsubPartnerMerchants = () => fns.off(partnerMerchantsRef);
           });
         })();
-        return () => { unsubOrders?.(); unsubProducts?.(); unsubVouchers?.(); unsubMarket?.(); unsubAppUsage?.(); unsubAuth?.(); };
+        return () => { unsubOrders?.(); unsubProducts?.(); unsubVouchers?.(); unsubMarket?.(); unsubAppUsage?.(); unsubPartnerApplications?.(); unsubPartnerMerchants?.(); unsubAuth?.(); };
       }, []);
 
       const addOrder = useCallback(async (order) => {
@@ -525,6 +545,35 @@
         await fns.remove(fns.ref(db, "vouchers/" + voucherId));
       }, []);
 
+      const decidePartnerApplication = useCallback(async (application, decision) => {
+        const { db, fns } = await initFirebase();
+        const status = decision === "approve" ? "approved" : "rejected";
+        const uid = application.applicantUid || application.uid;
+        const updates = {
+          status,
+          reviewedAt: Date.now(),
+          reviewedByUid: user?.uid || null,
+          reviewedByEmail: user?.email || null,
+        };
+        await fns.update(fns.ref(db, "partner_applications/" + application.id), updates);
+        if (decision === "approve" && uid) {
+          await fns.update(fns.ref(db, "partner_merchants/" + uid), {
+            applicantUid: uid,
+            applicationId: application.id,
+            contactName: application.contactName || "",
+            contactPhone: application.contactPhone || "",
+            storeName: application.storeName || "",
+            storeCategory: application.storeCategory || "sari",
+            description: application.description || "",
+            logoUrl: application.logoUrl || "",
+            approved: true,
+            approvedAt: Date.now(),
+            approvedByUid: user?.uid || null,
+            approvedByEmail: user?.email || null,
+          });
+        }
+      }, [user?.email, user?.uid]);
+
       // Show loading state while Firebase connects
       if (!ready) return (
         <div style={{ minHeight:"100vh", background:"#F8FAF8", display:"flex", alignItems:"center", justifyContent:"center", flexDirection:"column", gap:16 }}>
@@ -581,8 +630,46 @@
             onUpdateVoucher={updateVoucher}
             onDeleteVoucher={deleteVoucher}
             appUsageStats={appUsageStats}
+            partnerApplications={partnerApplications}
+            partnerMerchants={partnerMerchants}
+            onDecidePartnerApplication={decidePartnerApplication}
           />
         </>
+      );
+    }
+
+    function PartnersPanel({ applications, merchants, onDecide }) {
+      const pending = applications.filter(a => (a.status || "pending") === "pending");
+      return (
+        <div style={{ padding:"16px 20px" }}>
+          <div style={{ fontSize:20, fontWeight:800, color:"#0F172A", marginBottom:10 }}>Partner Merchants</div>
+          <div style={{ background:"#fff", border:"1px solid #E2E8F0", borderRadius:16, padding:14, marginBottom:14 }}>
+            <div style={{ fontSize:14, fontWeight:800, marginBottom:10 }}>Pending Applications ({pending.length})</div>
+            {pending.length === 0 ? <div style={{ fontSize:12, color:"#64748B" }}>No pending partner applications.</div> : pending.map(app => (
+              <div key={app.id} style={{ border:"1px solid #E5E7EB", borderRadius:12, padding:12, marginBottom:10 }}>
+                <div style={{ fontWeight:800 }}>{app.storeName || "Unnamed store"}</div>
+                <div style={{ fontSize:12, color:"#64748B", marginTop:2 }}>{app.contactName || "-"} • {app.contactPhone || "-"}</div>
+                <div style={{ fontSize:12, color:"#334155", marginTop:4 }}>{app.description || "No description provided."}</div>
+                <div style={{ display:"flex", gap:8, marginTop:10 }}>
+                  <button onClick={() => onDecide(app, "approve")} style={{ padding:"8px 12px", borderRadius:10, background:"#166534", color:"#fff", fontWeight:700, fontSize:12 }}>Approve</button>
+                  <button onClick={() => onDecide(app, "reject")} style={{ padding:"8px 12px", borderRadius:10, background:"#EF4444", color:"#fff", fontWeight:700, fontSize:12 }}>Reject</button>
+                </div>
+              </div>
+            ))}
+          </div>
+          <div style={{ background:"#fff", border:"1px solid #E2E8F0", borderRadius:16, padding:14 }}>
+            <div style={{ fontSize:14, fontWeight:800, marginBottom:10 }}>Approved Merchants ({merchants.filter(m => m.approved).length})</div>
+            {merchants.filter(m => m.approved).map(m => (
+              <div key={m.id} style={{ display:"flex", alignItems:"center", gap:10, padding:"8px 0", borderTop:"1px solid #F1F5F9" }}>
+                {m.logoUrl ? <img src={m.logoUrl} alt={m.storeName} style={{ width:32, height:32, borderRadius:"50%", objectFit:"cover", border:"1px solid #E2E8F0" }} /> : <div style={{ width:32, height:32, borderRadius:"50%", background:"#E2E8F0" }} />}
+                <div>
+                  <div style={{ fontWeight:700, fontSize:13 }}>{m.storeName || "Store"}</div>
+                  <div style={{ fontSize:11, color:"#64748B" }}>{m.contactName || "-"} • {m.storeCategory || "sari"}</div>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
       );
     }
 
@@ -813,7 +900,7 @@
     }
 
     /* ══════════════════ ADMIN DASHBOARD ══════════════════ */
-    function AdminDashboard({ user, orders, onUpdateStatus, onBroadcast, products, onAddProduct, onUpdateProduct, onDeleteProduct, marketPricing, onUpdateMarketPricing, vouchers, onAddVoucher, onUpdateVoucher, onDeleteVoucher, appUsageStats }) {
+    function AdminDashboard({ user, orders, onUpdateStatus, onBroadcast, products, onAddProduct, onUpdateProduct, onDeleteProduct, marketPricing, onUpdateMarketPricing, vouchers, onAddVoucher, onUpdateVoucher, onDeleteVoucher, appUsageStats, partnerApplications, partnerMerchants, onDecidePartnerApplication }) {
       const getInitialTab = () => {
         try {
           const hash = (window.location.hash || "").replace("#", "").toLowerCase();
@@ -851,7 +938,8 @@
         return nextKey ? `Mark as ${STATUS_INFO[nextKey]?.label || nextKey}` : null;
       };
 
-      const viewFilteredOrders = orders.filter(o => ordersView === "archive" ? (o.status === "delivered" || o.status === "cancelled") : (o.status !== "delivered" && o.status !== "cancelled"));
+      const dashboardOrders = orders.filter(o => o.status !== "merchant_pending");
+      const viewFilteredOrders = dashboardOrders.filter(o => ordersView === "archive" ? (o.status === "delivered" || o.status === "cancelled") : (o.status !== "delivered" && o.status !== "cancelled"));
 
       const filtered = viewFilteredOrders.filter(o => {
         if (filterStatus !== "all" && o.status !== filterStatus) return false;
@@ -867,11 +955,11 @@
       });
 
       const counts = {
-        all:       orders.length,
-        pending:   orders.filter(o => o.status === "pending").length,
-        buying:    orders.filter(o => o.status === "buying").length,
-        otw:       orders.filter(o => o.status === "otw" || o.status === "in_boat").length,
-        delivered: orders.filter(o => o.status === "delivered").length,
+        all:       dashboardOrders.length,
+        pending:   dashboardOrders.filter(o => o.status === "pending").length,
+        buying:    dashboardOrders.filter(o => o.status === "buying").length,
+        otw:       dashboardOrders.filter(o => o.status === "otw" || o.status === "in_boat").length,
+        delivered: dashboardOrders.filter(o => o.status === "delivered").length,
       };
 
       useEffect(() => {
@@ -1076,15 +1164,15 @@
         cancelled: { label:"Cancelled",   icon:"ban",            bg:"#FEE2E2", color:"#B91C1C" },
       };
 
-      const deliveredOrders = orders.filter(o => o.status === "delivered");
-      const activeOrders = orders.filter(o => o.status !== "delivered" && o.status !== "cancelled");
+      const deliveredOrders = dashboardOrders.filter(o => o.status === "delivered");
+      const activeOrders = dashboardOrders.filter(o => o.status !== "delivered" && o.status !== "cancelled");
       const totalRevenue = deliveredOrders.reduce((s,o) => s + (o.serviceFee||0), 0);
       const todayStr = new Date().toLocaleDateString("en-PH");
-      const todayOrders = orders.filter(o => {
+      const todayOrders = dashboardOrders.filter(o => {
         const d = o.createdAt?.toDate ? o.createdAt.toDate() : new Date(o.createdAt||0);
         return d.toLocaleDateString("en-PH") === todayStr;
       });
-      const activeRiders = [...new Set(orders.filter(o => o.status === "otw" && o.riderId).map(o => o.riderId))].length;
+      const activeRiders = [...new Set(dashboardOrders.filter(o => o.status === "otw" && o.riderId).map(o => o.riderId))].length;
 
       return (
         <div style={{ maxWidth:1280, margin:"0 auto", minHeight:"100vh", background:"linear-gradient(180deg,#F1F5F9 0%,#F8FAF8 40%)", paddingBottom:40 }}>
@@ -1129,7 +1217,7 @@
 
           <div style={{ padding:"0 20px 12px", display:"grid", gridTemplateColumns:"repeat(4,minmax(0,1fr))", gap:10 }}>
             {[
-              { label:"Total Orders", value:orders.length, icon:"chart-line", tone:"#0F172A", bg:"#E2E8F0" },
+              { label:"Total Orders", value:dashboardOrders.length, icon:"chart-line", tone:"#0F172A", bg:"#E2E8F0" },
               { label:"Revenue", value:`₱${totalRevenue.toLocaleString("en-PH",{minimumFractionDigits:0,maximumFractionDigits:0})}`, icon:"coins", tone:"#166534", bg:"#DCFCE7" },
               { label:"Today's Orders", value:todayOrders.length, icon:"calendar-day", tone:"#1D4ED8", bg:"#DBEAFE" },
               { label:"App Active Users", value:appUsageStats?.activeUsers || 0, icon:"users", tone:"#7C3AED", bg:"#EDE9FE" },
@@ -1153,6 +1241,7 @@
               { key:"orders",  label:"Mga Orders",  icon:"receipt" },
               { key:"grocery", label:"Grocery",      icon:"basket-shopping" },
               { key:"products",label:"Produkto",     icon:"store" },
+              { key:"partners",label:"Partners",     icon:"handshake", badge: partnerApplications.filter(a => (a.status || "pending") === "pending").length },
               { key:"vouchers",label:"Vouchers",     icon:"ticket" },
               { key:"settings",label:"Settings",     icon:"gear" },
             ].map(t => (
@@ -1173,7 +1262,15 @@
 
 
           {tab === "grocery" && (
-            <GroceryTab orders={orders} />
+            <GroceryTab orders={dashboardOrders} />
+          )}
+
+          {tab === "partners" && (
+            <PartnersPanel
+              applications={partnerApplications}
+              merchants={partnerMerchants}
+              onDecide={onDecidePartnerApplication}
+            />
           )}
 
           {tab === "products" && (
@@ -1310,7 +1407,7 @@
                 boxShadow:ordersView==="archive" ? "0 2px 8px rgba(30,41,59,.25)" : "none",
               }}>
                 <Ic n="box-archive" style={{ marginRight:6 }} />
-                Archive ({orders.filter(o => o.status === "delivered" || o.status === "cancelled").length})
+                Archive ({dashboardOrders.filter(o => o.status === "delivered" || o.status === "cancelled").length})
               </button>
             </div>
             <div style={{ background:"#fff", borderRadius:14, padding:"11px 16px", display:"flex", alignItems:"center", gap:10, boxShadow:"0 1px 4px rgba(0,0,0,.07)", border:"1px solid #E9ECEF" }}>

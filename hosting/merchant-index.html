@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>BayanGo Partner Merchant Dashboard</title>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" />
+  <style>body{font-family:Arial,sans-serif;background:#f8fafc;margin:0} .card{background:#fff;border:1px solid #e2e8f0;border-radius:14px;padding:14px;margin-bottom:12px} button{cursor:pointer;border:none;border-radius:10px;padding:10px 12px;font-weight:700} input,select,textarea{width:100%;padding:9px;border:1px solid #cbd5e1;border-radius:8px;margin:6px 0}</style>
+</head>
+<body>
+<div id="root" style="max-width:900px;margin:0 auto;padding:18px"></div>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.23.2/babel.min.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-storage-compat.js"></script>
+<script>
+const app=firebase.initializeApp({apiKey:"AIzaSyC0AQ3rkH-fhxlThobjDDtrvxttAfFLXTE",authDomain:"bayango-315c6.firebaseapp.com",projectId:"bayango-315c6",storageBucket:"bayango-315c6.firebasestorage.app",messagingSenderId:"199013441811",appId:"1:199013441811:web:315a38f03ddc9b676e3ae6",databaseURL:"https://bayango-315c6-default-rtdb.asia-southeast1.firebasedatabase.app"});
+const db=firebase.database(app);const auth=firebase.auth(app);const storage=firebase.storage(app);
+</script>
+<script type="text/babel">
+const CATEGORIES=["isda","karne","gulay","prutas","ulam","sari","gamot","hardware"];
+function App(){
+ const [user,setUser]=React.useState(null);const [merchant,setMerchant]=React.useState(null);const [listings,setListings]=React.useState([]);const [orders,setOrders]=React.useState([]);
+ const [form,setForm]=React.useState({name:"",cat:"sari",price:"",unit:"pc",img:""});
+ React.useEffect(()=>auth.onAuthStateChanged(setUser),[]);
+ React.useEffect(()=>{ if(!user) return; db.ref("partner_merchants/"+user.uid).on("value",s=>setMerchant(s.val())); db.ref("merchant_listings/"+user.uid).on("value",s=>{const a=[];s.forEach(c=>a.push({id:c.key,...c.val()}));setListings(a)}); db.ref("orders").on("value",s=>{const a=[];s.forEach(c=>{const v=c.val()||{}; if(v.merchantId===user.uid) a.push({id:c.key,...v});}); a.sort((a,b)=>(b.createdAt||0)-(a.createdAt||0)); setOrders(a);}); },[user?.uid]);
+ const signIn=async()=>{await auth.signInWithPopup(new firebase.auth.GoogleAuthProvider())};
+ const uploadLogo=async(file)=>{if(!user||!file) return; const ref=storage.ref(`merchant_logos/${user.uid}_${Date.now()}_${file.name}`); await ref.put(file); const logoUrl=await ref.getDownloadURL(); await db.ref("partner_merchants/"+user.uid).update({logoUrl});};
+ const addListing=async()=>{if(!user||!form.name) return; await db.ref("merchant_listings/"+user.uid).push({...form,price:Number(form.price||0),basePrice:Number(form.price||0),autoPriceEnabled:false,merchantId:user.uid,merchantLogo:merchant?.logoUrl||"",storeName:merchant?.storeName||"",active:true,approved:true,createdAt:Date.now()}); setForm({name:"",cat:"sari",price:"",unit:"pc",img:""});};
+ const updateOrder=async(id,status,merchantStatus)=>{await db.ref("orders/"+id).update({status,merchantStatus,merchantUpdatedAt:Date.now()});};
+ if(!user) return <div className="card"><h2>Partner Merchant Dashboard</h2><button onClick={signIn}>Sign in with Google</button></div>;
+ if(!merchant?.approved) return <div className="card"><h3>Waiting for admin approval</h3><p>Wala ka pang access. Kapag approved na ang application mo sa admin dashboard saka pa lang bubukas ang dashboard na ito.</p></div>;
+ return <div>
+  <div className="card"><h2>{merchant.storeName || "Partner Merchant"}</h2><p>Status: Approved</p><input type="file" accept="image/*" onChange={e=>uploadLogo(e.target.files?.[0])}/>{merchant.logoUrl&&<img src={merchant.logoUrl} style={{width:58,height:58,borderRadius:"50%",objectFit:"cover"}}/>}</div>
+  <div className="card"><h3>Add Listing</h3><input placeholder="Item name" value={form.name} onChange={e=>setForm(f=>({...f,name:e.target.value}))}/><select value={form.cat} onChange={e=>setForm(f=>({...f,cat:e.target.value}))}>{CATEGORIES.map(c=><option key={c} value={c}>{c}</option>)}</select><input placeholder="Price" value={form.price} onChange={e=>setForm(f=>({...f,price:e.target.value}))}/><input placeholder="Unit (pc/kg)" value={form.unit} onChange={e=>setForm(f=>({...f,unit:e.target.value}))}/><input placeholder="Image URL" value={form.img} onChange={e=>setForm(f=>({...f,img:e.target.value}))}/><button style={{background:'#166534',color:'#fff'}} onClick={addListing}>Save Listing</button></div>
+  <div className="card"><h3>Your Listings ({listings.length})</h3>{listings.map(l=><div key={l.id} style={{padding:'8px 0',borderTop:'1px solid #f1f5f9'}}>{l.name} • ₱{Number(l.price||0)}</div>)}</div>
+  <div className="card"><h3>Merchant Orders</h3>{orders.map(o=><div key={o.id} style={{border:'1px solid #e2e8f0',borderRadius:10,padding:10,marginBottom:10}}><div style={{fontWeight:700}}>{o.customer?.name} • ₱{o.total}</div><div style={{fontSize:12,color:'#64748b',margin:'4px 0'}}>Status: {o.merchantStatus||o.status}</div><div style={{display:'flex',gap:8}}><button style={{background:'#e2e8f0'}} onClick={()=>updateOrder(o.id,'merchant_pending','accepted')}>Accept</button><button style={{background:'#fef3c7'}} onClick={()=>updateOrder(o.id,'merchant_pending','preparing')}>Preparing</button><button style={{background:'#16a34a',color:'#fff'}} onClick={()=>updateOrder(o.id,'pending','ready')}>Ready</button></div></div>)}</div>
+ </div>;
+}
+ReactDOM.createRoot(document.getElementById('root')).render(<App/>);
+</script>
+</body></html>

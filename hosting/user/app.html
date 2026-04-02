@@ -209,18 +209,21 @@
     const DEFAULT_PRODUCTS = [];
 
     const ORDER_STATUSES = [
+      { key:"merchant_pending", label:"Merchant Pending", icon:"store",          desc:"Waiting for merchant to prepare your order" },
       { key:"pending",   label:"Pending",   icon:"hourglass-half", desc:"Your order has been received" },
       { key:"buying",    label:"Buying",    icon:"cart-shopping",  desc:"Now buying from the market" },
       { key:"otw",       label:"OTW",       icon:"motorcycle",     desc:"On the way to you" },
       { key:"delivered", label:"Delivered", icon:"circle-check",   desc:"Delivered!" },
     ];
     const ISLAND_ORDER_STATUSES = [
+      { key:"merchant_pending", label:"Merchant Pending", icon:"store",          desc:"Waiting for merchant to prepare your order" },
       { key:"pending",   label:"Pending",     icon:"hourglass-half", desc:"Your order has been received" },
       { key:"buying",    label:"Buying",      icon:"cart-shopping",  desc:"Now buying from the market" },
       { key:"in_boat",   label:"In the Boat", icon:"ship",           desc:"On the boat and heading to you" },
       { key:"delivered", label:"Delivered",   icon:"circle-check",   desc:"Delivered!" },
     ];
     const ORDER_STATUS_COLORS = {
+      merchant_pending: { bg:"#EDE9FE", color:"#6D28D9", label:"Merchant Pending", icon:"store"          },
       pending:   { bg:"#F3F4F6", color:"#555",    label:"Pending",      icon:"hourglass-half" },
       buying:    { bg:"#FEF3C7", color:"#92400E", label:"Buying",       icon:"cart-shopping"  },
       otw:       { bg:"#DBEAFE", color:"#1D4ED8", label:"OTW",          icon:"motorcycle"     },
@@ -749,12 +752,25 @@
         const timeout = setTimeout(() => setLoading(false), 8000);
 
         let baseProductsRaw = [];
+        let partnerListingsRaw = [];
+        let partnerMerchantsById = {};
         const refreshMergedProducts = () => {
           const regularProducts = baseProductsRaw.map((entry) => ({
             ...entry,
             source: "market",
           }));
-          setProducts(regularProducts);
+          const partnerProducts = partnerListingsRaw
+            .map((entry) => {
+              const merchant = partnerMerchantsById[entry.merchantId] || {};
+              return {
+                ...entry,
+                source: "partner",
+                storeName: entry.storeName || merchant.storeName || "Partner Merchant",
+                merchantLogo: entry.merchantLogo || merchant.logoUrl || "",
+              };
+            })
+            .filter((entry) => entry.active !== false);
+          setProducts([...regularProducts, ...partnerProducts]);
         };
 
         const bindProducts = () => {
@@ -780,6 +796,47 @@
           });
         };
 
+        const bindPartnerListings = () => {
+          if (!_fbDb) return;
+          _fbDb.ref("merchant_listings").off();
+          _fbDb.ref("merchant_listings").on("value", snap => {
+            const rows = [];
+            snap.forEach(merchantNode => {
+              const merchantId = merchantNode.key;
+              merchantNode.forEach(listingNode => {
+                const raw = listingNode.val() || {};
+                if (raw.active === false) return;
+                if (raw.approved === false) return;
+                const normalized = { id: listingNode.key, merchantId, ...raw };
+                rows.push({
+                  ...normalized,
+                  basePrice: Number.isFinite(Number(raw.basePrice)) ? Number(raw.basePrice) : Number(raw.price || 0),
+                  autoPriceEnabled: raw.autoPriceEnabled !== false,
+                  price: computeLivePrice(normalized, currentMarketPricing),
+                  unit: raw.unit || "pc",
+                });
+              });
+            });
+            partnerListingsRaw = rows;
+            refreshMergedProducts();
+          }, err => console.error("Partner listings listener error:", err.code));
+        };
+
+        const bindPartnerMerchants = () => {
+          if (!_fbDb) return;
+          _fbDb.ref("partner_merchants").off();
+          _fbDb.ref("partner_merchants").on("value", snap => {
+            const map = {};
+            snap.forEach(child => {
+              const raw = child.val() || {};
+              if (raw.approved !== true) return;
+              map[child.key] = raw;
+            });
+            partnerMerchantsById = map;
+            refreshMergedProducts();
+          }, err => console.error("Partner merchants listener error:", err.code));
+        };
+
 
         const bindMarketPricing = () => {
           if (!_fbDb) return;
@@ -799,6 +856,8 @@
         try {
           bindMarketPricing();
           bindProducts();
+          bindPartnerMerchants();
+          bindPartnerListings();
           _fbAuth.getRedirectResult().catch(err => console.error("Redirect result error:", err));
           unsubAuth = _fbAuth.onAuthStateChanged(currentUser => {
             clearTimeout(timeout);
@@ -807,6 +866,8 @@
 
             // Rebind products after auth changes (important when products read requires auth)
             bindProducts();
+            bindPartnerMerchants();
+            bindPartnerListings();
 
             // Clean up previous order listener
             if (unsubOrders) {
@@ -886,6 +947,8 @@
             _fbDb.ref("orders").off();
             _fbDb.ref("products").off();
             _fbDb.ref("settings/marketPricing").off();
+            _fbDb.ref("merchant_listings").off();
+            _fbDb.ref("partner_merchants").off();
           }
           if (activityIntervalId) clearInterval(activityIntervalId);
           if (visibilityHandler) document.removeEventListener("visibilitychange", visibilityHandler);
@@ -1590,6 +1653,21 @@
           }
           return;
         }
+        const merchantItemsInCart = cartItems.filter(i => i.source === "partner");
+        const merchantIds = [...new Set(merchantItemsInCart.map(i => i.merchantId).filter(Boolean))];
+        if (merchantIds.length > 1) {
+          alert("Isang partner merchant lang kada order. Gumawa ng hiwalay na checkout para sa ibang merchant.");
+          return;
+        }
+        if (merchantIds.length === 1 && (cartItems.some(i => i.source !== "partner") || customItems.length > 0)) {
+          alert("Hindi puwedeng paghaluin ang partner merchant items at regular/custom market items sa iisang order.");
+          return;
+        }
+        const selectedMerchantId = merchantIds[0] || null;
+        const selectedMerchant = selectedMerchantId
+          ? (products.find(p => p.merchantId === selectedMerchantId) || null)
+          : null;
+
         const allItems = [
           ...cartItems.map(i => ({
             ...i,
@@ -1622,7 +1700,11 @@
             total,
             zone: deliveryMetaLabel,
             customer: { name, phone, address: addr, lat: customerLat, lng: customerLng },
-            status: "pending",
+            status: selectedMerchantId ? "merchant_pending" : "pending",
+            merchantId: selectedMerchantId,
+            merchantName: selectedMerchant?.storeName || null,
+            merchantLogo: selectedMerchant?.merchantLogo || null,
+            merchantStatus: selectedMerchantId ? "pending" : null,
             hasCustomItems: customItems.length > 0,
             deliveryBatch: batchInfo.batch,
             deliveryDate:  batchInfo.date,
@@ -1845,6 +1927,14 @@
                     background:`linear-gradient(135deg,${CATEGORIES.find(c=>c.id===p.cat)?.color}12,${CATEGORIES.find(c=>c.id===p.cat)?.color}06)`,
                     display:"flex", alignItems:"center", justifyContent:"center"
                   }}>
+                    {p.source === "partner" && p.merchantLogo && (
+                      <div style={{
+                        position:"absolute", top:8, left:8, width:28, height:28, borderRadius:"50%",
+                        overflow:"hidden", border:"2px solid #fff", boxShadow:"0 2px 6px rgba(0,0,0,.2)", zIndex:3, background:"#fff"
+                      }}>
+                        <img src={p.merchantLogo} alt={p.storeName || "Partner"} style={{ width:"100%", height:"100%", objectFit:"cover" }} />
+                      </div>
+                    )}
                     {p.img && p.img.startsWith("http")
                       ? <img src={p.img} alt={p.name} style={{width:"100%",height:"100%",objectFit:"cover"}} onError={e=>{e.target.style.display="none";e.target.nextSibling.style.display="flex";}} />
                       : null}
@@ -1854,7 +1944,9 @@
                   </div>
                   <div style={{ padding:"11px 14px 14px" }}>
                     <div style={{ fontSize:13, fontWeight:700, color:"#111", marginBottom:2, lineHeight:1.25 }}>{p.name}</div>
-                    <div style={{ fontSize:11, color:"#aaa", marginBottom:8 }}>per {p.unit}</div>
+                    <div style={{ fontSize:11, color:"#aaa", marginBottom:8 }}>
+                      {p.source === "partner" ? (p.storeName || "Partner Merchant") + " • " : ""}per {p.unit}
+                    </div>
                     {p.unit === "kg" && (
                       <div style={{ display:"flex", gap:4, marginBottom:10 }}>
                         {[{w:0.25,l:"¼kg"},{w:0.5,l:"½kg"},{w:1,l:"1kg"}].map(({w,l}) => {
@@ -2935,6 +3027,17 @@
                       <button onClick={saveProfile} style={{ flex:2, padding:"11px 0", borderRadius:12, background:"linear-gradient(135deg,#166534,#22C55E)", fontSize:13, fontWeight:700, color:"#fff" }}><Ic n="floppy-disk" style={{marginRight:6}} />I-save</button>
                     </div>
                   )}
+                </div>
+                <div style={{ background:"#fff", borderRadius:16, marginTop:12, padding:14, border:"1px solid #DBEAFE", boxShadow:"0 2px 8px rgba(0,0,0,.04)" }}>
+                  <div style={{ fontSize:11, color:"#1D4ED8", fontWeight:700, textTransform:"uppercase", letterSpacing:".07em", marginBottom:8 }}>
+                    Partner Merchant
+                  </div>
+                  <button onClick={() => window.open("/partner-apply.html", "_blank")} style={{ width:"100%", padding:"11px 12px", borderRadius:10, background:"#EFF6FF", color:"#1D4ED8", fontWeight:700, marginBottom:8 }}>
+                    Apply as Partner Merchant
+                  </button>
+                  <button onClick={() => window.open("https://bayango.store/merchant", "_blank")} style={{ width:"100%", padding:"11px 12px", borderRadius:10, background:"#F0FDF4", color:"#166534", fontWeight:700 }}>
+                    Open Merchant Dashboard
+                  </button>
                 </div>
                 <button onClick={onLogout} style={{ width:"100%", marginTop:12, padding:"13px 0", borderRadius:14, background:"#FEF2F2", fontSize:13, fontWeight:700, color:"#EF4444", display:"flex", alignItems:"center", justifyContent:"center", gap:8 }}>
                   <Ic n="right-from-bracket" />Log Out
