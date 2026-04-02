@@ -445,11 +445,22 @@
           const title = payload?.notification?.title || "BayanGo";
           const body = payload?.notification?.body || "May bagong update ka.";
           if (Notification.permission === "granted") {
-            new Notification(title, {
+            const type = payload?.data?.type || "";
+            const n = new Notification(title, {
               body,
               icon: "https://i.imgur.com/wL8wcBB.jpeg",
               data: payload?.data || {},
             });
+            n.onclick = () => {
+              window.focus();
+              n.close();
+              if (type === "support_message_admin" || type === "support_ticket_new" || type === "support_message_user") {
+                window.location.hash = "support";
+                window.location.reload();
+              } else if (type === "order_status" || type === "broadcast" || type === "gcash_payment_reminder") {
+                window.location.search = "?section=orders";
+              }
+            };
           }
         });
       } catch (err) {
@@ -1258,6 +1269,9 @@
           const hash = (url.hash || "").replace("#", "").toLowerCase();
           if (section === "rider-tracker" || section === "orders" || hash === "rider-tracker" || hash === "orders") {
             return "orders";
+          }
+          if (section === "support" || hash === "support") {
+            return "account";
           }
         } catch {}
         return "shop";
@@ -2577,7 +2591,14 @@
       const [localPhone,    setLocalPhone]    = useState(phone);
       const [localAddr,     setLocalAddr]     = useState(addr);
       const [localLocationType, setLocalLocationType] = useState(locationType || "Mainland");
-      const [activeSection, setActiveSection] = useState("info");
+      const getInitialSection = () => {
+        try {
+          const hash = (window.location.hash || "").replace("#", "").toLowerCase();
+          if (hash === "support") return "support";
+        } catch {}
+        return "info";
+      };
+      const [activeSection, setActiveSection] = useState(getInitialSection);
 
 
       const saveProfile = () => {

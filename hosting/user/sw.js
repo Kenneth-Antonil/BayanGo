@@ -1,7 +1,8 @@
-const CACHE_NAME = 'bayango-user-v1';
+const CACHE_NAME = 'bayango-user-v2';
 const SHELL_ASSETS = [
   '/',
   '/index.html',
+  '/app.html',
   '/manifest.json',
   '/offline.html',
   '/offline-mode.js'
