@@ -278,13 +278,29 @@ async function getAllAdminTokens() {
  * Awtomatikong nagtatanggal ng mga invalid/expired tokens sa database.
  */
 async function sendBatchNotification(tokenEntries, { title, body, type, link }) {
+  const db = getDatabase();
+  const uniqueUids = [...new Set(tokenEntries.map((entry) => entry.uid).filter(Boolean))];
+  if (uniqueUids.length) {
+    const now = Date.now();
+    await Promise.all(
+      uniqueUids.map((uid) =>
+        db.ref(`user_notifications/${uid}`).push({
+          title: title || "BayanGo",
+          body: body || "",
+          type: type || "batch_reminder",
+          link: link || USER_APP_URL,
+          createdAt: now,
+        })
+      )
+    );
+  }
+
   if (!tokenEntries.length) {
     console.log("Walang tokens. Skipping send.");
     return { sent: 0, failed: 0 };
   }
 
   const messaging = getMessaging();
-  const db = getDatabase();
   let totalSent = 0;
   let totalFailed = 0;
 
@@ -880,11 +896,15 @@ exports.onOrderUpdated = onValueUpdated(
     // 1. Status changed → notify customer
     if (before.status !== after.status && uid) {
       const statusLabel = ORDER_STATUS_LABELS[after.status] || after.status;
+      const cancelReason = String(after.cancellationReason || "").trim();
+      const statusMessage = after.status === "cancelled" && cancelReason
+        ? `${statusLabel}. Reason: ${cancelReason}`
+        : statusLabel;
       const userTokens = await getUserTokens(uid);
       if (userTokens.length) {
         await sendBatchNotification(userTokens, {
           title: "Order Update",
-          body: `Order #${String(orderId).slice(-6)}: ${statusLabel}`,
+          body: `Order #${String(orderId).slice(-6)}: ${statusMessage}`,
           type: "order_status",
           link: `${USER_APP_URL}#orders`,
         });

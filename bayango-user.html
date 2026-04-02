@@ -465,7 +465,7 @@
           const title = payload?.notification?.title || "BayanGo";
           const body = payload?.notification?.body || "May bagong update ka.";
           if (Notification.permission === "granted") {
-            const type = payload?.data?.type || "";
+            const targetLink = payload?.data?.link || payload?.data?.click_action || "";
             const n = new Notification(title, {
               body,
               icon: "https://i.imgur.com/wL8wcBB.jpeg",
@@ -474,7 +474,9 @@
             n.onclick = () => {
               window.focus();
               n.close();
-              if (type === "order_status" || type === "broadcast" || type === "gcash_payment_reminder") {
+              if (targetLink) {
+                window.location.href = targetLink;
+              } else {
                 window.location.search = "?section=orders";
               }
             };
@@ -1284,6 +1286,7 @@
           const url = new URL(window.location.href);
           const section = (url.searchParams.get("section") || "").toLowerCase();
           const hash = (url.hash || "").replace("#", "").toLowerCase();
+          if (section === "notifications" || hash === "notifications") return "notifications";
           if (section === "rider-tracker" || section === "orders" || hash === "rider-tracker" || hash === "orders") {
             return "orders";
           }
@@ -1304,6 +1307,7 @@
       const [showVoucherList,setShowVoucherList]= useState(false);
       const [cartWeightUnit, setCartWeightUnit] = useState({});
       const [paymentMethod,  setPaymentMethod]  = useState("COD");
+      const [notifications,  setNotifications]  = useState([]);
 
       const cartCount = Object.values(cart).reduce((s,v) => s+v, 0);
       const cartItems = Object.entries(cart)
@@ -1587,6 +1591,43 @@
       };
 
       const activeOrders = myOrders.filter(o => !isOrderClosed(o));
+      const unreadNotifications = notifications.filter(n => !n.readAt).length;
+
+      useEffect(() => {
+        if (!user?.uid || !_fbDb) return;
+        const notifRef = _fbDb.ref(`user_notifications/${user.uid}`).limitToLast(100);
+        const onSnap = (snap) => {
+          const list = [];
+          snap.forEach((child) => {
+            const v = child.val() || {};
+            list.push({
+              id: child.key,
+              title: v.title || "BayanGo",
+              body: v.body || "",
+              type: v.type || "general",
+              link: v.link || "",
+              createdAt: Number(v.createdAt || 0),
+              readAt: Number(v.readAt || 0),
+            });
+          });
+          list.sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
+          setNotifications(list);
+        };
+        notifRef.on("value", onSnap, err => console.error("Notifications load error:", err.code || err.message));
+        return () => notifRef.off("value", onSnap);
+      }, [user?.uid]);
+
+      const openNotification = (notif) => {
+        if (!notif?.id || !user?.uid || !_fbDb) return;
+        if (!notif.readAt) {
+          _fbDb.ref(`user_notifications/${user.uid}/${notif.id}`).update({ readAt: Date.now() }).catch(() => {});
+        }
+        if (notif.link) {
+          window.location.href = notif.link;
+          return;
+        }
+        setActivePage("orders");
+      };
 
       useEffect(() => {
         let url;
@@ -2370,6 +2411,10 @@
             </OrdersErrorBoundary>
           )}
 
+          {activePage === "notifications" && (
+            <NotificationPage notifications={notifications} onOpen={openNotification} />
+          )}
+
           {activePage === "account" && (
             <AccountPage user={user} orders={myOrders} name={name} phone={phone} addr={addr}
               setName={setName} setPhone={setPhone} setAddr={setAddr} onLogout={onLogout}
@@ -2573,6 +2618,7 @@
             {[
               { key:"shop",    icon:"cart-shopping", label:"Tindahan" },
               { key:"orders",  icon:"box",           label:"Orders",  badge: activeOrders.length },
+              { key:"notifications", icon:"bell",    label:"Alerts",  badge: unreadNotifications },
             ].map(t => (
               <button key={t.key} onClick={() => setActivePage(t.key)} style={{
                 flex:1, padding:"11px 0 9px", display:"flex", flexDirection:"column", alignItems:"center", gap:3,
@@ -2593,6 +2639,43 @@
             ))}
           </div>
 
+        </div>
+      );
+    }
+
+
+    function NotificationPage({ notifications, onOpen }) {
+      const fmtNotifTs = (ts) => {
+        if (!ts) return "";
+        const d = new Date(ts);
+        return d.toLocaleDateString("en-PH") + " " + d.toLocaleTimeString("en-PH", { hour:"2-digit", minute:"2-digit" });
+      };
+      return (
+        <div style={{ padding:"0 20px 20px" }}>
+          <div style={{ padding:"20px 0 6px" }}>
+            <h2 style={{ fontSize:18, fontWeight:800, color:"#111", margin:0 }}><Ic n="bell" style={{marginRight:8,color:"#166534"}} />Notifications</h2>
+          </div>
+          {notifications.length === 0 ? (
+            <div style={{ textAlign:"center", padding:"60px 10px", color:"#9CA3AF", border:"1px dashed #D1D5DB", borderRadius:16, background:"#fff" }}>
+              <Ic n="bell-slash" size={34} style={{ marginBottom:10 }} />
+              <div style={{ fontSize:14, fontWeight:700, color:"#4B5563" }}>Wala pang notifications</div>
+              <div style={{ fontSize:12, marginTop:6 }}>Lahat ng updates mula sa site ay lalabas dito.</div>
+            </div>
+          ) : (
+            notifications.map((notif) => (
+              <button key={notif.id} onClick={() => onOpen?.(notif)} style={{
+                width:"100%", textAlign:"left", background:"#fff", border:"1px solid #E5E7EB", borderRadius:14,
+                padding:"12px 14px", marginBottom:10, boxShadow:"0 1px 4px rgba(0,0,0,.05)",
+              }}>
+                <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", gap:10, marginBottom:4 }}>
+                  <div style={{ fontSize:13, fontWeight:800, color:"#111" }}>{notif.title || "BayanGo"}</div>
+                  {!notif.readAt && <span style={{ width:8, height:8, borderRadius:"50%", background:"#22C55E", flexShrink:0 }} />}
+                </div>
+                <div style={{ fontSize:12, color:"#4B5563", lineHeight:1.45, marginBottom:6 }}>{notif.body || "May bagong update."}</div>
+                <div style={{ fontSize:10, color:"#9CA3AF" }}>{fmtNotifTs(notif.createdAt)}</div>
+              </button>
+            ))
+          )}
         </div>
       );
     }
@@ -3226,6 +3309,11 @@
                 <div style={{ fontSize:12, color:"#888" }}>{o.customer?.address}</div>
                 <div style={{ fontSize:14, fontWeight:800, color:"#166534" }}>~{fmt(o.total)}</div>
               </div>
+              {o.status === "cancelled" && o.cancellationReason && (
+                <div style={{ marginTop:8, padding:"8px 10px", borderRadius:10, background:"#FEF2F2", border:"1px solid #FECACA", fontSize:11, color:"#991B1B", fontWeight:700 }}>
+                  Reason: {o.cancellationReason}
+                </div>
+              )}
             </button>
 
             {/* GCash payment banner for island buying orders */}
