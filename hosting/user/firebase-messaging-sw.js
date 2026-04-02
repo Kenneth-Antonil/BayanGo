@@ -24,8 +24,8 @@ function resolveClickUrl(rawUrl, type) {
     console.warn('Invalid notification click URL. Falling back.', err);
   }
 
-  if (type === 'order_status' || type === 'broadcast' || type === 'gcash_payment_reminder') {
-    return `${USER_APP_URL}?section=orders`;
+  if (type === 'order_status' || type === 'broadcast' || type === 'gcash_payment_reminder' || type === 'batch_reminder') {
+    return `${USER_APP_URL}?section=notifications`;
   }
 
   return USER_APP_URL;
