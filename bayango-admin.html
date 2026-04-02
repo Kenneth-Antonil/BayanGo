@@ -131,7 +131,6 @@
       databaseURL:       "https://bayango-315c6-default-rtdb.asia-southeast1.firebasedatabase.app",
     };
     const WEB_PUSH_VAPID_KEY = (window.BAYANGO_WEB_PUSH_VAPID_KEY || "").trim();
-    const REQUIRED_APP_CLAIM = "admin";
 
     let _db = null;
     let _fns = null;
@@ -314,7 +313,6 @@
       const [ready,    setReady]    = useState(false);
       const [user,     setUser]     = useState(null);
       const [marketPricing, setMarketPricing] = useState({});
-      const [authError, setAuthError] = useState("");
 
       useEffect(() => {
         let unsubOrders, unsubProducts, unsubVouchers, unsubMarket, unsubAppUsage, unsubAuth;
@@ -322,7 +320,13 @@
           const { db, fns, auth, authFns } = await initFirebase();
           const { onAuthStateChanged } = authFns;
 
-          unsubAuth = onAuthStateChanged(auth, async (currentUser) => {
+          unsubAuth = onAuthStateChanged(auth, (currentUser) => {
+            setUser(currentUser);
+            setReady(true);
+
+            // Register admin push tokens for receiving notifications
+            if (currentUser) enableAdminPush(currentUser);
+
             // Clean up any previous realtime listeners before re-establishing
             unsubOrders?.();
             unsubProducts?.();
@@ -330,37 +334,11 @@
             unsubAppUsage?.();
 
             if (!currentUser) {
-              setUser(null);
-              setAuthError("");
-              setReady(true);
               setOrders([]);
               setVouchers([]);
               setAppUsageStats({ activeUsers: 0, downloadedUsers: 0 });
               return;
             }
-
-            try {
-              const tokenResult = await currentUser.getIdTokenResult(true);
-              if (tokenResult?.claims?.app !== REQUIRED_APP_CLAIM) {
-                setAuthError("Hindi naka-assign ang account na ito sa Admin app.");
-                await authFns.signOut(auth);
-                setUser(null);
-                setReady(true);
-                return;
-              }
-              setAuthError("");
-              setUser(currentUser);
-            } catch (err) {
-              console.error("Admin claim verification failed:", err);
-              setAuthError("Hindi ma-verify ang account role. Subukan ulit.");
-              await authFns.signOut(auth);
-              setUser(null);
-              setReady(true);
-              return;
-            }
-
-            setReady(true);
-            enableAdminPush(currentUser);
 
             // Listen products realtime
             const prodsRef = fns.ref(db, "products");
@@ -572,11 +550,6 @@
               <img src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg" alt="Google" style={{width:20, height:20}} />
               Sign in with Google
             </button>
-            {authError ? (
-              <p style={{ color:"#FEE2E2", background:"rgba(153,27,27,.55)", padding:"10px 12px", borderRadius:10, maxWidth:340, textAlign:"center", fontSize:12 }}>
-                {authError}
-              </p>
-            ) : null}
           </div>
         );
       }

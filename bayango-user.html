@@ -142,7 +142,6 @@
 
     const STATIC_WEB_PUSH_VAPID_KEY = normalizeVapidKey(window.BAYANGO_WEB_PUSH_VAPID_KEY);
     let cachedWebPushVapidKey = STATIC_WEB_PUSH_VAPID_KEY;
-    const REQUIRED_APP_CLAIM = "user";
 
     async function resolveWebPushVapidKey() {
       if (cachedWebPushVapidKey) return cachedWebPushVapidKey;
@@ -772,30 +771,8 @@
           bindMarketPricing();
           bindProducts();
           _fbAuth.getRedirectResult().catch(err => console.error("Redirect result error:", err));
-          unsubAuth = _fbAuth.onAuthStateChanged(async (currentUser) => {
+          unsubAuth = _fbAuth.onAuthStateChanged(currentUser => {
             clearTimeout(timeout);
-            if (currentUser) {
-              try {
-                const tokenResult = await currentUser.getIdTokenResult(true);
-                if (tokenResult?.claims?.app && tokenResult.claims.app !== REQUIRED_APP_CLAIM) {
-                  setAuthError("Ang account na ito ay para sa ibang BayanGo app. Gumamit ng tamang app para sa role mo.");
-                  await _fbAuth.signOut();
-                  setUser(null);
-                  setLoading(false);
-                  return;
-                }
-              } catch (err) {
-                console.error("User claim verification failed:", err);
-                setAuthError("Hindi ma-verify ang account role. Subukan ulit.");
-                await _fbAuth.signOut();
-                setUser(null);
-                setLoading(false);
-                return;
-              }
-            } else {
-              setAuthError("");
-            }
-
             setUser(currentUser);
             setLoading(false);
 
