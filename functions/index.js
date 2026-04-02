@@ -320,7 +320,34 @@ async function sendBatchNotification(tokenEntries, { title, body, type, link }) 
       const response = await messaging.sendEachForMulticast({
         tokens,
         notification: { title, body },
+        android: {
+          priority: "high",
+          ttl: 60 * 60 * 1000, // 1 hour
+          notification: {
+            channelId: "default",
+            sound: "default",
+            priority: "max",
+            visibility: "public",
+          },
+        },
+        apns: {
+          headers: {
+            "apns-priority": "10",
+            "apns-push-type": "alert",
+          },
+          payload: {
+            aps: {
+              sound: "default",
+              badge: 1,
+              "content-available": 1,
+            },
+          },
+        },
         webpush: {
+          headers: {
+            Urgency: "high",
+            TTL: "3600",
+          },
           notification: {
             title,
             body,
