@@ -1928,11 +1928,11 @@
                   {isStoreClosed && (
                     <div style={{
                       position:"absolute",
-                      top:p.source === "partner" && p.merchantLogo ? 42 : 10,
-                      left:10,
+                      top:10,
+                      left:p.source === "partner" && p.merchantLogo ? 42 : 10,
                       background:"#334155",
                       color:"#fff", fontSize:9, fontWeight:800, padding:"3px 8px",
-                      borderRadius:6, zIndex:2, letterSpacing:".04em"
+                      borderRadius:6, zIndex:4, letterSpacing:".04em"
                     }}>STORE CLOSED</div>
                   )}
                   {!p.stock && (
