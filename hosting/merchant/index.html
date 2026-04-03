@@ -99,6 +99,9 @@ function App(){
  const [editingId,setEditingId]=React.useState(null);
  const [activeSection,setActiveSection]=React.useState("dashboard");
  const [updatingStoreStatus,setUpdatingStoreStatus]=React.useState(false);
+ const [bannerForm,setBannerForm]=React.useState({title:"",imageUrl:"",linkUrl:"",active:true});
+ const [bannerImageFile,setBannerImageFile]=React.useState(null);
+ const [savingBanner,setSavingBanner]=React.useState(false);
 
  React.useEffect(()=>auth.onAuthStateChanged(setUser),[]);
 
@@ -148,6 +151,12 @@ function App(){
 
  const signIn=async()=>{await auth.signInWithPopup(new firebase.auth.GoogleAuthProvider());};
  const storeOpen=merchant?.storeOpen!==false;
+ const promoBanners=React.useMemo(()=>{
+  const raw=merchant?.promoBanners;
+  if(!raw) return [];
+  const list=Array.isArray(raw)?raw:Object.entries(raw).map(([id,v])=>({id,...(v||{})}));
+  return list.filter(Boolean).sort((a,b)=>(b.updatedAt||b.createdAt||0)-(a.updatedAt||a.createdAt||0));
+ },[merchant?.promoBanners]);
 
  const setStoreOpen=async(nextOpen)=>{
   if(!user||updatingStoreStatus) return;
@@ -175,6 +184,49 @@ function App(){
   }catch(err){
     alert("Hindi ma-upload ang merchant logo:\n" + (err?.message || err?.code || "Unknown error"));
   }
+ };
+
+ const saveBanner=async()=>{
+  if(!user||savingBanner) return;
+  if(!bannerForm.title.trim()) return alert("Lagyan ng banner title.");
+  setSavingBanner(true);
+  try{
+    let imageUrl=bannerForm.imageUrl.trim();
+    if(bannerImageFile){
+      const ref=storage.ref(`merchant_banners/${user.uid}_${Date.now()}_${bannerImageFile.name}`);
+      await ref.put(bannerImageFile);
+      imageUrl=await ref.getDownloadURL();
+    }
+    if(!imageUrl) throw new Error("Please upload a banner image.");
+    const id="bnr_"+Date.now();
+    await db.ref(`partner_merchants/${user.uid}/promoBanners/${id}`).set({
+      id,
+      title:bannerForm.title.trim(),
+      imageUrl,
+      linkUrl:bannerForm.linkUrl.trim(),
+      active:bannerForm.active!==false,
+      createdAt:Date.now(),
+      updatedAt:Date.now(),
+    });
+    setBannerForm({title:"",imageUrl:"",linkUrl:"",active:true});
+    setBannerImageFile(null);
+  }catch(err){
+    alert("Hindi ma-save ang promotional banner:\n" + (err?.message || err?.code || "Unknown error"));
+  }finally{
+    setSavingBanner(false);
+  }
+ };
+
+ const toggleBanner=async(bannerId,nextActive)=>{
+  if(!user||!bannerId) return;
+  await db.ref(`partner_merchants/${user.uid}/promoBanners/${bannerId}`).update({active:nextActive,updatedAt:Date.now()});
+ };
+
+ const removeBanner=async(bannerId)=>{
+  if(!user||!bannerId) return;
+  const ok=window.confirm("Delete this promotional banner?");
+  if(!ok) return;
+  await db.ref(`partner_merchants/${user.uid}/promoBanners/${bannerId}`).remove();
  };
 
  const addListing=async()=>{
@@ -257,6 +309,7 @@ function App(){
         <button className={`menu-btn ${activeSection==="listings"?"active":""}`} onClick={()=>setActiveSection("listings")}>Listings</button>
         <button className={`menu-btn ${activeSection==="orders"?"active":""}`} onClick={()=>setActiveSection("orders")}>Orders</button>
         <button className={`menu-btn ${activeSection==="settings"?"active":""}`} onClick={()=>setActiveSection("settings")}>Settings</button>
+        <button className={`menu-btn ${activeSection==="promotions"?"active":""}`} onClick={()=>setActiveSection("promotions")}>Promotions</button>
       </div>
     </div>
 
@@ -377,6 +430,44 @@ function App(){
       </div>
       <button className="btn-muted" onClick={()=>auth.signOut()}>Sign out</button>
     </div>
+    )}
+
+    {activeSection==="promotions" && (
+    <>
+    <div className="card stack">
+      <h3>Store Promotional Banners</h3>
+      <p className="muted" style={{fontSize:12}}>These banners are shown on your store profile inside the user app.</p>
+      <input placeholder="Banner title" value={bannerForm.title} onChange={e=>setBannerForm(f=>({...f,title:e.target.value}))}/>
+      <div className="grid-2">
+        <input placeholder="Optional link URL" value={bannerForm.linkUrl} onChange={e=>setBannerForm(f=>({...f,linkUrl:e.target.value}))}/>
+        <label style={{display:"flex",alignItems:"center",gap:8,fontSize:13,fontWeight:700,color:"#334155"}}>
+          <input type="checkbox" checked={bannerForm.active!==false} onChange={e=>setBannerForm(f=>({...f,active:e.target.checked}))} style={{width:16,height:16,padding:0,margin:0,border:"1px solid #cbd5e1"}}/>Active
+        </label>
+      </div>
+      <input type="file" accept="image/*" onChange={e=>setBannerImageFile(e.target.files?.[0]||null)}/>
+      <button className="btn-primary" onClick={saveBanner}>{savingBanner ? "Saving..." : "Save Banner"}</button>
+    </div>
+
+    <div className="card">
+      <h3>Saved Banners ({promoBanners.length})</h3>
+      {promoBanners.length===0 && <p className="muted">No promotional banners yet.</p>}
+      {promoBanners.map((banner)=>(
+        <div key={banner.id} className="list-item" style={{alignItems:"flex-start"}}>
+          <div className="listing-meta">
+            {banner.imageUrl ? <img src={banner.imageUrl} className="listing-logo" alt={banner.title || "banner"} /> : <div className="listing-logo"></div>}
+            <div>
+              <div style={{fontWeight:700}}>{banner.title || "Untitled banner"}</div>
+              <div className="muted" style={{fontSize:11}}>{banner.active===false ? "Inactive" : "Active"} {banner.linkUrl ? `• ${banner.linkUrl}` : ""}</div>
+            </div>
+          </div>
+          <div className="listing-actions">
+            <button className="btn-muted" onClick={()=>toggleBanner(banner.id,banner.active===false)}>{banner.active===false ? "Activate" : "Deactivate"}</button>
+            <button className="btn-warn" onClick={()=>removeBanner(banner.id)}>Delete</button>
+          </div>
+        </div>
+      ))}
+    </div>
+    </>
     )}
   </div>
  );
