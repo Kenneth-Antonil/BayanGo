@@ -91,6 +91,10 @@
       ],
       "rewrites": [
         {
+          "source": "/application",
+          "destination": "/application.html"
+        },
+        {
           "source": "**",
           "destination": "/index.html"
         }

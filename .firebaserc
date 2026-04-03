@@ -13,6 +13,9 @@
         ],
         "rider": [
           "bayango-rider"
+        ],
+        "merchant": [
+          "bayango-merchant"
         ]
       }
     }
