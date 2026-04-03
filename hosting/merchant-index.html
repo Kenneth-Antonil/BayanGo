@@ -23,6 +23,11 @@ const db=firebase.database(app);const auth=firebase.auth(app);const storage=fire
 <script type="text/babel">
 const CATEGORIES=["isda","karne","gulay","prutas","ulam","sari","gamot","hardware"];
 function App(){
+ const displayOrderStatus=(order)=>{
+  if(order?.status==='delivered') return 'successful';
+  return order?.merchantStatus || order?.status || 'pending';
+ };
+
  const [user,setUser]=React.useState(null);const [merchant,setMerchant]=React.useState(null);const [listings,setListings]=React.useState([]);const [orders,setOrders]=React.useState([]);
  const [form,setForm]=React.useState({name:"",cat:"sari",price:"",unit:"pc",img:""});
  React.useEffect(()=>auth.onAuthStateChanged(setUser),[]);
@@ -37,7 +42,7 @@ function App(){
   <div className="card"><h2>{merchant.storeName || "Partner Merchant"}</h2><p>Status: Approved</p><input type="file" accept="image/*" onChange={e=>uploadLogo(e.target.files?.[0])}/>{merchant.logoUrl&&<img src={merchant.logoUrl} style={{width:58,height:58,borderRadius:"50%",objectFit:"cover"}}/>}</div>
   <div className="card"><h3>Add Listing</h3><input placeholder="Item name" value={form.name} onChange={e=>setForm(f=>({...f,name:e.target.value}))}/><select value={form.cat} onChange={e=>setForm(f=>({...f,cat:e.target.value}))}>{CATEGORIES.map(c=><option key={c} value={c}>{c}</option>)}</select><input placeholder="Price" value={form.price} onChange={e=>setForm(f=>({...f,price:e.target.value}))}/><input placeholder="Unit (pc/kg)" value={form.unit} onChange={e=>setForm(f=>({...f,unit:e.target.value}))}/><input placeholder="Image URL" value={form.img} onChange={e=>setForm(f=>({...f,img:e.target.value}))}/><button style={{background:'#166534',color:'#fff'}} onClick={addListing}>Save Listing</button></div>
   <div className="card"><h3>Your Listings ({listings.length})</h3>{listings.map(l=><div key={l.id} style={{padding:'8px 0',borderTop:'1px solid #f1f5f9'}}>{l.name} • ₱{Number(l.price||0)}</div>)}</div>
-  <div className="card"><h3>Merchant Orders</h3>{orders.map(o=><div key={o.id} style={{border:'1px solid #e2e8f0',borderRadius:10,padding:10,marginBottom:10}}><div style={{fontWeight:700}}>{o.customer?.name} • ₱{o.total}</div><div style={{fontSize:12,color:'#64748b',margin:'4px 0'}}>Status: {o.merchantStatus||o.status}</div><div style={{display:'flex',gap:8}}><button style={{background:'#e2e8f0'}} onClick={()=>updateOrder(o.id,'merchant_pending','accepted')}>Accept</button><button style={{background:'#fef3c7'}} onClick={()=>updateOrder(o.id,'merchant_pending','preparing')}>Preparing</button><button style={{background:'#16a34a',color:'#fff'}} onClick={()=>updateOrder(o.id,'pending','ready')}>Ready</button></div></div>)}</div>
+  <div className="card"><h3>Merchant Orders</h3>{orders.map(o=><div key={o.id} style={{border:'1px solid #e2e8f0',borderRadius:10,padding:10,marginBottom:10}}><div style={{fontWeight:700}}>{o.customer?.name} • ₱{o.total}</div><div style={{fontSize:12,color:'#64748b',margin:'4px 0'}}>Status: {displayOrderStatus(o)}</div><div style={{display:'flex',gap:8}}><button style={{background:'#e2e8f0'}} onClick={()=>updateOrder(o.id,'merchant_pending','accepted')}>Accept</button><button style={{background:'#fef3c7'}} onClick={()=>updateOrder(o.id,'merchant_pending','preparing')}>Preparing</button><button style={{background:'#16a34a',color:'#fff'}} onClick={()=>updateOrder(o.id,'pending','ready')}>Ready</button></div></div>)}</div>
  </div>;
 }
 ReactDOM.createRoot(document.getElementById('root')).render(<App/>);
