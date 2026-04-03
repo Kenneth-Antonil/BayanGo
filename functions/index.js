@@ -16,12 +16,19 @@ const RIDER_APP_URL = "https://bayango.store/bayango-rider.html";
 const ADMIN_APP_URL = "https://bayango.store/bayango-admin.html";
 
 const ORDER_STATUS_LABELS = {
+  merchant_pending: "Inihahanda ng merchant ang order",
   pending:   "Nai-receive na ang order",
   buying:    "Now buying from the market",
   otw:       "On the way to you",
   in_boat:   "Nasa bangka na",
   delivered: "Delivered!",
   cancelled: "Na-cancel ang order",
+};
+
+const MERCHANT_STATUS_LABELS = {
+  accepted:  "Tinanggap ng merchant ang order mo",
+  preparing: "Inihahanda na ng merchant ang order mo",
+  ready:     "Ready na ang order mo mula sa merchant",
 };
 const PAYMONGO_WEBHOOK_SECRET = process.env.PAYMONGO_WEBHOOK_SECRET || "";
 const PAYMONGO_SECRET_KEY = process.env.PAYMONGO_SECRET_KEY || "";
@@ -953,10 +960,12 @@ exports.onNewOrder = onValueCreated(
 
 /**
  * Order na-update → i-notify ang customer at/o rider depende sa kung ano ang nagbago:
- *   - status nagbago       → notify customer; kung cancelled at may rider → notify rider din
- *   - riderId nai-assign   → notify rider
- *   - gcashPaymentConfirmed → notify customer
- *   - pricesUpdatedAt      → notify customer
+ *   - status nagbago             → notify customer; kung cancelled at may rider → notify rider din
+ *   - merchant order naging pending → notify all riders (new available order)
+ *   - merchantStatus nagbago     → notify customer (accepted/preparing/ready)
+ *   - riderId nai-assign         → notify rider
+ *   - gcashPaymentConfirmed      → notify customer
+ *   - pricesUpdatedAt            → notify customer
  */
 exports.onOrderUpdated = onValueUpdated(
   { ref: "orders/{orderId}", region: "asia-southeast1" },
@@ -1005,6 +1014,40 @@ exports.onOrderUpdated = onValueUpdated(
               link: RIDER_APP_URL,
             });
           }
+        }
+        // Merchant order naging "pending" (ready for rider) → notify all riders
+        if (before.status === "merchant_pending" && after.status === "pending" && !after.riderId) {
+          const riderTokens = await getAllRiderTokens();
+          if (riderTokens.length) {
+            await sendBatchNotification(riderTokens, {
+              title: "BayanGo: New Order!",
+              body: `New merchant order from ${after.customer?.name || "customer"}. Open the app to accept it.`,
+              type: "new_order",
+              link: RIDER_APP_URL,
+            });
+          }
+        }
+      }
+
+      // 1b. Merchant status changed (same order status but merchantStatus updated) → notify customer
+      if (before.status === after.status && before.merchantStatus !== after.merchantStatus && after.merchantStatus && uid) {
+        const merchantLabel = MERCHANT_STATUS_LABELS[after.merchantStatus] || `Merchant status: ${after.merchantStatus}`;
+        const userTokens = await getUserTokens(uid, { excludeRole: "rider" });
+        if (userTokens.length) {
+          await sendBatchNotification(userTokens, {
+            title: "Order Update",
+            body: `Order #${String(orderId).slice(-6)}: ${merchantLabel}`,
+            type: "order_status",
+            link: `${USER_APP_URL}#orders`,
+          });
+        } else {
+          await db.ref(`user_notifications/${uid}`).push({
+            title: "Order Update",
+            body: `Order #${String(orderId).slice(-6)}: ${merchantLabel}`,
+            type: "order_status",
+            link: `${USER_APP_URL}#orders`,
+            createdAt: Date.now(),
+          });
         }
       }
 
