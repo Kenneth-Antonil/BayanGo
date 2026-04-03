@@ -1913,17 +1913,31 @@
             transition:"background .22s ease, box-shadow .22s ease"
           }}>
             <div style={{ padding:"0 20px" }}>
-              <div style={{ background:"#fff", borderRadius:16, padding:"12px 16px", display:"flex", alignItems:"center", gap:10, boxShadow:"0 1px 4px rgba(0,0,0,.07)", border:"1px solid #E9ECEF" }}>
-                <Ic n="magnifying-glass" size={17} style={{ opacity:.35 }} />
+              <div style={{
+                background: shopScrolled
+                  ? "linear-gradient(135deg,#166534,#22C55E)"
+                  : "#fff",
+                borderRadius:16,
+                padding:"12px 16px",
+                display:"flex",
+                alignItems:"center",
+                gap:10,
+                boxShadow: shopScrolled
+                  ? "0 6px 18px rgba(20,83,45,.35)"
+                  : "0 1px 4px rgba(0,0,0,.07)",
+                border: shopScrolled ? "1px solid rgba(255,255,255,.22)" : "1px solid #E9ECEF",
+                transition:"background .22s ease, box-shadow .22s ease, border-color .22s ease"
+              }}>
+                <Ic n="magnifying-glass" size={17} style={{ opacity: shopScrolled ? .8 : .35, color: shopScrolled ? "#fff" : "inherit" }} />
                 <input placeholder="Search products..." value={searchQ}
                   onChange={e => setSearchQ(e.target.value)}
-                  style={{ flex:1, border:"none", outline:"none", fontSize:15, fontWeight:500, background:"transparent", color:"#111" }} />
-                {searchQ && <button onClick={() => setSearchQ("")} style={{ opacity:.4, fontSize:16 }}><Ic n="xmark" /></button>}
+                  style={{ flex:1, border:"none", outline:"none", fontSize:15, fontWeight:500, background:"transparent", color: shopScrolled ? "#fff" : "#111" }} />
+                {searchQ && <button onClick={() => setSearchQ("")} style={{ opacity: shopScrolled ? .75 : .4, color: shopScrolled ? "#fff" : "inherit", fontSize:16 }}><Ic n="xmark" /></button>}
               </div>
             </div>
 
             {/* ── Categories ── */}
-            <div style={{ display:"flex", gap:8, padding:"12px 20px 10px", overflowX:"auto", scrollbarWidth:"none" }}>
+            <div style={{ display:"flex", gap:8, padding:"12px 20px 10px", marginTop:2, overflowX:"auto", scrollbarWidth:"none" }}>
               {CATEGORIES.map(cat => (
                 <button key={cat.id} onClick={() => setActiveCat(cat.id)} style={{
                   padding:"10px 18px", borderRadius:30, whiteSpace:"nowrap",
