@@ -95,6 +95,14 @@
           "destination": "/application.html"
         },
         {
+          "source": "/merchant-application",
+          "destination": "/application.html"
+        },
+        {
+          "source": "/merchant-application/**",
+          "destination": "/application.html"
+        },
+        {
           "source": "**",
           "destination": "/index.html"
         }
