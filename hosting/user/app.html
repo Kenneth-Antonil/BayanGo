@@ -1355,29 +1355,64 @@
       const isAM     = batch === "AM";
       const isUrgent = secsToDeadline < 30 * 60; // last 30 mins
       const accent   = isAM ? "#1D4ED8" : "#D97706";
-      const bgColor  = isUrgent ? "#FEF2F2" : (isAM ? "#EFF6FF" : "#FFFBEB");
-      const bdColor  = isUrgent ? "#FCA5A5" : (isAM ? "#BFDBFE" : "#FDE68A");
+      const toneBg   = isUrgent ? "#FEE2E2" : (isAM ? "#DBEAFE" : "#FEF3C7");
       return (
-        <div style={{ margin:"12px 20px 0", borderRadius:16, background:bgColor, border:`1.5px solid ${bdColor}`, padding:"12px 16px", display:"flex", alignItems:"center", gap:12 }}>
-          <div style={{ width:44, height:44, borderRadius:12, flexShrink:0, background: isUrgent ? "#EF4444" : accent, display:"flex", flexDirection:"column", alignItems:"center", justifyContent:"center", color:"#fff" }}>
-            <Ic n={isUrgent ? "fire" : (isAM ? "sun" : "cloud-sun")} size={18} />
-          </div>
-          <div style={{ flex:1, minWidth:0 }}>
-            <div style={{ fontSize:11, fontWeight:700, color: isUrgent ? "#B91C1C" : accent, textTransform:"uppercase", letterSpacing:".06em", marginBottom:2 }}>
-              {isUrgent ? "⚠ Malapit nang mag-cut-off!" : `${batch} Batch — Order ngayon`}
+        <div style={{
+          margin:"14px 20px 0",
+          borderRadius:18,
+          background:"#FFFFFF",
+          border:"1px solid #E5E7EB",
+          boxShadow:"0 6px 16px rgba(15,23,42,.06)",
+          padding:"14px",
+        }}>
+          <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", gap:10, marginBottom:12 }}>
+            <div style={{ display:"flex", alignItems:"center", gap:8, minWidth:0 }}>
+              <span style={{
+                width:28, height:28, borderRadius:8, flexShrink:0,
+                background: toneBg, color: isUrgent ? "#DC2626" : accent,
+                display:"inline-flex", alignItems:"center", justifyContent:"center"
+              }}>
+                <Ic n={isUrgent ? "fire" : (isAM ? "sun" : "cloud-sun")} size={13} />
+              </span>
+              <div style={{ minWidth:0 }}>
+                <div style={{ fontSize:10, fontWeight:700, letterSpacing:".08em", color:"#6B7280", textTransform:"uppercase" }}>
+                  Batch countdown
+                </div>
+                <div style={{ fontSize:13, fontWeight:800, color:"#111827", whiteSpace:"nowrap", overflow:"hidden", textOverflow:"ellipsis" }}>
+                  {isUrgent ? "Malapit nang mag-cut-off!" : `${batch} Batch orders`}
+                </div>
+              </div>
             </div>
-            <div style={{ fontSize:13, color:"#374151", fontWeight:600, lineHeight:1.4 }}>
-              Delivery: <strong>{deliveryLabel}</strong> &nbsp;·&nbsp; Cut-off: <strong style={{color: isUrgent ? "#EF4444" : accent}}>{cutoffLabel}</strong>
-            </div>
-          </div>
-          <div style={{ textAlign:"center", flexShrink:0 }}>
-            <div style={{ fontSize:10, fontWeight:700, color:"#9CA3AF", marginBottom:1 }}>NATITIRANG ORAS</div>
             <div style={{
-              fontSize: hh > 0 ? 17 : 20, fontWeight:800, letterSpacing:".04em",
-              color: isUrgent ? "#EF4444" : accent,
-              fontVariantNumeric:"tabular-nums",
+              padding:"6px 10px",
+              borderRadius:10,
+              background: toneBg,
+              color: isUrgent ? "#B91C1C" : accent,
+              fontSize:11,
+              fontWeight:700,
+              whiteSpace:"nowrap"
             }}>
-              {hh > 0 ? `${pad(hh)}:${pad(mm)}:${pad(ss)}` : `${pad(mm)}:${pad(ss)}`}
+              Cut-off {cutoffLabel}
+            </div>
+          </div>
+          <div style={{
+            borderRadius:12,
+            border:`1px solid ${toneBg}`,
+            background:"#F9FAFB",
+            padding:"10px 12px",
+            display:"flex",
+            alignItems:"center",
+            justifyContent:"space-between",
+            gap:10
+          }}>
+            <div style={{ fontSize:12, fontWeight:600, color:"#4B5563" }}>
+              Delivery at <strong style={{ color:"#111827", fontWeight:800 }}>{deliveryLabel}</strong>
+            </div>
+            <div style={{ textAlign:"right", flexShrink:0 }}>
+              <div style={{ fontSize:9, fontWeight:700, color:"#9CA3AF", letterSpacing:".06em", textTransform:"uppercase", marginBottom:2 }}>Time left</div>
+              <div style={{ fontSize: hh > 0 ? 17 : 19, fontWeight:800, letterSpacing:".04em", color: isUrgent ? "#DC2626" : accent, fontVariantNumeric:"tabular-nums" }}>
+                {hh > 0 ? `${pad(hh)}:${pad(mm)}:${pad(ss)}` : `${pad(mm)}:${pad(ss)}`}
+              </div>
             </div>
           </div>
         </div>
@@ -1935,7 +1970,7 @@
           <BatchTimerBanner />
 
           {featuredStores.length > 0 && (
-            <div style={{ padding:"0 20px 8px" }}>
+            <div style={{ padding:"14px 20px 0" }}>
               <div style={{ fontSize:13, fontWeight:800, color:"#166534", marginBottom:8, display:"flex", alignItems:"center", gap:6 }}>
                 <Ic n="star" size={12} /> Featured Partner Stores
               </div>
@@ -2000,7 +2035,7 @@
           )}
 
           {/* ── Categories ── */}
-          <div style={{ display:"flex", gap:8, padding:"14px 20px", overflowX:"auto", scrollbarWidth:"none" }}>
+          <div style={{ display:"flex", gap:8, padding:"14px 20px 12px", marginTop:10, overflowX:"auto", scrollbarWidth:"none" }}>
             {CATEGORIES.map(cat => (
               <button key={cat.id} onClick={() => setActiveCat(cat.id)} style={{
                 padding:"10px 18px", borderRadius:30, whiteSpace:"nowrap",
