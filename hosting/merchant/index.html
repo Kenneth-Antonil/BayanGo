@@ -74,6 +74,7 @@ function App(){
   if(order?.status==='delivered') return 'delivered';
   return order?.merchantStatus || order?.status || 'pending';
  };
+ const isArchivedOrder=(order)=>order?.status==='delivered';
 
  const [user,setUser]=React.useState(null);
  const [merchant,setMerchant]=React.useState(null);
@@ -249,7 +250,7 @@ function App(){
 
     <div className="card">
       <h3>Merchant Orders</h3>
-      {orders.map(o=>(
+      {orders.filter(o=>!isArchivedOrder(o)).map(o=>(
         <div key={o.id} className="order">
           <div className="order-head">
             <div style={{fontWeight:700}}>{o.customer?.name} • ₱{o.total}</div>
@@ -262,6 +263,20 @@ function App(){
           </div>
         </div>
       ))}
+      {!orders.some(o=>!isArchivedOrder(o)) && <p className="muted">No active orders.</p>}
+    </div>
+
+    <div className="card">
+      <h3>Archive</h3>
+      {orders.filter(isArchivedOrder).map(o=>(
+        <div key={o.id} className="order">
+          <div className="order-head">
+            <div style={{fontWeight:700}}>{o.customer?.name} • ₱{o.total}</div>
+          </div>
+          <div className="order-status">Status: {displayOrderStatus(o)}</div>
+        </div>
+      ))}
+      {!orders.some(isArchivedOrder) && <p className="muted">No archived orders yet.</p>}
     </div>
   </div>
  );
