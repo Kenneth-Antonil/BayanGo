@@ -5,10 +5,50 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>BayanGo Partner Merchant Dashboard</title>
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" />
-  <style>body{font-family:Arial,sans-serif;background:#f8fafc;margin:0} .card{background:#fff;border:1px solid #e2e8f0;border-radius:14px;padding:14px;margin-bottom:12px} button{cursor:pointer;border:none;border-radius:10px;padding:10px 12px;font-weight:700} input,select,textarea{width:100%;padding:9px;border:1px solid #cbd5e1;border-radius:8px;margin:6px 0}</style>
+  <style>
+    :root{
+      --bg:#eef2f7;
+      --card:#ffffff;
+      --line:#dbe4f0;
+      --text:#0f172a;
+      --muted:#475569;
+      --brand:#166534;
+      --brand-dark:#14532d;
+      --chip:#f8fafc;
+      --radius:16px;
+    }
+    *{box-sizing:border-box}
+    body{font-family:Inter,Arial,sans-serif;background:linear-gradient(180deg,#e4f4eb 0%,var(--bg) 45%);margin:0;color:var(--text)}
+    #root{max-width:980px;margin:0 auto;padding:22px 14px 30px}
+    .card{background:var(--card);border:1px solid var(--line);border-radius:var(--radius);padding:16px;margin-bottom:14px;box-shadow:0 10px 24px rgba(15,23,42,.05)}
+    .card h2,.card h3{margin:0 0 10px}
+    .muted{color:var(--muted);margin:0}
+    .toolbar{display:flex;justify-content:space-between;gap:12px;align-items:center;flex-wrap:wrap}
+    .status-chip{background:#dcfce7;color:#166534;font-weight:700;padding:6px 10px;border-radius:999px;font-size:12px;border:1px solid #86efac}
+    .stack{display:grid;gap:10px}
+    input,select,textarea{width:100%;padding:10px 12px;border:1px solid #cbd5e1;border-radius:10px;margin:0;font-size:14px;background:#fff}
+    input:focus,select:focus,textarea:focus{outline:0;border-color:#22c55e;box-shadow:0 0 0 3px rgba(34,197,94,.15)}
+    button{cursor:pointer;border:none;border-radius:10px;padding:10px 12px;font-weight:700;transition:.2s}
+    button:hover{transform:translateY(-1px)}
+    .btn-primary{background:linear-gradient(135deg,var(--brand),var(--brand-dark));color:#fff}
+    .btn-muted{background:#e2e8f0;color:#0f172a}
+    .btn-warn{background:#fef3c7;color:#92400e}
+    .btn-success{background:#16a34a;color:#fff}
+    .grid-2{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
+    .list-item{padding:10px 0;border-top:1px solid #f1f5f9;display:flex;justify-content:space-between;gap:8px;align-items:center}
+    .list-item:first-of-type{border-top:none;padding-top:0}
+    .price{font-weight:700}
+    .order{border:1px solid var(--line);background:var(--chip);border-radius:12px;padding:12px;margin-bottom:10px}
+    .order-head{display:flex;justify-content:space-between;gap:10px;align-items:center;flex-wrap:wrap}
+    .order-status{font-size:12px;color:var(--muted);margin:4px 0 10px}
+    .order-actions{display:flex;gap:8px;flex-wrap:wrap}
+    .login{text-align:center;padding:24px}
+    .logo{width:64px;height:64px;border-radius:50%;object-fit:cover;border:2px solid #bbf7d0}
+    @media (max-width:640px){.grid-2{grid-template-columns:1fr}}
+  </style>
 </head>
 <body>
-<div id="root" style="max-width:900px;margin:0 auto;padding:18px"></div>
+<div id="root"></div>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.23.2/babel.min.js"></script>
@@ -22,24 +62,131 @@ const db=firebase.database(app);const auth=firebase.auth(app);const storage=fire
 </script>
 <script type="text/babel">
 const CATEGORIES=["isda","karne","gulay","prutas","ulam","sari","gamot","hardware"];
+
 function App(){
- const [user,setUser]=React.useState(null);const [merchant,setMerchant]=React.useState(null);const [listings,setListings]=React.useState([]);const [orders,setOrders]=React.useState([]);
+ const [user,setUser]=React.useState(null);
+ const [merchant,setMerchant]=React.useState(null);
+ const [listings,setListings]=React.useState([]);
+ const [orders,setOrders]=React.useState([]);
  const [form,setForm]=React.useState({name:"",cat:"sari",price:"",unit:"pc",img:""});
+
  React.useEffect(()=>auth.onAuthStateChanged(setUser),[]);
- React.useEffect(()=>{ if(!user) return; db.ref("partner_merchants/"+user.uid).on("value",s=>setMerchant(s.val())); db.ref("merchant_listings/"+user.uid).on("value",s=>{const a=[];s.forEach(c=>a.push({id:c.key,...c.val()}));setListings(a)}); db.ref("orders").on("value",s=>{const a=[];s.forEach(c=>{const v=c.val()||{}; if(v.merchantId===user.uid) a.push({id:c.key,...v});}); a.sort((a,b)=>(b.createdAt||0)-(a.createdAt||0)); setOrders(a);}); },[user?.uid]);
- const signIn=async()=>{await auth.signInWithPopup(new firebase.auth.GoogleAuthProvider())};
- const uploadLogo=async(file)=>{if(!user||!file) return; const ref=storage.ref(`merchant_logos/${user.uid}_${Date.now()}_${file.name}`); await ref.put(file); const logoUrl=await ref.getDownloadURL(); await db.ref("partner_merchants/"+user.uid).update({logoUrl});};
- const addListing=async()=>{if(!user||!form.name) return; await db.ref("merchant_listings/"+user.uid).push({...form,price:Number(form.price||0),basePrice:Number(form.price||0),autoPriceEnabled:false,merchantId:user.uid,merchantLogo:merchant?.logoUrl||"",storeName:merchant?.storeName||"",active:true,approved:true,createdAt:Date.now()}); setForm({name:"",cat:"sari",price:"",unit:"pc",img:""});};
- const updateOrder=async(id,status,merchantStatus)=>{await db.ref("orders/"+id).update({status,merchantStatus,merchantUpdatedAt:Date.now()});};
- if(!user) return <div className="card"><h2>Partner Merchant Dashboard</h2><button onClick={signIn}>Sign in with Google</button></div>;
- if(!merchant?.approved) return <div className="card"><h3>Waiting for admin approval</h3><p>Wala ka pang access. Kapag approved na ang application mo sa admin dashboard saka pa lang bubukas ang dashboard na ito.</p></div>;
- return <div>
-  <div className="card"><h2>{merchant.storeName || "Partner Merchant"}</h2><p>Status: Approved</p><input type="file" accept="image/*" onChange={e=>uploadLogo(e.target.files?.[0])}/>{merchant.logoUrl&&<img src={merchant.logoUrl} style={{width:58,height:58,borderRadius:"50%",objectFit:"cover"}}/>}</div>
-  <div className="card"><h3>Add Listing</h3><input placeholder="Item name" value={form.name} onChange={e=>setForm(f=>({...f,name:e.target.value}))}/><select value={form.cat} onChange={e=>setForm(f=>({...f,cat:e.target.value}))}>{CATEGORIES.map(c=><option key={c} value={c}>{c}</option>)}</select><input placeholder="Price" value={form.price} onChange={e=>setForm(f=>({...f,price:e.target.value}))}/><input placeholder="Unit (pc/kg)" value={form.unit} onChange={e=>setForm(f=>({...f,unit:e.target.value}))}/><input placeholder="Image URL" value={form.img} onChange={e=>setForm(f=>({...f,img:e.target.value}))}/><button style={{background:'#166534',color:'#fff'}} onClick={addListing}>Save Listing</button></div>
-  <div className="card"><h3>Your Listings ({listings.length})</h3>{listings.map(l=><div key={l.id} style={{padding:'8px 0',borderTop:'1px solid #f1f5f9'}}>{l.name} • ₱{Number(l.price||0)}</div>)}</div>
-  <div className="card"><h3>Merchant Orders</h3>{orders.map(o=><div key={o.id} style={{border:'1px solid #e2e8f0',borderRadius:10,padding:10,marginBottom:10}}><div style={{fontWeight:700}}>{o.customer?.name} • ₱{o.total}</div><div style={{fontSize:12,color:'#64748b',margin:'4px 0'}}>Status: {o.merchantStatus||o.status}</div><div style={{display:'flex',gap:8}}><button style={{background:'#e2e8f0'}} onClick={()=>updateOrder(o.id,'merchant_pending','accepted')}>Accept</button><button style={{background:'#fef3c7'}} onClick={()=>updateOrder(o.id,'merchant_pending','preparing')}>Preparing</button><button style={{background:'#16a34a',color:'#fff'}} onClick={()=>updateOrder(o.id,'pending','ready')}>Ready</button></div></div>)}</div>
- </div>;
+
+ React.useEffect(()=>{
+  if(!user) return;
+  db.ref("partner_merchants/"+user.uid).on("value",s=>setMerchant(s.val()));
+  db.ref("merchant_listings/"+user.uid).on("value",s=>{
+    const a=[];
+    s.forEach(c=>a.push({id:c.key,...c.val()}));
+    setListings(a);
+  });
+  db.ref("orders").on("value",s=>{
+    const a=[];
+    s.forEach(c=>{
+      const v=c.val()||{};
+      if(v.merchantId===user.uid) a.push({id:c.key,...v});
+    });
+    a.sort((a,b)=>(b.createdAt||0)-(a.createdAt||0));
+    setOrders(a);
+  });
+ },[user?.uid]);
+
+ const signIn=async()=>{await auth.signInWithPopup(new firebase.auth.GoogleAuthProvider());};
+
+ const uploadLogo=async(file)=>{
+  if(!user||!file) return;
+  const ref=storage.ref(`merchant_logos/${user.uid}_${Date.now()}_${file.name}`);
+  await ref.put(file);
+  const logoUrl=await ref.getDownloadURL();
+  await db.ref("partner_merchants/"+user.uid).update({logoUrl});
+ };
+
+ const addListing=async()=>{
+  if(!user||!form.name) return;
+  await db.ref("merchant_listings/"+user.uid).push({...form,price:Number(form.price||0),basePrice:Number(form.price||0),autoPriceEnabled:false,merchantId:user.uid,merchantLogo:merchant?.logoUrl||"",storeName:merchant?.storeName||"",active:true,approved:true,createdAt:Date.now()});
+  setForm({name:"",cat:"sari",price:"",unit:"pc",img:""});
+ };
+
+ const updateOrder=async(id,status,merchantStatus)=>{
+  await db.ref("orders/"+id).update({status,merchantStatus,merchantUpdatedAt:Date.now()});
+ };
+
+ if(!user) return (
+  <div className="card login">
+    <h2>Partner Merchant Dashboard</h2>
+    <p className="muted">Mag sign in para ma-access ang iyong dashboard.</p>
+    <br/>
+    <button className="btn-primary" onClick={signIn}>Sign in with Google</button>
+  </div>
+ );
+
+ if(!merchant?.approved) return (
+  <div className="card">
+    <h3>Waiting for admin approval</h3>
+    <p className="muted">Wala ka pang access. Kapag approved na ang application mo sa admin dashboard saka pa lang bubukas ang dashboard na ito.</p>
+  </div>
+ );
+
+ return (
+  <div>
+    <div className="card">
+      <div className="toolbar">
+        <div>
+          <h2>{merchant.storeName || "Partner Merchant"}</h2>
+          <p className="muted">Manage listings at orders in one place.</p>
+        </div>
+        <span className="status-chip">Status: Approved</span>
+      </div>
+      <br/>
+      <input type="file" accept="image/*" onChange={e=>uploadLogo(e.target.files?.[0])}/>
+      {merchant.logoUrl && <img src={merchant.logoUrl} className="logo" alt="Merchant logo"/>}
+    </div>
+
+    <div className="card stack">
+      <h3>Add Listing</h3>
+      <div className="grid-2">
+        <input placeholder="Item name" value={form.name} onChange={e=>setForm(f=>({...f,name:e.target.value}))}/>
+        <select value={form.cat} onChange={e=>setForm(f=>({...f,cat:e.target.value}))}>{CATEGORIES.map(c=><option key={c} value={c}>{c}</option>)}</select>
+      </div>
+      <div className="grid-2">
+        <input placeholder="Price" value={form.price} onChange={e=>setForm(f=>({...f,price:e.target.value}))}/>
+        <input placeholder="Unit (pc/kg)" value={form.unit} onChange={e=>setForm(f=>({...f,unit:e.target.value}))}/>
+      </div>
+      <input placeholder="Image URL" value={form.img} onChange={e=>setForm(f=>({...f,img:e.target.value}))}/>
+      <button className="btn-primary" onClick={addListing}>Save Listing</button>
+    </div>
+
+    <div className="card">
+      <h3>Your Listings ({listings.length})</h3>
+      {listings.map(l=>(
+        <div key={l.id} className="list-item">
+          <span>{l.name}</span>
+          <span className="price">₱{Number(l.price||0)}</span>
+        </div>
+      ))}
+    </div>
+
+    <div className="card">
+      <h3>Merchant Orders</h3>
+      {orders.map(o=>(
+        <div key={o.id} className="order">
+          <div className="order-head">
+            <div style={{fontWeight:700}}>{o.customer?.name} • ₱{o.total}</div>
+          </div>
+          <div className="order-status">Status: {o.merchantStatus||o.status}</div>
+          <div className="order-actions">
+            <button className="btn-muted" onClick={()=>updateOrder(o.id,'merchant_pending','accepted')}>Accept</button>
+            <button className="btn-warn" onClick={()=>updateOrder(o.id,'merchant_pending','preparing')}>Preparing</button>
+            <button className="btn-success" onClick={()=>updateOrder(o.id,'pending','ready')}>Ready</button>
+          </div>
+        </div>
+      ))}
+    </div>
+  </div>
+ );
 }
+
 ReactDOM.createRoot(document.getElementById('root')).render(<App/>);
 </script>
-</body></html>
+</body>
+</html>
