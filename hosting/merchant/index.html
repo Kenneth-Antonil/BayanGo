@@ -104,14 +104,18 @@ function App(){
 
  const uploadLogo=async(file)=>{
   if(!user||!file) return;
-  const ref=storage.ref(`merchant_logos/${user.uid}_${Date.now()}_${file.name}`);
-  await ref.put(file);
-  const logoUrl=await ref.getDownloadURL();
-  await db.ref("partner_merchants/"+user.uid).update({logoUrl});
-  const listSnap=await db.ref("merchant_listings/"+user.uid).once("value");
-  const updates={};
-  listSnap.forEach(c=>{updates[`${c.key}/merchantLogo`]=logoUrl;});
-  if(Object.keys(updates).length) await db.ref("merchant_listings/"+user.uid).update(updates);
+  try{
+    const ref=storage.ref(`merchant_logos/${user.uid}_${Date.now()}_${file.name}`);
+    await ref.put(file);
+    const logoUrl=await ref.getDownloadURL();
+    await db.ref("partner_merchants/"+user.uid).update({logoUrl});
+    const listSnap=await db.ref("merchant_listings/"+user.uid).once("value");
+    const updates={};
+    listSnap.forEach(c=>{updates[`${c.key}/merchantLogo`]=logoUrl;});
+    if(Object.keys(updates).length) await db.ref("merchant_listings/"+user.uid).update(updates);
+  }catch(err){
+    alert("Hindi ma-upload ang merchant logo:\n" + (err?.message || err?.code || "Unknown error"));
+  }
  };
 
  const addListing=async()=>{
@@ -133,6 +137,8 @@ function App(){
     setForm({name:"",cat:"sari",price:"",unit:"pc",stock:"",img:""});
     setListingImageFile(null);
     setEditingId(null);
+  }catch(err){
+    alert("Hindi ma-save ang listing:\n" + (err?.message || err?.code || "Unknown error"));
   }finally{
     setSavingListing(false);
   }
