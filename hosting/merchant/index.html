@@ -103,22 +103,47 @@ function App(){
  React.useEffect(()=>auth.onAuthStateChanged(setUser),[]);
 
  React.useEffect(()=>{
-  if(!user) return;
-  db.ref("partner_merchants/"+user.uid).on("value",s=>setMerchant(s.val()));
-  db.ref("merchant_listings/"+user.uid).on("value",s=>{
+  if(!user){
+    setMerchant(null);
+    setListings([]);
+    setOrders([]);
+    return;
+  }
+
+  const merchantRef=db.ref("partner_merchants/"+user.uid);
+  const listingsRef=db.ref("merchant_listings/"+user.uid);
+  const ordersRef=db.ref("orders");
+
+  const onMerchant=(s)=>setMerchant(s.val());
+  const onListings=(s)=>{
     const a=[];
-    s.forEach(c=>a.push({id:c.key,...c.val()}));
+    s.forEach(c=>{
+      const raw=c.val();
+      if(!raw || typeof raw!=="object") return;
+      a.push({id:c.key,...raw});
+    });
+    a.sort((x,y)=>(y.updatedAt||y.createdAt||0)-(x.updatedAt||x.createdAt||0));
     setListings(a);
-  });
-  db.ref("orders").on("value",s=>{
+  };
+  const onOrders=(s)=>{
     const a=[];
     s.forEach(c=>{
       const v=c.val()||{};
       if(v.merchantId===user.uid) a.push({id:c.key,...v});
     });
-    a.sort((a,b)=>(b.createdAt||0)-(a.createdAt||0));
+    a.sort((x,y)=>(y.createdAt||0)-(x.createdAt||0));
     setOrders(a);
-  });
+  };
+
+  merchantRef.on("value",onMerchant);
+  listingsRef.on("value",onListings);
+  ordersRef.on("value",onOrders);
+
+  return ()=>{
+    merchantRef.off("value",onMerchant);
+    listingsRef.off("value",onListings);
+    ordersRef.off("value",onOrders);
+  };
  },[user?.uid]);
 
  const signIn=async()=>{await auth.signInWithPopup(new firebase.auth.GoogleAuthProvider());};
