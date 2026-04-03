@@ -35,9 +35,15 @@
     .btn-warn{background:#fef3c7;color:#92400e}
     .btn-success{background:#16a34a;color:#fff}
     .grid-2{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
-    .list-item{padding:10px 0;border-top:1px solid #f1f5f9;display:flex;justify-content:space-between;gap:8px;align-items:center}
+    .list-item{padding:12px 0;border-top:1px solid #f1f5f9;display:flex;justify-content:space-between;gap:10px;align-items:center}
     .list-item:first-of-type{border-top:none;padding-top:0}
     .price{font-weight:700}
+    .listing-meta{display:flex;gap:10px;align-items:center;min-width:0}
+    .listing-logo{width:34px;height:34px;border-radius:999px;object-fit:cover;border:2px solid #86efac;flex-shrink:0;background:#dcfce7}
+    .listing-actions{display:flex;gap:6px;flex-wrap:wrap;justify-content:flex-end}
+    .stock-chip{font-size:11px;font-weight:700;background:#ecfdf5;color:#166534;border:1px solid #bbf7d0;padding:3px 8px;border-radius:999px}
+    .preview-box{width:88px;height:88px;border:1px dashed #94a3b8;border-radius:12px;display:flex;align-items:center;justify-content:center;background:#f8fafc;overflow:hidden}
+    .preview-box img{width:100%;height:100%;object-fit:cover}
     .order{border:1px solid var(--line);background:var(--chip);border-radius:12px;padding:12px;margin-bottom:10px}
     .order-head{display:flex;justify-content:space-between;gap:10px;align-items:center;flex-wrap:wrap}
     .order-status{font-size:12px;color:var(--muted);margin:4px 0 10px}
@@ -68,7 +74,10 @@ function App(){
  const [merchant,setMerchant]=React.useState(null);
  const [listings,setListings]=React.useState([]);
  const [orders,setOrders]=React.useState([]);
- const [form,setForm]=React.useState({name:"",cat:"sari",price:"",unit:"pc",img:""});
+ const [form,setForm]=React.useState({name:"",cat:"sari",price:"",unit:"pc",stock:"",img:""});
+ const [listingImageFile,setListingImageFile]=React.useState(null);
+ const [savingListing,setSavingListing]=React.useState(false);
+ const [editingId,setEditingId]=React.useState(null);
 
  React.useEffect(()=>auth.onAuthStateChanged(setUser),[]);
 
@@ -99,12 +108,52 @@ function App(){
   await ref.put(file);
   const logoUrl=await ref.getDownloadURL();
   await db.ref("partner_merchants/"+user.uid).update({logoUrl});
+  const listSnap=await db.ref("merchant_listings/"+user.uid).once("value");
+  const updates={};
+  listSnap.forEach(c=>{updates[`${c.key}/merchantLogo`]=logoUrl;});
+  if(Object.keys(updates).length) await db.ref("merchant_listings/"+user.uid).update(updates);
  };
 
  const addListing=async()=>{
-  if(!user||!form.name) return;
-  await db.ref("merchant_listings/"+user.uid).push({...form,price:Number(form.price||0),basePrice:Number(form.price||0),autoPriceEnabled:false,merchantId:user.uid,merchantLogo:merchant?.logoUrl||"",storeName:merchant?.storeName||"",active:true,approved:true,createdAt:Date.now()});
-  setForm({name:"",cat:"sari",price:"",unit:"pc",img:""});
+  if(!user||!form.name||savingListing) return;
+  setSavingListing(true);
+  try{
+    let img=form.img||"";
+    if(listingImageFile){
+      const ref=storage.ref(`merchant_listing_images/${user.uid}_${Date.now()}_${listingImageFile.name}`);
+      await ref.put(listingImageFile);
+      img=await ref.getDownloadURL();
+    }
+    const payload={...form,img,price:Number(form.price||0),stock:Number(form.stock||0),basePrice:Number(form.price||0),autoPriceEnabled:false,merchantId:user.uid,merchantLogo:merchant?.logoUrl||"",storeName:merchant?.storeName||"",active:true,approved:true,updatedAt:Date.now()};
+    if(editingId){
+      await db.ref("merchant_listings/"+user.uid+"/"+editingId).update(payload);
+    }else{
+      await db.ref("merchant_listings/"+user.uid).push({...payload,createdAt:Date.now()});
+    }
+    setForm({name:"",cat:"sari",price:"",unit:"pc",stock:"",img:""});
+    setListingImageFile(null);
+    setEditingId(null);
+  }finally{
+    setSavingListing(false);
+  }
+ };
+
+ const editListing=(l)=>{
+  setEditingId(l.id);
+  setListingImageFile(null);
+  setForm({name:l.name||"",cat:l.cat||"sari",price:String(l.price??""),unit:l.unit||"pc",stock:String(l.stock??""),img:l.img||""});
+ };
+
+ const deleteListing=async(id)=>{
+  if(!id) return;
+  const ok=window.confirm("Delete this listing?");
+  if(!ok) return;
+  await db.ref("merchant_listings/"+user.uid+"/"+id).remove();
+  if(editingId===id){
+    setEditingId(null);
+    setForm({name:"",cat:"sari",price:"",unit:"pc",stock:"",img:""});
+    setListingImageFile(null);
+  }
  };
 
  const updateOrder=async(id,status,merchantStatus)=>{
@@ -143,7 +192,7 @@ function App(){
     </div>
 
     <div className="card stack">
-      <h3>Add Listing</h3>
+      <h3>{editingId ? "Update Listing" : "Add Listing"}</h3>
       <div className="grid-2">
         <input placeholder="Item name" value={form.name} onChange={e=>setForm(f=>({...f,name:e.target.value}))}/>
         <select value={form.cat} onChange={e=>setForm(f=>({...f,cat:e.target.value}))}>{CATEGORIES.map(c=><option key={c} value={c}>{c}</option>)}</select>
@@ -152,16 +201,37 @@ function App(){
         <input placeholder="Price" value={form.price} onChange={e=>setForm(f=>({...f,price:e.target.value}))}/>
         <input placeholder="Unit (pc/kg)" value={form.unit} onChange={e=>setForm(f=>({...f,unit:e.target.value}))}/>
       </div>
-      <input placeholder="Image URL" value={form.img} onChange={e=>setForm(f=>({...f,img:e.target.value}))}/>
-      <button className="btn-primary" onClick={addListing}>Save Listing</button>
+      <div className="grid-2">
+        <input placeholder="Stock (e.g. 20)" value={form.stock} onChange={e=>setForm(f=>({...f,stock:e.target.value}))}/>
+        <input type="file" accept="image/*" onChange={e=>setListingImageFile(e.target.files?.[0]||null)}/>
+      </div>
+      <div className="preview-box">
+        {(listingImageFile || form.img)
+          ? <img src={listingImageFile ? URL.createObjectURL(listingImageFile) : form.img} alt="Listing preview"/>
+          : <span className="muted" style={{fontSize:12}}>No image</span>}
+      </div>
+      <div className="listing-actions" style={{justifyContent:"flex-start"}}>
+        <button className="btn-primary" onClick={addListing}>{savingListing ? "Saving..." : (editingId ? "Update Listing" : "Save Listing")}</button>
+        {editingId && <button className="btn-muted" onClick={()=>{setEditingId(null);setListingImageFile(null);setForm({name:"",cat:"sari",price:"",unit:"pc",stock:"",img:""});}}>Cancel Edit</button>}
+      </div>
     </div>
 
     <div className="card">
       <h3>Your Listings ({listings.length})</h3>
       {listings.map(l=>(
         <div key={l.id} className="list-item">
-          <span>{l.name}</span>
-          <span className="price">₱{Number(l.price||0)}</span>
+          <div className="listing-meta">
+            <img src={l.merchantLogo || merchant?.logoUrl || "https://via.placeholder.com/40?text=M"} className="listing-logo" alt="badge logo"/>
+            <div>
+              <div style={{fontWeight:700}}>{l.name}</div>
+              <div className="muted" style={{fontSize:12}}>{l.unit} • <span className="stock-chip">Stock: {Number(l.stock||0)}</span></div>
+            </div>
+          </div>
+          <div className="listing-actions">
+            <span className="price">₱{Number(l.price||0)}</span>
+            <button className="btn-muted" onClick={()=>editListing(l)}>Update</button>
+            <button className="btn-warn" onClick={()=>deleteListing(l.id)}>Delete</button>
+          </div>
         </div>
       ))}
     </div>
