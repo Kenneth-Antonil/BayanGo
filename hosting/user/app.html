@@ -140,7 +140,8 @@
       return "";
     }
 
-    const STATIC_WEB_PUSH_VAPID_KEY = normalizeVapidKey(window.BAYANGO_WEB_PUSH_VAPID_KEY);
+    const BAYANGO_HARDCODED_VAPID_KEY = "BMdJvRjBWkB8Ob6OOJNiaFVtKkTG4Ubd1BEM4z8VshMVO0WiGHYUEu3mfm1sQYlK25OloE9jjojJUWB12eMfLfA";
+    const STATIC_WEB_PUSH_VAPID_KEY = normalizeVapidKey(window.BAYANGO_WEB_PUSH_VAPID_KEY || BAYANGO_HARDCODED_VAPID_KEY);
     let cachedWebPushVapidKey = STATIC_WEB_PUSH_VAPID_KEY;
 
     async function resolveWebPushVapidKey() {
@@ -438,7 +439,14 @@
 
     async function enablePushForUser(user, { requestPermission = true } = {}) {
       if (!user?.uid) return;
-      if (!("serviceWorker" in navigator) || !("Notification" in window) || !firebase.messaging) return;
+      if (!("serviceWorker" in navigator) || !("Notification" in window)) return;
+      try {
+        const supported = typeof firebase.messaging.isSupported === "function"
+          ? await firebase.messaging.isSupported()
+          : true;
+        if (!supported) return;
+      } catch (_) { return; }
+
       try {
         let permission = Notification.permission;
         if (permission !== "granted" && requestPermission) {

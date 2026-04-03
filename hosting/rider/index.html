@@ -76,7 +76,7 @@
     }, "rider");
     const _fbAuth = firebase.auth(RIDER_FB_APP);
     const _fbDb   = firebase.database(RIDER_FB_APP);
-    const WEB_PUSH_VAPID_KEY = (window.BAYANGO_WEB_PUSH_VAPID_KEY || "").trim();
+    const WEB_PUSH_VAPID_KEY = (window.BAYANGO_WEB_PUSH_VAPID_KEY || "BMdJvRjBWkB8Ob6OOJNiaFVtKkTG4Ubd1BEM4z8VshMVO0WiGHYUEu3mfm1sQYlK25OloE9jjojJUWB12eMfLfA").trim();
   </script>
 
   <script type="text/babel">
@@ -112,7 +112,14 @@
 
     async function enablePushForRider(user, onForegroundNotify) {
       if (!user?.uid) return;
-      if (!("serviceWorker" in navigator) || !("Notification" in window) || !firebase.messaging) return;
+      if (!("serviceWorker" in navigator) || !("Notification" in window)) return;
+      try {
+        const supported = typeof firebase.messaging.isSupported === "function"
+          ? await firebase.messaging.isSupported()
+          : true;
+        if (!supported) return;
+      } catch (_) { return; }
+
       try {
         let permission = Notification.permission;
         if (permission !== "granted") {
