@@ -441,14 +441,47 @@
             }, err => console.error("App usage snapshot error:", err.code, err.message));
             unsubAppUsage = () => fns.off(usageRef);
 
+            let partnerAppsLatest = [];
+            let legacyPartnerAppsLatest = [];
+            const syncPartnerApplications = () => {
+              const merged = new Map();
+              [...partnerAppsLatest, ...legacyPartnerAppsLatest].forEach(app => {
+                const existing = merged.get(app.id);
+                if (!existing || Number(app.createdAt || 0) >= Number(existing.createdAt || 0)) {
+                  merged.set(app.id, app);
+                }
+              });
+              const list = Array.from(merged.values());
+              list.sort((a, b) => Number(b.createdAt || 0) - Number(a.createdAt || 0));
+              setPartnerApplications(list);
+            };
+
             const partnerAppsRef = fns.ref(db, "partner_applications");
             fns.onValue(partnerAppsRef, snap => {
               const list = [];
-              snap.forEach(c => list.push({ id: c.key, ...(c.val() || {}) }));
-              list.sort((a, b) => Number(b.createdAt || 0) - Number(a.createdAt || 0));
-              setPartnerApplications(list);
+              snap.forEach(c => list.push({ id: c.key, sourcePath: "partner_applications", ...(c.val() || {}) }));
+              partnerAppsLatest = list;
+              syncPartnerApplications();
+            }, err => console.error("Partner applications snapshot error:", err.code, err.message));
+
+            const legacyPartnerAppsRef = fns.ref(db, "merchant_applications");
+            fns.onValue(legacyPartnerAppsRef, snap => {
+              const list = [];
+              snap.forEach(c => list.push({ id: c.key, sourcePath: "merchant_applications", ...(c.val() || {}) }));
+              legacyPartnerAppsLatest = list;
+              syncPartnerApplications();
+            }, err => {
+              const code = String(err?.code || "").toLowerCase();
+              if (!code.includes("permission")) {
+                console.error("Legacy merchant applications snapshot error:", err.code, err.message);
+              }
+              legacyPartnerAppsLatest = [];
+              syncPartnerApplications();
             });
-            unsubPartnerApplications = () => fns.off(partnerAppsRef);
+            unsubPartnerApplications = () => {
+              fns.off(partnerAppsRef);
+              fns.off(legacyPartnerAppsRef);
+            };
 
             const partnerMerchantsRef = fns.ref(db, "partner_merchants");
             fns.onValue(partnerMerchantsRef, snap => {
@@ -555,7 +588,13 @@
           reviewedByUid: user?.uid || null,
           reviewedByEmail: user?.email || null,
         };
-        await fns.update(fns.ref(db, "partner_applications/" + application.id), updates);
+        const applicationUpdates = {
+          ["partner_applications/" + application.id]: updates,
+        };
+        if (application.sourcePath === "merchant_applications" || application.mirrorLegacy !== false) {
+          applicationUpdates["merchant_applications/" + application.id] = updates;
+        }
+        await fns.update(fns.ref(db), applicationUpdates);
         if (decision === "approve" && uid) {
           await fns.update(fns.ref(db, "partner_merchants/" + uid), {
             applicantUid: uid,

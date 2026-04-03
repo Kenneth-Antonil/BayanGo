@@ -197,7 +197,12 @@
       btn.textContent='Submitting...';
 
       try{
-        await db.ref('partner_applications').push(payload);
+        const newAppRef = db.ref('partner_applications').push();
+        const appKey = newAppRef.key;
+        await db.ref().update({
+          ['partner_applications/' + appKey]: { ...payload, mirrorLegacy: true },
+          ['merchant_applications/' + appKey]: { ...payload, mirrorLegacy: true }
+        });
         msgEl.style.color='#166534';
         msgEl.textContent='Application submitted successfully! Hintayin ang approval sa admin dashboard.';
         btn.textContent='Submitted';
