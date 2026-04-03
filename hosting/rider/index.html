@@ -138,19 +138,52 @@
         }
         if (!token) return;
 
-        const tokenKey = sanitizeTokenKey(token);
-        await _fbDb.ref(`push_tokens/${user.uid}/${tokenKey}`).set({
-          token,
-          uid: user.uid,
-          riderEmail: user.email || null,
-          riderName: user.displayName || null,
-          role: "rider",
-          platform: navigator.userAgent || "web",
-          updatedAt: Date.now(),
-          enabled: true,
-        });
+        const saveToken = async (t) => {
+          const tokenKey = sanitizeTokenKey(t);
+          await _fbDb.ref(`push_tokens/${user.uid}/${tokenKey}`).set({
+            token: t,
+            uid: user.uid,
+            riderEmail: user.email || null,
+            riderName: user.displayName || null,
+            role: "rider",
+            platform: navigator.userAgent || "web",
+            updatedAt: Date.now(),
+            enabled: true,
+          });
+        };
+        const persistLatestToken = async (freshToken, { removeOld = true } = {}) => {
+          if (!freshToken) return;
+          if (removeOld && token && token !== freshToken) {
+            const oldKey = sanitizeTokenKey(token);
+            _fbDb.ref(`push_tokens/${user.uid}/${oldKey}`).remove().catch(() => {});
+          }
+          token = freshToken;
+          await saveToken(freshToken);
+        };
+        await persistLatestToken(token, { removeOld: false });
+
+        if (typeof messaging.onTokenRefresh === "function") {
+          messaging.onTokenRefresh(async () => {
+            try {
+              const freshToken = await messaging.getToken(getTokenOptions);
+              if (freshToken && freshToken !== token) {
+                console.log("Rider FCM token rotated (onTokenRefresh), updating...");
+                await persistLatestToken(freshToken);
+              }
+            } catch (err) {
+              console.warn("Rider token refresh listener error:", err);
+            }
+          });
+        }
 
         messaging.onMessage((payload) => {
+          messaging.getToken(getTokenOptions).then((freshToken) => {
+            if (freshToken && freshToken !== token) {
+              console.log("Rider FCM token rotated, updating...");
+              persistLatestToken(freshToken).catch((err) => console.error("Rider token refresh save error:", err));
+            }
+          }).catch(() => {});
+
           const type = payload?.data?.type || "";
           // Rider app should never show support notifications
           const SUPPORT_TYPES = ["support_ticket_new", "support_message_user", "support_message_admin"];
