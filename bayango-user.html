@@ -1506,16 +1506,19 @@
           return;
         }
         const allItems = [
-          ...cartItems.map(i => ({
-            ...i,
-            // For kg products, store the effective total kg ordered and adjusted price
-            qty: i.unit === "kg" ? i.qty : i.qty,
-            weightUnit: i.unit === "kg" ? i.weightUnit : undefined,
-            totalKg: i.unit === "kg" ? +(i.qty * i.weightUnit).toFixed(2) : undefined,
-            price: i.unit === "kg" ? i.price : i.price,
-            // Preserve partner item source so merchant/admin flows can identify them correctly.
-            source: i.source || "market",
-          })),
+          ...cartItems.map(i => {
+            const isKgItem = i.unit === "kg";
+            const safeWeightUnit = isKgItem ? Number(i.weightUnit || 1) : null;
+            return {
+              ...i,
+              ...(isKgItem ? {
+                weightUnit: safeWeightUnit,
+                totalKg: +(Number(i.qty || 0) * safeWeightUnit).toFixed(2),
+              } : {}),
+              // Preserve partner item source so merchant/admin flows can identify them correctly.
+              source: i.source || "market",
+            };
+          }),
           ...customItems.map(i => ({ ...i, price: i.estPrice })),
         ];
         const batchInfo = getDeliveryBatch();
