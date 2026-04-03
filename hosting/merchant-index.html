@@ -24,7 +24,7 @@ const db=firebase.database(app);const auth=firebase.auth(app);const storage=fire
 const CATEGORIES=["isda","karne","gulay","prutas","ulam","sari","gamot","hardware"];
 function App(){
  const displayOrderStatus=(order)=>{
-  if(order?.status==='delivered') return 'successful';
+  if(order?.status==='delivered') return 'delivered';
   return order?.merchantStatus || order?.status || 'pending';
  };
 
