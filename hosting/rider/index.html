@@ -423,11 +423,13 @@
       const acceptOrder = async (orderId) => {
         setClaiming(orderId);
         try {
+          const selectedOrder = availableOrders.find(o => o.id === orderId) || {};
+          const nextStatus = selectedOrder.merchantId ? "pickup" : "buying";
           await _fbDb.ref("orders/" + orderId).update({
             riderId:    user.uid,
             riderName:  user.displayName || user.email,
             riderPhoto: user.photoURL || null,
-            status:     "buying",
+            status:     nextStatus,
             acceptedAt: Date.now(),
           });
           showToast("Accepted! Head to the store now.");
@@ -558,7 +560,7 @@
       const watchIdRef = useRef(null);
 
       useEffect(() => {
-        const hasActiveDelivery = myOrders.some(o => o.status === "buying" || o.status === "otw" || o.status === "in_boat");
+      const hasActiveDelivery = myOrders.some(o => o.status === "buying" || o.status === "pickup" || o.status === "otw" || o.status === "in_boat");
 
         if (hasActiveDelivery && !watchIdRef.current && navigator.geolocation) {
           setGpsActive(true);
@@ -622,7 +624,7 @@
         prevMyOrdersStatusRef.current = newPrev;
       }, [myOrders]);
 
-      const buyingOrders    = myOrders.filter(o => o.status === "buying");
+      const buyingOrders    = myOrders.filter(o => o.status === "buying" || o.status === "pickup");
       const activeOrders    = myOrders.filter(o => o.status === "otw" || o.status === "in_boat");
       const deliveredOrders = myOrders.filter(o => o.status === "delivered");
       const completedOrders = myOrders.filter(o => o.status === "delivered" || o.status === "cancelled");
@@ -1358,14 +1360,19 @@
           {buying.length > 0 && (
             <>
               <div style={{ fontSize:12, fontWeight:700, color:"#64748B", marginBottom:10, textTransform:"uppercase", letterSpacing:".08em" }}>
-                <Ic n="cart-shopping" style={{ marginRight:6 }} />Buying ({buying.length})
+                <Ic n="cart-shopping" style={{ marginRight:6 }} />Buying / Pickup ({buying.length})
               </div>
               {buying.map(order => {
                 const isIsland = order.locationType === "Island";
                 const gcashPending = isIsland && !order.gcashPaymentConfirmed;
+                const isPickup = order.status === "pickup";
                 return (
                   <OrderCard key={order.id} order={order}
-                    statusBadge={<><Ic n="cart-shopping" style={{ marginRight:4 }} />Buying</>} badgeBg="#FEF3C7" badgeColor="#92400E"
+                    statusBadge={
+                      isPickup
+                        ? <><Ic n="store" style={{ marginRight:4 }} />Pickup</>
+                        : <><Ic n="cart-shopping" style={{ marginRight:4 }} />Buying</>
+                    } badgeBg="#FEF3C7" badgeColor="#92400E"
                     actionBtn={
                       <>
                         {isIsland && (

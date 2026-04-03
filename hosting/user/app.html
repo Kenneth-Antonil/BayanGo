@@ -211,6 +211,7 @@
     const ORDER_STATUSES = [
       { key:"merchant_pending", label:"Merchant Pending", icon:"store",          desc:"Waiting for merchant to prepare your order" },
       { key:"pending",   label:"Pending",   icon:"hourglass-half", desc:"Your order has been received" },
+      { key:"pickup",    label:"Pickup",    icon:"store",          desc:"Rider is picking up your order from the merchant" },
       { key:"buying",    label:"Buying",    icon:"cart-shopping",  desc:"Now buying from the market" },
       { key:"otw",       label:"OTW",       icon:"motorcycle",     desc:"On the way to you" },
       { key:"delivered", label:"Delivered", icon:"circle-check",   desc:"Delivered!" },
@@ -218,6 +219,7 @@
     const ISLAND_ORDER_STATUSES = [
       { key:"merchant_pending", label:"Merchant Pending", icon:"store",          desc:"Waiting for merchant to prepare your order" },
       { key:"pending",   label:"Pending",     icon:"hourglass-half", desc:"Your order has been received" },
+      { key:"pickup",    label:"Pickup",      icon:"store",          desc:"Rider is picking up your order from the merchant" },
       { key:"buying",    label:"Buying",      icon:"cart-shopping",  desc:"Now buying from the market" },
       { key:"in_boat",   label:"In the Boat", icon:"ship",           desc:"On the boat and heading to you" },
       { key:"delivered", label:"Delivered",   icon:"circle-check",   desc:"Delivered!" },
@@ -225,6 +227,7 @@
     const ORDER_STATUS_COLORS = {
       merchant_pending: { bg:"#EDE9FE", color:"#6D28D9", label:"Merchant Pending", icon:"store"          },
       pending:   { bg:"#F3F4F6", color:"#555",    label:"Pending",      icon:"hourglass-half" },
+      pickup:    { bg:"#FEF9C3", color:"#854D0E", label:"Pickup",       icon:"store"          },
       buying:    { bg:"#FEF3C7", color:"#92400E", label:"Buying",       icon:"cart-shopping"  },
       otw:       { bg:"#DBEAFE", color:"#1D4ED8", label:"OTW",          icon:"motorcycle"     },
       in_boat:   { bg:"#EFF6FF", color:"#1D4ED8", label:"In the Boat",  icon:"ship"           },
@@ -1788,13 +1791,13 @@
         const wantsRiderTracker = section === "rider-tracker" || hash === "rider-tracker";
         if (!wantsRiderTracker || showRiderMap || showTracker) return;
 
-        const latestTrackable = myOrders.find(o => o.status === "buying" || o.status === "otw");
+        const latestTrackable = myOrders.find(o => o.status === "buying" || o.status === "pickup" || o.status === "otw");
         const latestActive = myOrders.find(o => o.status !== "delivered");
         const targetOrder = latestTrackable || latestActive;
 
         setActivePage("orders");
         if (targetOrder) {
-          if (targetOrder.status === "buying" || targetOrder.status === "otw") {
+          if (targetOrder.status === "buying" || targetOrder.status === "pickup" || targetOrder.status === "otw") {
             setShowRiderMap(targetOrder);
           } else {
             setShowTracker(targetOrder);
@@ -2681,7 +2684,7 @@
                 })()}
 
                 {/* ── Proof of Order + Itemized Receipt ── */}
-                {(liveOrder.status === "buying" || liveOrder.status === "otw" || liveOrder.status === "in_boat" || liveOrder.status === "delivered") && (liveOrder.proofImages?.length > 0 || liveOrder.pricesUpdatedAt) && (
+                {(liveOrder.status === "buying" || liveOrder.status === "pickup" || liveOrder.status === "otw" || liveOrder.status === "in_boat" || liveOrder.status === "delivered") && (liveOrder.proofImages?.length > 0 || liveOrder.pricesUpdatedAt) && (
                   <div style={{ marginTop:18, borderRadius:16, border:"1.5px solid #E5E7EB", background:"#FAFAFA", padding:"16px" }}>
                     <div style={{ fontSize:13, fontWeight:800, color:"#111", marginBottom:10, display:"flex", alignItems:"center", gap:6 }}>
                       <Ic n="receipt" style={{ color:"#166534" }} /> Resibo at Proof ng Order
@@ -2785,7 +2788,7 @@
                 )}
 
                 {/* Track Rider Button */}
-                {(liveOrder.status === "buying" || liveOrder.status === "otw" || liveOrder.status === "in_boat") && (
+                {(liveOrder.status === "buying" || liveOrder.status === "pickup" || liveOrder.status === "otw" || liveOrder.status === "in_boat") && (
                   <button onClick={() => { setShowTracker(null); setShowRiderMap(liveOrder); }} style={{
                     width:"100%", marginTop:18, padding:"14px", borderRadius:14,
                     background:"linear-gradient(135deg,#1D4ED8,#3B82F6)",
@@ -3552,7 +3555,7 @@
         const ts = o.createdAt ? (o.createdAt.toDate ? o.createdAt.toDate() : new Date(o.createdAt)) : new Date();
         const orderStatuses = getOrderStatuses(o);
         const idx = orderStatuses.findIndex(s => s.key === o.status);
-        const canTrackRider = o.status === "buying" || o.status === "otw" || o.status === "in_boat";
+        const canTrackRider = o.status === "buying" || o.status === "pickup" || o.status === "otw" || o.status === "in_boat";
         const hasGcashBanner = o.locationType === "Island" && o.status === "buying";
         const hasBottomAttachment = canTrackRider || hasGcashBanner;
         return (

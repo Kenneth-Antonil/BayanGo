@@ -18,6 +18,7 @@ const ADMIN_APP_URL = "https://bayango.store/bayango-admin.html";
 const ORDER_STATUS_LABELS = {
   merchant_pending: "Inihahanda ng merchant ang order",
   pending:   "Nai-receive na ang order",
+  pickup:    "Pinipickup na sa merchant",
   buying:    "Now buying from the market",
   otw:       "On the way to you",
   in_boat:   "Nasa bangka na",
