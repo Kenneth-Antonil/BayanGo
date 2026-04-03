@@ -1962,7 +1962,7 @@
                   <div style={{ padding:"11px 14px 14px" }}>
                     <div style={{ fontSize:13, fontWeight:700, color:"#111", marginBottom:2, lineHeight:1.25 }}>{p.name}</div>
                     <div style={{ fontSize:11, color:"#aaa", marginBottom:8 }}>
-                      {p.source === "partner" ? (p.storeName || "Partner Merchant") + (isStoreClosed ? " • Store Close • " : " • ") : ""}per {p.unit}
+                      per {p.unit}
                     </div>
                     {p.unit === "kg" && (
                       <div style={{ display:"flex", gap:4, marginBottom:10 }}>
@@ -2007,6 +2007,31 @@
                         )
                       )}
                     </div>
+                    {p.source === "partner" && (
+                      <div style={{
+                        marginTop:10,
+                        display:"inline-flex",
+                        alignItems:"center",
+                        gap:6,
+                        maxWidth:"100%",
+                        padding:"5px 9px",
+                        borderRadius:999,
+                        background:isStoreClosed ? "#E2E8F0" : "#ECFDF3",
+                        border:`1px solid ${isStoreClosed ? "#CBD5E1" : "#BBF7D0"}`
+                      }}>
+                        <Ic n="store" size={10} style={{ color:isStoreClosed ? "#475569" : "#166534", flexShrink:0 }} />
+                        <span style={{
+                          fontSize:10,
+                          fontWeight:800,
+                          color:isStoreClosed ? "#334155" : "#166534",
+                          whiteSpace:"nowrap",
+                          overflow:"hidden",
+                          textOverflow:"ellipsis"
+                        }}>
+                          {p.storeName || "Partner Merchant"} {isStoreClosed ? "• Closed" : "• Open"}
+                        </span>
+                      </div>
+                    )}
                   </div>
                 </div>
                   );
