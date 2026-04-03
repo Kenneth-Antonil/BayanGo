@@ -197,6 +197,7 @@
     );
 
     const CATEGORIES = [
+      { id:"all",      label:"All",           icon:"layer-group",        color:"#334155" },
       { id:"isda",     label:"Fish",          icon:"fish",               color:"#0EA5E9" },
       { id:"karne",    label:"Meat",          icon:"drumstick-bite",     color:"#EF4444" },
       { id:"gulay",    label:"Vegetables",          icon:"leaf",               color:"#22C55E" },
@@ -267,6 +268,15 @@
       if (product?.autoPriceEnabled === false) return roundPrice(base);
       const factor = Number(marketPricing?.[product?.cat]) || DEFAULT_MARKET_FACTOR;
       return roundPrice(base * factor);
+    };
+    const getProductBuyScore = (product) => {
+      if (!product || typeof product !== "object") return 0;
+      const scoreKeys = ["timesBought", "buyCount", "boughtCount", "orderCount", "soldCount", "sold", "totalSold", "salesCount"];
+      for (const key of scoreKeys) {
+        const value = Number(product?.[key]);
+        if (Number.isFinite(value) && value > 0) return value;
+      }
+      return 0;
     };
     const normalizeToCategoryId = (value) => {
       const v = String(value || "").toLowerCase();
@@ -876,7 +886,7 @@
           unsubMarketPricing = _fbDb.ref("settings/marketPricing").on("value", snap => {
             const raw = snap.val() || {};
             const next = {};
-            CATEGORIES.forEach(c => {
+            CATEGORIES.filter(c => c.id !== "all").forEach(c => {
               const val = Number(raw?.[c.id]);
               next[c.id] = Number.isFinite(val) && val > 0 ? val : DEFAULT_MARKET_FACTOR;
             });
@@ -1421,7 +1431,7 @@
 
     /* ══════════════════ USER APP ══════════════════ */
     function UserApp({ products, orders, onOrder, user, onLogout, gcashSettings, onOpenLegal }) {
-      const [activeCat,      setActiveCat]      = useState("isda");
+      const [activeCat,      setActiveCat]      = useState("all");
       const [cart,           setCart]           = useState({});
       const [showCart,       setShowCart]       = useState(false);
       const [showCheckout,   setShowCheckout]   = useState(false);
@@ -1627,16 +1637,6 @@
       };
       const removeCustom = id => setCustomItems(prev => prev.filter(i => i.id !== id));
 
-      const filtered = products.filter(p => {
-        const byCat = p.cat === activeCat;
-        if (!byCat) return false;
-        if (searchQ === "") return true;
-        const q = searchQ.toLowerCase();
-        return (
-          String(p.name || "").toLowerCase().includes(q) ||
-          String(p.storeName || "").toLowerCase().includes(q)
-        );
-      });
       const partnerStores = useMemo(() => {
         const map = {};
         products.forEach((p) => {
@@ -1656,6 +1656,37 @@
         });
         return Object.values(map).sort((a, b) => Number(b.merchantFeatured) - Number(a.merchantFeatured) || String(a.storeName).localeCompare(String(b.storeName)));
       }, [products]);
+      const featuredMerchantId = useMemo(() => {
+        const featuredStore = partnerStores.find((store) => store.merchantFeatured);
+        return featuredStore?.merchantId || null;
+      }, [partnerStores]);
+      const filtered = useMemo(() => {
+        const q = searchQ.trim().toLowerCase();
+        const list = products.filter((p) => {
+          const byCat = activeCat === "all" ? true : p.cat === activeCat;
+          if (!byCat) return false;
+          if (!q) return true;
+          return (
+            String(p.name || "").toLowerCase().includes(q) ||
+            String(p.storeName || "").toLowerCase().includes(q)
+          );
+        });
+        if (!featuredMerchantId) return list;
+        const featuredProducts = list.filter((p) => p.merchantId === featuredMerchantId);
+        const hasBuySignal = featuredProducts.some((p) => getProductBuyScore(p) > 0);
+        if (!hasBuySignal) return list;
+
+        return [...list].sort((a, b) => {
+          const aFeatured = a.merchantId === featuredMerchantId;
+          const bFeatured = b.merchantId === featuredMerchantId;
+          if (aFeatured !== bFeatured) return aFeatured ? -1 : 1;
+          if (aFeatured && bFeatured) {
+            const scoreDiff = getProductBuyScore(b) - getProductBuyScore(a);
+            if (scoreDiff !== 0) return scoreDiff;
+          }
+          return 0;
+        });
+      }, [activeCat, featuredMerchantId, products, searchQ]);
       const featuredStores = partnerStores.filter((store) => store.merchantFeatured);
       const openStoreProfile = useCallback((merchantId) => {
         if (!merchantId) return;
