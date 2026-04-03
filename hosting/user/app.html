@@ -1921,18 +1921,34 @@
               <div style={{ fontSize:13, fontWeight:800, color:"#166534", marginBottom:8, display:"flex", alignItems:"center", gap:6 }}>
                 <Ic n="star" size={12} /> Featured Partner Stores
               </div>
-              <div style={{ display:"flex", gap:8, overflowX:"auto", paddingBottom:2 }}>
+              <div style={{ display:"flex", gap:10, overflowX:"auto", paddingBottom:4 }}>
                 {featuredStores.map((store) => (
                   <button key={store.merchantId} onClick={() => openStoreProfile(store.merchantId)} style={{
-                    minWidth:170, textAlign:"left", background:"#fff", border:"1px solid #DCFCE7", borderRadius:12, padding:"9px 10px",
-                    display:"flex", alignItems:"center", gap:8
+                    minWidth:208, textAlign:"left", background:"#fff", border:"1px solid #DCFCE7", borderRadius:14, overflow:"hidden",
+                    boxShadow:"0 3px 12px rgba(15,23,42,.08)", padding:0
                   }}>
-                    {store.merchantLogo
-                      ? <img src={store.merchantLogo} alt={store.storeName} style={{ width:34, height:34, borderRadius:"50%", objectFit:"cover", border:"1px solid #BBF7D0" }} />
-                      : <div style={{ width:34, height:34, borderRadius:"50%", background:"#DCFCE7", display:"flex", alignItems:"center", justifyContent:"center", color:"#166534" }}><Ic n="store" size={13} /></div>}
-                    <div style={{ minWidth:0 }}>
+                    <div style={{
+                      height:90,
+                      background: store.storeOpen
+                        ? "linear-gradient(135deg,#166534,#22C55E)"
+                        : "linear-gradient(135deg,#64748B,#94A3B8)",
+                      position:"relative",
+                      display:"flex",
+                      alignItems:"center",
+                      justifyContent:"center"
+                    }}>
+                      {store.merchantLogo
+                        ? <img src={store.merchantLogo} alt={store.storeName} style={{ width:52, height:52, borderRadius:"50%", objectFit:"cover", border:"2px solid rgba(255,255,255,.85)", boxShadow:"0 6px 14px rgba(0,0,0,.18)" }} />
+                        : <div style={{ width:52, height:52, borderRadius:"50%", background:"rgba(255,255,255,.2)", border:"2px solid rgba(255,255,255,.55)", display:"flex", alignItems:"center", justifyContent:"center", color:"#fff" }}><Ic n="store" size={18} /></div>}
+                    </div>
+                    <div style={{ padding:"10px 12px 12px", minWidth:0 }}>
                       <div style={{ fontSize:12, fontWeight:800, color:"#14532D", whiteSpace:"nowrap", overflow:"hidden", textOverflow:"ellipsis" }}>{store.storeName}</div>
-                      <div style={{ fontSize:10, color:"#64748B" }}>{store.storeOpen ? "Open now" : "Closed"}</div>
+                      <div style={{ marginTop:3, fontSize:10, color:"#64748B", minHeight:28, lineHeight:1.35, display:"-webkit-box", WebkitLineClamp:2, WebkitBoxOrient:"vertical", overflow:"hidden" }}>
+                        {store.storeDescription || "Trusted local partner store."}
+                      </div>
+                      <div style={{ marginTop:5, fontSize:10, fontWeight:700, color:store.storeOpen ? "#166534" : "#B91C1C" }}>
+                        {store.storeOpen ? "Open now" : "Currently closed"}
+                      </div>
                     </div>
                   </button>
                 ))}
@@ -2161,12 +2177,9 @@
           )}
 
           {activeStoreProfile && (
-            <div style={{ position:"fixed", inset:0, background:"rgba(0,0,0,.55)", zIndex:260, backdropFilter:"blur(2px)" }} onClick={() => setActiveStoreProfile(null)}>
-              <div className="slide-up" onClick={(e) => e.stopPropagation()} style={{
-                position:"absolute", left:0, right:0, bottom:0, maxHeight:"86vh", overflowY:"auto",
-                background:"#fff", borderTopLeftRadius:18, borderTopRightRadius:18, padding:"16px 16px calc(env(safe-area-inset-bottom,0px) + 16px)"
-              }}>
-                <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", gap:10 }}>
+            <div style={{ position:"fixed", inset:0, background:"#fff", zIndex:260, overflowY:"auto" }}>
+              <div style={{ minHeight:"100vh", maxWidth:480, margin:"0 auto", padding:"calc(env(safe-area-inset-top,0px) + 12px) 16px calc(env(safe-area-inset-bottom,0px) + 16px)" }}>
+                <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", gap:10, position:"sticky", top:"env(safe-area-inset-top,0px)", background:"#fff", paddingBottom:10, zIndex:2 }}>
                   <div style={{ display:"flex", alignItems:"center", gap:10, minWidth:0 }}>
                     {activeStoreProfile.merchantLogo ? <img src={activeStoreProfile.merchantLogo} alt={activeStoreProfile.storeName} style={{ width:42, height:42, borderRadius:"50%", objectFit:"cover" }} /> : null}
                     <div style={{ minWidth:0 }}>
