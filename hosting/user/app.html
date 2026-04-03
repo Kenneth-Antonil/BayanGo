@@ -1955,14 +1955,41 @@
 
 
 
-          {/* ── Search ── */}
-          <div style={{ padding:"16px 20px 0" }}>
-            <div style={{ background:"#fff", borderRadius:16, padding:"12px 16px", display:"flex", alignItems:"center", gap:10, boxShadow:"0 1px 4px rgba(0,0,0,.07)", border:"1px solid #E9ECEF" }}>
-              <Ic n="magnifying-glass" size={17} style={{ opacity:.35 }} />
-              <input placeholder="Search products..." value={searchQ}
-                onChange={e => setSearchQ(e.target.value)}
-                style={{ flex:1, border:"none", outline:"none", fontSize:15, fontWeight:500, background:"transparent", color:"#111" }} />
-              {searchQ && <button onClick={() => setSearchQ("")} style={{ opacity:.4, fontSize:16 }}><Ic n="xmark" /></button>}
+          {/* ── Sticky Search + Categories ── */}
+          <div style={{
+            position:"sticky",
+            top:"calc(60px + env(safe-area-inset-top,0px))",
+            zIndex:150,
+            background:"#F8FAF8",
+            paddingTop:12,
+            boxShadow:"0 2px 10px rgba(15,23,42,.05)"
+          }}>
+            <div style={{ padding:"0 20px" }}>
+              <div style={{ background:"#fff", borderRadius:16, padding:"12px 16px", display:"flex", alignItems:"center", gap:10, boxShadow:"0 1px 4px rgba(0,0,0,.07)", border:"1px solid #E9ECEF" }}>
+                <Ic n="magnifying-glass" size={17} style={{ opacity:.35 }} />
+                <input placeholder="Search products..." value={searchQ}
+                  onChange={e => setSearchQ(e.target.value)}
+                  style={{ flex:1, border:"none", outline:"none", fontSize:15, fontWeight:500, background:"transparent", color:"#111" }} />
+                {searchQ && <button onClick={() => setSearchQ("")} style={{ opacity:.4, fontSize:16 }}><Ic n="xmark" /></button>}
+              </div>
+            </div>
+
+            {/* ── Categories ── */}
+            <div style={{ display:"flex", gap:8, padding:"12px 20px 10px", marginTop:2, overflowX:"auto", scrollbarWidth:"none" }}>
+              {CATEGORIES.map(cat => (
+                <button key={cat.id} onClick={() => setActiveCat(cat.id)} style={{
+                  padding:"10px 18px", borderRadius:30, whiteSpace:"nowrap",
+                  fontSize:13, fontWeight:700, display:"flex", alignItems:"center", gap:6,
+                  background: activeCat===cat.id ? cat.color : "#fff",
+                  color: activeCat===cat.id ? "#fff" : "#555",
+                  boxShadow: activeCat===cat.id ? `0 4px 14px ${cat.color}40` : "0 1px 3px rgba(0,0,0,.06)",
+                  border: activeCat===cat.id ? "none" : "1px solid #E5E7EB",
+                  transition:"all .22s ease",
+                  transform: activeCat===cat.id ? "scale(1.04)" : "scale(1)"
+                }}>
+                  <Ic n={cat.icon} size={14} />{cat.label}
+                </button>
+              ))}
             </div>
           </div>
 
@@ -2033,24 +2060,6 @@
               </div>
             </div>
           )}
-
-          {/* ── Categories ── */}
-          <div style={{ display:"flex", gap:8, padding:"14px 20px 12px", marginTop:10, overflowX:"auto", scrollbarWidth:"none" }}>
-            {CATEGORIES.map(cat => (
-              <button key={cat.id} onClick={() => setActiveCat(cat.id)} style={{
-                padding:"10px 18px", borderRadius:30, whiteSpace:"nowrap",
-                fontSize:13, fontWeight:700, display:"flex", alignItems:"center", gap:6,
-                background: activeCat===cat.id ? cat.color : "#fff",
-                color: activeCat===cat.id ? "#fff" : "#555",
-                boxShadow: activeCat===cat.id ? `0 4px 14px ${cat.color}40` : "0 1px 3px rgba(0,0,0,.06)",
-                border: activeCat===cat.id ? "none" : "1px solid #E5E7EB",
-                transition:"all .22s ease",
-                transform: activeCat===cat.id ? "scale(1.04)" : "scale(1)"
-              }}>
-                <Ic n={cat.icon} size={14} />{cat.label}
-              </button>
-            ))}
-          </div>
 
           {/* ── Custom List Entry ── */}
           <div style={{ padding:"0 20px 14px" }}>
