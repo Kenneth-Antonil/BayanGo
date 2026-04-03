@@ -479,7 +479,30 @@
             enabled: true,
           });
         };
-        await saveToken(token);
+        const persistLatestToken = async (freshToken, { removeOld = true } = {}) => {
+          if (!freshToken) return;
+          if (removeOld && token && token !== freshToken) {
+            const oldKey = sanitizeTokenKey(token);
+            _fbDb.ref(`push_tokens/${user.uid}/${oldKey}`).remove().catch(() => {});
+          }
+          token = freshToken;
+          await saveToken(freshToken);
+        };
+        await persistLatestToken(token, { removeOld: false });
+
+        if (typeof messaging.onTokenRefresh === "function") {
+          messaging.onTokenRefresh(async () => {
+            try {
+              const freshToken = await messaging.getToken(getTokenOptions);
+              if (freshToken && freshToken !== token) {
+                console.log("FCM token rotated (onTokenRefresh), updating...");
+                await persistLatestToken(freshToken);
+              }
+            } catch (err) {
+              console.warn("Token refresh listener error:", err);
+            }
+          });
+        }
 
         // Handle token refresh — FCM may rotate tokens at any time
         messaging.onMessage((payload) => {
@@ -487,11 +510,7 @@
           messaging.getToken(getTokenOptions).then(freshToken => {
             if (freshToken && freshToken !== token) {
               console.log("FCM token rotated, updating...");
-              // Remove old token entry
-              const oldKey = sanitizeTokenKey(token);
-              _fbDb.ref(`push_tokens/${user.uid}/${oldKey}`).remove().catch(() => {});
-              token = freshToken;
-              saveToken(freshToken).catch(err => console.error("Token refresh save error:", err));
+              persistLatestToken(freshToken).catch(err => console.error("Token refresh save error:", err));
             }
           }).catch(() => {});
 
@@ -518,10 +537,7 @@
             const freshToken = await messaging.getToken(getTokenOptions);
             if (freshToken && freshToken !== token) {
               console.log("FCM token rotated (interval check), updating...");
-              const oldKey = sanitizeTokenKey(token);
-              _fbDb.ref(`push_tokens/${user.uid}/${oldKey}`).remove().catch(() => {});
-              token = freshToken;
-              await saveToken(freshToken);
+              await persistLatestToken(freshToken);
             }
           } catch (err) {
             console.warn("Token refresh interval error:", err);
