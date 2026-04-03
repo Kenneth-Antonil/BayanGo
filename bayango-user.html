@@ -1513,7 +1513,8 @@
             weightUnit: i.unit === "kg" ? i.weightUnit : undefined,
             totalKg: i.unit === "kg" ? +(i.qty * i.weightUnit).toFixed(2) : undefined,
             price: i.unit === "kg" ? i.price : i.price,
-            source: "market",
+            // Preserve partner item source so merchant/admin flows can identify them correctly.
+            source: i.source || "market",
           })),
           ...customItems.map(i => ({ ...i, price: i.estPrice })),
         ];
