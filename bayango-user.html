@@ -1377,6 +1377,7 @@
         }).catch(err => console.error("Profile load error:", err.code));
       }, [user?.uid]);
       const [searchQ,        setSearchQ]        = useState("");
+      const [shopScrolled,   setShopScrolled]   = useState(false);
       const [orderPlaced,    setOrderPlaced]    = useState(false);
       const getInitialPage = () => {
         try {
@@ -1406,6 +1407,16 @@
       const [paymentMethod,  setPaymentMethod]  = useState("COD");
       const [notifications,  setNotifications]  = useState([]);
       const [selectedMerchantId, setSelectedMerchantId] = useState("");
+
+      useEffect(() => {
+        const onScroll = () => {
+          const stickyStart = 16;
+          setShopScrolled(window.scrollY > stickyStart);
+        };
+        onScroll();
+        window.addEventListener("scroll", onScroll, { passive:true });
+        return () => window.removeEventListener("scroll", onScroll);
+      }, []);
 
       const cartCount = Object.values(cart).reduce((s,v) => s+v, 0);
       const cartItems = Object.entries(cart)
@@ -1892,9 +1903,14 @@
             position:"sticky",
             top:"calc(60px + env(safe-area-inset-top,0px))",
             zIndex:150,
-            background:"#F8FAF8",
+            background: shopScrolled
+              ? "linear-gradient(180deg,#166534 0%,#14532D 100%)"
+              : "#F8FAF8",
             paddingTop:12,
-            boxShadow:"0 2px 10px rgba(15,23,42,.05)"
+            boxShadow: shopScrolled
+              ? "0 8px 22px rgba(20,83,45,.28)"
+              : "0 2px 10px rgba(15,23,42,.05)",
+            transition:"background .22s ease, box-shadow .22s ease"
           }}>
             <div style={{ padding:"0 20px" }}>
               <div style={{ background:"#fff", borderRadius:16, padding:"12px 16px", display:"flex", alignItems:"center", gap:10, boxShadow:"0 1px 4px rgba(0,0,0,.07)", border:"1px solid #E9ECEF" }}>
