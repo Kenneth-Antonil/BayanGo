@@ -2002,40 +2002,55 @@
             position:"sticky",
             top:"calc(60px + env(safe-area-inset-top,0px))",
             zIndex:150,
-            background: shopScrolled
-              ? "linear-gradient(180deg,#166534 0%,#14532D 100%)"
-              : "#F8FAF8",
+            background:"#F8FAF8",
             paddingTop:12,
             paddingBottom:10,
-            boxShadow: shopScrolled
-              ? "0 10px 24px rgba(20,83,45,.30)"
-              : "0 2px 10px rgba(15,23,42,.05)",
-            transition:"background .38s cubic-bezier(.2,.7,.2,1), box-shadow .38s cubic-bezier(.2,.7,.2,1)"
+            boxShadow:"0 2px 10px rgba(15,23,42,.05)"
           }}>
             <div style={{ padding:"0 20px" }}>
               <div style={{
-                background: shopScrolled
-                  ? "linear-gradient(120deg,#14532D 0%,#166534 45%,#22C55E 100%)"
-                  : "linear-gradient(120deg,#FFFFFF 0%,#F8FAFC 100%)",
-                backgroundSize:"140% 140%",
+                background:"linear-gradient(120deg,#FFFFFF 0%,#F8FAFC 100%)",
                 borderRadius:16,
                 padding:"12px 16px",
                 display:"flex",
                 alignItems:"center",
                 gap:10,
-                boxShadow: shopScrolled
-                  ? "0 10px 24px rgba(20,83,45,.36)"
-                  : "0 2px 8px rgba(15,23,42,.08)",
-                border: shopScrolled ? "1px solid rgba(255,255,255,.24)" : "1px solid #E9ECEF",
-                transform: shopScrolled ? "translateY(-1px)" : "translateY(0)",
-                transition:"background .42s cubic-bezier(.2,.7,.2,1), box-shadow .42s cubic-bezier(.2,.7,.2,1), border-color .32s ease, transform .32s ease"
+                boxShadow:"0 2px 8px rgba(15,23,42,.08)",
+                border:"1px solid #E9ECEF"
               }}>
-                <Ic n="magnifying-glass" size={17} style={{ opacity: shopScrolled ? .88 : .42, color: shopScrolled ? "#fff" : "#64748B", transition:"color .32s ease, opacity .32s ease" }} />
+                <Ic n="magnifying-glass" size={17} style={{ opacity:.42, color:"#64748B" }} />
                 <input placeholder="Search products..." value={searchQ}
                   onChange={e => setSearchQ(e.target.value)}
-                  style={{ flex:1, border:"none", outline:"none", fontSize:15, fontWeight:500, background:"transparent", color: shopScrolled ? "#fff" : "#111", transition:"color .32s ease" }} />
-                {searchQ && <button onClick={() => setSearchQ("")} style={{ opacity: shopScrolled ? .8 : .45, color: shopScrolled ? "#fff" : "#64748B", fontSize:16, transition:"color .32s ease, opacity .32s ease" }}><Ic n="xmark" /></button>}
+                  style={{ flex:1, border:"none", outline:"none", fontSize:15, fontWeight:500, background:"transparent", color:"#111" }} />
+                {searchQ && <button onClick={() => setSearchQ("")} style={{ opacity:.45, color:"#64748B", fontSize:16 }}><Ic n="xmark" /></button>}
               </div>
+            </div>
+          </div>
+
+          {/* ── Sticky Categories ── */}
+          <div style={{
+            position:"sticky",
+            top:"calc(60px + env(safe-area-inset-top,0px) + 78px)",
+            zIndex:145,
+            background:"#F8FAF8",
+            padding:"0 0 10px",
+            boxShadow:"0 3px 10px rgba(15,23,42,.06)"
+          }}>
+            <div style={{ display:"flex", gap:8, padding:"0 20px", overflowX:"auto", scrollbarWidth:"none" }}>
+              {CATEGORIES.map(cat => (
+                <button key={cat.id} onClick={() => setActiveCat(cat.id)} style={{
+                  padding:"10px 18px", borderRadius:30, whiteSpace:"nowrap",
+                  fontSize:13, fontWeight:700, display:"flex", alignItems:"center", gap:6,
+                  background: activeCat===cat.id ? cat.color : "#fff",
+                  color: activeCat===cat.id ? "#fff" : "#555",
+                  boxShadow: activeCat===cat.id ? `0 4px 14px ${cat.color}40` : "0 1px 3px rgba(0,0,0,.06)",
+                  border: activeCat===cat.id ? "none" : "1px solid #E5E7EB",
+                  transition:"all .22s ease",
+                  transform: activeCat===cat.id ? "scale(1.04)" : "scale(1)"
+                }}>
+                  <Ic n={cat.icon} size={14} />{cat.label}
+                </button>
+              ))}
             </div>
           </div>
 
@@ -2043,7 +2058,7 @@
           <BatchTimerBanner />
 
           {featuredStores.length > 0 && (
-            <div style={{ padding:"14px 20px 0" }}>
+            <div style={{ padding:"16px 20px 0" }}>
               <div style={{ fontSize:13, fontWeight:800, color:"#166534", marginBottom:8, display:"flex", alignItems:"center", gap:6 }}>
                 <Ic n="star" size={12} /> Must Try in Binangonan
               </div>
@@ -2108,7 +2123,7 @@
           )}
 
           {/* ── Custom List Entry ── */}
-          <div style={{ padding:"0 20px 14px" }}>
+          <div style={{ padding:"12px 20px 14px" }}>
             <button onClick={() => setShowCustomList(true)} style={{
               width:"100%", background:"#F0FDF4", border:"2px dashed #86EFAC", borderRadius:16,
               padding:"13px 16px", display:"flex", alignItems:"center", gap:12,
@@ -2129,33 +2144,6 @@
                 ›
               </span>
             </button>
-          </div>
-
-          {/* ── Sticky Categories ── */}
-          <div style={{
-            position:"sticky",
-            top:"calc(60px + env(safe-area-inset-top,0px) + 86px)",
-            zIndex:145,
-            background:"#F8FAF8",
-            padding:"8px 0 10px",
-            boxShadow:"0 3px 10px rgba(15,23,42,.06)"
-          }}>
-            <div style={{ display:"flex", gap:8, padding:"0 20px", overflowX:"auto", scrollbarWidth:"none" }}>
-              {CATEGORIES.map(cat => (
-                <button key={cat.id} onClick={() => setActiveCat(cat.id)} style={{
-                  padding:"10px 18px", borderRadius:30, whiteSpace:"nowrap",
-                  fontSize:13, fontWeight:700, display:"flex", alignItems:"center", gap:6,
-                  background: activeCat===cat.id ? cat.color : "#fff",
-                  color: activeCat===cat.id ? "#fff" : "#555",
-                  boxShadow: activeCat===cat.id ? `0 4px 14px ${cat.color}40` : "0 1px 3px rgba(0,0,0,.06)",
-                  border: activeCat===cat.id ? "none" : "1px solid #E5E7EB",
-                  transition:"all .22s ease",
-                  transform: activeCat===cat.id ? "scale(1.04)" : "scale(1)"
-                }}>
-                  <Ic n={cat.icon} size={14} />{cat.label}
-                </button>
-              ))}
-            </div>
           </div>
 
           {/* ── Section Label ── */}
