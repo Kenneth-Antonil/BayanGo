@@ -70,6 +70,11 @@ const db=firebase.database(app);const auth=firebase.auth(app);const storage=fire
 const CATEGORIES=["isda","karne","gulay","prutas","ulam","sari","gamot","hardware"];
 
 function App(){
+ const displayOrderStatus=(order)=>{
+  if(order?.status==='delivered') return 'successful';
+  return order?.merchantStatus || order?.status || 'pending';
+ };
+
  const [user,setUser]=React.useState(null);
  const [merchant,setMerchant]=React.useState(null);
  const [listings,setListings]=React.useState([]);
@@ -249,7 +254,7 @@ function App(){
           <div className="order-head">
             <div style={{fontWeight:700}}>{o.customer?.name} • ₱{o.total}</div>
           </div>
-          <div className="order-status">Status: {o.merchantStatus||o.status}</div>
+          <div className="order-status">Status: {displayOrderStatus(o)}</div>
           <div className="order-actions">
             <button className="btn-muted" onClick={()=>updateOrder(o.id,'merchant_pending','accepted')}>Accept</button>
             <button className="btn-warn" onClick={()=>updateOrder(o.id,'merchant_pending','preparing')}>Preparing</button>
