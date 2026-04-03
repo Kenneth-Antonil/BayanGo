@@ -1997,11 +1997,8 @@
 
 
 
-          {/* ── Sticky Search ── */}
+          {/* ── Search ── */}
           <div style={{
-            position:"sticky",
-            top:"calc(60px + env(safe-area-inset-top,0px))",
-            zIndex:150,
             background:"#F8FAF8",
             paddingTop:12,
             paddingBottom:10,
@@ -2024,33 +2021,6 @@
                   style={{ flex:1, border:"none", outline:"none", fontSize:15, fontWeight:500, background:"transparent", color:"#111" }} />
                 {searchQ && <button onClick={() => setSearchQ("")} style={{ opacity:.45, color:"#64748B", fontSize:16 }}><Ic n="xmark" /></button>}
               </div>
-            </div>
-          </div>
-
-          {/* ── Sticky Categories ── */}
-          <div style={{
-            position:"sticky",
-            top:"calc(60px + env(safe-area-inset-top,0px) + 78px)",
-            zIndex:145,
-            background:"#F8FAF8",
-            padding:"0 0 10px",
-            boxShadow:"0 3px 10px rgba(15,23,42,.06)"
-          }}>
-            <div style={{ display:"flex", gap:8, padding:"0 20px", overflowX:"auto", scrollbarWidth:"none" }}>
-              {CATEGORIES.map(cat => (
-                <button key={cat.id} onClick={() => setActiveCat(cat.id)} style={{
-                  padding:"10px 18px", borderRadius:30, whiteSpace:"nowrap",
-                  fontSize:13, fontWeight:700, display:"flex", alignItems:"center", gap:6,
-                  background: activeCat===cat.id ? cat.color : "#fff",
-                  color: activeCat===cat.id ? "#fff" : "#555",
-                  boxShadow: activeCat===cat.id ? `0 4px 14px ${cat.color}40` : "0 1px 3px rgba(0,0,0,.06)",
-                  border: activeCat===cat.id ? "none" : "1px solid #E5E7EB",
-                  transition:"all .22s ease",
-                  transform: activeCat===cat.id ? "scale(1.04)" : "scale(1)"
-                }}>
-                  <Ic n={cat.icon} size={14} />{cat.label}
-                </button>
-              ))}
             </div>
           </div>
 
@@ -2144,6 +2114,29 @@
                 ›
               </span>
             </button>
+          </div>
+
+          {/* ── Categories ── */}
+          <div style={{
+            background:"#F8FAF8",
+            padding:"0 0 10px"
+          }}>
+            <div style={{ display:"flex", gap:8, padding:"0 20px", overflowX:"auto", scrollbarWidth:"none" }}>
+              {CATEGORIES.map(cat => (
+                <button key={cat.id} onClick={() => setActiveCat(cat.id)} style={{
+                  padding:"10px 18px", borderRadius:30, whiteSpace:"nowrap",
+                  fontSize:13, fontWeight:700, display:"flex", alignItems:"center", gap:6,
+                  background: activeCat===cat.id ? cat.color : "#fff",
+                  color: activeCat===cat.id ? "#fff" : "#555",
+                  boxShadow: activeCat===cat.id ? `0 4px 14px ${cat.color}40` : "0 1px 3px rgba(0,0,0,.06)",
+                  border: activeCat===cat.id ? "none" : "1px solid #E5E7EB",
+                  transition:"all .22s ease",
+                  transform: activeCat===cat.id ? "scale(1.04)" : "scale(1)"
+                }}>
+                  <Ic n={cat.icon} size={14} />{cat.label}
+                </button>
+              ))}
+            </div>
           </div>
 
           {/* ── Section Label ── */}
