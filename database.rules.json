@@ -267,6 +267,57 @@
     // SUPPORT CALL QUEUE (queued calls when admin is busy)
     // Admins manage their own queue. Users can write to queue their call.
     // ─────────────────────────────────────────────────────────────────────────
+    // ─────────────────────────────────────────────────────────────────────────
+    // PARTNER APPLICATIONS
+    // Authenticated users can create applications (applicantUid must match).
+    // Applicants can read their own applications.
+    // Admins can read all and update status (approve/reject).
+    // ─────────────────────────────────────────────────────────────────────────
+    "partner_applications": {
+      ".indexOn": ["createdAt", "applicantUid"],
+      ".read": "auth != null && root.child('admins').child(auth.uid).val() === true",
+      "$appId": {
+        ".read": "auth != null && (
+          data.child('applicantUid').val() === auth.uid ||
+          root.child('admins').child(auth.uid).val() === true
+        )",
+        ".write": "auth != null && (
+          (!data.exists() && newData.child('applicantUid').val() === auth.uid) ||
+          root.child('admins').child(auth.uid).val() === true
+        )"
+      }
+    },
+
+    // ─────────────────────────────────────────────────────────────────────────
+    // PARTNER MERCHANTS
+    // Merchants can read/write their own record.
+    // Admins can read/write all (for approval workflow).
+    // Any authenticated user can read (to browse merchant stores).
+    // ─────────────────────────────────────────────────────────────────────────
+    "partner_merchants": {
+      ".read": "auth != null",
+      "$uid": {
+        ".write": "auth != null && (
+          auth.uid === $uid ||
+          root.child('admins').child(auth.uid).val() === true
+        )"
+      }
+    },
+
+    // ─────────────────────────────────────────────────────────────────────────
+    // MERCHANT LISTINGS (products per merchant)
+    // Any authenticated user can read. Merchant owner or admin can write.
+    // ─────────────────────────────────────────────────────────────────────────
+    "merchant_listings": {
+      ".read": "auth != null",
+      "$merchantId": {
+        ".write": "auth != null && (
+          auth.uid === $merchantId ||
+          root.child('admins').child(auth.uid).val() === true
+        )"
+      }
+    },
+
     "support_call_queue": {
       "$adminUid": {
         ".read": "auth != null && (
