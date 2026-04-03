@@ -28,6 +28,17 @@ service firebase.storage {
       allow write: if isSignedIn();
     }
 
+
+    match /merchant_logos/{allPaths=**} {
+      allow read: if true;
+      allow write: if isSignedIn() && isImageUpload(5 * 1024 * 1024);
+    }
+
+    match /merchant_listing_images/{allPaths=**} {
+      allow read: if true;
+      allow write: if isSignedIn() && isImageUpload(5 * 1024 * 1024);
+    }
+
     // Default deny for any other object paths.
     match /{allPaths=**} {
       allow read, write: if false;
