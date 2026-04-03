@@ -767,6 +767,7 @@
                 source: "partner",
                 storeName: entry.storeName || merchant.storeName || "Partner Merchant",
                 merchantLogo: entry.merchantLogo || merchant.logoUrl || "",
+                storeOpen: merchant.storeOpen !== false,
               };
             })
             .filter((entry) => entry.active !== false);
@@ -1913,12 +1914,24 @@
           <div style={{ padding:`0 20px ${totalItemCount > 0 && !showCart ? "138px" : "16px"}` }}>
             <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:12 }}>
               {filtered.map((p, i) => (
+                (() => {
+                  const isStoreClosed = p.source === "partner" && p.storeOpen === false;
+                  const isUnavailable = !p.stock || isStoreClosed;
+                  return (
                 <div key={p.id} className="fade-up" style={{
                   animationDelay:`${i*.05}s`,
                   background:"#fff", borderRadius:18, overflow:"hidden",
                   border:"1px solid #F0F0F0", boxShadow:"0 2px 8px rgba(0,0,0,.04)",
-                  opacity:p.stock?1:.5, position:"relative"
+                  opacity:isUnavailable ? .5 : 1, position:"relative",
+                  filter:isStoreClosed ? "grayscale(.35)" : "none"
                 }}>
+                  {isStoreClosed && (
+                    <div style={{
+                      position:"absolute", top:10, left:10, background:"#334155",
+                      color:"#fff", fontSize:9, fontWeight:800, padding:"3px 8px",
+                      borderRadius:6, zIndex:2, letterSpacing:".04em"
+                    }}>STORE CLOSE</div>
+                  )}
                   {!p.stock && (
                     <div style={{
                       position:"absolute", top:10, right:10, background:"#EF4444",
@@ -1949,7 +1962,7 @@
                   <div style={{ padding:"11px 14px 14px" }}>
                     <div style={{ fontSize:13, fontWeight:700, color:"#111", marginBottom:2, lineHeight:1.25 }}>{p.name}</div>
                     <div style={{ fontSize:11, color:"#aaa", marginBottom:8 }}>
-                      {p.source === "partner" ? (p.storeName || "Partner Merchant") + " • " : ""}per {p.unit}
+                      {p.source === "partner" ? (p.storeName || "Partner Merchant") + (isStoreClosed ? " • Store Close • " : " • ") : ""}per {p.unit}
                     </div>
                     {p.unit === "kg" && (
                       <div style={{ display:"flex", gap:4, marginBottom:10 }}>
@@ -1978,7 +1991,7 @@
                           </span>
                         )}
                       </div>
-                      {p.stock && (
+                      {!isStoreClosed && p.stock && (
                         cart[p.id] ? (
                           <div style={{ display:"flex", alignItems:"center", gap:5 }}>
                             <button onClick={() => rem(p.id)} style={{ width:28, height:28, borderRadius:8, background:"#F3F4F6", fontSize:16, fontWeight:700, color:"#555", display:"flex", alignItems:"center", justifyContent:"center" }}>−</button>
@@ -1996,6 +2009,8 @@
                     </div>
                   </div>
                 </div>
+                  );
+                })()
               ))}
             </div>
             {filtered.length === 0 && (

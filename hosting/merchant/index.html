@@ -19,12 +19,13 @@
     }
     *{box-sizing:border-box}
     body{font-family:Inter,Arial,sans-serif;background:linear-gradient(180deg,#e4f4eb 0%,var(--bg) 45%);margin:0;color:var(--text)}
-    #root{max-width:980px;margin:0 auto;padding:22px 14px 30px}
+    #root{max-width:100%;margin:0 auto;padding:14px 12px 26px}
     .card{background:var(--card);border:1px solid var(--line);border-radius:var(--radius);padding:16px;margin-bottom:14px;box-shadow:0 10px 24px rgba(15,23,42,.05)}
     .card h2,.card h3{margin:0 0 10px}
     .muted{color:var(--muted);margin:0}
     .toolbar{display:flex;justify-content:space-between;gap:12px;align-items:center;flex-wrap:wrap}
     .status-chip{background:#dcfce7;color:#166534;font-weight:700;padding:6px 10px;border-radius:999px;font-size:12px;border:1px solid #86efac}
+    .status-chip.closed{background:#fee2e2;color:#991b1b;border-color:#fca5a5}
     .stack{display:grid;gap:10px}
     input,select,textarea{width:100%;padding:10px 12px;border:1px solid #cbd5e1;border-radius:10px;margin:0;font-size:14px;background:#fff}
     input:focus,select:focus,textarea:focus{outline:0;border-color:#22c55e;box-shadow:0 0 0 3px rgba(34,197,94,.15)}
@@ -50,6 +51,18 @@
     .order-actions{display:flex;gap:8px;flex-wrap:wrap}
     .login{text-align:center;padding:24px}
     .logo{width:64px;height:64px;border-radius:50%;object-fit:cover;border:2px solid #bbf7d0}
+    .menu-bar{display:flex;gap:8px;overflow:auto;padding-bottom:4px}
+    .menu-btn{padding:9px 12px;border:1px solid #d1d5db;background:#fff;color:#334155;border-radius:999px;font-size:12px;font-weight:700;white-space:nowrap}
+    .menu-btn.active{background:#166534;color:#fff;border-color:#166534}
+    .toggle-wrap{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:12px;border:1px solid #dcfce7;background:#f0fdf4;border-radius:12px}
+    .switch{position:relative;width:52px;height:30px;display:inline-block}
+    .switch input{opacity:0;width:0;height:0}
+    .slider{position:absolute;cursor:pointer;inset:0;background:#cbd5e1;border-radius:999px;transition:.2s}
+    .slider:before{content:"";position:absolute;height:24px;width:24px;left:3px;top:3px;background:#fff;border-radius:50%;transition:.2s}
+    .switch input:checked + .slider{background:#16a34a}
+    .switch input:checked + .slider:before{transform:translateX(22px)}
+    .section-title{margin:0 0 10px;font-size:14px;font-weight:700;color:#334155;text-transform:uppercase;letter-spacing:.04em}
+    @media (min-width:900px){#root{max-width:980px;padding:22px 14px 30px}}
     @media (max-width:640px){.grid-2{grid-template-columns:1fr}}
   </style>
 </head>
@@ -84,6 +97,8 @@ function App(){
  const [listingImageFile,setListingImageFile]=React.useState(null);
  const [savingListing,setSavingListing]=React.useState(false);
  const [editingId,setEditingId]=React.useState(null);
+ const [activeSection,setActiveSection]=React.useState("dashboard");
+ const [updatingStoreStatus,setUpdatingStoreStatus]=React.useState(false);
 
  React.useEffect(()=>auth.onAuthStateChanged(setUser),[]);
 
@@ -107,6 +122,19 @@ function App(){
  },[user?.uid]);
 
  const signIn=async()=>{await auth.signInWithPopup(new firebase.auth.GoogleAuthProvider());};
+ const storeOpen=merchant?.storeOpen!==false;
+
+ const setStoreOpen=async(nextOpen)=>{
+  if(!user||updatingStoreStatus) return;
+  setUpdatingStoreStatus(true);
+  try{
+    await db.ref("partner_merchants/"+user.uid).update({storeOpen:nextOpen,storeStatusUpdatedAt:Date.now()});
+  }catch(err){
+    alert("Hindi ma-update ang store status:\n" + (err?.message || err?.code || "Unknown error"));
+  }finally{
+    setUpdatingStoreStatus(false);
+  }
+ };
 
  const uploadLogo=async(file)=>{
   if(!user||!file) return;
@@ -196,13 +224,37 @@ function App(){
           <h2>{merchant.storeName || "Partner Merchant"}</h2>
           <p className="muted">Manage listings at orders in one place.</p>
         </div>
-        <span className="status-chip">Status: Approved</span>
+        <span className={`status-chip ${storeOpen ? "" : "closed"}`}>{storeOpen ? "Store Open" : "Store Closed"}</span>
       </div>
       <br/>
+      <div className="menu-bar">
+        <button className={`menu-btn ${activeSection==="dashboard"?"active":""}`} onClick={()=>setActiveSection("dashboard")}>Dashboard</button>
+        <button className={`menu-btn ${activeSection==="listings"?"active":""}`} onClick={()=>setActiveSection("listings")}>Listings</button>
+        <button className={`menu-btn ${activeSection==="orders"?"active":""}`} onClick={()=>setActiveSection("orders")}>Orders</button>
+        <button className={`menu-btn ${activeSection==="settings"?"active":""}`} onClick={()=>setActiveSection("settings")}>Settings</button>
+      </div>
+    </div>
+
+    {activeSection==="dashboard" && (
+    <div className="card stack">
+      <h3>Quick Controls</h3>
+      <div className="toggle-wrap">
+        <div>
+          <div style={{fontWeight:700,fontSize:14}}>Store status</div>
+          <div className="muted" style={{fontSize:12}}>{storeOpen ? "Customers can order from your store." : "Listings are marked as Store Closed in customer app."}</div>
+        </div>
+        <label className="switch">
+          <input type="checkbox" checked={storeOpen} onChange={e=>setStoreOpen(e.target.checked)} disabled={updatingStoreStatus}/>
+          <span className="slider"></span>
+        </label>
+      </div>
       <input type="file" accept="image/*" onChange={e=>uploadLogo(e.target.files?.[0])}/>
       {merchant.logoUrl && <img src={merchant.logoUrl} className="logo" alt="Merchant logo"/>}
     </div>
+    )}
 
+    {activeSection==="listings" && (
+    <>
     <div className="card stack">
       <h3>{editingId ? "Update Listing" : "Add Listing"}</h3>
       <div className="grid-2">
@@ -247,7 +299,11 @@ function App(){
         </div>
       ))}
     </div>
+    </>
+    )}
 
+    {activeSection==="orders" && (
+    <>
     <div className="card">
       <h3>Merchant Orders</h3>
       {orders.filter(o=>!isArchivedOrder(o)).map(o=>(
@@ -278,6 +334,25 @@ function App(){
       ))}
       {!orders.some(isArchivedOrder) && <p className="muted">No archived orders yet.</p>}
     </div>
+    </>
+    )}
+
+    {activeSection==="settings" && (
+    <div className="card stack">
+      <h3>Settings</h3>
+      <div className="toggle-wrap">
+        <div>
+          <div style={{fontWeight:700,fontSize:14}}>{storeOpen ? "Store Open" : "Store Closed"}</div>
+          <div className="muted" style={{fontSize:12}}>Turn this off to gray-out listings and show "Store Closed" in the user app.</div>
+        </div>
+        <label className="switch">
+          <input type="checkbox" checked={storeOpen} onChange={e=>setStoreOpen(e.target.checked)} disabled={updatingStoreStatus}/>
+          <span className="slider"></span>
+        </label>
+      </div>
+      <button className="btn-muted" onClick={()=>auth.signOut()}>Sign out</button>
+    </div>
+    )}
   </div>
  );
 }
