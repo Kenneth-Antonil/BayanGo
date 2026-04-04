@@ -316,6 +316,64 @@
       line-height: 1.55;
       padding: 0 8px;
     }
+    .legal-section {
+      margin: 16px 20px calc(env(safe-area-inset-bottom, 0px) + 24px);
+      border: 1.5px solid #DCFCE7;
+      border-radius: 18px;
+      overflow: hidden;
+      background: #fff;
+      box-shadow: 0 6px 18px rgba(22,101,52,.08);
+    }
+    .legal-head {
+      padding: 12px 14px;
+      font-size: 11px;
+      font-weight: 800;
+      letter-spacing: .08em;
+      color: #6B7280;
+      text-transform: uppercase;
+      background: #F7FFF9;
+      border-bottom: 1px solid #DCFCE7;
+    }
+    .legal-item {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 14px;
+      text-decoration: none;
+      color: #111827;
+      border-bottom: 1px solid #EEF2F7;
+    }
+    .legal-item:last-child { border-bottom: none; }
+    .legal-item:active { background: #F9FAFB; }
+    .legal-icon {
+      width: 34px;
+      height: 34px;
+      border-radius: 10px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: #166534;
+      background: #ECFDF3;
+      flex-shrink: 0;
+      font-size: 14px;
+    }
+    .legal-text strong {
+      display: block;
+      font-size: 13.5px;
+      line-height: 1.25;
+      font-weight: 800;
+    }
+    .legal-text span {
+      display: block;
+      font-size: 11px;
+      color: #6B7280;
+      margin-top: 2px;
+    }
+    .legal-arrow {
+      margin-left: auto;
+      color: #9CA3AF;
+      font-size: 12px;
+    }
 
     /* ── Fade-in animation ── */
     @keyframes fadeUp {
@@ -490,6 +548,34 @@
       <p id="helpNote" class="help-note">
         Kapag installed na, awtomatikong magbubukas ang BayanGo sa full-screen app mode.
       </p>
+    </div>
+
+    <div class="legal-section fade-up delay-4">
+      <div class="legal-head">Company &amp; Legal</div>
+      <a class="legal-item" href="privacy-policy.html">
+        <div class="legal-icon"><i class="fa-solid fa-shield-halved"></i></div>
+        <div class="legal-text">
+          <strong>Privacy Policy</strong>
+          <span>How we collect and protect your data</span>
+        </div>
+        <i class="fa-solid fa-chevron-right legal-arrow"></i>
+      </a>
+      <a class="legal-item" href="about-us.html">
+        <div class="legal-icon"><i class="fa-solid fa-circle-info"></i></div>
+        <div class="legal-text">
+          <strong>About Us</strong>
+          <span>Know BayanGo’s story and mission</span>
+        </div>
+        <i class="fa-solid fa-chevron-right legal-arrow"></i>
+      </a>
+      <a class="legal-item" href="terms-of-condition.html">
+        <div class="legal-icon"><i class="fa-solid fa-file-contract"></i></div>
+        <div class="legal-text">
+          <strong>Terms of Condition</strong>
+          <span>Rules and conditions for using BayanGo</span>
+        </div>
+        <i class="fa-solid fa-chevron-right legal-arrow"></i>
+      </a>
     </div>
 
   </div><!-- end .page -->
