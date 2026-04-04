@@ -653,20 +653,48 @@
         );
       }
 
-      // Render actual app with logout bar
+      const adminName = user.displayName || user.email || "Administrator";
+
+      // Render actual app with redesigned top shell
       return (
         <>
           <div style={{
-            position:"sticky", top:0, zIndex:20,
-            background:"linear-gradient(135deg,#0B3B1C,#166534)",
-            color:"#fff", padding:"10px 20px",
-            display:"flex", justifyContent:"space-between", alignItems:"center", fontSize:12,
-            boxShadow:"0 8px 24px rgba(15,23,42,.18)"
+            position:"sticky",
+            top:0,
+            zIndex:30,
+            background:"linear-gradient(120deg,#0F172A 0%, #111827 45%, #14532D 100%)",
+            color:"#E2E8F0",
+            padding:"12px 22px",
+            display:"flex",
+            justifyContent:"space-between",
+            alignItems:"center",
+            borderBottom:"1px solid rgba(255,255,255,.12)",
+            boxShadow:"0 12px 28px rgba(2,6,23,.45)"
           }}>
-            <span style={{color:"rgba(255,255,255,.82)"}}>
-              Admin: <b style={{color:"#fff"}}>{user.displayName || user.email}</b>
-            </span>
-            <button onClick={handleLogout} style={{ color:"#FCA5A5", fontWeight:"bold" }}>Sign Out</button>
+            <div style={{ display:"flex", alignItems:"center", gap:12 }}>
+              <div style={{
+                width:32, height:32, borderRadius:10,
+                background:"linear-gradient(135deg,#22C55E,#16A34A)",
+                color:"#052E16",
+                display:"flex", alignItems:"center", justifyContent:"center",
+                fontWeight:900, fontSize:13
+              }}>
+                {adminName.slice(0,1).toUpperCase()}
+              </div>
+              <div>
+                <div style={{ fontSize:10, textTransform:"uppercase", letterSpacing:".12em", color:"#94A3B8" }}>BayanGo Command Center</div>
+                <div style={{ fontSize:13, fontWeight:800, color:"#F8FAFC" }}>{adminName}</div>
+              </div>
+            </div>
+            <button onClick={handleLogout} style={{
+              color:"#FECACA",
+              fontWeight:800,
+              fontSize:12,
+              padding:"8px 12px",
+              borderRadius:999,
+              border:"1px solid rgba(248,113,113,.35)",
+              background:"rgba(127,29,29,.22)"
+            }}>Sign Out</button>
           </div>
           <AdminDashboard
             user={user}
@@ -1349,46 +1377,79 @@
       const activeRiders = [...new Set(dashboardOrders.filter(o => o.status === "otw" && o.riderId).map(o => o.riderId))].length;
 
       return (
-        <div style={{ maxWidth:1280, margin:"0 auto", minHeight:"100vh", background:"#fff", paddingBottom:40 }}>
+        <div style={{ maxWidth:1340, margin:"0 auto", minHeight:"100vh", background:"#020617", padding:"16px 14px 48px" }}>
 
-          <div style={{ padding:"14px 20px 8px" }}>
+          <div style={{ padding:"8px 8px 12px" }}>
             <div style={{
-              background:"#fff",
-              color:"#0F172A",
-              padding:"18px 20px",
-              border:"1px solid #E2E8F0",
+              background:"radial-gradient(circle at 20% 20%, rgba(34,197,94,.24), transparent 50%), linear-gradient(130deg,#0F172A 0%, #111827 55%, #052E16 100%)",
+              color:"#E2E8F0",
+              padding:"24px 24px",
+              border:"1px solid rgba(148,163,184,.28)",
+              borderRadius:24,
               display:"flex",
-              flexDirection:"column",
               alignItems:"center",
-              justifyContent:"center",
-              gap:8
+              justifyContent:"space-between",
+              gap:16
             }}>
-              <img src="https://i.imgur.com/1W159zD.png" alt="BayanGO Logo" style={{ width:68, height:68, objectFit:"contain" }} />
-              <div style={{ fontSize:14, fontWeight:800, letterSpacing:".08em", textTransform:"uppercase" }}>Master Control</div>
+              <div style={{ display:"flex", alignItems:"center", gap:14 }}>
+                <img src="https://i.imgur.com/1W159zD.png" alt="BayanGO Logo" style={{ width:72, height:72, objectFit:"contain", filter:"drop-shadow(0 10px 20px rgba(0,0,0,.45))" }} />
+                <div>
+                  <div style={{ fontSize:11, letterSpacing:".18em", textTransform:"uppercase", color:"#86EFAC", fontWeight:700 }}>Operations Suite</div>
+                  <div style={{ fontSize:24, fontWeight:900, color:"#F8FAFC", lineHeight:1.2 }}>Admin Dashboard Overhaul</div>
+                  <div style={{ fontSize:13, color:"#CBD5E1", marginTop:5 }}>Real-time command center for orders, riders, merchants, and growth.</div>
+                </div>
+              </div>
+              <div style={{
+                padding:"10px 14px",
+                borderRadius:14,
+                border:"1px solid rgba(134,239,172,.34)",
+                background:"rgba(22,163,74,.12)",
+                fontSize:12,
+                color:"#DCFCE7",
+                fontWeight:700
+              }}>
+                Live sync active
+              </div>
             </div>
           </div>
 
-          <div style={{ padding:"0 20px 12px", display:"grid", gridTemplateColumns:"repeat(4,minmax(0,1fr))", gap:0, borderTop:"1px solid #CBD5E1", borderBottom:"1px solid #CBD5E1", background:"#fff" }}>
+          <div style={{ padding:"0 8px 12px", display:"grid", gridTemplateColumns:"repeat(auto-fit,minmax(220px,1fr))", gap:12 }}>
             {[
               { label:"Total Orders", value:dashboardOrders.length, icon:"chart-line", tone:"#0F172A", bg:"#E2E8F0" },
               { label:"Revenue", value:`₱${totalRevenue.toLocaleString("en-PH",{minimumFractionDigits:0,maximumFractionDigits:0})}`, icon:"coins", tone:"#166534", bg:"#DCFCE7" },
               { label:"Today's Orders", value:todayOrders.length, icon:"calendar-day", tone:"#1D4ED8", bg:"#DBEAFE" },
               { label:"App Active Users", value:appUsageStats?.activeUsers || 0, icon:"users", tone:"#7C3AED", bg:"#EDE9FE" },
             ].map(k => (
-              <div key={k.label} style={{ padding:"12px 14px", borderRight:"1px solid #E2E8F0" }}>
-                <div style={{ display:"inline-flex", width:34, height:34, borderRadius:10, alignItems:"center", justifyContent:"center", color:k.tone, background:k.bg }}>
+              <div key={k.label} style={{
+                padding:"16px 16px",
+                border:"1px solid rgba(148,163,184,.28)",
+                borderRadius:18,
+                background:"linear-gradient(170deg,rgba(15,23,42,.92),rgba(15,23,42,.72))",
+                boxShadow:"0 12px 24px rgba(2,6,23,.28)"
+              }}>
+                <div style={{ display:"inline-flex", width:40, height:40, borderRadius:12, alignItems:"center", justifyContent:"center", color:k.tone, background:k.bg }}>
                   <Ic n={k.icon} />
                 </div>
-                <div style={{ fontSize:21, fontWeight:800, color:"#0F172A", marginTop:8 }}>{k.value}</div>
-                <div style={{ fontSize:11, color:"#64748B", fontWeight:700 }}>{k.label}</div>
+                <div style={{ fontSize:24, fontWeight:900, color:"#F8FAFC", marginTop:10 }}>{k.value}</div>
+                <div style={{ fontSize:11, color:"#94A3B8", fontWeight:700, letterSpacing:".04em", textTransform:"uppercase" }}>{k.label}</div>
               </div>
             ))}
           </div>
 
           {/* ── Tab Bar ── */}
           <div style={{
-            display:"flex", background:"rgba(255,255,255,.88)", backdropFilter:"blur(8px)", borderBottom:"1px solid #E5E7EB", padding:"0 20px",
-            overflowX:"auto", gap:2, position:"sticky", top:56, zIndex:10
+            display:"flex",
+            background:"rgba(15,23,42,.88)",
+            backdropFilter:"blur(10px)",
+            border:"1px solid rgba(148,163,184,.2)",
+            borderRadius:16,
+            margin:"0 8px",
+            padding:"4px",
+            overflowX:"auto",
+            gap:6,
+            position:"sticky",
+            top:66,
+            zIndex:10
           }}>
             {[
               { key:"orders",  label:"Mga Orders",  icon:"receipt" },
@@ -1400,9 +1461,11 @@
               { key:"settings",label:"Settings",     icon:"gear" },
             ].map(t => (
               <button key={t.key} onClick={() => setTab(t.key)} style={{
-                flex:"0 0 auto", minWidth:124, padding:"14px 10px", fontSize:13, fontWeight:700,
-                color: tab===t.key ? "#166534" : "#888",
-                borderBottom: tab===t.key ? "3px solid #22C55E" : "3px solid transparent",
+                flex:"0 0 auto", minWidth:130, padding:"12px 10px", fontSize:12, fontWeight:800,
+                color: tab===t.key ? "#DCFCE7" : "#94A3B8",
+                border: tab===t.key ? "1px solid rgba(34,197,94,.45)" : "1px solid transparent",
+                borderRadius:12,
+                background: tab===t.key ? "linear-gradient(140deg,rgba(21,128,61,.4),rgba(22,163,74,.22))" : "transparent",
                 display:"flex", alignItems:"center", justifyContent:"center", gap:7,
                 transition:"all .2s", position:"relative",
               }}>
