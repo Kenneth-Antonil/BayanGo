@@ -1349,42 +1349,22 @@
       const activeRiders = [...new Set(dashboardOrders.filter(o => o.status === "otw" && o.riderId).map(o => o.riderId))].length;
 
       return (
-        <div style={{ maxWidth:1280, margin:"0 auto", minHeight:"100vh", background:"#F1F5F9", paddingBottom:40 }}>
+        <div style={{ maxWidth:1280, margin:"0 auto", minHeight:"100vh", background:"#fff", paddingBottom:40 }}>
 
           <div style={{ padding:"14px 20px 8px" }}>
             <div style={{
-              background:"#0F172A",
-              color:"#fff", padding:"18px 20px",
-              border:"2px solid #334155"
+              background:"#fff",
+              color:"#0F172A",
+              padding:"18px 20px",
+              border:"1px solid #E2E8F0",
+              display:"flex",
+              flexDirection:"column",
+              alignItems:"center",
+              justifyContent:"center",
+              gap:8
             }}>
-              <div style={{ display:"grid", gridTemplateColumns:"2fr 1fr", gap:14, alignItems:"stretch" }}>
-                <div>
-                  <div style={{ fontSize:11, opacity:.8, letterSpacing:".08em", textTransform:"uppercase", fontWeight:700 }}>
-                    BayanGo Admin • Operations Center
-                  </div>
-                  <div style={{ fontSize:24, fontWeight:800, marginTop:4 }}>Admin Control Tower</div>
-                  <div style={{ fontSize:12, opacity:.9, marginTop:4 }}>
-                    Professional operations workspace for order fulfillment, rider dispatch, and performance tracking.
-                  </div>
-                </div>
-                <div style={{ background:"rgba(15,23,42,.7)", padding:"12px 14px", border:"1px solid rgba(148,163,184,.55)" }}>
-                  <div style={{ fontSize:11, opacity:.78, marginBottom:8 }}>Live Snapshot</div>
-                  <div style={{ display:"grid", gap:6 }}>
-                    <div style={{ display:"flex", justifyContent:"space-between", fontSize:12 }}>
-                      <span style={{ opacity:.85 }}>Active Orders</span>
-                      <b>{activeOrders.length}</b>
-                    </div>
-                    <div style={{ display:"flex", justifyContent:"space-between", fontSize:12 }}>
-                      <span style={{ opacity:.85 }}>Delivered</span>
-                      <b>{deliveredOrders.length}</b>
-                    </div>
-                    <div style={{ display:"flex", justifyContent:"space-between", fontSize:12 }}>
-                      <span style={{ opacity:.85 }}>On Duty Riders</span>
-                      <b>{activeRiders}</b>
-                    </div>
-                  </div>
-                </div>
-              </div>
+              <img src="https://i.imgur.com/1W159zD.png" alt="BayanGO Logo" style={{ width:68, height:68, objectFit:"contain" }} />
+              <div style={{ fontSize:14, fontWeight:800, letterSpacing:".08em", textTransform:"uppercase" }}>Master Control</div>
             </div>
           </div>
 
