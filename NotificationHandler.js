@@ -1,6 +1,7 @@
-import { useEffect } from 'react';
+import { useEffect, useRef } from 'react';
 import { ref, set, serverTimestamp } from 'firebase/database';
 import { getToken, onMessage } from 'firebase/messaging';
+import toast from 'react-hot-toast';
 import { db, WEB_PUSH_VAPID_KEY, getMessagingIfSupported } from './firebase-config';
 
 /**
@@ -11,8 +12,23 @@ import { db, WEB_PUSH_VAPID_KEY, getMessagingIfSupported } from './firebase-conf
  * - Listens to foreground notifications via onMessage
  */
 export default function NotificationHandler({ userId, onForegroundMessage }) {
+  const foregroundCallbackRef = useRef(onForegroundMessage);
+
   useEffect(() => {
-    let unsubscribeOnMessage;
+    foregroundCallbackRef.current = onForegroundMessage;
+  }, [onForegroundMessage]);
+
+  useEffect(() => {
+    let isDisposed = false;
+    let unsubscribeOnMessage = () => {};
+
+    const readDataPayload = (payload) => {
+      const data = payload?.data || {};
+      return {
+        title: data.title || 'BayanGo',
+        body: data.body || 'May bagong update ka.',
+      };
+    };
 
     async function setupPush() {
       if (!userId) return;
@@ -39,14 +55,29 @@ export default function NotificationHandler({ userId, onForegroundMessage }) {
         });
       }
 
-      unsubscribeOnMessage = onMessage(messaging, (payload) => {
-        if (typeof onForegroundMessage === 'function') {
-          onForegroundMessage(payload);
-        } else if (Notification.permission === 'granted') {
-          const { title = 'BayanGo', body = 'May bagong update ka.' } = payload.notification || {};
-          new Notification(title, { body, icon: '/icons/icon-192.png' });
+      const unsubscribe = onMessage(messaging, (payload) => {
+        if (typeof foregroundCallbackRef.current === 'function') {
+          foregroundCallbackRef.current(payload);
+          return;
         }
+
+        const { title, body } = readDataPayload(payload);
+        toast(
+          `${title}: ${body}`,
+          {
+            id: 'bayango-foreground-toast',
+            icon: '🔔',
+            duration: 5000,
+          }
+        );
       });
+
+      if (isDisposed) {
+        unsubscribe();
+        return;
+      }
+
+      unsubscribeOnMessage = unsubscribe;
     }
 
     setupPush().catch((err) => {
@@ -54,9 +85,10 @@ export default function NotificationHandler({ userId, onForegroundMessage }) {
     });
 
     return () => {
-      if (typeof unsubscribeOnMessage === 'function') unsubscribeOnMessage();
+      isDisposed = true;
+      unsubscribeOnMessage();
     };
-  }, [userId, onForegroundMessage]);
+  }, [userId]);
 
   return null;
 }

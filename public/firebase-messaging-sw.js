@@ -16,16 +16,19 @@ firebase.initializeApp({
 const messaging = firebase.messaging();
 
 messaging.onBackgroundMessage((payload) => {
-  const title = payload?.notification?.title || 'BayanGo';
-  const body = payload?.notification?.body || 'May bagong update ka.';
+  const data = payload?.data || {};
+  const title = data.title || 'BayanGo';
+  const body = data.body || 'May bagong update ka.';
 
   const options = {
     body,
     icon: '/icons/icon-192.png',
     badge: '/icons/icon-192.png',
+    tag: 'bayango-update',
+    renotify: true,
     data: {
       click_action: payload?.data?.link || payload?.fcmOptions?.link || '/',
-      ...(payload?.data || {}),
+      ...data,
     },
     vibrate: [200, 100, 200],
     requireInteraction: true,
