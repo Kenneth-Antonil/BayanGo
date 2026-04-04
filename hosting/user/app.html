@@ -1483,6 +1483,8 @@
       const [showVoucherList,setShowVoucherList]= useState(false);
       const [cartWeightUnit, setCartWeightUnit] = useState({});
       const [paymentMethod,  setPaymentMethod]  = useState("COD");
+      const [showAddressEditor, setShowAddressEditor] = useState(false);
+      const [showPaymentPicker, setShowPaymentPicker] = useState(false);
       const [activeStoreProfile, setActiveStoreProfile] = useState(null);
       const [notifications, setNotifications]  = useState([]);
       const [notifLastSeen, setNotifLastSeen]  = useState(() => {
@@ -2503,19 +2505,60 @@
                   </div>
                 </div>
 
-                {[
-                  { lbl:"Pangalan", val:name, set:setName, ph:"Juan Dela Cruz" },
-                  { lbl:"Phone",    val:phone, set:setPhone, ph:"09XX XXX XXXX" },
-                  { lbl:"Address",  val:addr,  set:setAddr,  ph:"House/Lot, Street, Barangay" },
-                ].map(({ lbl, val, set, ph }) => (
-                  <div key={lbl} style={{ marginBottom:14 }}>
-                    <label style={{ fontSize:12, fontWeight:700, color:"#666", display:"block", marginBottom:6 }}>{lbl}</label>
-                    <input value={val} onChange={e => set(e.target.value)} placeholder={ph}
-                      style={{ width:"100%", padding:"13px 16px", borderRadius:12, fontSize:14, border:"1.5px solid #E5E7EB", outline:"none", transition:"border .2s" }}
-                      onFocus={e => e.target.style.borderColor="#22C55E"}
-                      onBlur={e  => e.target.style.borderColor="#E5E7EB"} />
+                <div style={{ marginBottom:16 }}>
+                  <label style={{ fontSize:12, fontWeight:700, color:"#666", display:"block", marginBottom:8 }}>
+                    <Ic n="location-dot" style={{marginRight:5}} />Delivery Address
+                  </label>
+                  <div style={{ border:"1.5px solid #E5E7EB", borderRadius:14, background:"#F8FAFC", overflow:"hidden" }}>
+                    <div style={{ display:"flex", alignItems:"center", gap:10, padding:"12px 14px", borderBottom:"1px solid #E5E7EB", background:"#fff" }}>
+                      <div style={{ width:34, height:34, borderRadius:10, background:"#ECFDF3", color:"#166534", display:"flex", alignItems:"center", justifyContent:"center", fontSize:15 }}>
+                        <Ic n="map-pin" />
+                      </div>
+                      <div style={{ flex:1 }}>
+                        <div style={{ fontSize:13, fontWeight:800, color:"#166534" }}>Delivery pin snippet</div>
+                        <div style={{ fontSize:11, color:"#64748B", marginTop:2 }}>{customerLat ? `${customerLat.toFixed(5)}, ${customerLng.toFixed(5)}` : "No exact pin yet"}</div>
+                      </div>
+                    </div>
+
+                    <div style={{ padding:"12px 14px", display:"flex", alignItems:"flex-start", gap:8 }}>
+                      <div style={{ flex:1 }}>
+                        <div style={{ fontSize:13, fontWeight:800, color:"#111827" }}>{name || "Add recipient name"}</div>
+                        <div style={{ fontSize:12, color:"#6B7280", marginTop:2 }}>{phone || "Add phone number"}</div>
+                        <div style={{ fontSize:12, color:"#374151", marginTop:6, lineHeight:1.45 }}>{addr || "Add full delivery address"}</div>
+                      </div>
+                      <button type="button" onClick={() => setShowAddressEditor(true)} style={{ width:34, height:34, borderRadius:10, border:"1px solid #D1D5DB", background:"#fff", color:"#166534", display:"flex", alignItems:"center", justifyContent:"center", flexShrink:0 }}>
+                        <Ic n="pen-to-square" />
+                      </button>
+                    </div>
                   </div>
-                ))}
+                </div>
+
+                {showAddressEditor && (
+                  <div style={{ position:"fixed", inset:0, zIndex:520, background:"rgba(17,24,39,.58)", display:"flex", alignItems:"center", justifyContent:"center", padding:"20px" }}>
+                    <div className="scale-in" style={{ width:"100%", maxWidth:420, background:"#fff", borderRadius:16, padding:"18px 16px" }}>
+                      <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:12 }}>
+                        <div style={{ fontSize:16, fontWeight:800, color:"#111827" }}>Edit delivery details</div>
+                        <button type="button" onClick={() => setShowAddressEditor(false)} style={{ width:32, height:32, borderRadius:9, background:"#F3F4F6", display:"flex", alignItems:"center", justifyContent:"center" }}>
+                          <Ic n="xmark" />
+                        </button>
+                      </div>
+                      {[
+                        { lbl:"Pangalan", val:name, set:setName, ph:"Juan Dela Cruz" },
+                        { lbl:"Phone",    val:phone, set:setPhone, ph:"09XX XXX XXXX" },
+                        { lbl:"Address",  val:addr,  set:setAddr,  ph:"House/Lot, Street, Barangay" },
+                      ].map(({ lbl, val, set, ph }) => (
+                        <div key={lbl} style={{ marginBottom:10 }}>
+                          <label style={{ fontSize:12, fontWeight:700, color:"#666", display:"block", marginBottom:5 }}>{lbl}</label>
+                          <input value={val} onChange={e => set(e.target.value)} placeholder={ph}
+                            style={{ width:"100%", padding:"11px 12px", borderRadius:10, fontSize:13, border:"1.5px solid #E5E7EB", outline:"none" }} />
+                        </div>
+                      ))}
+                      <button type="button" onClick={() => setShowAddressEditor(false)} style={{ width:"100%", marginTop:4, padding:"11px 12px", borderRadius:11, background:"#166534", color:"#fff", fontWeight:700 }}>
+                        Save details
+                      </button>
+                    </div>
+                  </div>
+                )}
 
                 {/* Pin Location Button */}
                 <div style={{ marginBottom:18 }}>
@@ -2748,22 +2791,27 @@
                   <label style={{ fontSize:12, fontWeight:700, color:"#666", display:"block", marginBottom:8 }}>
                     <Ic n="map" style={{marginRight:5}} />Uri ng Lokasyon
                   </label>
-                  <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:8 }}>
+                  <div style={{ display:"grid", gap:8 }}>
                     {[
-                      { val:"Mainland", icon:"house", label:"Mainland",   desc:"Binangonan mainland" },
-                      { val:"Island",   icon:"water", label:"Island",     desc:"Isla / Kabilang dagat" },
+                      { val:"Mainland", label:"Mainland", desc:"Binangonan mainland" },
+                      { val:"Island",   label:"Island",   desc:"Isla / Kabilang dagat" },
                     ].map(opt => (
                       <button key={opt.val} type="button"
                         onClick={() => setLocationType(opt.val)}
                         style={{
-                          padding:"12px 10px", borderRadius:14, textAlign:"center",
+                          padding:"11px 12px", borderRadius:12, textAlign:"left",
                           border: locationType === opt.val ? "2px solid #166534" : "1.5px solid #E5E7EB",
-                          background: locationType === opt.val ? "#F0FDF4" : "#FAFAFA",
+                          background: locationType === opt.val ? "#F0FDF4" : "#FFFFFF",
                           transition:"all .18s",
+                          display:"flex",
+                          alignItems:"center",
+                          gap:10
                         }}>
-                        <Ic n={opt.icon} size={18} style={{ color: locationType === opt.val ? "#166534" : "#9CA3AF", marginBottom:4, display:"block" }} />
-                        <div style={{ fontSize:13, fontWeight:800, color: locationType === opt.val ? "#166534" : "#374151" }}>{opt.label}</div>
-                        <div style={{ fontSize:10, color:"#9CA3AF", marginTop:2 }}>{opt.desc}</div>
+                        <span style={{ width:18, height:18, borderRadius:"50%", border: locationType === opt.val ? "5px solid #166534" : "2px solid #CBD5E1", background:"#fff", flexShrink:0 }} />
+                        <span>
+                          <div style={{ fontSize:13, fontWeight:800, color: locationType === opt.val ? "#166534" : "#374151" }}>{opt.label}</div>
+                          <div style={{ fontSize:10, color:"#9CA3AF", marginTop:2 }}>{opt.desc}</div>
+                        </span>
                       </button>
                     ))}
                   </div>
@@ -2778,28 +2826,54 @@
                   <label style={{ fontSize:12, fontWeight:700, color:"#666", display:"block", marginBottom:8 }}>
                     <Ic n="wallet" style={{marginRight:5}} />Paraan ng Bayad
                   </label>
-                  <div style={{ display:"grid", gridTemplateColumns: locationType === "Island" ? "1fr" : "1fr 1fr", gap:8 }}>
-                    {(locationType === "Island"
+                  {(() => {
+                    const options = locationType === "Island"
                       ? [{ val:"QRPH", icon:"qrcode", label:"QR PH", desc:"QR PH only for Island orders" }]
                       : [
                           { val:"COD",  icon:"money-bill-wave", label:"Cash on Delivery", desc:"Pay when the order arrives" },
                           { val:"QRPH", icon:"qrcode",          label:"QR PH",           desc:"Scan QR PH at magbayad" },
-                        ]
-                    ).map(opt => (
-                      <button key={opt.val} type="button"
-                        onClick={() => setPaymentMethod(opt.val)}
-                        style={{
-                          padding:"12px 10px", borderRadius:14, textAlign:"center",
-                          border: paymentMethod === opt.val ? "2px solid #166534" : "1.5px solid #E5E7EB",
-                          background: paymentMethod === opt.val ? "#F0FDF4" : "#FAFAFA",
-                          transition:"all .18s",
-                        }}>
-                        <Ic n={opt.icon} size={18} style={{ color: paymentMethod === opt.val ? "#166534" : "#9CA3AF", marginBottom:4, display:"block" }} />
-                        <div style={{ fontSize:13, fontWeight:800, color: paymentMethod === opt.val ? "#166534" : "#374151" }}>{opt.label}</div>
-                        <div style={{ fontSize:10, color:"#9CA3AF", marginTop:2 }}>{opt.desc}</div>
-                      </button>
-                    ))}
-                  </div>
+                        ];
+                    const selected = options.find(opt => opt.val === paymentMethod) || options[0];
+                    return (
+                      <>
+                        <button type="button" onClick={() => setShowPaymentPicker(true)} style={{ width:"100%", padding:"12px 14px", borderRadius:12, border:"1.5px solid #E5E7EB", background:"#fff", display:"flex", alignItems:"center", justifyContent:"space-between", gap:10 }}>
+                          <span style={{ display:"flex", alignItems:"center", gap:10 }}>
+                            <span style={{ width:34, height:34, borderRadius:10, background:"#ECFDF3", color:"#166534", display:"flex", alignItems:"center", justifyContent:"center" }}>
+                              <Ic n={selected.icon} />
+                            </span>
+                            <span style={{ textAlign:"left" }}>
+                              <div style={{ fontSize:13, fontWeight:800, color:"#111827" }}>{selected.label}</div>
+                              <div style={{ fontSize:10, color:"#9CA3AF", marginTop:2 }}>{selected.desc}</div>
+                            </span>
+                          </span>
+                          <Ic n="chevron-down" style={{ color:"#9CA3AF" }} />
+                        </button>
+                        {showPaymentPicker && (
+                          <div style={{ position:"fixed", inset:0, zIndex:520, background:"rgba(17,24,39,.58)", display:"flex", alignItems:"center", justifyContent:"center", padding:"20px" }}>
+                            <div className="scale-in" style={{ width:"100%", maxWidth:380, background:"#fff", borderRadius:16, padding:"16px" }}>
+                              <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:12 }}>
+                                <div style={{ fontSize:16, fontWeight:800, color:"#111827" }}>Pumili ng payment</div>
+                                <button type="button" onClick={() => setShowPaymentPicker(false)} style={{ width:32, height:32, borderRadius:9, background:"#F3F4F6", display:"flex", alignItems:"center", justifyContent:"center" }}>
+                                  <Ic n="xmark" />
+                                </button>
+                              </div>
+                              <div style={{ display:"grid", gap:8 }}>
+                                {options.map(opt => (
+                                  <button key={opt.val} type="button" onClick={() => { setPaymentMethod(opt.val); setShowPaymentPicker(false); }} style={{ padding:"11px 12px", borderRadius:12, border: paymentMethod === opt.val ? "2px solid #166534" : "1.5px solid #E5E7EB", background: paymentMethod === opt.val ? "#F0FDF4" : "#fff", display:"flex", alignItems:"center", gap:10, textAlign:"left" }}>
+                                    <span style={{ width:18, height:18, borderRadius:"50%", border: paymentMethod === opt.val ? "5px solid #166534" : "2px solid #CBD5E1", background:"#fff", flexShrink:0 }} />
+                                    <span>
+                                      <div style={{ fontSize:13, fontWeight:800, color: paymentMethod === opt.val ? "#166534" : "#374151" }}>{opt.label}</div>
+                                      <div style={{ fontSize:10, color:"#9CA3AF", marginTop:2 }}>{opt.desc}</div>
+                                    </span>
+                                  </button>
+                                ))}
+                              </div>
+                            </div>
+                          </div>
+                        )}
+                      </>
+                    );
+                  })()}
                 </div>
 
                 <div style={{ background:"#FEF3C7", borderRadius:12, padding:"12px 14px", marginBottom:18, display:"flex", gap:10 }}>
