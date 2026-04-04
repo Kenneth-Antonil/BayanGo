@@ -1204,13 +1204,6 @@
                   </button>
                 </div>
               )}
-
-              <div style={{ width:"100%", maxWidth:360, borderTop:"1px solid #E5E7EB", paddingTop:14 }}>
-                <div style={{ fontSize:11, color:"#94A3B8", fontWeight:700, letterSpacing:".06em", textTransform:"uppercase", marginBottom:8 }}>
-                  About & Policies
-                </div>
-                <LegalLinks compact />
-              </div>
             </div>
             <LegalModal docKey={openLegalDoc} onClose={() => setOpenLegalDoc(null)} />
           </>
@@ -2834,23 +2827,6 @@
               <img src={proofPreviewUrl} alt="Proof preview" onClick={e => e.stopPropagation()} style={{ maxWidth:"96vw", maxHeight:"90vh", borderRadius:14, objectFit:"contain", boxShadow:"0 10px 40px rgba(0,0,0,.45)", background:"#fff" }} />
             </div>
           )}
-
-          {/* ── Legal Footer Links (always visible) ── */}
-          <div style={{
-            position:"fixed",
-            left:0,
-            right:0,
-            bottom:"calc(env(safe-area-inset-bottom,0px) + 56px)",
-            maxWidth:480,
-            margin:"0 auto",
-            padding:"8px 10px",
-            background:"rgba(255,255,255,.96)",
-            borderTop:"1px solid #DCFCE7",
-            borderBottom:"1px solid #E5E7EB",
-            zIndex:145,
-          }}>
-            <LegalLinks compact />
-          </div>
 
           {/* ── Bottom Nav ── */}
           <div style={{
