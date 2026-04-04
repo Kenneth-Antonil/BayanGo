@@ -341,11 +341,11 @@
       },
     };
     const LEGAL_LINKS = [
-      { key:"about", label:"About Us", icon:"circle-info" },
-      { key:"privacy", label:"Privacy Policy", icon:"shield-halved" },
-      { key:"terms", label:"Terms & Conditions", icon:"file-contract" },
+      { key:"about", label:"About Us", icon:"circle-info", href:"about-us.html" },
+      { key:"privacy", label:"Privacy Policy", icon:"shield-halved", href:"privacy-policy.html" },
+      { key:"terms", label:"Terms & Conditions", icon:"file-contract", href:"terms-of-condition.html" },
     ];
-    function LegalLinks({ onOpen, compact = false }) {
+    function LegalLinks({ compact = false }) {
       return (
         <div style={{
           display:"flex",
@@ -353,7 +353,7 @@
           gap: compact ? 6 : 8,
         }}>
           {LEGAL_LINKS.map(link => (
-            <button key={link.key} onClick={() => onOpen(link.key)} style={{
+            <a key={link.key} href={link.href} style={{
               border:"1px solid #BBF7D0",
               background:"#F7FEF9",
               borderRadius:999,
@@ -367,11 +367,12 @@
               fontWeight:700,
               lineHeight:1.2,
               flex: compact ? "0 0 auto" : "1 1 auto",
+              textDecoration:"none",
             }}>
               <Ic n={link.icon} />
               <span>{link.label}</span>
               <Ic n="chevron-right" size={10} />
-            </button>
+            </a>
           ))}
         </div>
       );
@@ -1208,7 +1209,7 @@
                 <div style={{ fontSize:11, color:"#94A3B8", fontWeight:700, letterSpacing:".06em", textTransform:"uppercase", marginBottom:8 }}>
                   About & Policies
                 </div>
-                <LegalLinks onOpen={setOpenLegalDoc} compact />
+                <LegalLinks compact />
               </div>
             </div>
             <LegalModal docKey={openLegalDoc} onClose={() => setOpenLegalDoc(null)} />
@@ -2834,6 +2835,23 @@
             </div>
           )}
 
+          {/* ── Legal Footer Links (always visible) ── */}
+          <div style={{
+            position:"fixed",
+            left:0,
+            right:0,
+            bottom:"calc(env(safe-area-inset-bottom,0px) + 56px)",
+            maxWidth:480,
+            margin:"0 auto",
+            padding:"8px 10px",
+            background:"rgba(255,255,255,.96)",
+            borderTop:"1px solid #DCFCE7",
+            borderBottom:"1px solid #E5E7EB",
+            zIndex:145,
+          }}>
+            <LegalLinks compact />
+          </div>
+
           {/* ── Bottom Nav ── */}
           <div style={{
             position:"fixed", bottom:0, left:0, right:0,
@@ -3021,7 +3039,7 @@
                   <div style={{ fontSize:11, color:"#94A3B8", fontWeight:700, textTransform:"uppercase", letterSpacing:".07em", marginBottom:8 }}>
                     About & Policies
                   </div>
-                  <LegalLinks onOpen={onOpenLegal} compact />
+                  <LegalLinks compact />
                 </div>
 
               </div>
