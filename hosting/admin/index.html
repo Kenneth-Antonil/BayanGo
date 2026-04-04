@@ -959,6 +959,83 @@
     }
 
     /* ══════════════════ ADMIN DASHBOARD ══════════════════ */
+    function DataTab({ orders }) {
+      const timeline = Array.from({ length: 7 }).map((_, idx) => {
+        const d = new Date();
+        d.setDate(d.getDate() - (6 - idx));
+        const key = d.toLocaleDateString("en-CA");
+        const label = d.toLocaleDateString("en-PH", { month: "short", day: "numeric" });
+        const dayOrders = orders.filter((o) => {
+          const ts = o.createdAt?.toDate ? o.createdAt.toDate() : new Date(o.createdAt || 0);
+          return ts.toLocaleDateString("en-CA") === key;
+        });
+        return {
+          key,
+          label,
+          orders: dayOrders.length,
+          sales: dayOrders.reduce((sum, o) => sum + Number(o.total || 0), 0),
+          service: dayOrders.reduce((sum, o) => sum + Number(o.serviceFee || 0), 0),
+        };
+      });
+
+      const maxOrders = Math.max(...timeline.map((d) => d.orders), 1);
+      const maxSales = Math.max(...timeline.map((d) => d.sales), 1);
+      const delivered = orders.filter((o) => o.status === "delivered");
+      const cancelled = orders.filter((o) => o.status === "cancelled");
+
+      return (
+        <div style={{ padding: "16px 20px" }}>
+          <div style={{ border: "1px solid #CBD5E1", background: "#F8FAFC" }}>
+            <div style={{ padding: "14px 16px", borderBottom: "2px solid #0F172A", background: "#fff", fontWeight: 800, letterSpacing: ".04em", textTransform: "uppercase", fontSize: 12 }}>
+              Data & Performance
+            </div>
+            <div style={{ display: "grid", gridTemplateColumns: "2fr 1fr", gap: 0 }}>
+              <div style={{ padding: 16, borderRight: "1px solid #E2E8F0", background: "#fff" }}>
+                <div style={{ fontSize: 13, fontWeight: 700, color: "#0F172A", marginBottom: 10 }}>Sales trend (last 7 days)</div>
+                <div style={{ display: "grid", gridTemplateColumns: "repeat(7,minmax(0,1fr))", gap: 8, alignItems: "end", minHeight: 180 }}>
+                  {timeline.map((d) => (
+                    <div key={d.key} style={{ textAlign: "center" }}>
+                      <div style={{ height: 130, display: "flex", alignItems: "flex-end", justifyContent: "center" }}>
+                        <div title={`${d.label}: ₱${d.sales.toLocaleString("en-PH")}`} style={{ width: "70%", background: "linear-gradient(180deg,#22C55E,#166534)", height: `${Math.max(8, (d.sales / maxSales) * 130)}px` }} />
+                      </div>
+                      <div style={{ fontSize: 10, color: "#64748B", marginTop: 6 }}>{d.label}</div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+              <div style={{ padding: 16, background: "#F8FAFC" }}>
+                <div style={{ fontSize: 13, fontWeight: 700, color: "#0F172A", marginBottom: 10 }}>Ops breakdown</div>
+                <div style={{ display: "grid", gap: 10 }}>
+                  <div style={{ borderLeft: "4px solid #166534", background: "#fff", padding: "10px 12px" }}>
+                    <div style={{ fontSize: 10, color: "#64748B", textTransform: "uppercase", letterSpacing: ".06em" }}>Delivered</div>
+                    <div style={{ fontSize: 22, fontWeight: 800, color: "#166534" }}>{delivered.length}</div>
+                  </div>
+                  <div style={{ borderLeft: "4px solid #B91C1C", background: "#fff", padding: "10px 12px" }}>
+                    <div style={{ fontSize: 10, color: "#64748B", textTransform: "uppercase", letterSpacing: ".06em" }}>Cancelled</div>
+                    <div style={{ fontSize: 22, fontWeight: 800, color: "#B91C1C" }}>{cancelled.length}</div>
+                  </div>
+                  <div style={{ borderLeft: "4px solid #1D4ED8", background: "#fff", padding: "10px 12px" }}>
+                    <div style={{ fontSize: 10, color: "#64748B", textTransform: "uppercase", letterSpacing: ".06em" }}>Order volume trend</div>
+                    <div style={{ display: "grid", gap: 4, marginTop: 8 }}>
+                      {timeline.map((d) => (
+                        <div key={d.key} style={{ display: "grid", gridTemplateColumns: "74px 1fr 26px", gap: 6, alignItems: "center", fontSize: 10 }}>
+                          <span style={{ color: "#475569" }}>{d.label}</span>
+                          <div style={{ height: 8, background: "#E2E8F0" }}>
+                            <div style={{ height: "100%", width: `${Math.max(6, (d.orders / maxOrders) * 100)}%`, background: "#1D4ED8" }} />
+                          </div>
+                          <b style={{ color: "#0F172A", textAlign: "right" }}>{d.orders}</b>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      );
+    }
+
     function AdminDashboard({ user, orders, onUpdateStatus, onBroadcast, products, onAddProduct, onUpdateProduct, onDeleteProduct, marketPricing, onUpdateMarketPricing, vouchers, onAddVoucher, onUpdateVoucher, onDeleteVoucher, appUsageStats, partnerApplications, partnerMerchants, onDecidePartnerApplication, onToggleFeaturedPartnerMerchant }) {
       const getInitialTab = () => {
         try {
@@ -1276,10 +1353,9 @@
 
           <div style={{ padding:"14px 20px 8px" }}>
             <div style={{
-              background:"linear-gradient(135deg,#0F172A,#1E293B)",
-              color:"#fff", borderRadius:24, padding:"18px 20px",
-              boxShadow:"0 18px 34px rgba(15,23,42,.28)",
-              border:"1px solid rgba(255,255,255,.16)"
+              background:"#0F172A",
+              color:"#fff", padding:"18px 20px",
+              border:"2px solid #334155"
             }}>
               <div style={{ display:"grid", gridTemplateColumns:"2fr 1fr", gap:14, alignItems:"stretch" }}>
                 <div>
@@ -1291,7 +1367,7 @@
                     Professional operations workspace for order fulfillment, rider dispatch, and performance tracking.
                   </div>
                 </div>
-                <div style={{ background:"rgba(255,255,255,.08)", borderRadius:16, padding:"12px 14px", border:"1px solid rgba(255,255,255,.18)" }}>
+                <div style={{ background:"rgba(15,23,42,.7)", padding:"12px 14px", border:"1px solid rgba(148,163,184,.55)" }}>
                   <div style={{ fontSize:11, opacity:.78, marginBottom:8 }}>Live Snapshot</div>
                   <div style={{ display:"grid", gap:6 }}>
                     <div style={{ display:"flex", justifyContent:"space-between", fontSize:12 }}>
@@ -1312,14 +1388,14 @@
             </div>
           </div>
 
-          <div style={{ padding:"0 20px 12px", display:"grid", gridTemplateColumns:"repeat(4,minmax(0,1fr))", gap:10 }}>
+          <div style={{ padding:"0 20px 12px", display:"grid", gridTemplateColumns:"repeat(4,minmax(0,1fr))", gap:0, borderTop:"1px solid #CBD5E1", borderBottom:"1px solid #CBD5E1", background:"#fff" }}>
             {[
               { label:"Total Orders", value:dashboardOrders.length, icon:"chart-line", tone:"#0F172A", bg:"#E2E8F0" },
               { label:"Revenue", value:`₱${totalRevenue.toLocaleString("en-PH",{minimumFractionDigits:0,maximumFractionDigits:0})}`, icon:"coins", tone:"#166534", bg:"#DCFCE7" },
               { label:"Today's Orders", value:todayOrders.length, icon:"calendar-day", tone:"#1D4ED8", bg:"#DBEAFE" },
               { label:"App Active Users", value:appUsageStats?.activeUsers || 0, icon:"users", tone:"#7C3AED", bg:"#EDE9FE" },
             ].map(k => (
-              <div key={k.label} style={{ background:"#fff", borderRadius:16, padding:"12px 14px", border:"1px solid #E2E8F0", boxShadow:"0 6px 18px rgba(15,23,42,.05)" }}>
+              <div key={k.label} style={{ padding:"12px 14px", borderRight:"1px solid #E2E8F0" }}>
                 <div style={{ display:"inline-flex", width:34, height:34, borderRadius:10, alignItems:"center", justifyContent:"center", color:k.tone, background:k.bg }}>
                   <Ic n={k.icon} />
                 </div>
@@ -1338,6 +1414,7 @@
               { key:"orders",  label:"Mga Orders",  icon:"receipt" },
               { key:"grocery", label:"Grocery",      icon:"basket-shopping" },
               { key:"products",label:"Produkto",     icon:"store" },
+              { key:"data",    label:"Data",         icon:"chart-column" },
               { key:"partners",label:"Partners",     icon:"handshake", badge: partnerApplications.filter(a => (a.status || "pending") === "pending").length },
               { key:"vouchers",label:"Vouchers",     icon:"ticket" },
               { key:"settings",label:"Settings",     icon:"gear" },
@@ -1380,6 +1457,9 @@
               marketPricing={marketPricing}
               onUpdateMarketPricing={onUpdateMarketPricing}
             />
+          )}
+          {tab === "data" && (
+            <DataTab orders={dashboardOrders} />
           )}
 
           {tab === "vouchers" && (
@@ -1515,7 +1595,7 @@
               const regularItems = order.items?.filter(i => !i.isCustom) || [];
               const customItems  = order.items?.filter(i => i.isCustom)  || [];
               return (
-                <div key={order.id} className="fade-up" style={{ background:"#fff", borderRadius:18, padding:"16px", marginBottom:12, boxShadow:"0 2px 8px rgba(0,0,0,.05)", border:"1px solid #F0F0F0" }}>
+                <div key={order.id} className="fade-up" style={{ background:"#fff", padding:"14px 16px", marginBottom:8, borderLeft:`4px solid ${st.color}`, borderBottom:"1px solid #E2E8F0" }}>
                   {/* Header row */}
                   <div style={{ display:"flex", justifyContent:"space-between", alignItems:"flex-start", marginBottom:10 }}>
                     <div>
