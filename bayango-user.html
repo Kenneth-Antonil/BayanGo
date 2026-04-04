@@ -742,19 +742,6 @@
       }, []);
 
       useEffect(() => {
-        if (!_fbDb) return;
-        (async () => {
-          const snap = await _fbDb.ref("settings/gcash").once("value");
-          if (!snap.exists()) return;
-          const loaded = { number:"09618280589", name:"Kenneth Antonil", qrUrl:"", ...snap.val() };
-          loaded.qrUrl = await normalizeStorageDownloadUrl(loaded.qrUrl);
-          setGcashSettings(loaded);
-        })().catch(err => {
-          console.error("Failed to load GCash settings:", err);
-        });
-      }, []);
-
-      useEffect(() => {
         let unsubAuth, unsubOrders, unsubProducts, unsubMarketPricing;
         let activityIntervalId = null;
         let visibilityHandler = null;
@@ -852,18 +839,20 @@
           });
         };
 
+        const loadGcashSettings = async () => {
+          const snap = await _fbDb.ref("settings/gcash").once("value");
+          if (!snap.exists()) return;
+          const loaded = { number:"09618280589", name:"Kenneth Antonil", qrUrl:"", ...snap.val() };
+          loaded.qrUrl = await normalizeStorageDownloadUrl(loaded.qrUrl);
+          setGcashSettings(loaded);
+        };
+
         try {
-          bindMarketPricing();
-          bindProducts();
-          bindMerchantListings();
           _fbAuth.getRedirectResult().catch(err => console.error("Redirect result error:", err));
           unsubAuth = _fbAuth.onAuthStateChanged(currentUser => {
             clearTimeout(timeout);
             setUser(currentUser);
             setLoading(false);
-
-            // Rebind products after auth changes (important when products read requires auth)
-            bindProducts();
 
             // Clean up previous order listener
             if (unsubOrders) {
@@ -881,6 +870,12 @@
             usingOrdersFallback = false;
 
             if (currentUser && _fbDb) {
+              bindMarketPricing();
+              bindProducts();
+              bindMerchantListings();
+              loadGcashSettings().catch(err => {
+                console.error("Failed to load GCash settings:", err);
+              });
               setPushPermission(typeof Notification !== "undefined" ? Notification.permission : "default");
               enablePushForUser(currentUser, { requestPermission: false });
               trackUserAppUsage(currentUser).catch(err => console.error("Usage tracking error:", err));
@@ -926,6 +921,14 @@
               }, 60 * 1000);
 
             } else {
+              _fbDb.ref("products").off();
+              _fbDb.ref("settings/marketPricing").off();
+              _fbDb.ref("merchant_listings").off();
+              _fbDb.ref("partner_merchants").off();
+              baseProductsRaw = [];
+              merchantProductsRaw = [];
+              setMerchantDirectory({});
+              setProducts([]);
               setOrders([]);
               setPushError("");
               setPushBusy(false);
