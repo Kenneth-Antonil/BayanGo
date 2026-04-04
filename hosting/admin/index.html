@@ -275,6 +275,25 @@
       return json;
     }
 
+    async function sendAdminDirectNotification(uid, title, body) {
+      if (!_auth?.currentUser) throw new Error("Admin auth session expired. Please sign in again.");
+      const idToken = await _auth.currentUser.getIdToken();
+      const endpoint = `https://us-central1-${FIREBASE_CONFIG.projectId}.cloudfunctions.net/sendUserNotification`;
+      const res = await fetch(endpoint, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${idToken}`,
+        },
+        body: JSON.stringify({ uid, title, body }),
+      });
+      const json = await res.json().catch(() => ({}));
+      if (!res.ok || !json?.ok) {
+        throw new Error(json?.error || `Direct notification HTTP ${res.status}`);
+      }
+      return json;
+    }
+
     async function uploadGcashQrViaFunction(file) {
       if (!_auth?.currentUser) throw new Error("Admin auth session expired. Please sign in again.");
       const idToken = await _auth.currentUser.getIdToken();
@@ -313,6 +332,7 @@
       const [partnerApplications, setPartnerApplications] = useState([]);
       const [partnerMerchants, setPartnerMerchants] = useState([]);
       const [appUsageStats, setAppUsageStats] = useState({ activeUsers: 0, downloadedUsers: 0 });
+      const [appUsageMap, setAppUsageMap] = useState({});
       const [ready,    setReady]    = useState(false);
       const [user,     setUser]     = useState(null);
       const [marketPricing, setMarketPricing] = useState({});
@@ -340,6 +360,7 @@
               setOrders([]);
               setVouchers([]);
               setAppUsageStats({ activeUsers: 0, downloadedUsers: 0 });
+              setAppUsageMap({});
               return;
             }
 
@@ -434,6 +455,7 @@
             const usageRef = fns.ref(db, "app_usage");
             fns.onValue(usageRef, snap => {
               const usage = snap.val() || {};
+              setAppUsageMap(usage);
               const now = Date.now();
               const users = Object.values(usage || {}).filter(v => v && typeof v === "object");
               const activeUsers = users.filter(v => Number(v.activeWindowUntil || 0) >= now).length;
@@ -653,20 +675,48 @@
         );
       }
 
-      // Render actual app with logout bar
+      const adminName = user.displayName || user.email || "Administrator";
+
+      // Render actual app with redesigned top shell
       return (
         <>
           <div style={{
-            position:"sticky", top:0, zIndex:20,
-            background:"linear-gradient(135deg,#0B3B1C,#166534)",
-            color:"#fff", padding:"10px 20px",
-            display:"flex", justifyContent:"space-between", alignItems:"center", fontSize:12,
-            boxShadow:"0 8px 24px rgba(15,23,42,.18)"
+            position:"sticky",
+            top:0,
+            zIndex:30,
+            background:"linear-gradient(120deg,#0F172A 0%, #111827 45%, #14532D 100%)",
+            color:"#E2E8F0",
+            padding:"12px 22px",
+            display:"flex",
+            justifyContent:"space-between",
+            alignItems:"center",
+            borderBottom:"1px solid rgba(255,255,255,.12)",
+            boxShadow:"0 12px 28px rgba(2,6,23,.45)"
           }}>
-            <span style={{color:"rgba(255,255,255,.82)"}}>
-              Admin: <b style={{color:"#fff"}}>{user.displayName || user.email}</b>
-            </span>
-            <button onClick={handleLogout} style={{ color:"#FCA5A5", fontWeight:"bold" }}>Sign Out</button>
+            <div style={{ display:"flex", alignItems:"center", gap:12 }}>
+              <div style={{
+                width:32, height:32, borderRadius:10,
+                background:"linear-gradient(135deg,#22C55E,#16A34A)",
+                color:"#052E16",
+                display:"flex", alignItems:"center", justifyContent:"center",
+                fontWeight:900, fontSize:13
+              }}>
+                {adminName.slice(0,1).toUpperCase()}
+              </div>
+              <div>
+                <div style={{ fontSize:10, textTransform:"uppercase", letterSpacing:".12em", color:"#94A3B8" }}>BayanGo Command Center</div>
+                <div style={{ fontSize:13, fontWeight:800, color:"#F8FAFC" }}>{adminName}</div>
+              </div>
+            </div>
+            <button onClick={handleLogout} style={{
+              color:"#FECACA",
+              fontWeight:800,
+              fontSize:12,
+              padding:"8px 12px",
+              borderRadius:999,
+              border:"1px solid rgba(248,113,113,.35)",
+              background:"rgba(127,29,29,.22)"
+            }}>Sign Out</button>
           </div>
           <AdminDashboard
             user={user}
@@ -680,6 +730,7 @@
             onUpdateVoucher={updateVoucher}
             onDeleteVoucher={deleteVoucher}
             appUsageStats={appUsageStats}
+            appUsageMap={appUsageMap}
             partnerApplications={partnerApplications}
             partnerMerchants={partnerMerchants}
             onDecidePartnerApplication={decidePartnerApplication}
@@ -1036,7 +1087,7 @@
       );
     }
 
-    function AdminDashboard({ user, orders, onUpdateStatus, onBroadcast, products, onAddProduct, onUpdateProduct, onDeleteProduct, marketPricing, onUpdateMarketPricing, vouchers, onAddVoucher, onUpdateVoucher, onDeleteVoucher, appUsageStats, partnerApplications, partnerMerchants, onDecidePartnerApplication, onToggleFeaturedPartnerMerchant }) {
+    function AdminDashboard({ user, orders, onUpdateStatus, onBroadcast, products, onAddProduct, onUpdateProduct, onDeleteProduct, marketPricing, onUpdateMarketPricing, vouchers, onAddVoucher, onUpdateVoucher, onDeleteVoucher, appUsageStats, appUsageMap, partnerApplications, partnerMerchants, onDecidePartnerApplication, onToggleFeaturedPartnerMerchant }) {
       const getInitialTab = () => {
         try {
           const hash = (window.location.hash || "").replace("#", "").toLowerCase();
@@ -1052,6 +1103,11 @@
       const [bTitle,        setBTitle]       = useState("Advisory");
       const [bMessage,      setBMessage]     = useState("");
       const [pushBusy,      setPushBusy]     = useState(false);
+      const [directTitle, setDirectTitle] = useState("Thank you for using BayanGo!");
+      const [directMessage, setDirectMessage] = useState("You are one of our top customers. Enjoy this custom voucher.");
+      const [directBusyUid, setDirectBusyUid] = useState("");
+      const [voucherBusyUid, setVoucherBusyUid] = useState("");
+      const [userSearch, setUserSearch] = useState("");
       const [gcashSettings, setGcashSettings] = useState({ number:"09618280589", name:"Kenneth Antonil", qrUrl:"" });
       const [gcashSaving,   setGcashSaving]  = useState(false);
       const [qrUploading,   setQrUploading]  = useState(false);
@@ -1347,48 +1403,178 @@
         return d.toLocaleDateString("en-PH") === todayStr;
       });
       const activeRiders = [...new Set(dashboardOrders.filter(o => o.status === "otw" && o.riderId).map(o => o.riderId))].length;
+      const userStatsMap = (() => {
+        const bucket = {};
+        (dashboardOrders || []).forEach((order) => {
+          const uid = order.customerUid || order.uid || order.userId || order.customer?.uid || "";
+          if (!uid) return;
+          if (!bucket[uid]) {
+            bucket[uid] = {
+              uid,
+              name: order.customer?.name || "",
+              phone: order.customer?.phone || "",
+              address: order.customer?.address || "",
+              orderCount: 0,
+              deliveredCount: 0,
+              spent: 0,
+              lastOrderAt: 0,
+            };
+          }
+          bucket[uid].orderCount += 1;
+          if (order.status === "delivered") {
+            bucket[uid].deliveredCount += 1;
+            bucket[uid].spent += Number(order.total || 0);
+          }
+          bucket[uid].lastOrderAt = Math.max(bucket[uid].lastOrderAt, Number(order.createdAt || 0));
+          if (!bucket[uid].name && order.customer?.name) bucket[uid].name = order.customer.name;
+          if (!bucket[uid].phone && order.customer?.phone) bucket[uid].phone = order.customer.phone;
+        });
+        Object.entries(appUsageMap || {}).forEach(([uid, usage]) => {
+          if (!bucket[uid]) {
+            bucket[uid] = {
+              uid,
+              name: usage?.userName || usage?.name || "",
+              phone: usage?.phone || "",
+              address: "",
+              orderCount: 0,
+              deliveredCount: 0,
+              spent: 0,
+              lastOrderAt: Number(usage?.lastSeenAt || usage?.updatedAt || 0),
+            };
+          }
+          bucket[uid].downloaded = Number(usage?.installedAt || 0) > 0;
+          bucket[uid].activeNow = Number(usage?.activeWindowUntil || 0) >= Date.now();
+          if (!bucket[uid].name && usage?.userName) bucket[uid].name = usage.userName;
+        });
+        return bucket;
+      })();
+      const usersList = Object.values(userStatsMap)
+        .sort((a, b) => Number(b.spent || 0) - Number(a.spent || 0));
+      const filteredUsersList = usersList.filter((u) => {
+        const q = userSearch.trim().toLowerCase();
+        if (!q) return true;
+        return (
+          String(u.name || "").toLowerCase().includes(q) ||
+          String(u.phone || "").toLowerCase().includes(q) ||
+          String(u.uid || "").toLowerCase().includes(q)
+        );
+      });
+
+      const sendDirectToUser = async (target) => {
+        const uid = target?.uid;
+        if (!uid) return alert("Missing user UID for this customer.");
+        if (!directTitle.trim() || !directMessage.trim()) return alert("Lagyan muna ng title at message.");
+        setDirectBusyUid(uid);
+        try {
+          await sendAdminDirectNotification(uid, directTitle.trim(), directMessage.trim());
+          alert(`Direct notification sent to ${target.name || uid}.`);
+        } catch (err) {
+          alert("Failed to send direct notification: " + (err.message || err.code || err));
+        } finally {
+          setDirectBusyUid("");
+        }
+      };
+
+      const giveTopSpenderVoucher = async (target) => {
+        const uid = target?.uid;
+        if (!uid) return alert("Missing user UID for voucher.");
+        setVoucherBusyUid(uid);
+        try {
+          const code = `VIP${String((target.name || uid).replace(/\W/g, "").toUpperCase()).slice(0,4)}${String(Date.now()).slice(-4)}`;
+          await onAddVoucher({
+            code,
+            type: "fixed",
+            value: 100,
+            minOrder: 500,
+            active: true,
+            expiresAt: Date.now() + (1000 * 60 * 60 * 24 * 30),
+            assignedUserUid: uid,
+            assignedUserName: target.name || "",
+            customReason: "top_spender_reward",
+          });
+          alert(`Custom voucher ${code} created for ${target.name || uid}.`);
+        } catch (err) {
+          alert("Failed to create custom voucher: " + (err.message || err.code || err));
+        } finally {
+          setVoucherBusyUid("");
+        }
+      };
 
       return (
-        <div style={{ maxWidth:1280, margin:"0 auto", minHeight:"100vh", background:"#fff", paddingBottom:40 }}>
+        <div style={{ maxWidth:1340, margin:"0 auto", minHeight:"100vh", background:"#020617", padding:"16px 14px 48px" }}>
 
-          <div style={{ padding:"14px 20px 8px" }}>
+          <div style={{ padding:"8px 8px 12px" }}>
             <div style={{
-              background:"#fff",
-              color:"#0F172A",
-              padding:"18px 20px",
-              border:"1px solid #E2E8F0",
+              background:"radial-gradient(circle at 20% 20%, rgba(34,197,94,.24), transparent 50%), linear-gradient(130deg,#0F172A 0%, #111827 55%, #052E16 100%)",
+              color:"#E2E8F0",
+              padding:"24px 24px",
+              border:"1px solid rgba(148,163,184,.28)",
+              borderRadius:24,
               display:"flex",
-              flexDirection:"column",
               alignItems:"center",
-              justifyContent:"center",
-              gap:8
+              justifyContent:"space-between",
+              gap:16
             }}>
-              <img src="https://i.imgur.com/1W159zD.png" alt="BayanGO Logo" style={{ width:68, height:68, objectFit:"contain" }} />
-              <div style={{ fontSize:14, fontWeight:800, letterSpacing:".08em", textTransform:"uppercase" }}>Master Control</div>
+              <div style={{ display:"flex", alignItems:"center", gap:14 }}>
+                <img src="https://i.imgur.com/1W159zD.png" alt="BayanGO Logo" style={{ width:72, height:72, objectFit:"contain", filter:"drop-shadow(0 10px 20px rgba(0,0,0,.45))" }} />
+                <div>
+                  <div style={{ fontSize:11, letterSpacing:".18em", textTransform:"uppercase", color:"#86EFAC", fontWeight:700 }}>Operations Suite</div>
+                  <div style={{ fontSize:24, fontWeight:900, color:"#F8FAFC", lineHeight:1.2 }}>Admin Dashboard Overhaul</div>
+                  <div style={{ fontSize:13, color:"#CBD5E1", marginTop:5 }}>Real-time command center for orders, riders, merchants, and growth.</div>
+                </div>
+              </div>
+              <div style={{
+                padding:"10px 14px",
+                borderRadius:14,
+                border:"1px solid rgba(134,239,172,.34)",
+                background:"rgba(22,163,74,.12)",
+                fontSize:12,
+                color:"#DCFCE7",
+                fontWeight:700
+              }}>
+                Live sync active
+              </div>
             </div>
           </div>
 
-          <div style={{ padding:"0 20px 12px", display:"grid", gridTemplateColumns:"repeat(4,minmax(0,1fr))", gap:0, borderTop:"1px solid #CBD5E1", borderBottom:"1px solid #CBD5E1", background:"#fff" }}>
+          <div style={{ padding:"0 8px 12px", display:"grid", gridTemplateColumns:"repeat(auto-fit,minmax(220px,1fr))", gap:12 }}>
             {[
               { label:"Total Orders", value:dashboardOrders.length, icon:"chart-line", tone:"#0F172A", bg:"#E2E8F0" },
               { label:"Revenue", value:`₱${totalRevenue.toLocaleString("en-PH",{minimumFractionDigits:0,maximumFractionDigits:0})}`, icon:"coins", tone:"#166534", bg:"#DCFCE7" },
               { label:"Today's Orders", value:todayOrders.length, icon:"calendar-day", tone:"#1D4ED8", bg:"#DBEAFE" },
               { label:"App Active Users", value:appUsageStats?.activeUsers || 0, icon:"users", tone:"#7C3AED", bg:"#EDE9FE" },
+              { label:"App Downloads", value:appUsageStats?.downloadedUsers || 0, icon:"download", tone:"#B45309", bg:"#FEF3C7" },
             ].map(k => (
-              <div key={k.label} style={{ padding:"12px 14px", borderRight:"1px solid #E2E8F0" }}>
-                <div style={{ display:"inline-flex", width:34, height:34, borderRadius:10, alignItems:"center", justifyContent:"center", color:k.tone, background:k.bg }}>
+              <div key={k.label} style={{
+                padding:"16px 16px",
+                border:"1px solid rgba(148,163,184,.28)",
+                borderRadius:18,
+                background:"linear-gradient(170deg,rgba(15,23,42,.92),rgba(15,23,42,.72))",
+                boxShadow:"0 12px 24px rgba(2,6,23,.28)"
+              }}>
+                <div style={{ display:"inline-flex", width:40, height:40, borderRadius:12, alignItems:"center", justifyContent:"center", color:k.tone, background:k.bg }}>
                   <Ic n={k.icon} />
                 </div>
-                <div style={{ fontSize:21, fontWeight:800, color:"#0F172A", marginTop:8 }}>{k.value}</div>
-                <div style={{ fontSize:11, color:"#64748B", fontWeight:700 }}>{k.label}</div>
+                <div style={{ fontSize:24, fontWeight:900, color:"#F8FAFC", marginTop:10 }}>{k.value}</div>
+                <div style={{ fontSize:11, color:"#94A3B8", fontWeight:700, letterSpacing:".04em", textTransform:"uppercase" }}>{k.label}</div>
               </div>
             ))}
           </div>
 
           {/* ── Tab Bar ── */}
           <div style={{
-            display:"flex", background:"rgba(255,255,255,.88)", backdropFilter:"blur(8px)", borderBottom:"1px solid #E5E7EB", padding:"0 20px",
-            overflowX:"auto", gap:2, position:"sticky", top:56, zIndex:10
+            display:"flex",
+            background:"rgba(15,23,42,.88)",
+            backdropFilter:"blur(10px)",
+            border:"1px solid rgba(148,163,184,.2)",
+            borderRadius:16,
+            margin:"0 8px",
+            padding:"4px",
+            overflowX:"auto",
+            gap:6,
+            position:"sticky",
+            top:66,
+            zIndex:10
           }}>
             {[
               { key:"orders",  label:"Mga Orders",  icon:"receipt" },
@@ -1400,9 +1586,11 @@
               { key:"settings",label:"Settings",     icon:"gear" },
             ].map(t => (
               <button key={t.key} onClick={() => setTab(t.key)} style={{
-                flex:"0 0 auto", minWidth:124, padding:"14px 10px", fontSize:13, fontWeight:700,
-                color: tab===t.key ? "#166534" : "#888",
-                borderBottom: tab===t.key ? "3px solid #22C55E" : "3px solid transparent",
+                flex:"0 0 auto", minWidth:130, padding:"12px 10px", fontSize:12, fontWeight:800,
+                color: tab===t.key ? "#DCFCE7" : "#94A3B8",
+                border: tab===t.key ? "1px solid rgba(34,197,94,.45)" : "1px solid transparent",
+                borderRadius:12,
+                background: tab===t.key ? "linear-gradient(140deg,rgba(21,128,61,.4),rgba(22,163,74,.22))" : "transparent",
                 display:"flex", alignItems:"center", justifyContent:"center", gap:7,
                 transition:"all .2s", position:"relative",
               }}>
@@ -1472,6 +1660,51 @@
               }} style={{ width:"100%", padding:"10px 12px", borderRadius:10, background: pushBusy?"#9CA3AF":"#166534", color:"#fff", fontSize:12, fontWeight:700 }}>
                 {pushBusy ? "Sending..." : "Send Broadcast"}
               </button>
+            </div>
+
+            {/* ── Customer Direct Messaging + Top Spender Rewards ── */}
+            <div style={{ margin:"0 20px 10px", background:"#fff", border:"1px solid #E5E7EB", borderRadius:16, padding:14 }}>
+              <div style={{ fontSize:14, fontWeight:800, color:"#0F172A", marginBottom:4 }}><Ic n="users" style={{marginRight:6}} />Customer List (with spend ranking)</div>
+              <div style={{ fontSize:11, color:"#64748B", marginBottom:10 }}>
+                Send direct notifications per customer and create custom vouchers for top spenders.
+              </div>
+              <input value={userSearch} onChange={e=>setUserSearch(e.target.value)} placeholder="Search user by name, phone, or UID" style={{ width:"100%", padding:"10px 12px", border:"1px solid #D1D5DB", borderRadius:10, fontSize:12, marginBottom:8 }} />
+              <input value={directTitle} onChange={e=>setDirectTitle(e.target.value)} placeholder="Direct notification title" style={{ width:"100%", padding:"10px 12px", border:"1px solid #D1D5DB", borderRadius:10, fontSize:12, marginBottom:8 }} />
+              <textarea value={directMessage} onChange={e=>setDirectMessage(e.target.value)} placeholder="Direct notification message" rows={2} style={{ width:"100%", padding:"10px 12px", border:"1px solid #D1D5DB", borderRadius:10, fontSize:12, marginBottom:10, resize:"vertical" }} />
+              <div style={{ maxHeight:380, overflow:"auto", border:"1px solid #E2E8F0", borderRadius:12 }}>
+                {filteredUsersList.length === 0 && (
+                  <div style={{ padding:12, fontSize:12, color:"#64748B" }}>No users found yet.</div>
+                )}
+                {filteredUsersList.map((u, idx) => (
+                  <div key={u.uid} style={{ padding:"10px 12px", borderTop: idx === 0 ? "none" : "1px solid #F1F5F9", background: idx < 3 ? "#FFFBEB" : "#fff" }}>
+                    <div style={{ display:"flex", justifyContent:"space-between", alignItems:"flex-start", gap:12 }}>
+                      <div style={{ minWidth:0 }}>
+                        <div style={{ fontSize:13, fontWeight:800, color:"#0F172A" }}>
+                          #{idx + 1} {u.name || "Unnamed User"}
+                        </div>
+                        <div style={{ fontSize:11, color:"#475569", marginTop:2 }}>{u.phone || "No phone"} • UID: {u.uid}</div>
+                        <div style={{ fontSize:11, color:"#334155", marginTop:4 }}>
+                          Spent: <b>{fmt(u.spent || 0)}</b> • Delivered Orders: {u.deliveredCount || 0} • Downloads: {u.downloaded ? "Yes" : "No"}
+                        </div>
+                      </div>
+                      <div style={{ display:"flex", gap:6, flexWrap:"wrap", justifyContent:"flex-end" }}>
+                        <button
+                          disabled={directBusyUid === u.uid}
+                          onClick={() => sendDirectToUser(u)}
+                          style={{ padding:"7px 9px", borderRadius:10, background:directBusyUid === u.uid ? "#9CA3AF" : "#1D4ED8", color:"#fff", fontSize:11, fontWeight:700 }}>
+                          {directBusyUid === u.uid ? "Sending..." : "Send Direct"}
+                        </button>
+                        <button
+                          disabled={voucherBusyUid === u.uid}
+                          onClick={() => giveTopSpenderVoucher(u)}
+                          style={{ padding:"7px 9px", borderRadius:10, background:voucherBusyUid === u.uid ? "#9CA3AF" : "#7C3AED", color:"#fff", fontSize:11, fontWeight:700 }}>
+                          {voucherBusyUid === u.uid ? "Creating..." : "Give Voucher"}
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
             </div>
 
             {/* ── GCash Settings ── */}
