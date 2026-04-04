@@ -51,6 +51,7 @@
   <script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.23.2/babel.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 
   <script type="text/babel" data-presets="react">
     const { useState, useEffect, useCallback, useRef } = React;
@@ -1020,6 +1021,44 @@
         delivered: dashboardOrders.filter(o => o.status === "delivered").length,
       };
 
+      const buildExportRows = (ordersToExport) => ordersToExport.map((order) => {
+        const ts = order.createdAt?.toDate ? order.createdAt.toDate() : new Date(order.createdAt || 0);
+        const itemSummary = (order.items || []).map((item) => `${item.name || "Item"} x${item.qty || 1}`).join(" | ");
+        return {
+          "Order ID": order.id || "",
+          "Date": ts.toLocaleDateString("en-PH"),
+          "Time": ts.toLocaleTimeString("en-PH", { hour:"2-digit", minute:"2-digit" }),
+          "Customer": order.customer?.name || "",
+          "Phone": order.customer?.phone || "",
+          "Address": order.customer?.address || "",
+          "Status": STATUS_INFO[order.status]?.label || order.status || "",
+          "Rider": order.riderName || "",
+          "Items": itemSummary,
+          "Subtotal": Number(order.subtotal || 0),
+          "Delivery Fee": Number(order.deliveryFee || 0),
+          "Service Fee": Number(order.serviceFee || 0),
+          "Discount": Number(order.totalDiscount || ((order.freeShipDiscount || 0) + (order.voucher?.discount || 0))),
+          "Total": Number(order.total || 0),
+          "Payment Method": order.paymentMethod || "",
+        };
+      });
+
+      const exportOrdersToExcel = (ordersToExport, modeLabel) => {
+        if (!window.XLSX) {
+          alert("Excel exporter is still loading. Please try again in a moment.");
+          return;
+        }
+        if (!ordersToExport.length) {
+          alert("No orders available to export.");
+          return;
+        }
+        const ws = window.XLSX.utils.json_to_sheet(buildExportRows(ordersToExport));
+        const wb = window.XLSX.utils.book_new();
+        window.XLSX.utils.book_append_sheet(wb, ws, "Orders");
+        const stamp = new Date().toISOString().slice(0, 10);
+        window.XLSX.writeFile(wb, `bayango-orders-${modeLabel}-${stamp}.xlsx`);
+      };
+
       useEffect(() => {
         (async () => {
           try {
@@ -1233,11 +1272,11 @@
       const activeRiders = [...new Set(dashboardOrders.filter(o => o.status === "otw" && o.riderId).map(o => o.riderId))].length;
 
       return (
-        <div style={{ maxWidth:1280, margin:"0 auto", minHeight:"100vh", background:"linear-gradient(180deg,#F1F5F9 0%,#F8FAF8 40%)", paddingBottom:40 }}>
+        <div style={{ maxWidth:1280, margin:"0 auto", minHeight:"100vh", background:"#F1F5F9", paddingBottom:40 }}>
 
           <div style={{ padding:"14px 20px 8px" }}>
             <div style={{
-              background:"radial-gradient(circle at top right,#34D399 0%,#166534 35%,#052E16 100%)",
+              background:"linear-gradient(135deg,#0F172A,#1E293B)",
               color:"#fff", borderRadius:24, padding:"18px 20px",
               boxShadow:"0 18px 34px rgba(15,23,42,.28)",
               border:"1px solid rgba(255,255,255,.16)"
@@ -1245,11 +1284,11 @@
               <div style={{ display:"grid", gridTemplateColumns:"2fr 1fr", gap:14, alignItems:"stretch" }}>
                 <div>
                   <div style={{ fontSize:11, opacity:.8, letterSpacing:".08em", textTransform:"uppercase", fontWeight:700 }}>
-                    BayanGo Admin • Executive Panel
+                    BayanGo Admin • Operations Center
                   </div>
-                  <div style={{ fontSize:24, fontWeight:800, marginTop:4 }}>Master Dashboard</div>
+                  <div style={{ fontSize:24, fontWeight:800, marginTop:4 }}>Admin Control Tower</div>
                   <div style={{ fontSize:12, opacity:.9, marginTop:4 }}>
-                    Real-time operations view para sa orders, riders, growth at customer activity.
+                    Professional operations workspace for order fulfillment, rider dispatch, and performance tracking.
                   </div>
                 </div>
                 <div style={{ background:"rgba(255,255,255,.08)", borderRadius:16, padding:"12px 14px", border:"1px solid rgba(255,255,255,.18)" }}>
@@ -1401,35 +1440,6 @@
           </>}
 
           {tab === "orders" && <>
-          {/* ── Sales Summary ── */}
-          <div style={{ padding:"18px 20px 10px", display:"grid", gridTemplateColumns:"repeat(3,1fr)", gap:10 }}>
-            {[
-              { label:"Service Fee Revenue", value:`₱${totalRevenue.toLocaleString("en-PH",{minimumFractionDigits:2,maximumFractionDigits:2})}`, icon:"coins",        color:"#166534", bg:"#F0FDF4" },
-              { label:"Today's Orders",       value:todayOrders.length,                                                                                icon:"calendar-day", color:"#1D4ED8", bg:"#EFF6FF" },
-              { label:"Active Riders",         value:activeRiders,                                                                                     icon:"motorcycle",   color:"#7C3AED", bg:"#F5F3FF" },
-            ].map(s => (
-              <div key={s.label} style={{ background:s.bg, borderRadius:16, padding:"14px 12px", textAlign:"center", boxShadow:"0 8px 22px rgba(15,23,42,.06)", border:"1px solid rgba(148,163,184,.18)" }}>
-                <div style={{ marginBottom:2 }}><Ic n={s.icon} size={20} style={{ color:s.color }} /></div>
-                <div style={{ fontSize:s.label==="Service Fee Revenue"?14:24, fontWeight:800, color:s.color, lineHeight:1.2, marginTop:2 }}>{s.value}</div>
-                <div style={{ fontSize:10, fontWeight:600, color:"#888", marginTop:2 }}>{s.label}</div>
-              </div>
-            ))}
-          </div>
-
-          {/* ── App Usage Summary ── */}
-          <div style={{ padding:"0 20px 10px", display:"grid", gridTemplateColumns:"repeat(2,1fr)", gap:10 }}>
-            {[
-              { label:"Active App Users", value:appUsageStats?.activeUsers || 0, icon:"mobile-screen", color:"#0891B2", bg:"#ECFEFF" },
-              { label:"Downloaded App",   value:appUsageStats?.downloadedUsers || 0, icon:"download", color:"#16A34A", bg:"#F0FDF4" },
-            ].map(s => (
-              <div key={s.label} style={{ background:s.bg, borderRadius:16, padding:"14px 12px", textAlign:"center", boxShadow:"0 8px 22px rgba(15,23,42,.06)", border:"1px solid rgba(148,163,184,.18)" }}>
-                <div style={{ marginBottom:2 }}><Ic n={s.icon} size={20} style={{ color:s.color }} /></div>
-                <div style={{ fontSize:24, fontWeight:800, color:s.color, lineHeight:1.2, marginTop:2 }}>{s.value}</div>
-                <div style={{ fontSize:10, fontWeight:600, color:"#888", marginTop:2 }}>{s.label}</div>
-              </div>
-            ))}
-          </div>
-
           {/* ── Stats Row ── */}
           <div style={{ padding:"4px 20px 10px", display:"grid", gridTemplateColumns:"repeat(4,1fr)", gap:10 }}>
             {[
@@ -1475,6 +1485,20 @@
                 onChange={e => setSearchQ(e.target.value)}
                 style={{ flex:1, border:"none", outline:"none", fontSize:14, background:"transparent" }} />
               {searchQ && <button onClick={() => setSearchQ("")} style={{ opacity:.4, fontSize:15 }}>✕</button>}
+            </div>
+            <div style={{ display:"flex", gap:8, marginTop:10 }}>
+              <button onClick={() => exportOrdersToExcel(filtered, "filtered")} style={{
+                flex:1, padding:"10px 12px", borderRadius:10, fontSize:12, fontWeight:700,
+                background:"#166534", color:"#fff", border:"1px solid #14532D"
+              }}>
+                <Ic n="file-excel" style={{ marginRight:6 }} />Export Visible Orders
+              </button>
+              <button onClick={() => exportOrdersToExcel(viewFilteredOrders, ordersView)} style={{
+                flex:1, padding:"10px 12px", borderRadius:10, fontSize:12, fontWeight:700,
+                background:"#fff", color:"#334155", border:"1px solid #CBD5E1"
+              }}>
+                <Ic n="table" style={{ marginRight:6 }} />Export {ordersView === "archive" ? "Archived" : "Active"}
+              </button>
             </div>
           </div>
 
