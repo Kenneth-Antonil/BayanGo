@@ -275,6 +275,25 @@
       return json;
     }
 
+    async function sendAdminDirectNotification(uid, title, body) {
+      if (!_auth?.currentUser) throw new Error("Admin auth session expired. Please sign in again.");
+      const idToken = await _auth.currentUser.getIdToken();
+      const endpoint = `https://us-central1-${FIREBASE_CONFIG.projectId}.cloudfunctions.net/sendUserNotification`;
+      const res = await fetch(endpoint, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${idToken}`,
+        },
+        body: JSON.stringify({ uid, title, body }),
+      });
+      const json = await res.json().catch(() => ({}));
+      if (!res.ok || !json?.ok) {
+        throw new Error(json?.error || `Direct notification HTTP ${res.status}`);
+      }
+      return json;
+    }
+
     async function uploadGcashQrViaFunction(file) {
       if (!_auth?.currentUser) throw new Error("Admin auth session expired. Please sign in again.");
       const idToken = await _auth.currentUser.getIdToken();
@@ -313,6 +332,7 @@
       const [partnerApplications, setPartnerApplications] = useState([]);
       const [partnerMerchants, setPartnerMerchants] = useState([]);
       const [appUsageStats, setAppUsageStats] = useState({ activeUsers: 0, downloadedUsers: 0 });
+      const [appUsageMap, setAppUsageMap] = useState({});
       const [ready,    setReady]    = useState(false);
       const [user,     setUser]     = useState(null);
       const [marketPricing, setMarketPricing] = useState({});
@@ -340,6 +360,7 @@
               setOrders([]);
               setVouchers([]);
               setAppUsageStats({ activeUsers: 0, downloadedUsers: 0 });
+              setAppUsageMap({});
               return;
             }
 
@@ -434,6 +455,7 @@
             const usageRef = fns.ref(db, "app_usage");
             fns.onValue(usageRef, snap => {
               const usage = snap.val() || {};
+              setAppUsageMap(usage);
               const now = Date.now();
               const users = Object.values(usage || {}).filter(v => v && typeof v === "object");
               const activeUsers = users.filter(v => Number(v.activeWindowUntil || 0) >= now).length;
@@ -708,6 +730,7 @@
             onUpdateVoucher={updateVoucher}
             onDeleteVoucher={deleteVoucher}
             appUsageStats={appUsageStats}
+            appUsageMap={appUsageMap}
             partnerApplications={partnerApplications}
             partnerMerchants={partnerMerchants}
             onDecidePartnerApplication={decidePartnerApplication}
@@ -1064,7 +1087,7 @@
       );
     }
 
-    function AdminDashboard({ user, orders, onUpdateStatus, onBroadcast, products, onAddProduct, onUpdateProduct, onDeleteProduct, marketPricing, onUpdateMarketPricing, vouchers, onAddVoucher, onUpdateVoucher, onDeleteVoucher, appUsageStats, partnerApplications, partnerMerchants, onDecidePartnerApplication, onToggleFeaturedPartnerMerchant }) {
+    function AdminDashboard({ user, orders, onUpdateStatus, onBroadcast, products, onAddProduct, onUpdateProduct, onDeleteProduct, marketPricing, onUpdateMarketPricing, vouchers, onAddVoucher, onUpdateVoucher, onDeleteVoucher, appUsageStats, appUsageMap, partnerApplications, partnerMerchants, onDecidePartnerApplication, onToggleFeaturedPartnerMerchant }) {
       const getInitialTab = () => {
         try {
           const hash = (window.location.hash || "").replace("#", "").toLowerCase();
@@ -1080,6 +1103,11 @@
       const [bTitle,        setBTitle]       = useState("Advisory");
       const [bMessage,      setBMessage]     = useState("");
       const [pushBusy,      setPushBusy]     = useState(false);
+      const [directTitle, setDirectTitle] = useState("Thank you for using BayanGo!");
+      const [directMessage, setDirectMessage] = useState("You are one of our top customers. Enjoy this custom voucher.");
+      const [directBusyUid, setDirectBusyUid] = useState("");
+      const [voucherBusyUid, setVoucherBusyUid] = useState("");
+      const [userSearch, setUserSearch] = useState("");
       const [gcashSettings, setGcashSettings] = useState({ number:"09618280589", name:"Kenneth Antonil", qrUrl:"" });
       const [gcashSaving,   setGcashSaving]  = useState(false);
       const [qrUploading,   setQrUploading]  = useState(false);
@@ -1375,6 +1403,102 @@
         return d.toLocaleDateString("en-PH") === todayStr;
       });
       const activeRiders = [...new Set(dashboardOrders.filter(o => o.status === "otw" && o.riderId).map(o => o.riderId))].length;
+      const userStatsMap = (() => {
+        const bucket = {};
+        (dashboardOrders || []).forEach((order) => {
+          const uid = order.customerUid || order.uid || order.userId || order.customer?.uid || "";
+          if (!uid) return;
+          if (!bucket[uid]) {
+            bucket[uid] = {
+              uid,
+              name: order.customer?.name || "",
+              phone: order.customer?.phone || "",
+              address: order.customer?.address || "",
+              orderCount: 0,
+              deliveredCount: 0,
+              spent: 0,
+              lastOrderAt: 0,
+            };
+          }
+          bucket[uid].orderCount += 1;
+          if (order.status === "delivered") {
+            bucket[uid].deliveredCount += 1;
+            bucket[uid].spent += Number(order.total || 0);
+          }
+          bucket[uid].lastOrderAt = Math.max(bucket[uid].lastOrderAt, Number(order.createdAt || 0));
+          if (!bucket[uid].name && order.customer?.name) bucket[uid].name = order.customer.name;
+          if (!bucket[uid].phone && order.customer?.phone) bucket[uid].phone = order.customer.phone;
+        });
+        Object.entries(appUsageMap || {}).forEach(([uid, usage]) => {
+          if (!bucket[uid]) {
+            bucket[uid] = {
+              uid,
+              name: usage?.userName || usage?.name || "",
+              phone: usage?.phone || "",
+              address: "",
+              orderCount: 0,
+              deliveredCount: 0,
+              spent: 0,
+              lastOrderAt: Number(usage?.lastSeenAt || usage?.updatedAt || 0),
+            };
+          }
+          bucket[uid].downloaded = Number(usage?.installedAt || 0) > 0;
+          bucket[uid].activeNow = Number(usage?.activeWindowUntil || 0) >= Date.now();
+          if (!bucket[uid].name && usage?.userName) bucket[uid].name = usage.userName;
+        });
+        return bucket;
+      })();
+      const usersList = Object.values(userStatsMap)
+        .sort((a, b) => Number(b.spent || 0) - Number(a.spent || 0));
+      const filteredUsersList = usersList.filter((u) => {
+        const q = userSearch.trim().toLowerCase();
+        if (!q) return true;
+        return (
+          String(u.name || "").toLowerCase().includes(q) ||
+          String(u.phone || "").toLowerCase().includes(q) ||
+          String(u.uid || "").toLowerCase().includes(q)
+        );
+      });
+
+      const sendDirectToUser = async (target) => {
+        const uid = target?.uid;
+        if (!uid) return alert("Missing user UID for this customer.");
+        if (!directTitle.trim() || !directMessage.trim()) return alert("Lagyan muna ng title at message.");
+        setDirectBusyUid(uid);
+        try {
+          await sendAdminDirectNotification(uid, directTitle.trim(), directMessage.trim());
+          alert(`Direct notification sent to ${target.name || uid}.`);
+        } catch (err) {
+          alert("Failed to send direct notification: " + (err.message || err.code || err));
+        } finally {
+          setDirectBusyUid("");
+        }
+      };
+
+      const giveTopSpenderVoucher = async (target) => {
+        const uid = target?.uid;
+        if (!uid) return alert("Missing user UID for voucher.");
+        setVoucherBusyUid(uid);
+        try {
+          const code = `VIP${String((target.name || uid).replace(/\W/g, "").toUpperCase()).slice(0,4)}${String(Date.now()).slice(-4)}`;
+          await onAddVoucher({
+            code,
+            type: "fixed",
+            value: 100,
+            minOrder: 500,
+            active: true,
+            expiresAt: Date.now() + (1000 * 60 * 60 * 24 * 30),
+            assignedUserUid: uid,
+            assignedUserName: target.name || "",
+            customReason: "top_spender_reward",
+          });
+          alert(`Custom voucher ${code} created for ${target.name || uid}.`);
+        } catch (err) {
+          alert("Failed to create custom voucher: " + (err.message || err.code || err));
+        } finally {
+          setVoucherBusyUid("");
+        }
+      };
 
       return (
         <div style={{ maxWidth:1340, margin:"0 auto", minHeight:"100vh", background:"#020617", padding:"16px 14px 48px" }}>
@@ -1419,6 +1543,7 @@
               { label:"Revenue", value:`₱${totalRevenue.toLocaleString("en-PH",{minimumFractionDigits:0,maximumFractionDigits:0})}`, icon:"coins", tone:"#166534", bg:"#DCFCE7" },
               { label:"Today's Orders", value:todayOrders.length, icon:"calendar-day", tone:"#1D4ED8", bg:"#DBEAFE" },
               { label:"App Active Users", value:appUsageStats?.activeUsers || 0, icon:"users", tone:"#7C3AED", bg:"#EDE9FE" },
+              { label:"App Downloads", value:appUsageStats?.downloadedUsers || 0, icon:"download", tone:"#B45309", bg:"#FEF3C7" },
             ].map(k => (
               <div key={k.label} style={{
                 padding:"16px 16px",
@@ -1535,6 +1660,51 @@
               }} style={{ width:"100%", padding:"10px 12px", borderRadius:10, background: pushBusy?"#9CA3AF":"#166534", color:"#fff", fontSize:12, fontWeight:700 }}>
                 {pushBusy ? "Sending..." : "Send Broadcast"}
               </button>
+            </div>
+
+            {/* ── Customer Direct Messaging + Top Spender Rewards ── */}
+            <div style={{ margin:"0 20px 10px", background:"#fff", border:"1px solid #E5E7EB", borderRadius:16, padding:14 }}>
+              <div style={{ fontSize:14, fontWeight:800, color:"#0F172A", marginBottom:4 }}><Ic n="users" style={{marginRight:6}} />Customer List (with spend ranking)</div>
+              <div style={{ fontSize:11, color:"#64748B", marginBottom:10 }}>
+                Send direct notifications per customer and create custom vouchers for top spenders.
+              </div>
+              <input value={userSearch} onChange={e=>setUserSearch(e.target.value)} placeholder="Search user by name, phone, or UID" style={{ width:"100%", padding:"10px 12px", border:"1px solid #D1D5DB", borderRadius:10, fontSize:12, marginBottom:8 }} />
+              <input value={directTitle} onChange={e=>setDirectTitle(e.target.value)} placeholder="Direct notification title" style={{ width:"100%", padding:"10px 12px", border:"1px solid #D1D5DB", borderRadius:10, fontSize:12, marginBottom:8 }} />
+              <textarea value={directMessage} onChange={e=>setDirectMessage(e.target.value)} placeholder="Direct notification message" rows={2} style={{ width:"100%", padding:"10px 12px", border:"1px solid #D1D5DB", borderRadius:10, fontSize:12, marginBottom:10, resize:"vertical" }} />
+              <div style={{ maxHeight:380, overflow:"auto", border:"1px solid #E2E8F0", borderRadius:12 }}>
+                {filteredUsersList.length === 0 && (
+                  <div style={{ padding:12, fontSize:12, color:"#64748B" }}>No users found yet.</div>
+                )}
+                {filteredUsersList.map((u, idx) => (
+                  <div key={u.uid} style={{ padding:"10px 12px", borderTop: idx === 0 ? "none" : "1px solid #F1F5F9", background: idx < 3 ? "#FFFBEB" : "#fff" }}>
+                    <div style={{ display:"flex", justifyContent:"space-between", alignItems:"flex-start", gap:12 }}>
+                      <div style={{ minWidth:0 }}>
+                        <div style={{ fontSize:13, fontWeight:800, color:"#0F172A" }}>
+                          #{idx + 1} {u.name || "Unnamed User"}
+                        </div>
+                        <div style={{ fontSize:11, color:"#475569", marginTop:2 }}>{u.phone || "No phone"} • UID: {u.uid}</div>
+                        <div style={{ fontSize:11, color:"#334155", marginTop:4 }}>
+                          Spent: <b>{fmt(u.spent || 0)}</b> • Delivered Orders: {u.deliveredCount || 0} • Downloads: {u.downloaded ? "Yes" : "No"}
+                        </div>
+                      </div>
+                      <div style={{ display:"flex", gap:6, flexWrap:"wrap", justifyContent:"flex-end" }}>
+                        <button
+                          disabled={directBusyUid === u.uid}
+                          onClick={() => sendDirectToUser(u)}
+                          style={{ padding:"7px 9px", borderRadius:10, background:directBusyUid === u.uid ? "#9CA3AF" : "#1D4ED8", color:"#fff", fontSize:11, fontWeight:700 }}>
+                          {directBusyUid === u.uid ? "Sending..." : "Send Direct"}
+                        </button>
+                        <button
+                          disabled={voucherBusyUid === u.uid}
+                          onClick={() => giveTopSpenderVoucher(u)}
+                          style={{ padding:"7px 9px", borderRadius:10, background:voucherBusyUid === u.uid ? "#9CA3AF" : "#7C3AED", color:"#fff", fontSize:11, fontWeight:700 }}>
+                          {voucherBusyUid === u.uid ? "Creating..." : "Give Voucher"}
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
             </div>
 
             {/* ── GCash Settings ── */}

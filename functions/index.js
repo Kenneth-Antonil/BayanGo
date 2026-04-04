@@ -738,6 +738,67 @@ exports.sendBroadcastNotification = onRequest(
 );
 
 // ─────────────────────────────────────────────────────────────────────────────
+// HTTPS: ADMIN DIRECT NOTIFICATION TO A SPECIFIC USER
+// ─────────────────────────────────────────────────────────────────────────────
+exports.sendUserNotification = onRequest(
+  { region: "us-central1", cors: ADMIN_ALLOWED_ORIGINS },
+  async (req, res) => {
+    setCors(res, req.get("origin") || "");
+    if (req.method === "OPTIONS") {
+      res.status(204).send("");
+      return;
+    }
+    if (req.method !== "POST") {
+      res.status(405).json({ ok: false, error: "Method Not Allowed" });
+      return;
+    }
+
+    let caller;
+    try {
+      caller = await verifyAdminRequest(req);
+    } catch (err) {
+      console.warn("Direct user notif auth verification failed:", err?.message || err);
+      res.status(401).json({ ok: false, error: "Unauthorized" });
+      return;
+    }
+    if (!caller) {
+      res.status(401).json({ ok: false, error: "Unauthorized" });
+      return;
+    }
+
+    const uid = String(req.body?.uid || "").trim();
+    const title = String(req.body?.title || "").trim();
+    const body = String(req.body?.body || "").trim();
+    if (!uid || !title || !body) {
+      res.status(400).json({ ok: false, error: "uid, title and body are required" });
+      return;
+    }
+
+    const tokens = await getUserTokens(uid, { excludeRole: "rider" });
+    if (!tokens.length) {
+      res.status(404).json({ ok: false, error: "no_active_tokens_for_user", uid });
+      return;
+    }
+
+    const result = await sendBatchNotification(tokens, {
+      title,
+      body,
+      type: "direct_admin_message",
+      link: USER_APP_URL,
+    });
+
+    res.status(200).json({
+      ok: true,
+      uid,
+      sent: result.sent,
+      failed: result.failed,
+      targetCount: tokens.length,
+      requestedBy: caller.email || caller.uid,
+    });
+  }
+);
+
+// ─────────────────────────────────────────────────────────────────────────────
 // HTTPS: ADMIN UPLOAD GCASH QR (SERVER-SIDE STORAGE WRITE; AVOIDS BROWSER CORS)
 // ─────────────────────────────────────────────────────────────────────────────
 exports.uploadGcashQrImage = onRequest(
