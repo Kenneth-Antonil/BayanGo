@@ -2518,7 +2518,11 @@
                       </div>
                       <div style={{ flex:1 }}>
                         <div style={{ fontSize:13, fontWeight:800, color:"#166534" }}>Delivery pin snippet</div>
-                        <div style={{ fontSize:11, color:"#64748B", marginTop:2 }}>{customerLat ? `${customerLat.toFixed(5)}, ${customerLng.toFixed(5)}` : "No exact pin yet"}</div>
+                        <div style={{ fontSize:11, color:"#64748B", marginTop:2 }}>
+                          {hasPinnedLocation
+                            ? `${Number(customerLat).toFixed(5)}, ${Number(customerLng).toFixed(5)}`
+                            : "No exact pin yet"}
+                        </div>
                       </div>
                     </div>
 
@@ -2582,13 +2586,13 @@
                       <Ic n={customerLat ? "location-dot" : "map-pin"} />
                     </div>
                     <div style={{ flex:1 }}>
-                      {customerLat ? (
+                      {hasPinnedLocation ? (
                         <>
                           <div style={{ fontSize:14, fontWeight:700, color:"#166534" }}>
                             <Ic n="circle-check" style={{marginRight:4}} />Naka-pin na ang location!
                           </div>
                           <div style={{ fontSize:11, color:"#888", marginTop:2 }}>
-                            {customerLat.toFixed(5)}, {customerLng.toFixed(5)} — Tap to change
+                            {Number(customerLat).toFixed(5)}, {Number(customerLng).toFixed(5)} — Tap to change
                           </div>
                         </>
                       ) : (
