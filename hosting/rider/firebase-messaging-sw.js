@@ -40,7 +40,8 @@ function resolveClickUrl(rawUrl, type) {
 const SUPPORT_TYPES = ['support_ticket_new', 'support_message_user', 'support_message_admin'];
 
 messaging.onBackgroundMessage((payload) => {
-  const title = payload?.notification?.title || 'BayanGo';
+  const data = payload?.data || {};
+  const title = data.title || 'BayanGo';
   const type = payload?.data?.type || '';
 
   // Rider app should never show support notifications
@@ -49,10 +50,12 @@ messaging.onBackgroundMessage((payload) => {
   const clickUrl = resolveClickUrl(payload?.data?.link || payload?.data?.click_action, type);
 
   const options = {
-    body: payload?.notification?.body || 'May bagong update ka.',
+    body: data.body || 'May bagong update ka.',
     icon: 'https://i.imgur.com/wL8wcBB.jpeg',
+    tag: 'bayango-update',
+    renotify: true,
     data: {
-      ...(payload?.data || {}),
+      ...data,
       clickUrl,
     },
     vibrate: [200, 120, 200, 120, 280],
