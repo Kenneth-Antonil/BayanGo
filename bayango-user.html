@@ -188,163 +188,46 @@
     });
   </script>
 
+  <!-- ═══════════════════════════════════════════════════════
+       CORE ENGINE — business logic lives in /core/
+       Change the "look" (components below) without touching the "engine".
+  ════════════════════════════════════════════════════════════ -->
+  <script src="core/constants.js"></script>
+  <script src="core/geo.js"></script>
+  <script src="core/pricing.js"></script>
+  <script src="core/utils.js"></script>
+  <script src="core/push.js"></script>
+
   <script type="text/babel">
     const { useState, useEffect, useCallback, useRef } = React;
 
-    /* ══════════════════ CONSTANTS ══════════════════ */
+    /* ══════════════════ CONSTANTS (from /core/) ══════════════════ */
     const Ic = ({ n, style, size, className }) => (
       <i className={`fa-solid fa-${n}${className ? ' '+className : ''}`} style={{ fontSize:size, lineHeight:1, ...style }} />
     );
 
-    const CATEGORIES = [
-      { id:"isda",     label:"Fish",          icon:"fish",               color:"#0EA5E9" },
-      { id:"karne",    label:"Meat",          icon:"drumstick-bite",     color:"#EF4444" },
-      { id:"gulay",    label:"Vegetables",          icon:"leaf",               color:"#22C55E" },
-      { id:"prutas",   label:"Fruits",         icon:"apple-whole",        color:"#F97316" },
-      { id:"ulam",     label:"Cooked Meals",    icon:"bowl-food",          color:"#A855F7" },
-      { id:"sari",     label:"General Goods",      icon:"store",              color:"#EC4899" },
-      { id:"gamot",    label:"Medicine",          icon:"pills",              color:"#14B8A6" },
-      { id:"hardware", label:"Hardware",       icon:"screwdriver-wrench", color:"#F59E0B" },
-    ];
+    // Import from BayanGoCore engine (loaded via <script> tags above)
+    const {
+      CATEGORIES, ORDER_STATUSES, ISLAND_ORDER_STATUSES, ORDER_STATUS_COLORS,
+      getOrderStatuses, BINANGONAN_PUBLIC_MARKET, ORDER_CANCEL_WINDOW_MS,
+      LEGAL_CONTENT, LEGAL_LINKS,
+    } = window.BayanGoCore;
+
+    const {
+      BASE_DELIVERY_FEE, ISLAND_DELIVERY_FEE, KM_RATE_2_TO_10, KM_RATE_BEYOND_10,
+      DEFAULT_MARKET_FACTOR, computeDeliveryFee, fmt, roundPrice, computeLivePrice,
+    } = window.BayanGoCore;
+
+    const { toRad, haversineKm } = window.BayanGoCore;
+
+    const {
+      genId, sanitizeTokenKey, ACTIVE_USER_WINDOW_MS, isStandaloneMode,
+      normalizeToCategoryId, trackUserAppUsage: _coreTrackUserAppUsage,
+    } = window.BayanGoCore;
+
+    const { enablePushForUser: _coreEnablePushForUser } = window.BayanGoCore;
 
     const DEFAULT_PRODUCTS = [];
-
-    const ORDER_STATUSES = [
-      { key:"pending",   label:"Pending",   icon:"hourglass-half", desc:"Your order has been received" },
-      { key:"buying",    label:"Buying",    icon:"cart-shopping",  desc:"Now buying from the market" },
-      { key:"otw",       label:"OTW",       icon:"motorcycle",     desc:"On the way to you" },
-      { key:"delivered", label:"Delivered", icon:"circle-check",   desc:"Delivered!" },
-    ];
-    const ISLAND_ORDER_STATUSES = [
-      { key:"pending",   label:"Pending",     icon:"hourglass-half", desc:"Your order has been received" },
-      { key:"buying",    label:"Buying",      icon:"cart-shopping",  desc:"Now buying from the market" },
-      { key:"in_boat",   label:"In the Boat", icon:"ship",           desc:"On the boat and heading to you" },
-      { key:"delivered", label:"Delivered",   icon:"circle-check",   desc:"Delivered!" },
-    ];
-    const ORDER_STATUS_COLORS = {
-      pending:   { bg:"#F3F4F6", color:"#555",    label:"Pending",      icon:"hourglass-half" },
-      buying:    { bg:"#FEF3C7", color:"#92400E", label:"Buying",       icon:"cart-shopping"  },
-      otw:       { bg:"#DBEAFE", color:"#1D4ED8", label:"OTW",          icon:"motorcycle"     },
-      in_boat:   { bg:"#EFF6FF", color:"#1D4ED8", label:"In the Boat",  icon:"ship"           },
-      delivered: { bg:"#DCFCE7", color:"#166534", label:"Delivered",    icon:"circle-check"   },
-      cancelled: { bg:"#FEE2E2", color:"#B91C1C", label:"Cancelled",    icon:"ban"            },
-    };
-    const getOrderStatuses = (order) => order?.locationType === "Island" ? ISLAND_ORDER_STATUSES : ORDER_STATUSES;
-
-    const BINANGONAN_PUBLIC_MARKET = { lat:14.4584, lng:121.1971, label:"Binangonan Public Market" };
-    const BASE_DELIVERY_FEE = 49;
-    const ISLAND_DELIVERY_FEE = 80;
-    const ORDER_CANCEL_WINDOW_MS = 15 * 60 * 1000;
-    const KM_RATE_2_TO_10 = 6;
-    const KM_RATE_BEYOND_10 = 5;
-
-    const toRad = (deg) => (deg * Math.PI) / 180;
-    const haversineKm = (lat1, lng1, lat2, lng2) => {
-      const R = 6371;
-      const dLat = toRad(lat2 - lat1);
-      const dLng = toRad(lng2 - lng1);
-      const a = Math.sin(dLat / 2) ** 2
-        + Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) * Math.sin(dLng / 2) ** 2;
-      return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
-    };
-    const computeDeliveryFee = (distanceKm, baseFee = BASE_DELIVERY_FEE) => {
-      if (!Number.isFinite(distanceKm) || distanceKm <= 2) return baseFee;
-      if (distanceKm <= 10) return baseFee + Math.ceil(distanceKm - 2) * KM_RATE_2_TO_10;
-      return baseFee + (8 * KM_RATE_2_TO_10) + Math.ceil(distanceKm - 10) * KM_RATE_BEYOND_10;
-    };
-
-    const fmt = n => "₱" + Number(n).toLocaleString("en-PH", { minimumFractionDigits:0 });
-    const DEFAULT_MARKET_FACTOR = 1;
-    const roundPrice = (n) => Math.max(0, Math.round(Number(n) || 0));
-    const computeLivePrice = (product, marketPricing = {}) => {
-      const base = Number(product?.basePrice ?? product?.price ?? 0);
-      if (product?.autoPriceEnabled === false) return roundPrice(base);
-      const factor = Number(marketPricing?.[product?.cat]) || DEFAULT_MARKET_FACTOR;
-      return roundPrice(base * factor);
-    };
-    const normalizeToCategoryId = (value) => {
-      const v = String(value || "").toLowerCase();
-      if (v.includes("isda") || v.includes("fish")) return "isda";
-      if (v.includes("karne") || v.includes("meat")) return "karne";
-      if (v.includes("gulay") || v.includes("vegetable")) return "gulay";
-      if (v.includes("prutas") || v.includes("fruit")) return "prutas";
-      if (v.includes("ulam") || v.includes("lutong")) return "ulam";
-      if (v.includes("gamot") || v.includes("pharma") || v.includes("medicine")) return "gamot";
-      if (v.includes("hardware")) return "hardware";
-      return "sari";
-    };
-    const LEGAL_CONTENT = {
-      about: {
-        title: "About Us",
-        icon: "circle-info",
-        updatedAt: "March 28, 2026",
-        sections: [
-          {
-            heading: "Sino ang BayanGo",
-            body: "BayanGo is a local concierge app for Binangonan that helps make market shopping fast and reliable. Our goal is to make ordering fresh goods and daily essentials simple for families in mainland and island areas."
-          },
-          {
-            heading: "Aming Misyon",
-            body: "Deliver the right products on time, provide clear order status updates, and dependable customer support for every order."
-          },
-          {
-            heading: "Contact",
-            body: "Para sa concerns, makipag-ugnayan sa BayanGo team gamit ang official Facebook page o contact number na ibinigay sa inyo."
-          },
-        ],
-      },
-      privacy: {
-        title: "Privacy Policy",
-        icon: "shield-halved",
-        updatedAt: "March 28, 2026",
-        sections: [
-          {
-            heading: "Anong data ang kinokolekta",
-            body: "We collect basic account details (email, name, phone, address), order details, and your location pin so we can deliver your order accurately."
-          },
-          {
-            heading: "How data is used",
-            body: "Data is used for order processing, delivery coordination, customer support, and sending order notifications if you allow notifications."
-          },
-          {
-            heading: "Pag-share ng impormasyon",
-            body: "We do not sell your personal data. We only share necessary information with riders/admins to fulfill orders and support requests."
-          },
-          {
-            heading: "Data protection",
-            body: "The app uses secure backend services. You can update your profile details anytime in Account settings."
-          },
-        ],
-      },
-      terms: {
-        title: "Terms and Conditions",
-        icon: "file-contract",
-        updatedAt: "March 28, 2026",
-        sections: [
-          {
-            heading: "Paggamit ng serbisyo",
-            body: "By using BayanGo, you agree to provide accurate and complete delivery information and follow app policies."
-          },
-          {
-            heading: "Order at presyo",
-            body: "Prices, availability, and estimated totals may change based on market conditions. The final computed total will be shown in the app before order placement."
-          },
-          {
-            heading: "Cancellation at delivery",
-            body: "There is a limited cancellation window for eligible orders. Once a rider is assigned or the allowed window has passed, the order may no longer be cancelable."
-          },
-          {
-            heading: "Liability",
-            body: "BayanGo strives to provide reliable service, but delays may happen due to weather, traffic, or item availability."
-          },
-        ],
-      },
-    };
-    const LEGAL_LINKS = [
-      { key:"about", label:"About Us", icon:"circle-info", href:"about-us.html" },
-      { key:"privacy", label:"Privacy Policy", icon:"shield-halved", href:"privacy-policy.html" },
-      { key:"terms", label:"Terms & Conditions", icon:"file-contract", href:"terms-of-condition.html" },
-    ];
     function LegalLinks({ compact = false }) {
       return (
         <div style={{
@@ -405,142 +288,16 @@
         </div>
       );
     }
-    const genId = () => Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
-    const sanitizeTokenKey = (token) => encodeURIComponent(String(token || "")).replace(/\./g, "%2E");
-    const ACTIVE_USER_WINDOW_MS = 5 * 60 * 1000;
+    // trackUserAppUsage wrapper — passes _fbDb from this app's Firebase instance
+    const trackUserAppUsage = (user, opts) => _coreTrackUserAppUsage(user, _fbDb, opts);
 
-    const isStandaloneMode = () =>
-      window.matchMedia("(display-mode: standalone)").matches ||
-      window.navigator.standalone === true;
-
-    async function trackUserAppUsage(user, { markInstalled = false } = {}) {
-      if (!user?.uid || !_fbDb) return;
-      const now = Date.now();
-      const usageRef = _fbDb.ref(`app_usage/${user.uid}`);
-      const updates = {
-        uid: user.uid,
-        email: user.email || null,
-        name: user.displayName || null,
-        lastActiveAt: now,
-        activeWindowUntil: now + ACTIVE_USER_WINDOW_MS,
-        platform: navigator.userAgent || "web",
-      };
-      if (markInstalled || isStandaloneMode()) {
-        const installedSnap = await usageRef.child("installedAt").once("value");
-        if (!installedSnap.exists()) updates.installedAt = now;
-      }
-      await usageRef.update(updates);
-    }
-
-    async function enablePushForUser(user, { requestPermission = true } = {}) {
-      if (!user?.uid) return;
-      if (!("serviceWorker" in navigator) || !("Notification" in window)) return;
-      try {
-        const supported = typeof firebase.messaging.isSupported === "function"
-          ? await firebase.messaging.isSupported()
-          : true;
-        if (!supported) return;
-      } catch (_) { return; }
-
-      try {
-        let permission = Notification.permission;
-        if (permission !== "granted" && requestPermission) {
-          permission = await Notification.requestPermission();
-        }
-        if (permission !== "granted") return;
-
-        const swReg = await navigator.serviceWorker.register("/firebase-messaging-sw.js");
-        await navigator.serviceWorker.ready;
-        const messaging = firebase.messaging(_fbApp);
-        const webPushVapidKey = await resolveWebPushVapidKey();
-        let token = null;
-        const getTokenOptions = { serviceWorkerRegistration: swReg };
-        if (webPushVapidKey) {
-          getTokenOptions.vapidKey = webPushVapidKey;
-        }
-        try {
-          token = await messaging.getToken(getTokenOptions);
-        } catch (err) {
-          const vapidErr = String(err?.code || "").includes("vapid") || String(err?.message || "").toLowerCase().includes("vapid");
-          if (!vapidErr || !webPushVapidKey) throw err;
-          console.warn("VAPID key rejected. Retrying getToken without explicit vapidKey.");
-          token = await messaging.getToken({ serviceWorkerRegistration: swReg });
-        }
-        if (!token) return;
-
-        const saveToken = async (t) => {
-          const tokenKey = sanitizeTokenKey(t);
-          await _fbDb.ref(`push_tokens/${user.uid}/${tokenKey}`).set({
-            token: t,
-            uid: user.uid,
-            userEmail: user.email || null,
-            userName: user.displayName || null,
-            role: "user",
-            platform: navigator.userAgent || "web",
-            updatedAt: Date.now(),
-            enabled: true,
-          });
-        };
-        const persistLatestToken = async (freshToken, { removeOld = true } = {}) => {
-          if (!freshToken) return;
-          if (removeOld && token && token !== freshToken) {
-            const oldKey = sanitizeTokenKey(token);
-            _fbDb.ref(`push_tokens/${user.uid}/${oldKey}`).remove().catch(() => {});
-          }
-          token = freshToken;
-          await saveToken(freshToken);
-        };
-        await persistLatestToken(token, { removeOld: false });
-
-        if (typeof messaging.onTokenRefresh === "function") {
-          messaging.onTokenRefresh(async () => {
-            try {
-              const freshToken = await messaging.getToken(getTokenOptions);
-              if (freshToken && freshToken !== token) {
-                console.log("FCM token rotated (onTokenRefresh), updating...");
-                await persistLatestToken(freshToken);
-              }
-            } catch (err) {
-              console.warn("Token refresh listener error:", err);
-            }
-          });
-        }
-
-        messaging.onMessage((payload) => {
-          messaging.getToken(getTokenOptions).then((freshToken) => {
-            if (freshToken && freshToken !== token) {
-              console.log("FCM token rotated, updating...");
-              persistLatestToken(freshToken).catch((err) => console.error("Token refresh save error:", err));
-            }
-          }).catch(() => {});
-
-          const title = payload?.notification?.title || payload?.data?.title || "BayanGo";
-          const body = payload?.notification?.body || payload?.data?.body || "May bagong update ka.";
-          if (Notification.permission === "granted") {
-            const targetLink = payload?.data?.link || payload?.data?.click_action || "";
-            const n = new Notification(title, {
-              body,
-              icon: "https://i.imgur.com/wL8wcBB.jpeg",
-              data: payload?.data || {},
-            });
-            n.onclick = () => {
-              window.focus();
-              n.close();
-              if (targetLink) {
-                window.location.href = targetLink;
-              } else {
-                window.location.search = "?section=orders";
-              }
-            };
-          }
-        });
-      } catch (err) {
-        console.error("Push notification setup error:", err);
-        if (String(err?.code || "").includes("vapid") || String(err?.message || "").toLowerCase().includes("vapid")) {
-          console.error("Missing/invalid Web Push VAPID key. Set window.BAYANGO_WEB_PUSH_VAPID_KEY before loading the app.");
-        }
-      }
-    }
+    // enablePushForUser wrapper — passes this app's Firebase instances to the core engine
+    const enablePushForUser = (user, opts = {}) => _coreEnablePushForUser(user, {
+      fbApp: _fbApp,
+      fbDb: _fbDb,
+      resolveVapidKey: resolveWebPushVapidKey,
+      ...opts,
+    });
 
 
     /* ══════════════════ STORAGE HELPERS ══════════════════ */

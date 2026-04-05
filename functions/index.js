@@ -2,437 +2,55 @@ const { onSchedule } = require("firebase-functions/v2/scheduler");
 const { onValueCreated, onValueUpdated } = require("firebase-functions/v2/database");
 const { onRequest } = require("firebase-functions/v2/https");
 const { initializeApp } = require("firebase-admin/app");
-const { getAuth } = require("firebase-admin/auth");
 const { getDatabase } = require("firebase-admin/database");
-const { getMessaging } = require("firebase-admin/messaging");
 const { getStorage } = require("firebase-admin/storage");
 const crypto = require("crypto");
 
+// ─────────────────────────────────────────────────────────────────────────────
+// CORE ENGINE IMPORTS — business logic lives in /functions/core/
+// Change the "look" (handlers below) without touching the "engine" (core/).
+// ─────────────────────────────────────────────────────────────────────────────
+const {
+  USER_APP_URL,
+  RIDER_APP_URL,
+  ADMIN_APP_URL,
+  ADMIN_ALLOWED_ORIGINS,
+  ORDER_STATUS_LABELS,
+  MERCHANT_STATUS_LABELS,
+} = require("./core/constants");
+
+const {
+  getAllCustomerTokens,
+  getUserTokens,
+  getAllRiderTokens,
+  getAllAdminTokens,
+  sendBatchNotification,
+} = require("./core/notifications");
+
+const {
+  verifyPaymongoSignature,
+  extractOrderId,
+  derivePaymentState,
+} = require("./core/payments");
+
+const {
+  setCors,
+  verifyAdminRequest,
+} = require("./core/auth");
+
+const {
+  toPublicDownloadUrl,
+} = require("./core/storage");
+
 initializeApp();
 
-const APP_ICON = "https://i.imgur.com/wL8wcBB.jpeg";
-const USER_APP_URL = "https://bayango.store/bayango-user.html";
-const RIDER_APP_URL = "https://bayango.store/bayango-rider.html";
-const ADMIN_APP_URL = "https://bayango.store/bayango-admin.html";
-
-const ORDER_STATUS_LABELS = {
-  merchant_pending: "Inihahanda ng merchant ang order",
-  pending:   "Nai-receive na ang order",
-  pickup:    "Pinipickup na sa merchant",
-  buying:    "Now buying from the market",
-  otw:       "On the way to you",
-  in_boat:   "Nasa bangka na",
-  delivered: "Delivered!",
-  cancelled: "Na-cancel ang order",
-};
-
-const MERCHANT_STATUS_LABELS = {
-  accepted:  "Tinanggap ng merchant ang order mo",
-  preparing: "Inihahanda na ng merchant ang order mo",
-  ready:     "Ready na ang order mo mula sa merchant",
-};
 const PAYMONGO_WEBHOOK_SECRET = process.env.PAYMONGO_WEBHOOK_SECRET || "";
 const PAYMONGO_SECRET_KEY = process.env.PAYMONGO_SECRET_KEY || "";
-const ADMIN_ALLOWED_ORIGINS = [
-  "https://bayango.store",
-  "https://www.bayango.store",
-  "https://admin.bayango.store",
-  "http://localhost:5000",
-  "http://127.0.0.1:5000",
-];
-
-function normalizeOrigin(origin = "") {
-  return String(origin || "").trim().toLowerCase().replace(/\/+$/, "");
-}
-
-function asBuffer(rawBody, fallback) {
-  if (Buffer.isBuffer(rawBody)) return rawBody;
-  if (typeof rawBody === "string") return Buffer.from(rawBody, "utf8");
-  if (rawBody && typeof rawBody === "object") return Buffer.from(JSON.stringify(rawBody), "utf8");
-  if (typeof fallback === "string") return Buffer.from(fallback, "utf8");
-  return Buffer.from("", "utf8");
-}
-
-/**
- * PayMongo signature can include different key names depending on version.
- * We support common timestamp fields (t, ts, timestamp) and signature fields (v1, sig, signature).
- */
-function parsePaymongoSignature(signatureHeader = "") {
-  const entries = signatureHeader
-    .split(",")
-    .map((p) => p.trim())
-    .filter(Boolean);
-
-  let timestamp = "";
-  const signatures = [];
-
-  for (const item of entries) {
-    const [rawKey, ...rest] = item.split("=");
-    const key = (rawKey || "").trim().toLowerCase();
-    const value = rest.join("=").trim();
-    if (!value) continue;
-
-    if (["t", "ts", "timestamp"].includes(key)) {
-      timestamp = value;
-    }
-    if (["v1", "sig", "signature"].includes(key)) {
-      signatures.push(value);
-    }
-  }
-
-  return { timestamp, signatures };
-}
-
-function verifyPaymongoSignature({ rawBody, signatureHeader, secret }) {
-  if (!secret) return { valid: false, reason: "missing_secret" };
-  if (!signatureHeader) return { valid: false, reason: "missing_signature_header" };
-
-  const { timestamp, signatures } = parsePaymongoSignature(signatureHeader);
-  if (!timestamp || signatures.length === 0) {
-    return { valid: false, reason: "invalid_signature_format" };
-  }
-
-  const payload = `${timestamp}.${asBuffer(rawBody).toString("utf8")}`;
-  const expected = crypto.createHmac("sha256", secret).update(payload).digest("hex");
-
-  const valid = signatures.some((sig) => {
-    try {
-      return crypto.timingSafeEqual(Buffer.from(sig, "utf8"), Buffer.from(expected, "utf8"));
-    } catch (err) {
-      return false;
-    }
-  });
-
-  return { valid, reason: valid ? null : "signature_mismatch" };
-}
-
-function extractOrderId(eventData = {}) {
-  const attrs = eventData?.attributes || {};
-  const metadata = attrs?.metadata || {};
-  const source = attrs?.source || {};
-  const pi = attrs?.payment_intent || {};
-  const billing = attrs?.billing || {};
-
-  return (
-    metadata.orderId ||
-    metadata.order_id ||
-    metadata.orderRef ||
-    metadata.reference ||
-    attrs.orderId ||
-    attrs.order_id ||
-    attrs.reference_number ||
-    source.reference_number ||
-    pi.id ||
-    billing.name ||
-    null
-  );
-}
-
-function derivePaymentState(eventType = "", attrs = {}) {
-  const status = String(attrs?.status || "").toLowerCase();
-  if (eventType.includes("paid") || eventType.includes("succeeded") || status === "paid") return "paid";
-  if (eventType.includes("failed") || status === "failed") return "failed";
-  if (eventType.includes("cancel") || status === "cancelled") return "cancelled";
-  return "pending";
-}
-
-function setCors(res, origin = "") {
-  const normalizedOrigin = normalizeOrigin(origin);
-  const allowedOriginSet = new Set(ADMIN_ALLOWED_ORIGINS.map(normalizeOrigin));
-  const allowedOrigin = allowedOriginSet.has(normalizedOrigin) ? normalizedOrigin : ADMIN_ALLOWED_ORIGINS[0];
-  res.set("Access-Control-Allow-Origin", allowedOrigin);
-  res.set("Vary", "Origin");
-  res.set("Access-Control-Allow-Headers", "Content-Type, Authorization");
-  res.set("Access-Control-Allow-Methods", "POST, OPTIONS");
-}
-
-function toPublicDownloadUrl(bucketName, objectPath, token) {
-  const encodedPath = encodeURIComponent(objectPath);
-  const encodedToken = encodeURIComponent(token);
-  return `https://firebasestorage.googleapis.com/v0/b/${bucketName}/o/${encodedPath}?alt=media&token=${encodedToken}`;
-}
-
-async function verifyAdminRequest(req) {
-  const authHeader = req.get("authorization") || "";
-  if (!authHeader.toLowerCase().startsWith("bearer ")) return null;
-  const idToken = authHeader.slice(7).trim();
-  if (!idToken) return null;
-
-  const decoded = await getAuth().verifyIdToken(idToken);
-  if (!decoded?.uid) return null;
-
-  // Match admin authorization with RTDB security rules:
-  // admins/$uid === true
-  const adminSnap = await getDatabase().ref(`admins/${decoded.uid}`).get();
-  if (adminSnap.val() !== true) return null;
-
-  return decoded;
-}
-
-/**
- * Kuha lahat ng FCM tokens ng mga customer (hindi riders at hindi admins).
- * Nag-filter ng tokens na may enabled !== false at walang role na "rider",
- * at ine-exclude ang UIDs na nasa `admins/$uid === true`.
- */
-async function getAllCustomerTokens() {
-  const db = getDatabase();
-  const [tokensSnap, adminsSnap] = await Promise.all([
-    db.ref("push_tokens").get(),
-    db.ref("admins").get(),
-  ]);
-  if (!tokensSnap.exists()) return [];
-
-  const adminUidSet = new Set();
-  if (adminsSnap.exists()) {
-    adminsSnap.forEach((adminSnap) => {
-      if (adminSnap.val() === true) adminUidSet.add(adminSnap.key);
-    });
-  }
-
-  const tokens = [];
-  tokensSnap.forEach((userSnap) => {
-    if (adminUidSet.has(userSnap.key)) return;
-    userSnap.forEach((tokenSnap) => {
-      const data = tokenSnap.val();
-      if (
-        data?.token &&
-        data?.enabled !== false &&
-        data?.role !== "rider"
-      ) {
-        tokens.push({ uid: userSnap.key, tokenKey: tokenSnap.key, token: data.token });
-      }
-    });
-  });
-
-  // Deduplicate by token value
-  const seen = new Set();
-  return tokens.filter((t) => {
-    if (seen.has(t.token)) return false;
-    seen.add(t.token);
-    return true;
-  });
-}
-
-/**
- * Kuha ang FCM tokens ng isang specific na user.
- */
-async function getUserTokens(uid, { excludeRole } = {}) {
-  if (!uid) return [];
-  const db = getDatabase();
-  const snap = await db.ref(`push_tokens/${uid}`).get();
-  if (!snap.exists()) return [];
-  const entries = [];
-  snap.forEach((t) => {
-    const d = t.val();
-    if (d?.token && d?.enabled !== false) {
-      if (excludeRole && d?.role === excludeRole) return;
-      entries.push({ uid, tokenKey: t.key, token: d.token });
-    }
-  });
-  return entries;
-}
-
-/**
- * Kuha lahat ng FCM tokens ng mga rider.
- */
-async function getAllRiderTokens() {
-  const db = getDatabase();
-  const snap = await db.ref("push_tokens").get();
-  if (!snap.exists()) return [];
-  const entries = [];
-  snap.forEach((userSnap) => {
-    userSnap.forEach((tokenSnap) => {
-      const data = tokenSnap.val();
-      if (data?.token && data?.enabled !== false && data?.role === "rider") {
-        entries.push({ uid: userSnap.key, tokenKey: tokenSnap.key, token: data.token });
-      }
-    });
-  });
-  const seen = new Set();
-  return entries.filter((t) => {
-    if (seen.has(t.token)) return false;
-    seen.add(t.token);
-    return true;
-  });
-}
-
-/**
- * Kuha lahat ng FCM tokens ng mga admin batay sa `admins/$uid === true`.
- */
-async function getAllAdminTokens() {
-  const db = getDatabase();
-  const [adminsSnap, tokensSnap] = await Promise.all([
-    db.ref("admins").get(),
-    db.ref("push_tokens").get(),
-  ]);
-
-  if (!adminsSnap.exists() || !tokensSnap.exists()) return [];
-
-  const adminUidSet = new Set();
-  adminsSnap.forEach((adminSnap) => {
-    if (adminSnap.val() === true) adminUidSet.add(adminSnap.key);
-  });
-  if (!adminUidSet.size) return [];
-
-  const entries = [];
-  tokensSnap.forEach((userSnap) => {
-    if (!adminUidSet.has(userSnap.key)) return;
-    userSnap.forEach((tokenSnap) => {
-      const data = tokenSnap.val();
-      if (data?.token && data?.enabled !== false && data?.role !== "rider") {
-        entries.push({ uid: userSnap.key, tokenKey: tokenSnap.key, token: data.token });
-      }
-    });
-  });
-
-  const seen = new Set();
-  return entries.filter((t) => {
-    if (seen.has(t.token)) return false;
-    seen.add(t.token);
-    return true;
-  });
-}
-
-/**
- * Magpadala ng multicast FCM notification sa maraming tokens.
- * Awtomatikong nagtatanggal ng mga invalid/expired tokens sa database.
- */
-async function sendBatchNotification(tokenEntries, { title, body, type, link }) {
-  const db = getDatabase();
-  const uniqueUids = [...new Set(tokenEntries.map((entry) => entry.uid).filter(Boolean))];
-  if (uniqueUids.length) {
-    const now = Date.now();
-    try {
-      await Promise.all(
-        uniqueUids.map((uid) =>
-          db.ref(`user_notifications/${uid}`).push({
-            title: title || "BayanGo",
-            body: body || "",
-            type: type || "batch_reminder",
-            link: link || USER_APP_URL,
-            createdAt: now,
-          })
-        )
-      );
-    } catch (err) {
-      console.error("Error writing to user_notifications:", err);
-    }
-  }
-
-  if (!tokenEntries.length) {
-    console.log("Walang tokens. Skipping send.");
-    return { sent: 0, failed: 0 };
-  }
-
-  const messaging = getMessaging();
-  let totalSent = 0;
-  let totalFailed = 0;
-
-  const resolvedLink = link || USER_APP_URL;
-
-  // FCM multicast limit: 500 tokens per call
-  const CHUNK_SIZE = 500;
-  for (let i = 0; i < tokenEntries.length; i += CHUNK_SIZE) {
-    const chunk = tokenEntries.slice(i, i + CHUNK_SIZE);
-    const tokens = chunk.map((t) => t.token);
-
-    try {
-      const response = await messaging.sendEachForMulticast({
-        tokens,
-        notification: {
-          title: title || "BayanGo",
-          body: body || "",
-        },
-        android: {
-          priority: "high",
-          ttl: 60 * 60 * 1000, // 1 hour
-          notification: {
-            channelId: "default",
-            sound: "default",
-            priority: "max",
-            visibility: "public",
-          },
-        },
-        apns: {
-          headers: {
-            "apns-priority": "10",
-            "apns-push-type": "alert",
-          },
-          payload: {
-            aps: {
-              sound: "default",
-              badge: 1,
-              "content-available": 1,
-            },
-          },
-        },
-        webpush: {
-          headers: {
-            Urgency: "high",
-            TTL: "3600",
-          },
-          notification: {
-            icon: "https://i.imgur.com/wL8wcBB.jpeg",
-            tag: type || "bayango-update",
-            renotify: true,
-          },
-          fcm_options: {
-            link: resolvedLink,
-          },
-        },
-        data: {
-          title: title || "BayanGo",
-          body: body || "",
-          type: type || "batch_reminder",
-          link: resolvedLink,
-          timestamp: String(Date.now()),
-        },
-      });
-
-      totalSent += response.successCount;
-      totalFailed += response.failureCount;
-
-      // Tanggalin ang mga expired/invalid tokens sa database
-      const deletePromises = [];
-      response.responses.forEach((resp, idx) => {
-        if (!resp.success) {
-          const errCode = resp.error?.code;
-          if (
-            errCode === "messaging/invalid-registration-token" ||
-            errCode === "messaging/registration-token-not-registered" ||
-            errCode === "messaging/mismatched-sender-id"
-          ) {
-            const { uid, tokenKey } = chunk[idx];
-            if (uid && tokenKey) {
-              deletePromises.push(
-                db.ref(`push_tokens/${uid}/${tokenKey}`).remove()
-              );
-            }
-          }
-        }
-      });
-
-      if (deletePromises.length) {
-        await Promise.all(deletePromises);
-        console.log(`Natanggal ang ${deletePromises.length} expired token(s).`);
-      }
-    } catch (err) {
-      console.error(`Error sa chunk ${i}-${i + CHUNK_SIZE}:`, err);
-      totalFailed += chunk.length;
-    }
-  }
-
-  return { sent: totalSent, failed: totalFailed };
-}
 
 // ─────────────────────────────────────────────────────────────────────────────
 // RTDB-TRIGGERED: notification_queue
 // ─────────────────────────────────────────────────────────────────────────────
 
-/**
- * Kapag may bagong entry sa notification_queue, ipadala ang FCM sa tamang user
- * at tanggalin ang queue entry pagkatapos.
- */
 exports.processNotificationQueue = onValueCreated(
   { ref: "notification_queue/{pushId}", region: "asia-southeast1" },
   async (event) => {
@@ -450,7 +68,6 @@ exports.processNotificationQueue = onValueCreated(
     }
 
     try {
-      // Fetch push tokens for this specific user
       const tokenSnap = await db.ref(`push_tokens/${uid}`).get();
       const tokenEntries = [];
       if (tokenSnap.exists()) {
@@ -474,11 +91,9 @@ exports.processNotificationQueue = onValueCreated(
         console.log(`[notif_queue/${pushId}] uid=${uid} Sent:${result.sent} Failed:${result.failed}`);
       }
 
-      // Clean up queue entry only after successful processing
       await db.ref(`notification_queue/${pushId}`).remove();
     } catch (err) {
       console.error(`[notif_queue/${pushId}] Error processing notification for uid=${uid}:`, err);
-      // Do NOT remove the queue entry so it can be retried or inspected
     }
   }
 );
@@ -887,10 +502,6 @@ exports.uploadGcashQrImage = onRequest(
 // SCHEDULED NOTIFICATIONS (Philippines Time / Asia/Manila)
 // ─────────────────────────────────────────────────────────────────────────────
 
-/**
- * 8:00 AM — AM Batch is open — place your lunch order now.
- * Cut-off: 10:00 AM | Delivery: 11:00 AM
- */
 exports.notifyAmBatchOpen = onSchedule(
   { schedule: "0 8 * * *", timeZone: "Asia/Manila" },
   async () => {
@@ -908,10 +519,6 @@ exports.notifyAmBatchOpen = onSchedule(
   }
 );
 
-/**
- * 9:00 AM — 1 oras na lang bago mag-cut-off ng AM Batch.
- * Cut-off: 10:00 AM | Delivery: 11:00 AM
- */
 exports.notifyAmBatchWarning = onSchedule(
   { schedule: "0 9 * * *", timeZone: "Asia/Manila" },
   async () => {
@@ -929,10 +536,6 @@ exports.notifyAmBatchWarning = onSchedule(
   }
 );
 
-/**
- * 12:00 PM — PM Batch is open — you can now order for the afternoon.
- * Cut-off: 3:00 PM | Delivery: 4:00 PM
- */
 exports.notifyPmBatchOpen = onSchedule(
   { schedule: "0 12 * * *", timeZone: "Asia/Manila" },
   async () => {
@@ -950,10 +553,6 @@ exports.notifyPmBatchOpen = onSchedule(
   }
 );
 
-/**
- * 2:00 PM — 1 oras na lang bago mag-cut-off ng PM Batch.
- * Cut-off: 3:00 PM | Delivery: 4:00 PM
- */
 exports.notifyPmBatchWarning = onSchedule(
   { schedule: "0 14 * * *", timeZone: "Asia/Manila" },
   async () => {
@@ -971,10 +570,6 @@ exports.notifyPmBatchWarning = onSchedule(
   }
 );
 
-/**
- * 8:00 PM — Pre-order na para bukas.
- * Delivery: 11:00 AM bukas (AM Batch)
- */
 exports.notifyPreorder = onSchedule(
   { schedule: "0 20 * * *", timeZone: "Asia/Manila" },
   async () => {
@@ -996,9 +591,6 @@ exports.notifyPreorder = onSchedule(
 // RTDB-TRIGGERED: ORDER EVENTS (notifications to customers & riders)
 // ─────────────────────────────────────────────────────────────────────────────
 
-/**
- * Bagong order → i-notify ang lahat ng riders.
- */
 exports.onNewOrder = onValueCreated(
   { ref: "orders/{orderId}", region: "asia-southeast1" },
   async (event) => {
@@ -1022,15 +614,6 @@ exports.onNewOrder = onValueCreated(
   }
 );
 
-/**
- * Order na-update → i-notify ang customer at/o rider depende sa kung ano ang nagbago:
- *   - status nagbago             → notify customer; kung cancelled at may rider → notify rider din
- *   - merchant order naging pending → notify all riders (new available order)
- *   - merchantStatus nagbago     → notify customer (accepted/preparing/ready)
- *   - riderId nai-assign         → notify rider
- *   - gcashPaymentConfirmed      → notify customer
- *   - pricesUpdatedAt            → notify customer
- */
 exports.onOrderUpdated = onValueUpdated(
   { ref: "orders/{orderId}", region: "asia-southeast1" },
   async (event) => {
@@ -1041,7 +624,7 @@ exports.onOrderUpdated = onValueUpdated(
       const uid = after.uid || after.userId || before.uid || before.userId;
       const db = getDatabase();
 
-      // 1. Status changed → notify customer
+      // 1. Status changed -> notify customer
       if (before.status !== after.status && uid) {
         const statusLabel = ORDER_STATUS_LABELS[after.status] || after.status;
         const cancelReason = String(after.cancellationReason || "").trim();
@@ -1057,7 +640,6 @@ exports.onOrderUpdated = onValueUpdated(
             link: `${USER_APP_URL}#orders`,
           });
         } else {
-          // Fallback para makita pa rin sa notifications tab kahit walang active web push token.
           await db.ref(`user_notifications/${uid}`).push({
             title: "Order Update",
             body: `Order #${String(orderId).slice(-6)}: ${statusMessage}`,
@@ -1067,7 +649,6 @@ exports.onOrderUpdated = onValueUpdated(
           });
           console.warn(`[onOrderUpdated ${orderId}] No active push token for uid=${uid}; wrote fallback user_notifications entry.`);
         }
-        // Kung cancelled at may rider → notify rider
         if (after.status === "cancelled" && after.riderId) {
           const riderTokens = await getUserTokens(after.riderId);
           if (riderTokens.length) {
@@ -1079,7 +660,6 @@ exports.onOrderUpdated = onValueUpdated(
             });
           }
         }
-        // Merchant order naging "pending" (ready for rider) → notify all riders
         if (before.status === "merchant_pending" && after.status === "pending" && !after.riderId) {
           const riderTokens = await getAllRiderTokens();
           if (riderTokens.length) {
@@ -1093,7 +673,7 @@ exports.onOrderUpdated = onValueUpdated(
         }
       }
 
-      // 1b. Merchant status changed (same order status but merchantStatus updated) → notify customer
+      // 1b. Merchant status changed
       if (before.status === after.status && before.merchantStatus !== after.merchantStatus && after.merchantStatus && uid) {
         const merchantLabel = MERCHANT_STATUS_LABELS[after.merchantStatus] || `Merchant status: ${after.merchantStatus}`;
         const userTokens = await getUserTokens(uid, { excludeRole: "rider" });
@@ -1115,7 +695,7 @@ exports.onOrderUpdated = onValueUpdated(
         }
       }
 
-      // 2. Rider na-assign (riderId added) → notify rider
+      // 2. Rider assigned
       if (!before.riderId && after.riderId) {
         const riderTokens = await getUserTokens(after.riderId);
         if (riderTokens.length) {
@@ -1128,7 +708,7 @@ exports.onOrderUpdated = onValueUpdated(
         }
       }
 
-      // 3. GCash confirmed → notify customer
+      // 3. GCash confirmed
       if (!before.gcashPaymentConfirmed && after.gcashPaymentConfirmed && uid) {
         const userTokens = await getUserTokens(uid, { excludeRole: "rider" });
         if (userTokens.length) {
@@ -1141,7 +721,7 @@ exports.onOrderUpdated = onValueUpdated(
         }
       }
 
-      // 4. Prices updated → notify customer
+      // 4. Prices updated
       if (before.pricesUpdatedAt !== after.pricesUpdatedAt && after.pricesUpdatedAt && uid) {
         const total = after.total || 0;
         const hasProof = Array.isArray(after.proofImages) && after.proofImages.length > 0;
@@ -1171,9 +751,6 @@ exports.onOrderUpdated = onValueUpdated(
 // RTDB-TRIGGERED: SUPPORT TICKET & MESSAGE NOTIFICATIONS
 // ─────────────────────────────────────────────────────────────────────────────
 
-/**
- * Bagong support ticket → i-notify lahat ng admins.
- */
 exports.onNewSupportTicket = onValueCreated(
   { ref: "support_tickets/{ticketId}", region: "asia-southeast1" },
   async (event) => {
@@ -1200,11 +777,6 @@ exports.onNewSupportTicket = onValueCreated(
   }
 );
 
-/**
- * Bagong support message → i-notify ang admin (kung user ang nag-send)
- * o i-notify ang customer (kung admin ang nag-send).
- * Hindi nag-notify para sa bot messages.
- */
 exports.onNewSupportMessage = onValueCreated(
   { ref: "support_messages/{ticketId}/{messageId}", region: "asia-southeast1" },
   async (event) => {
@@ -1219,12 +791,11 @@ exports.onNewSupportMessage = onValueCreated(
       const ticket = ticketSnap.val();
 
       if (message.senderType === "user") {
-        // User sent a message → notify all admins
         const adminTokens = await getAllAdminTokens();
         if (!adminTokens.length) return;
 
         const senderName = message.senderName || ticket.userName || "Customer";
-        const preview = message.text.length > 80 ? message.text.slice(0, 80) + "…" : message.text;
+        const preview = message.text.length > 80 ? message.text.slice(0, 80) + "\u2026" : message.text;
 
         const result = await sendBatchNotification(adminTokens, {
           title: `Support: ${ticket.subject || "Ticket"}`,
@@ -1232,17 +803,16 @@ exports.onNewSupportMessage = onValueCreated(
           type: "support_message_user",
           link: `${ADMIN_APP_URL}#support`,
         });
-        console.log(`[onNewSupportMessage user→admin ${ticketId}] Sent:${result.sent} Failed:${result.failed}`);
+        console.log(`[onNewSupportMessage user->admin ${ticketId}] Sent:${result.sent} Failed:${result.failed}`);
 
       } else if (message.senderType === "admin") {
-        // Admin sent a reply → notify the customer
         const uid = ticket.uid;
         if (!uid) return;
 
         const userTokens = await getUserTokens(uid, { excludeRole: "rider" });
         if (!userTokens.length) return;
 
-        const preview = message.text.length > 80 ? message.text.slice(0, 80) + "…" : message.text;
+        const preview = message.text.length > 80 ? message.text.slice(0, 80) + "\u2026" : message.text;
 
         const result = await sendBatchNotification(userTokens, {
           title: "BayanGo Support Reply",
@@ -1250,7 +820,7 @@ exports.onNewSupportMessage = onValueCreated(
           type: "support_message_admin",
           link: `${USER_APP_URL}#support`,
         });
-        console.log(`[onNewSupportMessage admin→user ${ticketId}] Sent:${result.sent} Failed:${result.failed}`);
+        console.log(`[onNewSupportMessage admin->user ${ticketId}] Sent:${result.sent} Failed:${result.failed}`);
       }
     } catch (err) {
       console.error(`[onNewSupportMessage ${ticketId}] Error:`, err);

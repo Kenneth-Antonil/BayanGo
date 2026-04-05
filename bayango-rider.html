@@ -79,12 +79,17 @@
     const WEB_PUSH_VAPID_KEY = (window.BAYANGO_WEB_PUSH_VAPID_KEY || "BMdJvRjBWkB8Ob6OOJNiaFVtKkTG4Ubd1BEM4z8VshMVO0WiGHYUEu3mfm1sQYlK25OloE9jjojJUWB12eMfLfA").trim();
   </script>
 
+  <!-- Core engine scripts -->
+  <script src="core/utils.js"></script>
+  <script src="core/pricing.js"></script>
+
   <script type="text/babel">
     const { useState, useEffect, useCallback, useRef } = React;
 
     const Ic = ({ n, style, size, className }) => <i className={`fa-solid fa-${n}${className?' '+className:''}`} style={{ fontSize:size, lineHeight:1, ...style }} />;
 
-    const fmt = n => "₱" + Number(n).toLocaleString("en-PH", { minimumFractionDigits: 0 });
+    // Import shared utilities from BayanGoCore engine
+    const { fmt, sanitizeTokenKey } = window.BayanGoCore;
     const isImageSrc = (value) =>
       typeof value === "string" &&
       /^(https?:\/\/|blob:|data:image\/)/i.test(value);
@@ -108,7 +113,6 @@
     }
 
     const RIDER_NOTIFICATION_SOUND_URL = "https://audio.com/kenneth-antonil/audio/universfield-new-notification-022-370046";
-    const sanitizeTokenKey = (token) => encodeURIComponent(String(token || "")).replace(/\./g, "%2E");
 
     async function enablePushForRider(user, onForegroundNotify) {
       if (!user?.uid) return;
