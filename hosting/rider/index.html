@@ -730,6 +730,7 @@
             {tab === "available"  && <AvailableTab  orders={availableOrders} onAccept={acceptOrder} claiming={claiming} availErr={availErr} onOpenChecklist={setChecklistOrder} onOpenMap={setMapOrder} />}
             {tab === "deliveries" && <DeliveriesTab buying={buyingOrders} active={activeOrders} completed={completedOrders} onOtw={markOtw} markingOtw={markingOtw} onDeliver={markDelivered} delivering={delivering} onOpenChecklist={setChecklistOrder} onOpenMap={setMapOrder} onUpdatePrices={order => { setPriceEditOrder(order); setRiderEditedPrices({}); setRiderProofImages(order.proofImages || []); }} />}
             {tab === "earnings"   && <EarningsTab   completed={deliveredOrders} today={todayEarnings} week={weekEarnings} total={totalEarnings} />}
+            {tab === "profile"    && <RiderProfileTab user={user} />}
           </div>
 
           {/* ── Bottom Nav ── */}
@@ -745,6 +746,7 @@
               { key:"available",  icon:"box",        label:"Available",  badge: availableOrders.length },
               { key:"deliveries", icon:"motorcycle", label:"Deliveries", badge: buyingOrders.length + activeOrders.length },
               { key:"earnings",   icon:"coins",      label:"Earnings" },
+              { key:"profile",    icon:"user-gear",  label:"Profile" },
             ].map(t => (
               <button key={t.key} onClick={() => setTab(t.key)} style={{
                 flex:1, padding:"10px 0 8px", display:"flex", flexDirection:"column", alignItems:"center", gap:3,
@@ -1525,6 +1527,199 @@
               <div style={{ fontSize:15, fontWeight:700, color:"#64748B" }}>No deliveries yet</div>
               <div style={{ fontSize:13, marginTop:6 }}>Pumunta sa Available tab para kumuha ng order</div>
             </div>
+          )}
+        </div>
+      );
+    }
+
+    /* ══════════════════ RIDER PROFILE TAB ══════════════════ */
+    function RiderProfileTab({ user }) {
+      const [ratings, setRatings] = useState([]);
+      const [loading, setLoading] = useState(true);
+      const [profile, setProfile] = useState(null);
+      const [uploading, setUploading] = useState(false);
+      const [editName, setEditName] = useState("");
+      const [editMode, setEditMode] = useState(false);
+      const [saving, setSaving] = useState(false);
+      const fileInputRef = useRef(null);
+
+      useEffect(() => {
+        if (!user?.uid) return;
+        // Load rider profile
+        _fbDb.ref(`rider_profiles/${user.uid}`).on("value", snap => {
+          const data = snap.val();
+          setProfile(data);
+          if (data?.name) setEditName(data.name);
+          else setEditName(user.displayName || "");
+        });
+        // Load ratings
+        _fbDb.ref("delivery_ratings").orderByChild("riderId").equalTo(user.uid).on("value", snap => {
+          const list = [];
+          snap.forEach(c => list.push({ id: c.key, ...c.val() }));
+          list.sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
+          setRatings(list);
+          setLoading(false);
+        });
+        return () => {
+          _fbDb.ref(`rider_profiles/${user.uid}`).off();
+          _fbDb.ref("delivery_ratings").off();
+        };
+      }, [user?.uid]);
+
+      const handlePhotoUpload = async (e) => {
+        const file = e.target.files?.[0];
+        if (!file) return;
+        setUploading(true);
+        try {
+          const st = initRiderStorage();
+          const storageRef = st.ref(`rider_profiles/${user.uid}/photo_${Date.now()}`);
+          await st.uploadBytes(storageRef, file);
+          const url = await st.getDownloadURL(storageRef);
+          await _fbDb.ref(`rider_profiles/${user.uid}`).update({
+            photoURL: url,
+            updatedAt: Date.now(),
+          });
+        } catch (err) {
+          console.error("Photo upload error:", err);
+        } finally {
+          setUploading(false);
+        }
+      };
+
+      const handleSaveProfile = async () => {
+        setSaving(true);
+        try {
+          await _fbDb.ref(`rider_profiles/${user.uid}`).update({
+            name: editName.trim() || user.displayName || "",
+            email: user.email || null,
+            updatedAt: Date.now(),
+          });
+          setEditMode(false);
+        } catch (err) {
+          console.error("Profile save error:", err);
+        } finally {
+          setSaving(false);
+        }
+      };
+
+      const avgRating = ratings.length > 0 ? (ratings.reduce((s, r) => s + (r.riderRating || 0), 0) / ratings.length) : 0;
+      const displayPhoto = profile?.photoURL || user.photoURL;
+      const displayName = profile?.name || user.displayName || user.email || "Rider";
+
+      // Rating distribution
+      const ratingDist = [5,4,3,2,1].map(star => ({
+        star,
+        count: ratings.filter(r => r.riderRating === star).length,
+        pct: ratings.length > 0 ? (ratings.filter(r => r.riderRating === star).length / ratings.length * 100) : 0,
+      }));
+
+      return (
+        <div style={{ padding:"14px 16px" }}>
+          {/* Profile Card */}
+          <div style={{ background:"#fff", borderRadius:20, padding:"24px 20px", marginBottom:16, border:"1px solid #E2E8F0", boxShadow:"0 2px 8px rgba(0,0,0,.05)" }}>
+            <div style={{ display:"flex", alignItems:"center", gap:16, marginBottom:16 }}>
+              <div style={{ position:"relative" }}>
+                {displayPhoto
+                  ? <img src={displayPhoto} alt="" style={{ width:72, height:72, borderRadius:20, objectFit:"cover", border:"3px solid #DBEAFE" }} />
+                  : <div style={{ width:72, height:72, borderRadius:20, background:"linear-gradient(135deg,#1D4ED8,#3B82F6)", display:"flex", alignItems:"center", justifyContent:"center", color:"#fff", fontSize:28, fontWeight:800 }}>{displayName[0].toUpperCase()}</div>}
+                <button onClick={() => fileInputRef.current?.click()} disabled={uploading} style={{
+                  position:"absolute", bottom:-4, right:-4, width:28, height:28, borderRadius:10,
+                  background:"#1D4ED8", color:"#fff", fontSize:12, display:"flex", alignItems:"center", justifyContent:"center",
+                  border:"2px solid #fff", boxShadow:"0 2px 8px rgba(29,78,216,.3)",
+                }}>
+                  {uploading ? <Ic n="spinner" className="spin" /> : <Ic n="camera" />}
+                </button>
+                <input ref={fileInputRef} type="file" accept="image/*" style={{ display:"none" }} onChange={handlePhotoUpload} />
+              </div>
+              <div style={{ flex:1 }}>
+                {editMode ? (
+                  <div>
+                    <input value={editName} onChange={e => setEditName(e.target.value)} placeholder="Your name" style={{ width:"100%", fontSize:16, fontWeight:700, border:"1.5px solid #DBEAFE", borderRadius:10, padding:"8px 12px", outline:"none", background:"#EFF6FF", boxSizing:"border-box", marginBottom:8 }} />
+                    <div style={{ display:"flex", gap:6 }}>
+                      <button onClick={() => setEditMode(false)} style={{ padding:"6px 14px", borderRadius:8, background:"#F3F4F6", fontSize:12, fontWeight:700, color:"#555" }}>Cancel</button>
+                      <button onClick={handleSaveProfile} disabled={saving} style={{ padding:"6px 14px", borderRadius:8, background:"#1D4ED8", color:"#fff", fontSize:12, fontWeight:700, opacity: saving ? .6 : 1 }}>
+                        {saving ? "Saving..." : "Save"}
+                      </button>
+                    </div>
+                  </div>
+                ) : (
+                  <div>
+                    <div style={{ fontSize:18, fontWeight:800, color:"#1E293B" }}>{displayName}</div>
+                    <div style={{ fontSize:12, color:"#94A3B8", marginTop:2 }}>{user.email}</div>
+                    <button onClick={() => { setEditName(displayName); setEditMode(true); }} style={{ marginTop:6, fontSize:11, fontWeight:700, color:"#1D4ED8", display:"flex", alignItems:"center", gap:4 }}>
+                      <Ic n="pen-to-square" size={11} /> Edit Profile
+                    </button>
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+
+          {/* Rating Summary */}
+          <div style={{ background:"#fff", borderRadius:18, padding:"18px 20px", marginBottom:16, border:"1px solid #E2E8F0" }}>
+            <div style={{ fontSize:14, fontWeight:800, color:"#1E293B", marginBottom:14, display:"flex", alignItems:"center", gap:6 }}>
+              <Ic n="star" style={{ color:"#F59E0B" }} /> My Ratings
+            </div>
+            <div style={{ display:"flex", gap:16, marginBottom:16 }}>
+              <div style={{ textAlign:"center" }}>
+                <div style={{ fontSize:40, fontWeight:800, color:"#1D4ED8", lineHeight:1 }}>{avgRating > 0 ? avgRating.toFixed(1) : "—"}</div>
+                <div style={{ display:"flex", gap:2, justifyContent:"center", margin:"6px 0" }}>
+                  {[1,2,3,4,5].map(s => <Ic key={s} n="star" size={14} style={{ color: s <= Math.round(avgRating) ? "#F59E0B" : "#E5E7EB" }} />)}
+                </div>
+                <div style={{ fontSize:11, color:"#94A3B8" }}>{ratings.length} review{ratings.length !== 1 ? "s" : ""}</div>
+              </div>
+              <div style={{ flex:1 }}>
+                {ratingDist.map(d => (
+                  <div key={d.star} style={{ display:"flex", alignItems:"center", gap:6, marginBottom:4 }}>
+                    <span style={{ fontSize:11, fontWeight:700, color:"#64748B", width:14, textAlign:"right" }}>{d.star}</span>
+                    <Ic n="star" size={10} style={{ color:"#F59E0B" }} />
+                    <div style={{ flex:1, height:6, borderRadius:3, background:"#F1F5F9", overflow:"hidden" }}>
+                      <div style={{ width:`${d.pct}%`, height:"100%", borderRadius:3, background: d.star >= 4 ? "#22C55E" : d.star === 3 ? "#F59E0B" : "#EF4444", transition:"width .3s" }} />
+                    </div>
+                    <span style={{ fontSize:10, color:"#94A3B8", width:20, textAlign:"right" }}>{d.count}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+
+          {/* Reviews list */}
+          <div style={{ fontSize:13, fontWeight:700, color:"#1E293B", marginBottom:10, display:"flex", alignItems:"center", gap:6 }}>
+            <Ic n="comments" style={{ color:"#1D4ED8" }} /> Customer Reviews ({ratings.length})
+          </div>
+          {loading ? (
+            <div style={{ textAlign:"center", padding:"30px 0" }}><Ic n="spinner" className="spin" size={24} style={{ color:"#94A3B8" }} /></div>
+          ) : ratings.length === 0 ? (
+            <div style={{ textAlign:"center", padding:"40px 20px", background:"#fff", borderRadius:16, border:"1px solid #E2E8F0" }}>
+              <Ic n="star" size={42} style={{ color:"#E5E7EB", marginBottom:8 }} />
+              <div style={{ fontSize:14, fontWeight:700, color:"#64748B" }}>No reviews yet</div>
+              <div style={{ fontSize:12, color:"#94A3B8", marginTop:4 }}>Complete more deliveries to get customer reviews!</div>
+            </div>
+          ) : (
+            ratings.map((r, i) => {
+              const ts = r.createdAt ? new Date(r.createdAt) : new Date();
+              return (
+                <div key={r.id} className="fade-up" style={{
+                  background:"#fff", borderRadius:16, padding:"16px 18px", marginBottom:10,
+                  border:"1px solid #E2E8F0", animationDelay:`${i*.04}s`,
+                }}>
+                  <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:8 }}>
+                    <div style={{ fontSize:13, fontWeight:700, color:"#1E293B" }}>{r.customerName || "Customer"}</div>
+                    <div style={{ fontSize:10, color:"#94A3B8" }}>{ts.toLocaleDateString("en-PH")} {ts.toLocaleTimeString("en-PH",{hour:"2-digit",minute:"2-digit"})}</div>
+                  </div>
+                  <div style={{ display:"flex", gap:2, marginBottom:4 }}>
+                    {[1,2,3,4,5].map(s => <Ic key={s} n="star" size={14} style={{ color: s <= r.riderRating ? "#F59E0B" : "#E5E7EB" }} />)}
+                    <span style={{ fontSize:11, fontWeight:700, color:"#64748B", marginLeft:6 }}>{["","Poor","Fair","Good","Great","Excellent"][r.riderRating]}</span>
+                  </div>
+                  {r.comment && <div style={{ fontSize:12, color:"#4B5563", lineHeight:1.55, marginTop:6, padding:"8px 10px", background:"#F8FAFC", borderRadius:10 }}>{r.comment}</div>}
+                  {r.appRating && (
+                    <div style={{ fontSize:10, color:"#94A3B8", marginTop:6, display:"flex", alignItems:"center", gap:4 }}>
+                      <Ic n="mobile-screen" size={10} /> App rated {r.appRating}/5
+                    </div>
+                  )}
+                </div>
+              );
+            })
           )}
         </div>
       );

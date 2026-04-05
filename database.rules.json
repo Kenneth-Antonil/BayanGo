@@ -343,6 +343,40 @@
         )",
         ".write": "auth != null"
       }
+    },
+
+    // ─────────────────────────────────────────────────────────────────────────
+    // DELIVERY RATINGS
+    // Users can create ratings for their own orders (uid must match).
+    // Anyone authenticated can read (riders see their ratings, users see rider profiles).
+    // Admins can read/write all.
+    // ─────────────────────────────────────────────────────────────────────────
+    "delivery_ratings": {
+      ".indexOn": ["riderId", "uid", "orderId", "createdAt"],
+      ".read": "auth != null",
+      "$ratingId": {
+        ".write": "auth != null && (
+          (!data.exists() && newData.child('uid').val() === auth.uid) ||
+          (data.exists() && data.child('uid').val() === auth.uid) ||
+          root.child('admins').child(auth.uid).val() === true
+        )",
+        ".validate": "newData.hasChildren(['uid', 'orderId', 'riderId', 'riderRating', 'createdAt'])"
+      }
+    },
+
+    // ─────────────────────────────────────────────────────────────────────────
+    // RIDER PROFILES (public-facing profile data)
+    // Riders can write their own profile (photo, name).
+    // Anyone authenticated can read (for rating display).
+    // ─────────────────────────────────────────────────────────────────────────
+    "rider_profiles": {
+      "$uid": {
+        ".read": "auth != null",
+        ".write": "auth != null && (
+          auth.uid === $uid ||
+          root.child('admins').child(auth.uid).val() === true
+        )"
+      }
     }
 
   }
