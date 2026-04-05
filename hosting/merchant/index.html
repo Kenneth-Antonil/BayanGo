@@ -3,67 +3,149 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>BayanGo Partner Merchant Dashboard</title>
+  <title>BayanGo Merchant Dashboard</title>
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" />
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
   <style>
     :root{
-      --bg:#eef2f7;
-      --card:#ffffff;
-      --line:#dbe4f0;
-      --text:#0f172a;
-      --muted:#475569;
-      --brand:#166534;
-      --brand-dark:#14532d;
-      --chip:#f8fafc;
-      --radius:16px;
+      --bg:#f1f5f9;--card:#ffffff;--line:#e2e8f0;--text:#0f172a;--muted:#64748b;
+      --brand:#166534;--brand-light:#22c55e;--brand-bg:#f0fdf4;--brand-border:#bbf7d0;
+      --danger:#dc2626;--danger-bg:#fef2f2;--danger-border:#fecaca;
+      --warn:#d97706;--warn-bg:#fffbeb;--warn-border:#fde68a;
+      --info:#2563eb;--info-bg:#eff6ff;--info-border:#bfdbfe;
+      --radius:14px;--shadow:0 1px 3px rgba(0,0,0,.06),0 4px 12px rgba(0,0,0,.04);
     }
-    *{box-sizing:border-box}
-    body{font-family:Inter,Arial,sans-serif;background:linear-gradient(180deg,#e4f4eb 0%,var(--bg) 45%);margin:0;color:var(--text)}
-    #root{max-width:100%;margin:0 auto;padding:14px 12px 26px}
-    .card{background:var(--card);border:1px solid var(--line);border-radius:var(--radius);padding:16px;margin-bottom:14px;box-shadow:0 10px 24px rgba(15,23,42,.05)}
-    .card h2,.card h3{margin:0 0 10px}
-    .muted{color:var(--muted);margin:0}
-    .toolbar{display:flex;justify-content:space-between;gap:12px;align-items:center;flex-wrap:wrap}
-    .status-chip{background:#dcfce7;color:#166534;font-weight:700;padding:6px 10px;border-radius:999px;font-size:12px;border:1px solid #86efac}
-    .status-chip.closed{background:#fee2e2;color:#991b1b;border-color:#fca5a5}
+    *{box-sizing:border-box;margin:0;padding:0}
+    body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Inter,sans-serif;background:var(--bg);color:var(--text);min-height:100vh}
+    #root{max-width:960px;margin:0 auto;padding:0 12px 80px}
+    .header{background:linear-gradient(135deg,#166534 0%,#15803d 50%,#16a34a 100%);color:#fff;padding:18px 16px 14px;margin:0 -12px 12px;position:sticky;top:0;z-index:100}
+    .header h1{font-size:18px;font-weight:800;margin-bottom:2px}
+    .header-sub{font-size:12px;opacity:.85;display:flex;align-items:center;gap:6px}
+    .header-row{display:flex;justify-content:space-between;align-items:center}
+    .status-dot{width:8px;height:8px;border-radius:50%;display:inline-block}
+    .status-dot.open{background:#86efac;box-shadow:0 0 6px #86efac}
+    .status-dot.closed{background:#fca5a5;box-shadow:0 0 6px #fca5a5}
+    .nav{display:flex;gap:4px;overflow-x:auto;padding:8px 16px 10px;margin:0 -12px;background:linear-gradient(135deg,#14532d,#166534);scrollbar-width:none;-webkit-overflow-scrolling:touch}
+    .nav::-webkit-scrollbar{display:none}
+    .nav-btn{padding:7px 14px;border:1px solid rgba(255,255,255,.2);background:rgba(255,255,255,.08);color:rgba(255,255,255,.8);border-radius:999px;font-size:12px;font-weight:700;white-space:nowrap;cursor:pointer;transition:.2s}
+    .nav-btn:hover{background:rgba(255,255,255,.15)}
+    .nav-btn.active{background:#fff;color:#166534;border-color:#fff}
+    .nav-btn .badge{background:#ef4444;color:#fff;font-size:10px;padding:1px 6px;border-radius:999px;margin-left:4px}
+    .card{background:var(--card);border:1px solid var(--line);border-radius:var(--radius);padding:16px;margin-bottom:12px;box-shadow:var(--shadow)}
+    .card-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:12px}
+    .card-header h3{font-size:15px;font-weight:700}
+    .card h2{font-size:17px;font-weight:800;margin-bottom:8px}
+    .muted{color:var(--muted);font-size:13px}
+    .stat-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:10px;margin-bottom:12px}
+    .stat-card{background:var(--brand-bg);border:1px solid var(--brand-border);border-radius:12px;padding:14px;text-align:center}
+    .stat-card.warn{background:var(--warn-bg);border-color:var(--warn-border)}
+    .stat-card.info{background:var(--info-bg);border-color:var(--info-border)}
+    .stat-card.danger{background:var(--danger-bg);border-color:var(--danger-border)}
+    .stat-val{font-size:22px;font-weight:800;color:var(--text)}
+    .stat-label{font-size:11px;color:var(--muted);font-weight:600;text-transform:uppercase;letter-spacing:.03em;margin-top:2px}
+    .grid-2{display:grid;grid-template-columns:repeat(2,1fr);gap:10px}
     .stack{display:grid;gap:10px}
-    input,select,textarea{width:100%;padding:10px 12px;border:1px solid #cbd5e1;border-radius:10px;margin:0;font-size:14px;background:#fff}
-    input:focus,select:focus,textarea:focus{outline:0;border-color:#22c55e;box-shadow:0 0 0 3px rgba(34,197,94,.15)}
-    button{cursor:pointer;border:none;border-radius:10px;padding:10px 12px;font-weight:700;transition:.2s}
-    button:hover{transform:translateY(-1px)}
-    .btn-primary{background:linear-gradient(135deg,var(--brand),var(--brand-dark));color:#fff}
-    .btn-muted{background:#e2e8f0;color:#0f172a}
-    .btn-warn{background:#fef3c7;color:#92400e}
+    input,select,textarea{width:100%;padding:10px 12px;border:1px solid #cbd5e1;border-radius:10px;font-size:14px;background:#fff;font-family:inherit}
+    input:focus,select:focus,textarea:focus{outline:0;border-color:var(--brand-light);box-shadow:0 0 0 3px rgba(34,197,94,.12)}
+    textarea{resize:vertical;min-height:60px}
+    button{cursor:pointer;border:none;border-radius:10px;padding:10px 14px;font-weight:700;font-size:13px;transition:.15s;font-family:inherit}
+    .btn-primary{background:linear-gradient(135deg,#166534,#15803d);color:#fff}
+    .btn-primary:hover{transform:translateY(-1px);box-shadow:0 4px 12px rgba(22,101,52,.3)}
+    .btn-muted{background:#f1f5f9;color:#334155;border:1px solid #e2e8f0}
+    .btn-warn{background:var(--warn-bg);color:#92400e;border:1px solid var(--warn-border)}
+    .btn-danger{background:var(--danger-bg);color:#991b1b;border:1px solid var(--danger-border)}
     .btn-success{background:#16a34a;color:#fff}
-    .grid-2{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
-    .list-item{padding:12px 0;border-top:1px solid #f1f5f9;display:flex;justify-content:space-between;gap:10px;align-items:center}
-    .list-item:first-of-type{border-top:none;padding-top:0}
-    .price{font-weight:700}
-    .listing-meta{display:flex;gap:10px;align-items:center;min-width:0}
-    .listing-logo{width:34px;height:34px;border-radius:999px;object-fit:cover;border:2px solid #86efac;flex-shrink:0;background:#dcfce7}
-    .listing-actions{display:flex;gap:6px;flex-wrap:wrap;justify-content:flex-end}
-    .stock-chip{font-size:11px;font-weight:700;background:#ecfdf5;color:#166534;border:1px solid #bbf7d0;padding:3px 8px;border-radius:999px}
-    .preview-box{width:88px;height:88px;border:1px dashed #94a3b8;border-radius:12px;display:flex;align-items:center;justify-content:center;background:#f8fafc;overflow:hidden}
-    .preview-box img{width:100%;height:100%;object-fit:cover}
-    .order{border:1px solid var(--line);background:var(--chip);border-radius:12px;padding:12px;margin-bottom:10px}
-    .order-head{display:flex;justify-content:space-between;gap:10px;align-items:center;flex-wrap:wrap}
-    .order-status{font-size:12px;color:var(--muted);margin:4px 0 10px}
-    .order-actions{display:flex;gap:8px;flex-wrap:wrap}
-    .login{text-align:center;padding:24px}
-    .logo{width:64px;height:64px;border-radius:50%;object-fit:cover;border:2px solid #bbf7d0}
-    .menu-bar{display:flex;gap:8px;overflow:auto;padding-bottom:4px}
-    .menu-btn{padding:9px 12px;border:1px solid #d1d5db;background:#fff;color:#334155;border-radius:999px;font-size:12px;font-weight:700;white-space:nowrap}
-    .menu-btn.active{background:#166534;color:#fff;border-color:#166534}
-    .toggle-wrap{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:12px;border:1px solid #dcfce7;background:#f0fdf4;border-radius:12px}
-    .switch{position:relative;width:52px;height:30px;display:inline-block}
+    .btn-info{background:var(--info-bg);color:#1e40af;border:1px solid var(--info-border)}
+    .btn-sm{padding:6px 10px;font-size:12px;border-radius:8px}
+    .btn-group{display:flex;gap:6px;flex-wrap:wrap}
+    .toggle-row{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:14px;border:1px solid var(--brand-border);background:var(--brand-bg);border-radius:12px}
+    .toggle-row.warn{border-color:var(--warn-border);background:var(--warn-bg)}
+    .toggle-row.danger{border-color:var(--danger-border);background:var(--danger-bg)}
+    .toggle-label{font-weight:700;font-size:14px}
+    .toggle-desc{font-size:12px;color:var(--muted);margin-top:2px}
+    .switch{position:relative;width:50px;height:28px;display:inline-block;flex-shrink:0}
     .switch input{opacity:0;width:0;height:0}
     .slider{position:absolute;cursor:pointer;inset:0;background:#cbd5e1;border-radius:999px;transition:.2s}
-    .slider:before{content:"";position:absolute;height:24px;width:24px;left:3px;top:3px;background:#fff;border-radius:50%;transition:.2s}
-    .switch input:checked + .slider{background:#16a34a}
-    .switch input:checked + .slider:before{transform:translateX(22px)}
-    .section-title{margin:0 0 10px;font-size:14px;font-weight:700;color:#334155;text-transform:uppercase;letter-spacing:.04em}
-    @media (min-width:900px){#root{max-width:980px;padding:22px 14px 30px}}
-    @media (max-width:640px){.grid-2{grid-template-columns:1fr}}
+    .slider:before{content:"";position:absolute;height:22px;width:22px;left:3px;top:3px;background:#fff;border-radius:50%;transition:.2s}
+    .switch input:checked+.slider{background:#16a34a}
+    .switch input:checked+.slider:before{transform:translateX(22px)}
+    .tabs{display:flex;gap:4px;overflow-x:auto;margin-bottom:12px;padding-bottom:4px;scrollbar-width:none}
+    .tabs::-webkit-scrollbar{display:none}
+    .tab{padding:7px 12px;border:1px solid var(--line);background:var(--card);color:var(--muted);border-radius:999px;font-size:12px;font-weight:700;white-space:nowrap;cursor:pointer}
+    .tab.active{background:var(--text);color:#fff;border-color:var(--text)}
+    .tab .count{background:rgba(0,0,0,.08);padding:1px 6px;border-radius:999px;font-size:10px;margin-left:4px}
+    .tab.active .count{background:rgba(255,255,255,.2)}
+    .order-card{border:1px solid var(--line);border-radius:12px;padding:14px;margin-bottom:10px;background:#fff;transition:.15s}
+    .order-card:hover{box-shadow:0 2px 8px rgba(0,0,0,.06)}
+    .order-card.new{border-left:4px solid #f59e0b}
+    .order-card.preparing{border-left:4px solid #3b82f6}
+    .order-card.ready{border-left:4px solid #22c55e}
+    .order-card.delivery{border-left:4px solid #8b5cf6}
+    .order-top{display:flex;justify-content:space-between;align-items:flex-start;gap:8px;margin-bottom:8px}
+    .order-customer{font-weight:700;font-size:14px}
+    .order-time{font-size:11px;color:var(--muted)}
+    .order-badge{font-size:11px;font-weight:700;padding:3px 10px;border-radius:999px;white-space:nowrap}
+    .badge-new{background:#fef3c7;color:#92400e}
+    .badge-accepted{background:#dbeafe;color:#1e40af}
+    .badge-preparing{background:#e0e7ff;color:#3730a3}
+    .badge-ready{background:#dcfce7;color:#166534}
+    .badge-delivery{background:#f3e8ff;color:#6b21a8}
+    .badge-delivered{background:#f0fdf4;color:#15803d}
+    .badge-cancelled{background:#fef2f2;color:#991b1b}
+    .order-items{font-size:13px;color:#475569;margin:6px 0}
+    .order-items li{padding:2px 0;list-style:none}
+    .order-note{font-size:12px;background:#fffbeb;border:1px solid #fde68a;border-radius:8px;padding:8px 10px;margin:8px 0;color:#92400e}
+    .order-note i{margin-right:4px}
+    .order-total{font-weight:800;font-size:15px;margin:8px 0 6px}
+    .order-rider{font-size:12px;background:var(--info-bg);border:1px solid var(--info-border);border-radius:8px;padding:8px 10px;margin:8px 0;display:flex;align-items:center;gap:8px}
+    .order-rider i{color:var(--info)}
+    .listing-row{display:flex;justify-content:space-between;align-items:center;padding:12px 0;border-top:1px solid #f1f5f9;gap:10px}
+    .listing-row:first-child{border-top:none;padding-top:0}
+    .listing-info{display:flex;align-items:center;gap:10px;min-width:0;flex:1}
+    .listing-thumb{width:40px;height:40px;border-radius:10px;object-fit:cover;border:1px solid #e2e8f0;flex-shrink:0;background:#f8fafc}
+    .listing-name{font-weight:700;font-size:14px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+    .listing-detail{font-size:12px;color:var(--muted);display:flex;align-items:center;gap:6px;flex-wrap:wrap}
+    .chip{font-size:11px;font-weight:700;padding:2px 8px;border-radius:999px;white-space:nowrap}
+    .chip-green{background:#ecfdf5;color:#166534;border:1px solid #bbf7d0}
+    .chip-red{background:#fef2f2;color:#991b1b;border:1px solid #fecaca}
+    .chip-blue{background:#eff6ff;color:#1e40af;border:1px solid #bfdbfe}
+    .chip-yellow{background:#fffbeb;color:#92400e;border:1px solid #fde68a}
+    .chip-purple{background:#faf5ff;color:#6b21a8;border:1px solid #e9d5ff}
+    .listing-price{font-weight:800;font-size:14px;white-space:nowrap}
+    .listing-actions{display:flex;gap:4px;flex-shrink:0}
+    .preview-box{width:80px;height:80px;border:1px dashed #94a3b8;border-radius:12px;display:flex;align-items:center;justify-content:center;background:#f8fafc;overflow:hidden}
+    .preview-box img{width:100%;height:100%;object-fit:cover}
+    .logo-img{width:56px;height:56px;border-radius:50%;object-fit:cover;border:3px solid var(--brand-border)}
+    .empty{text-align:center;padding:28px 16px;color:var(--muted)}
+    .empty i{font-size:28px;margin-bottom:8px;display:block;opacity:.4}
+    .txn-row{display:flex;justify-content:space-between;align-items:center;padding:10px 0;border-top:1px solid #f8fafc;font-size:13px}
+    .txn-row:first-child{border-top:none}
+    .txn-amount{font-weight:700}
+    .txn-amount.positive{color:#16a34a}
+    .txn-fee{color:var(--muted);font-size:11px}
+    .chart-wrap{position:relative;height:220px;margin:8px 0}
+    .review-card{border:1px solid var(--line);border-radius:10px;padding:12px;margin-bottom:8px}
+    .review-stars{color:#f59e0b;font-size:13px;margin-bottom:4px}
+    .review-text{font-size:13px;color:#475569}
+    .review-meta{font-size:11px;color:var(--muted);margin-top:4px}
+    .campaign-card{border:1px solid var(--line);border-radius:12px;padding:14px;margin-bottom:10px;display:flex;justify-content:space-between;align-items:center;gap:10px}
+    .campaign-card .left{flex:1;min-width:0}
+    .campaign-type{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.03em;margin-bottom:4px}
+    .campaign-title{font-weight:700;font-size:14px}
+    .campaign-detail{font-size:12px;color:var(--muted);margin-top:2px}
+    .modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,.4);z-index:200;display:flex;align-items:flex-end;justify-content:center}
+    .modal{background:#fff;border-radius:20px 20px 0 0;max-width:600px;width:100%;max-height:85vh;overflow-y:auto;padding:20px 16px 32px;animation:slideUp .2s ease-out}
+    @keyframes slideUp{from{transform:translateY(100%)}to{transform:translateY(0)}}
+    .modal h3{font-size:16px;margin-bottom:12px}
+    .modal-close{position:absolute;top:16px;right:16px;background:none;border:none;font-size:18px;color:var(--muted);padding:4px}
+    .section-label{font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.05em;margin-bottom:6px}
+    .login-screen{display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:80vh;text-align:center;padding:24px}
+    .login-screen h1{font-size:24px;margin-bottom:4px}
+    .login-screen .logo-big{width:80px;height:80px;border-radius:50%;background:linear-gradient(135deg,#166534,#22c55e);display:flex;align-items:center;justify-content:center;color:#fff;font-size:32px;margin-bottom:16px}
+    .payout-bar{height:8px;background:#e2e8f0;border-radius:999px;overflow:hidden;margin:8px 0}
+    .payout-fill{height:100%;background:linear-gradient(90deg,#16a34a,#22c55e);border-radius:999px;transition:.3s}
+    @media(min-width:640px){.stat-grid{grid-template-columns:repeat(4,1fr)}}
+    @media(max-width:480px){.grid-2{grid-template-columns:1fr}}
   </style>
 </head>
 <body>
@@ -80,397 +162,915 @@ const app=firebase.initializeApp({apiKey:"AIzaSyC0AQ3rkH-fhxlThobjDDtrvxttAfFLXT
 const db=firebase.database(app);const auth=firebase.auth(app);const storage=firebase.storage(app);
 </script>
 <script type="text/babel">
-const CATEGORIES=["isda","karne","gulay","prutas","ulam","sari","gamot","hardware"];
+const CATEGORIES=[
+  {id:"isda",label:"Fish",icon:"fish",color:"#0EA5E9"},
+  {id:"karne",label:"Meat",icon:"drumstick-bite",color:"#EF4444"},
+  {id:"gulay",label:"Vegetables",icon:"leaf",color:"#22C55E"},
+  {id:"prutas",label:"Fruits",icon:"apple-whole",color:"#F97316"},
+  {id:"ulam",label:"Cooked Meals",icon:"bowl-food",color:"#A855F7"},
+  {id:"sari",label:"General Goods",icon:"store",color:"#EC4899"},
+  {id:"gamot",label:"Medicine",icon:"pills",color:"#14B8A6"},
+  {id:"hardware",label:"Hardware",icon:"screwdriver-wrench",color:"#F59E0B"},
+];
+const CAT_MAP=Object.fromEntries(CATEGORIES.map(c=>[c.id,c]));
+const COMMISSION_RATE=0.05;
+const MENU_TIMES=[
+  {id:"all",label:"All Day"},
+  {id:"breakfast",label:"Breakfast (6-11 AM)"},
+  {id:"lunch",label:"Lunch (11 AM-2 PM)"},
+  {id:"dinner",label:"Dinner (5-10 PM)"},
+];
+const CAMPAIGN_TYPES=[
+  {id:"bogo",label:"Buy 1 Get 1",icon:"gift"},
+  {id:"percent_off",label:"% Discount",icon:"percent"},
+  {id:"free_delivery",label:"Free Delivery",icon:"truck"},
+  {id:"flat_off",label:"Flat ₱ Off",icon:"tag"},
+];
+const fmt=n=>"₱"+Number(n||0).toLocaleString("en-PH",{minimumFractionDigits:0});
+const ago=ts=>{if(!ts)return"";const d=Date.now()-ts;if(d<60000)return"just now";if(d<3600000)return Math.floor(d/60000)+"m ago";if(d<86400000)return Math.floor(d/3600000)+"h ago";return new Date(ts).toLocaleDateString("en-PH",{month:"short",day:"numeric"});};
+const dayKey=ts=>new Date(ts).toISOString().slice(0,10);
+const startOfDay=d=>{const t=new Date(d);t.setHours(0,0,0,0);return t.getTime();};
+const startOfWeek=d=>{const t=new Date(d);t.setDate(t.getDate()-t.getDay());t.setHours(0,0,0,0);return t.getTime();};
+const startOfMonth=d=>{const t=new Date(d);t.setDate(1);t.setHours(0,0,0,0);return t.getTime();};
+
+function getMerchantOrderStatus(o){
+  if(o?.status==='delivered') return 'delivered';
+  if(o?.status==='cancelled') return 'cancelled';
+  if(o?.status==='otw'||o?.status==='buying') return 'delivery';
+  return o?.merchantStatus||'new';
+}
+function getStatusBadge(s){
+  const map={new:"badge-new",accepted:"badge-accepted",preparing:"badge-preparing",ready:"badge-ready",delivery:"badge-delivery",delivered:"badge-delivered",cancelled:"badge-cancelled"};
+  const labels={new:"New",accepted:"Accepted",preparing:"Preparing",ready:"Ready",delivery:"In Delivery",delivered:"Delivered",cancelled:"Cancelled"};
+  return {cls:map[s]||"badge-new",label:labels[s]||s};
+}
 
 function App(){
- const displayOrderStatus=(order)=>{
-  if(order?.status==='delivered') return 'delivered';
-  return order?.merchantStatus || order?.status || 'pending';
- };
- const isArchivedOrder=(order)=>order?.status==='delivered';
+  const [user,setUser]=React.useState(null);
+  const [merchant,setMerchant]=React.useState(null);
+  const [listings,setListings]=React.useState([]);
+  const [orders,setOrders]=React.useState([]);
+  const [ratings,setRatings]=React.useState([]);
+  const [riderLocs,setRiderLocs]=React.useState({});
+  const [activeSection,setActiveSection]=React.useState("dashboard");
 
- const [user,setUser]=React.useState(null);
- const [merchant,setMerchant]=React.useState(null);
- const [listings,setListings]=React.useState([]);
- const [orders,setOrders]=React.useState([]);
- const [form,setForm]=React.useState({name:"",cat:"sari",price:"",unit:"pc",stock:"",img:""});
- const [listingImageFile,setListingImageFile]=React.useState(null);
- const [savingListing,setSavingListing]=React.useState(false);
- const [editingId,setEditingId]=React.useState(null);
- const [activeSection,setActiveSection]=React.useState("dashboard");
- const [updatingStoreStatus,setUpdatingStoreStatus]=React.useState(false);
- const [bannerForm,setBannerForm]=React.useState({title:"",imageUrl:"",linkUrl:"",active:true});
- const [bannerImageFile,setBannerImageFile]=React.useState(null);
- const [savingBanner,setSavingBanner]=React.useState(false);
+  // Order management
+  const [orderTab,setOrderTab]=React.useState("active");
+  const [expandedOrder,setExpandedOrder]=React.useState(null);
 
- React.useEffect(()=>auth.onAuthStateChanged(setUser),[]);
+  // Menu/Listings
+  const [form,setForm]=React.useState({name:"",cat:"sari",price:"",unit:"pc",stock:"",img:"",menuTime:"all",description:""});
+  const [listingImageFile,setListingImageFile]=React.useState(null);
+  const [savingListing,setSavingListing]=React.useState(false);
+  const [editingId,setEditingId]=React.useState(null);
+  const [menuFilter,setMenuFilter]=React.useState("all");
 
- React.useEffect(()=>{
-  if(!user){
-    setMerchant(null);
-    setListings([]);
-    setOrders([]);
-    return;
-  }
+  // Store controls
+  const [updatingStoreStatus,setUpdatingStoreStatus]=React.useState(false);
 
-  const merchantRef=db.ref("partner_merchants/"+user.uid);
-  const listingsRef=db.ref("merchant_listings/"+user.uid);
-  const ordersRef=db.ref("orders");
+  // Promotions/Banners
+  const [bannerForm,setBannerForm]=React.useState({title:"",imageUrl:"",linkUrl:"",active:true});
+  const [bannerImageFile,setBannerImageFile]=React.useState(null);
+  const [savingBanner,setSavingBanner]=React.useState(false);
 
-  const onMerchant=(s)=>setMerchant(s.val());
-  const onListings=(s)=>{
-    const a=[];
-    s.forEach(c=>{
-      const raw=c.val();
-      if(!raw || typeof raw!=="object") return;
-      a.push({id:c.key,...raw});
+  // Campaigns
+  const [campaignForm,setCampaignForm]=React.useState({type:"percent_off",title:"",value:"",minOrder:"",startDate:"",endDate:""});
+  const [savingCampaign,setSavingCampaign]=React.useState(false);
+
+  // Financials
+  const [finPeriod,setFinPeriod]=React.useState("daily");
+
+  // Analytics
+  const [analyticsRange,setAnalyticsRange]=React.useState("7d");
+
+  // Charts refs
+  const earningsChartRef=React.useRef(null);
+  const earningsChartInstance=React.useRef(null);
+  const peakChartRef=React.useRef(null);
+  const peakChartInstance=React.useRef(null);
+
+  // Auth listener
+  React.useEffect(()=>auth.onAuthStateChanged(setUser),[]);
+
+  // Main data listeners
+  React.useEffect(()=>{
+    if(!user){setMerchant(null);setListings([]);setOrders([]);setRatings([]);return;}
+    const uid=user.uid;
+    const refs=[];
+
+    const merchantRef=db.ref("partner_merchants/"+uid);
+    merchantRef.on("value",s=>setMerchant(s.val()));
+    refs.push(()=>merchantRef.off("value"));
+
+    const listRef=db.ref("merchant_listings/"+uid);
+    listRef.on("value",s=>{
+      const a=[];
+      s.forEach(c=>{const v=c.val();if(v&&typeof v==="object")a.push({id:c.key,...v});});
+      a.sort((x,y)=>(y.updatedAt||y.createdAt||0)-(x.updatedAt||x.createdAt||0));
+      setListings(a);
     });
-    a.sort((x,y)=>(y.updatedAt||y.createdAt||0)-(x.updatedAt||x.createdAt||0));
-    setListings(a);
-  };
-  const onOrders=(s)=>{
-    const a=[];
-    s.forEach(c=>{
-      const v=c.val()||{};
-      if(v.merchantId===user.uid) a.push({id:c.key,...v});
+    refs.push(()=>listRef.off("value"));
+
+    const ordersRef=db.ref("orders").orderByChild("merchantId").equalTo(uid);
+    ordersRef.on("value",s=>{
+      const a=[];
+      s.forEach(c=>{const v=c.val()||{};a.push({id:c.key,...v});});
+      a.sort((x,y)=>(y.createdAt||0)-(x.createdAt||0));
+      setOrders(a);
     });
-    a.sort((x,y)=>(y.createdAt||0)-(x.createdAt||0));
-    setOrders(a);
-  };
+    refs.push(()=>ordersRef.off("value"));
 
-  merchantRef.on("value",onMerchant);
-  listingsRef.on("value",onListings);
-  ordersRef.on("value",onOrders);
-
-  return ()=>{
-    merchantRef.off("value",onMerchant);
-    listingsRef.off("value",onListings);
-    ordersRef.off("value",onOrders);
-  };
- },[user?.uid]);
-
- const signIn=async()=>{await auth.signInWithPopup(new firebase.auth.GoogleAuthProvider());};
- const storeOpen=merchant?.storeOpen!==false;
- const promoBanners=React.useMemo(()=>{
-  const raw=merchant?.promoBanners;
-  if(!raw) return [];
-  const list=Array.isArray(raw)?raw:Object.entries(raw).map(([id,v])=>({id,...(v||{})}));
-  return list.filter(Boolean).sort((a,b)=>(b.updatedAt||b.createdAt||0)-(a.updatedAt||a.createdAt||0));
- },[merchant?.promoBanners]);
-
- const setStoreOpen=async(nextOpen)=>{
-  if(!user||updatingStoreStatus) return;
-  setUpdatingStoreStatus(true);
-  try{
-    await db.ref("partner_merchants/"+user.uid).update({storeOpen:nextOpen,storeStatusUpdatedAt:Date.now()});
-  }catch(err){
-    alert("Hindi ma-update ang store status:\n" + (err?.message || err?.code || "Unknown error"));
-  }finally{
-    setUpdatingStoreStatus(false);
-  }
- };
-
- const uploadLogo=async(file)=>{
-  if(!user||!file) return;
-  try{
-    const ref=storage.ref(`merchant_logos/${user.uid}_${Date.now()}_${file.name}`);
-    await ref.put(file);
-    const logoUrl=await ref.getDownloadURL();
-    await db.ref("partner_merchants/"+user.uid).update({logoUrl});
-    const listSnap=await db.ref("merchant_listings/"+user.uid).once("value");
-    const updates={};
-    listSnap.forEach(c=>{updates[`${c.key}/merchantLogo`]=logoUrl;});
-    if(Object.keys(updates).length) await db.ref("merchant_listings/"+user.uid).update(updates);
-  }catch(err){
-    alert("Hindi ma-upload ang merchant logo:\n" + (err?.message || err?.code || "Unknown error"));
-  }
- };
-
- const saveBanner=async()=>{
-  if(!user||savingBanner) return;
-  if(!bannerForm.title.trim()) return alert("Lagyan ng banner title.");
-  setSavingBanner(true);
-  try{
-    let imageUrl=bannerForm.imageUrl.trim();
-    if(bannerImageFile){
-      const ref=storage.ref(`merchant_banners/${user.uid}_${Date.now()}_${bannerImageFile.name}`);
-      await ref.put(bannerImageFile);
-      imageUrl=await ref.getDownloadURL();
-    }
-    if(!imageUrl) throw new Error("Please upload a banner image.");
-    const id="bnr_"+Date.now();
-    await db.ref(`partner_merchants/${user.uid}/promoBanners/${id}`).set({
-      id,
-      title:bannerForm.title.trim(),
-      imageUrl,
-      linkUrl:bannerForm.linkUrl.trim(),
-      active:bannerForm.active!==false,
-      createdAt:Date.now(),
-      updatedAt:Date.now(),
+    const ratingsRef=db.ref("delivery_ratings");
+    ratingsRef.on("value",s=>{
+      const a=[];
+      s.forEach(c=>{const v=c.val()||{};if(v.merchantId===uid)a.push({id:c.key,...v});});
+      a.sort((x,y)=>(y.createdAt||0)-(x.createdAt||0));
+      setRatings(a);
     });
-    setBannerForm({title:"",imageUrl:"",linkUrl:"",active:true});
-    setBannerImageFile(null);
-  }catch(err){
-    alert("Hindi ma-save ang promotional banner:\n" + (err?.message || err?.code || "Unknown error"));
-  }finally{
-    setSavingBanner(false);
-  }
- };
+    refs.push(()=>ratingsRef.off("value"));
 
- const toggleBanner=async(bannerId,nextActive)=>{
-  if(!user||!bannerId) return;
-  await db.ref(`partner_merchants/${user.uid}/promoBanners/${bannerId}`).update({active:nextActive,updatedAt:Date.now()});
- };
+    return ()=>refs.forEach(fn=>fn());
+  },[user?.uid]);
 
- const removeBanner=async(bannerId)=>{
-  if(!user||!bannerId) return;
-  const ok=window.confirm("Delete this promotional banner?");
-  if(!ok) return;
-  await db.ref(`partner_merchants/${user.uid}/promoBanners/${bannerId}`).remove();
- };
+  // Track rider locations for active orders
+  React.useEffect(()=>{
+    const activeRiderIds=[...new Set(orders.filter(o=>o.riderId&&!['delivered','cancelled'].includes(o.status)).map(o=>o.riderId))];
+    const unsubs=[];
+    const locs={};
+    activeRiderIds.forEach(rid=>{
+      const ref=db.ref("rider_locations/"+rid);
+      ref.on("value",s=>{
+        const v=s.val();
+        setRiderLocs(prev=>({...prev,[rid]:v||null}));
+      });
+      unsubs.push(()=>ref.off("value"));
+    });
+    return ()=>unsubs.forEach(fn=>fn());
+  },[orders]);
 
- const addListing=async()=>{
-  if(!user||!form.name||savingListing) return;
-  setSavingListing(true);
-  try{
-    let img=form.img||"";
-    if(listingImageFile){
-      const ref=storage.ref(`merchant_listing_images/${user.uid}_${Date.now()}_${listingImageFile.name}`);
-      await ref.put(listingImageFile);
-      img=await ref.getDownloadURL();
+  const signIn=async()=>{await auth.signInWithPopup(new firebase.auth.GoogleAuthProvider());};
+  const storeOpen=merchant?.storeOpen!==false;
+  const busyMode=merchant?.busyMode===true;
+  const prepTime=merchant?.prepTimeMinutes||15;
+
+  const promoBanners=React.useMemo(()=>{
+    const raw=merchant?.promoBanners;
+    if(!raw)return[];
+    const list=Array.isArray(raw)?raw:Object.entries(raw).map(([id,v])=>({id,...(v||{})}));
+    return list.filter(Boolean).sort((a,b)=>(b.updatedAt||b.createdAt||0)-(a.updatedAt||a.createdAt||0));
+  },[merchant?.promoBanners]);
+
+  const campaigns=React.useMemo(()=>{
+    const raw=merchant?.campaigns;
+    if(!raw)return[];
+    return Object.entries(raw).map(([id,v])=>({id,...(v||{})})).filter(Boolean).sort((a,b)=>(b.createdAt||0)-(a.createdAt||0));
+  },[merchant?.campaigns]);
+
+  // Computed order groups
+  const orderGroups=React.useMemo(()=>{
+    const groups={new:[],accepted:[],preparing:[],ready:[],delivery:[],delivered:[],cancelled:[]};
+    orders.forEach(o=>{const s=getMerchantOrderStatus(o);if(groups[s])groups[s].push(o);});
+    return groups;
+  },[orders]);
+
+  const activeOrderCount=orderGroups.new.length+orderGroups.accepted.length+orderGroups.preparing.length+orderGroups.ready.length+orderGroups.delivery.length;
+
+  // Financial computations
+  const financials=React.useMemo(()=>{
+    const delivered=orders.filter(o=>o.status==='delivered');
+    const now=Date.now();
+    const todayStart=startOfDay(now);
+    const weekStart=startOfWeek(now);
+    const monthStart=startOfMonth(now);
+
+    const calcEarnings=(list)=>{
+      const gross=list.reduce((s,o)=>s+(Number(o.total)||0),0);
+      const commission=Math.round(gross*COMMISSION_RATE);
+      return {gross,commission,net:gross-commission,count:list.length};
+    };
+
+    const today=calcEarnings(delivered.filter(o=>(o.completedAt||o.createdAt||0)>=todayStart));
+    const week=calcEarnings(delivered.filter(o=>(o.completedAt||o.createdAt||0)>=weekStart));
+    const month=calcEarnings(delivered.filter(o=>(o.completedAt||o.createdAt||0)>=monthStart));
+    const allTime=calcEarnings(delivered);
+
+    // Daily breakdown for chart
+    const dailyMap={};
+    const rangeDays=analyticsRange==="7d"?7:analyticsRange==="30d"?30:90;
+    for(let i=rangeDays-1;i>=0;i--){
+      const d=new Date(now-i*86400000);
+      const k=dayKey(d);
+      dailyMap[k]={date:k,revenue:0,orders:0};
     }
-    const payload={...form,img,price:Number(form.price||0),stock:Number(form.stock||0),basePrice:Number(form.price||0),autoPriceEnabled:false,merchantId:user.uid,merchantLogo:merchant?.logoUrl||"",storeName:merchant?.storeName||"",active:true,approved:true,updatedAt:Date.now()};
-    if(editingId){
-      await db.ref("merchant_listings/"+user.uid+"/"+editingId).update(payload);
-    }else{
-      await db.ref("merchant_listings/"+user.uid).push({...payload,createdAt:Date.now()});
-    }
-    setForm({name:"",cat:"sari",price:"",unit:"pc",stock:"",img:""});
-    setListingImageFile(null);
-    setEditingId(null);
-  }catch(err){
-    alert("Hindi ma-save ang listing:\n" + (err?.message || err?.code || "Unknown error"));
-  }finally{
-    setSavingListing(false);
-  }
- };
+    delivered.forEach(o=>{
+      const k=dayKey(o.completedAt||o.createdAt||0);
+      if(dailyMap[k]){dailyMap[k].revenue+=Number(o.total)||0;dailyMap[k].orders++;}
+    });
+    const dailyData=Object.values(dailyMap);
 
- const editListing=(l)=>{
-  setEditingId(l.id);
-  setListingImageFile(null);
-  setForm({name:l.name||"",cat:l.cat||"sari",price:String(l.price??""),unit:l.unit||"pc",stock:String(l.stock??""),img:l.img||""});
- };
+    // Peak hours
+    const hourMap=Array(24).fill(0);
+    delivered.forEach(o=>{const h=new Date(o.createdAt||0).getHours();hourMap[h]++;});
 
- const deleteListing=async(id)=>{
-  if(!id) return;
-  const ok=window.confirm("Delete this listing?");
-  if(!ok) return;
-  await db.ref("merchant_listings/"+user.uid+"/"+id).remove();
-  if(editingId===id){
-    setEditingId(null);
-    setForm({name:"",cat:"sari",price:"",unit:"pc",stock:"",img:""});
-    setListingImageFile(null);
-  }
- };
+    // Top items
+    const itemMap={};
+    delivered.forEach(o=>{
+      const items=Array.isArray(o.items)?o.items:Object.values(o.items||{});
+      items.forEach(it=>{
+        const n=it.name||"Unknown";
+        if(!itemMap[n])itemMap[n]={name:n,qty:0,revenue:0};
+        itemMap[n].qty+=Number(it.qty||1);
+        itemMap[n].revenue+=Number(it.price||0)*Number(it.qty||1);
+      });
+    });
+    const topItems=Object.values(itemMap).sort((a,b)=>b.revenue-a.revenue).slice(0,10);
 
- const updateOrder=async(id,status,merchantStatus)=>{
-  await db.ref("orders/"+id).update({status,merchantStatus,merchantUpdatedAt:Date.now()});
- };
+    // Avg order value
+    const avgOrderValue=delivered.length?Math.round(allTime.gross/delivered.length):0;
 
- if(!user) return (
-  <div className="card login">
-    <h2>Partner Merchant Dashboard</h2>
-    <p className="muted">Mag sign in para ma-access ang iyong dashboard.</p>
-    <br/>
-    <button className="btn-primary" onClick={signIn}>Sign in with Google</button>
-  </div>
- );
+    // Operational metrics
+    const totalOrders=orders.length;
+    const cancelled=orders.filter(o=>o.status==='cancelled').length;
+    const cancelRate=totalOrders?Math.round((cancelled/totalOrders)*100):0;
+    const acceptRate=totalOrders?Math.round(((totalOrders-cancelled)/totalOrders)*100):100;
 
- if(!merchant?.approved) return (
-  <div className="card">
-    <h3>Waiting for admin approval</h3>
-    <p className="muted">Wala ka pang access. Kapag approved na ang application mo sa admin dashboard saka pa lang bubukas ang dashboard na ito.</p>
-  </div>
- );
+    return {today,week,month,allTime,dailyData,hourMap,topItems,avgOrderValue,cancelRate,acceptRate};
+  },[orders,analyticsRange]);
 
- return (
+  // ─── Store Controls ────────────────────────────────────────
+  const setStoreOpen=async(v)=>{
+    if(!user||updatingStoreStatus)return;
+    setUpdatingStoreStatus(true);
+    try{await db.ref("partner_merchants/"+user.uid).update({storeOpen:v,storeStatusUpdatedAt:Date.now()});}
+    catch(e){alert("Error: "+(e?.message||"Unknown"));}
+    finally{setUpdatingStoreStatus(false);}
+  };
+
+  const toggleBusyMode=async(v)=>{
+    await db.ref("partner_merchants/"+user.uid).update({busyMode:v,busyModeUpdatedAt:Date.now()});
+  };
+
+  const updatePrepTime=async(mins)=>{
+    await db.ref("partner_merchants/"+user.uid).update({prepTimeMinutes:Math.max(5,Math.min(120,Number(mins)||15))});
+  };
+
+  const uploadLogo=async(file)=>{
+    if(!user||!file)return;
+    try{
+      const ref=storage.ref(`merchant_logos/${user.uid}_${Date.now()}_${file.name}`);
+      await ref.put(file);
+      const logoUrl=await ref.getDownloadURL();
+      await db.ref("partner_merchants/"+user.uid).update({logoUrl});
+      const snap=await db.ref("merchant_listings/"+user.uid).once("value");
+      const updates={};
+      snap.forEach(c=>{updates[`${c.key}/merchantLogo`]=logoUrl;});
+      if(Object.keys(updates).length)await db.ref("merchant_listings/"+user.uid).update(updates);
+    }catch(e){alert("Upload error: "+(e?.message||"Unknown"));}
+  };
+
+  // ─── Order Actions ─────────────────────────────────────────
+  const updateOrder=async(id,status,merchantStatus)=>{
+    const updates={status,merchantStatus,merchantUpdatedAt:Date.now()};
+    if(status==='delivered')updates.completedAt=Date.now();
+    await db.ref("orders/"+id).update(updates);
+  };
+
+  // ─── Listing Actions ───────────────────────────────────────
+  const saveListing=async()=>{
+    if(!user||!form.name||savingListing)return;
+    setSavingListing(true);
+    try{
+      let img=form.img||"";
+      if(listingImageFile){
+        const ref=storage.ref(`merchant_listing_images/${user.uid}_${Date.now()}_${listingImageFile.name}`);
+        await ref.put(listingImageFile);
+        img=await ref.getDownloadURL();
+      }
+      const payload={name:form.name,cat:form.cat,img,price:Number(form.price||0),unit:form.unit||"pc",stock:Number(form.stock||0),basePrice:Number(form.price||0),autoPriceEnabled:false,merchantId:user.uid,merchantLogo:merchant?.logoUrl||"",storeName:merchant?.storeName||"",active:true,approved:true,menuTime:form.menuTime||"all",description:form.description||"",updatedAt:Date.now()};
+      if(editingId){
+        await db.ref("merchant_listings/"+user.uid+"/"+editingId).update(payload);
+      }else{
+        await db.ref("merchant_listings/"+user.uid).push({...payload,createdAt:Date.now(),soldOut:false});
+      }
+      setForm({name:"",cat:"sari",price:"",unit:"pc",stock:"",img:"",menuTime:"all",description:""});
+      setListingImageFile(null);setEditingId(null);
+    }catch(e){alert("Save error: "+(e?.message||"Unknown"));}
+    finally{setSavingListing(false);}
+  };
+
+  const editListing=(l)=>{
+    setEditingId(l.id);setListingImageFile(null);
+    setForm({name:l.name||"",cat:l.cat||"sari",price:String(l.price??""),unit:l.unit||"pc",stock:String(l.stock??""),img:l.img||"",menuTime:l.menuTime||"all",description:l.description||""});
+    setActiveSection("menu");
+  };
+
+  const deleteListing=async(id)=>{
+    if(!window.confirm("Delete this listing?"))return;
+    await db.ref("merchant_listings/"+user.uid+"/"+id).remove();
+    if(editingId===id){setEditingId(null);setForm({name:"",cat:"sari",price:"",unit:"pc",stock:"",img:"",menuTime:"all",description:""});setListingImageFile(null);}
+  };
+
+  const toggleSoldOut=async(id,current)=>{
+    await db.ref("merchant_listings/"+user.uid+"/"+id).update({soldOut:!current,updatedAt:Date.now()});
+  };
+
+  // ─── Banner Actions ────────────────────────────────────────
+  const saveBanner=async()=>{
+    if(!user||savingBanner)return;
+    if(!bannerForm.title.trim())return alert("Enter a banner title.");
+    setSavingBanner(true);
+    try{
+      let imageUrl=bannerForm.imageUrl.trim();
+      if(bannerImageFile){
+        const ref=storage.ref(`merchant_banners/${user.uid}_${Date.now()}_${bannerImageFile.name}`);
+        await ref.put(bannerImageFile);
+        imageUrl=await ref.getDownloadURL();
+      }
+      if(!imageUrl)throw new Error("Upload a banner image.");
+      const id="bnr_"+Date.now();
+      await db.ref(`partner_merchants/${user.uid}/promoBanners/${id}`).set({id,title:bannerForm.title.trim(),imageUrl,linkUrl:bannerForm.linkUrl.trim(),active:bannerForm.active!==false,createdAt:Date.now(),updatedAt:Date.now()});
+      setBannerForm({title:"",imageUrl:"",linkUrl:"",active:true});setBannerImageFile(null);
+    }catch(e){alert("Error: "+(e?.message||"Unknown"));}
+    finally{setSavingBanner(false);}
+  };
+
+  const toggleBanner=async(id,next)=>{await db.ref(`partner_merchants/${user.uid}/promoBanners/${id}`).update({active:next,updatedAt:Date.now()});};
+  const removeBanner=async(id)=>{if(!window.confirm("Delete this banner?"))return;await db.ref(`partner_merchants/${user.uid}/promoBanners/${id}`).remove();};
+
+  // ─── Campaign Actions ──────────────────────────────────────
+  const saveCampaign=async()=>{
+    if(!user||savingCampaign)return;
+    if(!campaignForm.title.trim())return alert("Enter a campaign title.");
+    setSavingCampaign(true);
+    try{
+      const id="camp_"+Date.now();
+      await db.ref(`partner_merchants/${user.uid}/campaigns/${id}`).set({
+        id,type:campaignForm.type,title:campaignForm.title.trim(),
+        value:Number(campaignForm.value||0),minOrder:Number(campaignForm.minOrder||0),
+        startDate:campaignForm.startDate?new Date(campaignForm.startDate).getTime():Date.now(),
+        endDate:campaignForm.endDate?new Date(campaignForm.endDate).getTime():null,
+        active:true,createdAt:Date.now()
+      });
+      setCampaignForm({type:"percent_off",title:"",value:"",minOrder:"",startDate:"",endDate:""});
+    }catch(e){alert("Error: "+(e?.message||"Unknown"));}
+    finally{setSavingCampaign(false);}
+  };
+
+  const toggleCampaign=async(id,next)=>{await db.ref(`partner_merchants/${user.uid}/campaigns/${id}`).update({active:next});};
+  const removeCampaign=async(id)=>{if(!window.confirm("Delete this campaign?"))return;await db.ref(`partner_merchants/${user.uid}/campaigns/${id}`).remove();};
+
+
+  // ─── Charts ────────────────────────────────────────────────
+  React.useEffect(()=>{
+    if(activeSection!=="analytics"||!earningsChartRef.current)return;
+    if(earningsChartInstance.current)earningsChartInstance.current.destroy();
+    const data=financials.dailyData;
+    earningsChartInstance.current=new Chart(earningsChartRef.current,{
+      type:"line",
+      data:{labels:data.map(d=>d.date.slice(5)),datasets:[{label:"Revenue",data:data.map(d=>d.revenue),borderColor:"#16a34a",backgroundColor:"rgba(22,163,74,.1)",fill:true,tension:.3,pointRadius:2}]},
+      options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{y:{beginAtZero:true,ticks:{callback:v=>fmt(v)}},x:{ticks:{maxRotation:45,font:{size:10}}}}}
+    });
+    return ()=>{if(earningsChartInstance.current)earningsChartInstance.current.destroy();};
+  },[activeSection,financials.dailyData]);
+
+  React.useEffect(()=>{
+    if(activeSection!=="analytics"||!peakChartRef.current)return;
+    if(peakChartInstance.current)peakChartInstance.current.destroy();
+    const labels=Array.from({length:24},(_,i)=>`${i}:00`);
+    peakChartInstance.current=new Chart(peakChartRef.current,{
+      type:"bar",
+      data:{labels,datasets:[{label:"Orders",data:financials.hourMap,backgroundColor:"rgba(37,99,235,.6)",borderRadius:4}]},
+      options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{y:{beginAtZero:true,ticks:{stepSize:1}},x:{ticks:{font:{size:9}}}}}
+    });
+    return ()=>{if(peakChartInstance.current)peakChartInstance.current.destroy();};
+  },[activeSection,financials.hourMap]);
+
+  // ═══════════════════════════════════════════════════════════
+  //  LOGIN
+  // ═══════════════════════════════════════════════════════════
+  if(!user) return (
+    <div className="login-screen">
+      <div className="logo-big"><i className="fas fa-store"></i></div>
+      <h1>BayanGo Merchant</h1>
+      <p className="muted" style={{marginBottom:20}}>Sign in to manage your store, orders, and analytics.</p>
+      <button className="btn-primary" style={{padding:"12px 32px",fontSize:15}} onClick={signIn}><i className="fab fa-google" style={{marginRight:8}}></i>Sign in with Google</button>
+    </div>
+  );
+
+  if(!merchant?.approved) return (
+    <div style={{padding:24,textAlign:"center",marginTop:60}}>
+      <div style={{fontSize:48,marginBottom:16,opacity:.3}}><i className="fas fa-hourglass-half"></i></div>
+      <h2>Waiting for Approval</h2>
+      <p className="muted" style={{marginTop:8}}>Your merchant account is pending admin approval. You'll get access once approved.</p>
+    </div>
+  );
+
+  // ═══════════════════════════════════════════════════════════
+  //  RENDER ORDER CARD
+  // ═══════════════════════════════════════════════════════════
+  const renderOrderCard=(o)=>{
+    const s=getMerchantOrderStatus(o);
+    const badge=getStatusBadge(s);
+    const items=Array.isArray(o.items)?o.items:Object.values(o.items||{});
+    const expanded=expandedOrder===o.id;
+    const riderLoc=o.riderId?riderLocs[o.riderId]:null;
+
+    return (
+      <div key={o.id} className={`order-card ${s==='new'?'new':s==='preparing'||s==='accepted'?'preparing':s==='ready'?'ready':s==='delivery'?'delivery':''}`}>
+        <div className="order-top">
+          <div>
+            <div className="order-customer">{o.customer?.name||"Customer"}</div>
+            <div className="order-time"><i className="far fa-clock"></i> {ago(o.createdAt)}</div>
+          </div>
+          <span className={`order-badge ${badge.cls}`}>{badge.label}</span>
+        </div>
+
+        <div className="order-total">{fmt(o.total)}</div>
+
+        <button className="btn-muted btn-sm" style={{marginBottom:8}} onClick={()=>setExpandedOrder(expanded?null:o.id)}>
+          <i className={`fas fa-chevron-${expanded?'up':'down'}`} style={{marginRight:4}}></i>
+          {expanded?'Hide':'Show'} Details ({items.length} item{items.length!==1?'s':''})
+        </button>
+
+        {expanded && (<>
+          <ul className="order-items">
+            {items.map((it,i)=>(
+              <li key={i}><strong>{Number(it.qty||1)}x</strong> {it.name||"Item"} — {fmt(Number(it.price||0)*Number(it.qty||1))}{it.unit?` (${it.unit})`:""}</li>
+            ))}
+          </ul>
+          {o.specialInstructions && <div className="order-note"><i className="fas fa-sticky-note"></i> {o.specialInstructions}</div>}
+          {o.notes && !o.specialInstructions && <div className="order-note"><i className="fas fa-sticky-note"></i> {o.notes}</div>}
+          {o.customer?.phone && <div style={{fontSize:12,color:"var(--muted)",marginTop:4}}><i className="fas fa-phone" style={{marginRight:4}}></i> {o.customer.phone}</div>}
+          {o.deliveryAddress && <div style={{fontSize:12,color:"var(--muted)",marginTop:4}}><i className="fas fa-map-marker-alt" style={{marginRight:4}}></i> {typeof o.deliveryAddress==='string'?o.deliveryAddress:o.deliveryAddress?.label||"Delivery address"}</div>}
+          {o.paymentMethod && <div style={{fontSize:12,color:"var(--muted)",marginTop:4}}><i className="fas fa-credit-card" style={{marginRight:4}}></i> {o.paymentMethod}</div>}
+        </>)}
+
+        {o.riderId && (s==='delivery'||s==='ready') && (
+          <div className="order-rider">
+            <i className="fas fa-motorcycle"></i>
+            <div>
+              <strong>{o.riderName||"Rider assigned"}</strong>
+              {riderLoc && <span style={{marginLeft:8,fontSize:11}}>ETA ~{Math.max(1,Math.round((riderLoc.eta||5)))} min</span>}
+              {!riderLoc && <span style={{marginLeft:8,fontSize:11,opacity:.6}}>Tracking...</span>}
+            </div>
+          </div>
+        )}
+
+        {s!=='delivered'&&s!=='cancelled'&&s!=='delivery' && (
+          <div className="btn-group" style={{marginTop:8}}>
+            {s==='new' && <button className="btn-success btn-sm" onClick={()=>updateOrder(o.id,'merchant_pending','accepted')}><i className="fas fa-check" style={{marginRight:4}}></i>Accept</button>}
+            {(s==='new'||s==='accepted') && <button className="btn-info btn-sm" onClick={()=>updateOrder(o.id,'merchant_pending','preparing')}><i className="fas fa-fire-burner" style={{marginRight:4}}></i>Preparing</button>}
+            {(s==='preparing'||s==='accepted') && <button className="btn-primary btn-sm" onClick={()=>updateOrder(o.id,'pending','ready')}><i className="fas fa-bell" style={{marginRight:4}}></i>Ready for Pickup</button>}
+            {s==='new' && <button className="btn-danger btn-sm" onClick={()=>{if(window.confirm("Reject this order?"))updateOrder(o.id,'cancelled','rejected');}}><i className="fas fa-times" style={{marginRight:4}}></i>Reject</button>}
+          </div>
+        )}
+      </div>
+    );
+  };
+
+
+  // ═══════════════════════════════════════════════════════════
+  //  MAIN RENDER
+  // ═══════════════════════════════════════════════════════════
+  return (
   <div>
-    <div className="card">
-      <div className="toolbar">
+    {/* HEADER */}
+    <div className="header">
+      <div className="header-row">
         <div>
-          <h2>{merchant.storeName || "Partner Merchant"}</h2>
-          <p className="muted">Manage listings at orders in one place.</p>
+          <h1>{merchant.storeName||"My Store"}</h1>
+          <div className="header-sub">
+            <span className={`status-dot ${storeOpen?'open':'closed'}`}></span>
+            {storeOpen?(busyMode?"Busy Mode — Receiving paused":"Open — Receiving orders"):"Store Closed"}
+          </div>
         </div>
-        <span className={`status-chip ${storeOpen ? "" : "closed"}`}>{storeOpen ? "Store Open" : "Store Closed"}</span>
-      </div>
-      <br/>
-      <div className="menu-bar">
-        <button className={`menu-btn ${activeSection==="dashboard"?"active":""}`} onClick={()=>setActiveSection("dashboard")}>Dashboard</button>
-        <button className={`menu-btn ${activeSection==="listings"?"active":""}`} onClick={()=>setActiveSection("listings")}>Listings</button>
-        <button className={`menu-btn ${activeSection==="orders"?"active":""}`} onClick={()=>setActiveSection("orders")}>Orders</button>
-        <button className={`menu-btn ${activeSection==="settings"?"active":""}`} onClick={()=>setActiveSection("settings")}>Settings</button>
-        <button className={`menu-btn ${activeSection==="promotions"?"active":""}`} onClick={()=>setActiveSection("promotions")}>Promotions</button>
+        {merchant.logoUrl && <img src={merchant.logoUrl} className="logo-img" style={{width:42,height:42}} alt="logo"/>}
       </div>
     </div>
-
-    {activeSection==="dashboard" && (
-    <div className="card stack">
-      <h3>Quick Controls</h3>
-      <div className="toggle-wrap">
-        <div>
-          <div style={{fontWeight:700,fontSize:14}}>Store status</div>
-          <div className="muted" style={{fontSize:12}}>{storeOpen ? "Customers can order from your store." : "Listings are marked as Store Closed in customer app."}</div>
-        </div>
-        <label className="switch">
-          <input type="checkbox" checked={storeOpen} onChange={e=>setStoreOpen(e.target.checked)} disabled={updatingStoreStatus}/>
-          <span className="slider"></span>
-        </label>
-      </div>
-      <input type="file" accept="image/*" onChange={e=>uploadLogo(e.target.files?.[0])}/>
-      {merchant.logoUrl && <img src={merchant.logoUrl} className="logo" alt="Merchant logo"/>}
-    </div>
-    )}
-
-    {activeSection==="listings" && (
-    <>
-    <div className="card stack">
-      <h3>{editingId ? "Update Listing" : "Add Listing"}</h3>
-      <div className="grid-2">
-        <input placeholder="Item name" value={form.name} onChange={e=>setForm(f=>({...f,name:e.target.value}))}/>
-        <select value={form.cat} onChange={e=>setForm(f=>({...f,cat:e.target.value}))}>{CATEGORIES.map(c=><option key={c} value={c}>{c}</option>)}</select>
-      </div>
-      <div className="grid-2">
-        <input placeholder="Price" value={form.price} onChange={e=>setForm(f=>({...f,price:e.target.value}))}/>
-        <input placeholder="Unit (pc/kg)" value={form.unit} onChange={e=>setForm(f=>({...f,unit:e.target.value}))}/>
-      </div>
-      <div className="grid-2">
-        <input placeholder="Stock (e.g. 20)" value={form.stock} onChange={e=>setForm(f=>({...f,stock:e.target.value}))}/>
-        <input type="file" accept="image/*" onChange={e=>setListingImageFile(e.target.files?.[0]||null)}/>
-      </div>
-      <div className="preview-box">
-        {(listingImageFile || form.img)
-          ? <img src={listingImageFile ? URL.createObjectURL(listingImageFile) : form.img} alt="Listing preview"/>
-          : <span className="muted" style={{fontSize:12}}>No image</span>}
-      </div>
-      <div className="listing-actions" style={{justifyContent:"flex-start"}}>
-        <button className="btn-primary" onClick={addListing}>{savingListing ? "Saving..." : (editingId ? "Update Listing" : "Save Listing")}</button>
-        {editingId && <button className="btn-muted" onClick={()=>{setEditingId(null);setListingImageFile(null);setForm({name:"",cat:"sari",price:"",unit:"pc",stock:"",img:""});}}>Cancel Edit</button>}
-      </div>
+    <div className="nav">
+      {[
+        {id:"dashboard",label:"Dashboard",icon:"gauge-high"},
+        {id:"orders",label:"Orders",icon:"receipt",badge:orderGroups.new.length||null},
+        {id:"menu",label:"Menu",icon:"utensils"},
+        {id:"financials",label:"Financials",icon:"peso-sign"},
+        {id:"analytics",label:"Analytics",icon:"chart-line"},
+        {id:"marketing",label:"Marketing",icon:"bullhorn"},
+        {id:"settings",label:"Settings",icon:"gear"},
+      ].map(t=>(
+        <button key={t.id} className={`nav-btn ${activeSection===t.id?'active':''}`} onClick={()=>setActiveSection(t.id)}>
+          <i className={`fas fa-${t.icon}`} style={{marginRight:5}}></i>{t.label}
+          {t.badge && <span className="badge">{t.badge}</span>}
+        </button>
+      ))}
     </div>
 
-    <div className="card">
-      <h3>Your Listings ({listings.length})</h3>
-      {listings.map(l=>(
-        <div key={l.id} className="list-item">
-          <div className="listing-meta">
-            <img src={l.merchantLogo || merchant?.logoUrl || "https://via.placeholder.com/40?text=M"} className="listing-logo" alt="badge logo"/>
-            <div>
-              <div style={{fontWeight:700}}>{l.name}</div>
-              <div className="muted" style={{fontSize:12}}>{l.unit} • <span className="stock-chip">Stock: {Number(l.stock||0)}</span></div>
+    {/* ═══ DASHBOARD ═══ */}
+    {activeSection==="dashboard" && (<>
+      <div className="stat-grid">
+        <div className="stat-card"><div className="stat-val">{financials.today.count}</div><div className="stat-label">Today's Orders</div></div>
+        <div className="stat-card"><div className="stat-val">{fmt(financials.today.net)}</div><div className="stat-label">Today's Revenue</div></div>
+        <div className="stat-card info"><div className="stat-val">{fmt(financials.avgOrderValue)}</div><div className="stat-label">Avg Order Value</div></div>
+        <div className="stat-card warn"><div className="stat-val">{activeOrderCount}</div><div className="stat-label">Active Orders</div></div>
+      </div>
+
+      <div className="card">
+        <h3 style={{marginBottom:12}}><i className="fas fa-sliders" style={{marginRight:6,color:"var(--brand)"}}></i>Quick Controls</h3>
+        <div className="stack">
+          <div className="toggle-row">
+            <div><div className="toggle-label">Store Status</div><div className="toggle-desc">{storeOpen?"Customers can see and order from your store.":"Your store is hidden from customers."}</div></div>
+            <label className="switch"><input type="checkbox" checked={storeOpen} onChange={e=>setStoreOpen(e.target.checked)} disabled={updatingStoreStatus}/><span className="slider"></span></label>
+          </div>
+          <div className={`toggle-row ${busyMode?'warn':''}`}>
+            <div><div className="toggle-label"><i className="fas fa-pause-circle" style={{marginRight:4,color:"#d97706"}}></i>Busy Mode</div><div className="toggle-desc">{busyMode?"New orders paused. Toggle off when ready.":"Enable to temporarily stop receiving new orders."}</div></div>
+            <label className="switch"><input type="checkbox" checked={busyMode} onChange={e=>toggleBusyMode(e.target.checked)}/><span className="slider"></span></label>
+          </div>
+          <div style={{display:"flex",alignItems:"center",gap:10,padding:"10px 14px",background:"#f8fafc",borderRadius:12,border:"1px solid var(--line)"}}>
+            <div style={{flex:1}}><div style={{fontWeight:700,fontSize:14}}>Prep Time</div><div className="muted" style={{fontSize:12}}>Estimated minutes to prepare orders</div></div>
+            <div style={{display:"flex",alignItems:"center",gap:6}}>
+              <button className="btn-muted btn-sm" onClick={()=>updatePrepTime(prepTime-5)}>-</button>
+              <span style={{fontWeight:800,fontSize:16,minWidth:32,textAlign:"center"}}>{prepTime}</span>
+              <button className="btn-muted btn-sm" onClick={()=>updatePrepTime(prepTime+5)}>+</button>
+              <span className="muted" style={{fontSize:12}}>min</span>
             </div>
           </div>
-          <div className="listing-actions">
-            <span className="price">₱{Number(l.price||0)}</span>
-            <button className="btn-muted" onClick={()=>editListing(l)}>Update</button>
-            <button className="btn-warn" onClick={()=>deleteListing(l.id)}>Delete</button>
-          </div>
         </div>
-      ))}
-    </div>
-    </>
-    )}
-
-    {activeSection==="orders" && (
-    <>
-    <div className="card">
-      <h3>Merchant Orders</h3>
-      {orders.filter(o=>!isArchivedOrder(o)).map(o=>(
-        <div key={o.id} className="order">
-          <div className="order-head">
-            <div style={{fontWeight:700}}>{o.customer?.name} • ₱{o.total}</div>
-          </div>
-          <div className="order-status">Status: {displayOrderStatus(o)}</div>
-          <div className="order-actions">
-            <button className="btn-muted" onClick={()=>updateOrder(o.id,'merchant_pending','accepted')}>Accept</button>
-            <button className="btn-warn" onClick={()=>updateOrder(o.id,'merchant_pending','preparing')}>Preparing</button>
-            <button className="btn-success" onClick={()=>updateOrder(o.id,'pending','ready')}>Ready</button>
-          </div>
-        </div>
-      ))}
-      {!orders.some(o=>!isArchivedOrder(o)) && <p className="muted">No active orders.</p>}
-    </div>
-
-    <div className="card">
-      <h3>Archive</h3>
-      {orders.filter(isArchivedOrder).map(o=>(
-        <div key={o.id} className="order">
-          <div className="order-head">
-            <div style={{fontWeight:700}}>{o.customer?.name} • ₱{o.total}</div>
-          </div>
-          <div className="order-status">Status: {displayOrderStatus(o)}</div>
-        </div>
-      ))}
-      {!orders.some(isArchivedOrder) && <p className="muted">No archived orders yet.</p>}
-    </div>
-    </>
-    )}
-
-    {activeSection==="settings" && (
-    <div className="card stack">
-      <h3>Settings</h3>
-      <div className="toggle-wrap">
-        <div>
-          <div style={{fontWeight:700,fontSize:14}}>{storeOpen ? "Store Open" : "Store Closed"}</div>
-          <div className="muted" style={{fontSize:12}}>Turn this off to gray-out listings and show "Store Closed" in the user app.</div>
-        </div>
-        <label className="switch">
-          <input type="checkbox" checked={storeOpen} onChange={e=>setStoreOpen(e.target.checked)} disabled={updatingStoreStatus}/>
-          <span className="slider"></span>
-        </label>
       </div>
-      <button className="btn-muted" onClick={()=>auth.signOut()}>Sign out</button>
-    </div>
-    )}
 
-    {activeSection==="promotions" && (
-    <>
-    <div className="card stack">
-      <h3>Store Promotional Banners</h3>
-      <p className="muted" style={{fontSize:12}}>These banners are shown on your store profile inside the user app.</p>
-      <input placeholder="Banner title" value={bannerForm.title} onChange={e=>setBannerForm(f=>({...f,title:e.target.value}))}/>
-      <div className="grid-2">
-        <input placeholder="Optional link URL" value={bannerForm.linkUrl} onChange={e=>setBannerForm(f=>({...f,linkUrl:e.target.value}))}/>
-        <label style={{display:"flex",alignItems:"center",gap:8,fontSize:13,fontWeight:700,color:"#334155"}}>
-          <input type="checkbox" checked={bannerForm.active!==false} onChange={e=>setBannerForm(f=>({...f,active:e.target.checked}))} style={{width:16,height:16,padding:0,margin:0,border:"1px solid #cbd5e1"}}/>Active
-        </label>
+      <div className="card">
+        <div className="card-header"><h3><i className="fas fa-bell" style={{marginRight:6,color:"#f59e0b"}}></i>New Orders</h3><span className="chip chip-yellow">{orderGroups.new.length}</span></div>
+        {orderGroups.new.length===0 && <p className="muted">No new orders right now.</p>}
+        {orderGroups.new.slice(0,5).map(renderOrderCard)}
+        {orderGroups.new.length>5 && <button className="btn-muted" style={{width:"100%",marginTop:8}} onClick={()=>{setActiveSection("orders");setOrderTab("new");}}>View all {orderGroups.new.length} new orders</button>}
       </div>
-      <input type="file" accept="image/*" onChange={e=>setBannerImageFile(e.target.files?.[0]||null)}/>
-      <button className="btn-primary" onClick={saveBanner}>{savingBanner ? "Saving..." : "Save Banner"}</button>
-    </div>
 
-    <div className="card">
-      <h3>Saved Banners ({promoBanners.length})</h3>
-      {promoBanners.length===0 && <p className="muted">No promotional banners yet.</p>}
-      {promoBanners.map((banner)=>(
-        <div key={banner.id} className="list-item" style={{alignItems:"flex-start"}}>
-          <div className="listing-meta">
-            {banner.imageUrl ? <img src={banner.imageUrl} className="listing-logo" alt={banner.title || "banner"} /> : <div className="listing-logo"></div>}
-            <div>
-              <div style={{fontWeight:700}}>{banner.title || "Untitled banner"}</div>
-              <div className="muted" style={{fontSize:11}}>{banner.active===false ? "Inactive" : "Active"} {banner.linkUrl ? `• ${banner.linkUrl}` : ""}</div>
+      <div className="card">
+        <div className="card-header"><h3>Store Branding</h3></div>
+        <div className="section-label">Store Logo</div>
+        <input type="file" accept="image/*" onChange={e=>uploadLogo(e.target.files?.[0])} style={{marginBottom:8}}/>
+        {merchant.logoUrl && <img src={merchant.logoUrl} className="logo-img" alt="Store logo"/>}
+      </div>
+    </>)}
+
+    {/* ═══ ORDERS ═══ */}
+    {activeSection==="orders" && (<>
+      <div className="tabs">
+        {[
+          {id:"active",label:"Active",count:activeOrderCount},
+          {id:"new",label:"New",count:orderGroups.new.length},
+          {id:"preparing",label:"Preparing",count:orderGroups.accepted.length+orderGroups.preparing.length},
+          {id:"ready",label:"Ready",count:orderGroups.ready.length},
+          {id:"delivery",label:"In Delivery",count:orderGroups.delivery.length},
+          {id:"archive",label:"Archive",count:orderGroups.delivered.length+orderGroups.cancelled.length},
+        ].map(t=>(
+          <button key={t.id} className={`tab ${orderTab===t.id?'active':''}`} onClick={()=>setOrderTab(t.id)}>{t.label}<span className="count">{t.count}</span></button>
+        ))}
+      </div>
+
+      {orderTab==="active" && (<>
+        {activeOrderCount===0 && <div className="card empty"><i className="fas fa-inbox"></i><p>No active orders</p></div>}
+        {[...orderGroups.new,...orderGroups.accepted,...orderGroups.preparing,...orderGroups.ready,...orderGroups.delivery].map(renderOrderCard)}
+      </>)}
+      {orderTab==="new" && (<>
+        {orderGroups.new.length===0 && <div className="card empty"><i className="fas fa-inbox"></i><p>No new orders</p></div>}
+        {orderGroups.new.map(renderOrderCard)}
+      </>)}
+      {orderTab==="preparing" && (<>
+        {(orderGroups.accepted.length+orderGroups.preparing.length)===0 && <div className="card empty"><i className="fas fa-fire-burner"></i><p>Nothing being prepared</p></div>}
+        {[...orderGroups.accepted,...orderGroups.preparing].map(renderOrderCard)}
+      </>)}
+      {orderTab==="ready" && (<>
+        {orderGroups.ready.length===0 && <div className="card empty"><i className="fas fa-bell"></i><p>No orders ready for pickup</p></div>}
+        {orderGroups.ready.map(renderOrderCard)}
+      </>)}
+      {orderTab==="delivery" && (<>
+        {orderGroups.delivery.length===0 && <div className="card empty"><i className="fas fa-motorcycle"></i><p>No orders in delivery</p></div>}
+        {orderGroups.delivery.map(renderOrderCard)}
+      </>)}
+      {orderTab==="archive" && (<>
+        {(orderGroups.delivered.length+orderGroups.cancelled.length)===0 && <div className="card empty"><i className="fas fa-archive"></i><p>No archived orders</p></div>}
+        {[...orderGroups.delivered,...orderGroups.cancelled].map(renderOrderCard)}
+      </>)}
+    </>)}
+
+
+    {/* ═══ MENU & CATALOG ═══ */}
+    {activeSection==="menu" && (<>
+      <div className="card stack">
+        <h3><i className="fas fa-plus-circle" style={{marginRight:6,color:"var(--brand)"}}></i>{editingId?"Update Listing":"Add Listing"}</h3>
+        <div className="grid-2">
+          <div className="stack">
+            <input placeholder="Item name" value={form.name} onChange={e=>setForm(f=>({...f,name:e.target.value}))}/>
+            <select value={form.cat} onChange={e=>setForm(f=>({...f,cat:e.target.value}))}>
+              {CATEGORIES.map(c=><option key={c.id} value={c.id}>{c.label}</option>)}
+            </select>
+          </div>
+          <div className="stack">
+            <input placeholder="Price (₱)" type="number" value={form.price} onChange={e=>setForm(f=>({...f,price:e.target.value}))}/>
+            <input placeholder="Unit (pc/kg/bundle)" value={form.unit} onChange={e=>setForm(f=>({...f,unit:e.target.value}))}/>
+          </div>
+        </div>
+        <div className="grid-2">
+          <input placeholder="Stock quantity" type="number" value={form.stock} onChange={e=>setForm(f=>({...f,stock:e.target.value}))}/>
+          <select value={form.menuTime} onChange={e=>setForm(f=>({...f,menuTime:e.target.value}))}>
+            {MENU_TIMES.map(t=><option key={t.id} value={t.id}>{t.label}</option>)}
+          </select>
+        </div>
+        <textarea placeholder="Item description (optional)" value={form.description} onChange={e=>setForm(f=>({...f,description:e.target.value}))} rows={2}/>
+        <div style={{display:"flex",gap:12,alignItems:"flex-end"}}>
+          <div>
+            <div className="section-label">Image</div>
+            <input type="file" accept="image/*" onChange={e=>setListingImageFile(e.target.files?.[0]||null)}/>
+          </div>
+          <div className="preview-box">
+            {(listingImageFile||form.img)?<img src={listingImageFile?URL.createObjectURL(listingImageFile):form.img} alt="Preview"/>:<span className="muted" style={{fontSize:11}}>No image</span>}
+          </div>
+        </div>
+        <div className="btn-group">
+          <button className="btn-primary" onClick={saveListing} disabled={savingListing}>{savingListing?"Saving...":(editingId?"Update Listing":"Save Listing")}</button>
+          {editingId && <button className="btn-muted" onClick={()=>{setEditingId(null);setListingImageFile(null);setForm({name:"",cat:"sari",price:"",unit:"pc",stock:"",img:"",menuTime:"all",description:""});}}>Cancel</button>}
+        </div>
+      </div>
+
+      <div className="card">
+        <div className="card-header">
+          <h3>Your Menu ({listings.length})</h3>
+        </div>
+        <div className="tabs" style={{marginBottom:10}}>
+          <button className={`tab ${menuFilter==="all"?"active":""}`} onClick={()=>setMenuFilter("all")}>All</button>
+          {CATEGORIES.map(c=>{
+            const count=listings.filter(l=>l.cat===c.id).length;
+            return count>0 && <button key={c.id} className={`tab ${menuFilter===c.id?"active":""}`} onClick={()=>setMenuFilter(c.id)}>{c.label}<span className="count">{count}</span></button>;
+          })}
+        </div>
+        {listings.filter(l=>menuFilter==="all"||l.cat===menuFilter).map(l=>(
+          <div key={l.id} className="listing-row">
+            <div className="listing-info">
+              <img src={l.img||l.merchantLogo||merchant?.logoUrl||"data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 40 40'%3E%3Crect fill='%23f1f5f9' width='40' height='40'/%3E%3C/svg%3E"} className="listing-thumb" alt={l.name}/>
+              <div style={{minWidth:0}}>
+                <div className="listing-name">{l.name}</div>
+                <div className="listing-detail">
+                  <span className={`chip ${CAT_MAP[l.cat]?'chip-blue':'chip-green'}`}>{CAT_MAP[l.cat]?.label||l.cat}</span>
+                  {l.menuTime&&l.menuTime!=="all" && <span className="chip chip-purple">{MENU_TIMES.find(t=>t.id===l.menuTime)?.label||l.menuTime}</span>}
+                  <span className={`chip ${l.soldOut?'chip-red':'chip-green'}`}>{l.soldOut?"Sold Out":"In Stock: "+Number(l.stock||0)}</span>
+                </div>
+              </div>
+            </div>
+            <div style={{display:"flex",alignItems:"center",gap:8,flexShrink:0}}>
+              <span className="listing-price">{fmt(l.price)}</span>
+              <label className="switch" style={{width:40,height:22}} title={l.soldOut?"Mark available":"Mark sold out"}>
+                <input type="checkbox" checked={!l.soldOut} onChange={()=>toggleSoldOut(l.id,l.soldOut)}/>
+                <span className="slider" style={{borderRadius:999}}></span>
+              </label>
+              <button className="btn-muted btn-sm" onClick={()=>editListing(l)} title="Edit"><i className="fas fa-pen"></i></button>
+              <button className="btn-danger btn-sm" onClick={()=>deleteListing(l.id)} title="Delete"><i className="fas fa-trash"></i></button>
             </div>
           </div>
-          <div className="listing-actions">
-            <button className="btn-muted" onClick={()=>toggleBanner(banner.id,banner.active===false)}>{banner.active===false ? "Activate" : "Deactivate"}</button>
-            <button className="btn-warn" onClick={()=>removeBanner(banner.id)}>Delete</button>
+        ))}
+        {listings.length===0 && <div className="empty"><i className="fas fa-utensils"></i><p>No listings yet. Add your first item above.</p></div>}
+      </div>
+    </>)}
+
+    {/* ═══ FINANCIALS ═══ */}
+    {activeSection==="financials" && (<>
+      <div className="tabs">
+        {[{id:"daily",label:"Today"},{id:"weekly",label:"This Week"},{id:"monthly",label:"This Month"},{id:"all",label:"All Time"}].map(t=>(
+          <button key={t.id} className={`tab ${finPeriod===t.id?'active':''}`} onClick={()=>setFinPeriod(t.id)}>{t.label}</button>
+        ))}
+      </div>
+
+      {(()=>{
+        const f=finPeriod==="daily"?financials.today:finPeriod==="weekly"?financials.week:finPeriod==="monthly"?financials.month:financials.allTime;
+        return (
+          <div className="stat-grid">
+            <div className="stat-card"><div className="stat-val">{fmt(f.gross)}</div><div className="stat-label">Gross Sales</div></div>
+            <div className="stat-card danger"><div className="stat-val">{fmt(f.commission)}</div><div className="stat-label">Platform Fee ({Math.round(COMMISSION_RATE*100)}%)</div></div>
+            <div className="stat-card"><div className="stat-val" style={{color:"#16a34a"}}>{fmt(f.net)}</div><div className="stat-label">Net Earnings</div></div>
+            <div className="stat-card info"><div className="stat-val">{f.count}</div><div className="stat-label">Completed Orders</div></div>
           </div>
+        );
+      })()}
+
+      <div className="card">
+        <h3 style={{marginBottom:12}}><i className="fas fa-list" style={{marginRight:6,color:"var(--brand)"}}></i>Transaction History</h3>
+        {orders.filter(o=>o.status==='delivered').slice(0,30).map(o=>{
+          const gross=Number(o.total||0);
+          const fee=Math.round(gross*COMMISSION_RATE);
+          const net=gross-fee;
+          return (
+            <div key={o.id} className="txn-row">
+              <div>
+                <div style={{fontWeight:600,fontSize:13}}>{o.customer?.name||"Customer"}</div>
+                <div style={{fontSize:11,color:"var(--muted)"}}>{new Date(o.completedAt||o.createdAt||0).toLocaleDateString("en-PH",{month:"short",day:"numeric",hour:"2-digit",minute:"2-digit"})}</div>
+              </div>
+              <div style={{textAlign:"right"}}>
+                <div className="txn-amount positive">+{fmt(net)}</div>
+                <div className="txn-fee">Gross {fmt(gross)} · Fee {fmt(fee)}</div>
+              </div>
+            </div>
+          );
+        })}
+        {orders.filter(o=>o.status==='delivered').length===0 && <div className="empty"><i className="fas fa-receipt"></i><p>No completed transactions yet.</p></div>}
+      </div>
+
+      <div className="card">
+        <h3 style={{marginBottom:12}}><i className="fas fa-wallet" style={{marginRight:6,color:"#8b5cf6"}}></i>Payout Status</h3>
+        <div style={{padding:"12px 0"}}>
+          <div style={{display:"flex",justifyContent:"space-between",fontSize:13,marginBottom:4}}>
+            <span style={{fontWeight:700}}>Available Balance</span>
+            <span style={{fontWeight:800,color:"#16a34a"}}>{fmt(financials.month.net)}</span>
+          </div>
+          <div className="payout-bar"><div className="payout-fill" style={{width:Math.min(100,financials.month.net>0?75:0)+"%"}}></div></div>
+          <p className="muted" style={{fontSize:12,marginTop:8}}>Payouts are processed by the admin. Contact support if you have questions about your balance.</p>
         </div>
-      ))}
-    </div>
-    </>
-    )}
+      </div>
+    </>)}
+
+
+    {/* ═══ ANALYTICS ═══ */}
+    {activeSection==="analytics" && (<>
+      <div className="tabs">
+        {[{id:"7d",label:"7 Days"},{id:"30d",label:"30 Days"},{id:"90d",label:"90 Days"}].map(t=>(
+          <button key={t.id} className={`tab ${analyticsRange===t.id?'active':''}`} onClick={()=>setAnalyticsRange(t.id)}>{t.label}</button>
+        ))}
+      </div>
+
+      <div className="stat-grid">
+        <div className="stat-card"><div className="stat-val">{financials.acceptRate}%</div><div className="stat-label">Acceptance Rate</div></div>
+        <div className="stat-card info"><div className="stat-val">{prepTime}m</div><div className="stat-label">Avg Prep Time</div></div>
+        <div className="stat-card danger"><div className="stat-val">{financials.cancelRate}%</div><div className="stat-label">Cancellation Rate</div></div>
+        <div className="stat-card warn"><div className="stat-val">{fmt(financials.avgOrderValue)}</div><div className="stat-label">Avg Order Value</div></div>
+      </div>
+
+      <div className="card">
+        <h3 style={{marginBottom:8}}><i className="fas fa-chart-line" style={{marginRight:6,color:"var(--brand)"}}></i>Sales Trends</h3>
+        <div className="chart-wrap"><canvas ref={earningsChartRef}></canvas></div>
+      </div>
+
+      <div className="card">
+        <h3 style={{marginBottom:8}}><i className="fas fa-clock" style={{marginRight:6,color:"#2563eb"}}></i>Peak Hours</h3>
+        <div className="chart-wrap"><canvas ref={peakChartRef}></canvas></div>
+      </div>
+
+      <div className="card">
+        <h3 style={{marginBottom:12}}><i className="fas fa-trophy" style={{marginRight:6,color:"#f59e0b"}}></i>Top Selling Items</h3>
+        {financials.topItems.length===0 && <p className="muted">No sales data yet.</p>}
+        {financials.topItems.map((it,i)=>(
+          <div key={it.name} className="txn-row">
+            <div style={{display:"flex",alignItems:"center",gap:8}}>
+              <span style={{fontWeight:800,color:"var(--muted)",fontSize:12,width:20}}>{i+1}.</span>
+              <div><div style={{fontWeight:700,fontSize:13}}>{it.name}</div><div className="muted" style={{fontSize:11}}>{it.qty} sold</div></div>
+            </div>
+            <span style={{fontWeight:700}}>{fmt(it.revenue)}</span>
+          </div>
+        ))}
+      </div>
+
+      <div className="card">
+        <h3 style={{marginBottom:12}}><i className="fas fa-star" style={{marginRight:6,color:"#f59e0b"}}></i>Customer Feedback</h3>
+        {ratings.length===0 && <div className="empty"><i className="fas fa-comment-dots"></i><p>No reviews yet.</p></div>}
+        {ratings.slice(0,20).map(r=>(
+          <div key={r.id} className="review-card">
+            <div className="review-stars">{Array.from({length:5},(_,i)=><i key={i} className={`fa${i<(r.riderRating||r.rating||0)?'s':'r'} fa-star`}></i>)}</div>
+            {r.comment && <div className="review-text">{r.comment}</div>}
+            {r.merchantComment && <div className="review-text">{r.merchantComment}</div>}
+            <div className="review-meta">{ago(r.createdAt)} {r.customerName&&("· "+r.customerName)}</div>
+          </div>
+        ))}
+      </div>
+    </>)}
+
+    {/* ═══ MARKETING ═══ */}
+    {activeSection==="marketing" && (<>
+      <div className="card stack">
+        <h3><i className="fas fa-tags" style={{marginRight:6,color:"#8b5cf6"}}></i>Create Campaign</h3>
+        <p className="muted" style={{fontSize:12}}>Set up promotions to attract more customers and increase orders.</p>
+        <div className="grid-2">
+          <select value={campaignForm.type} onChange={e=>setCampaignForm(f=>({...f,type:e.target.value}))}>
+            {CAMPAIGN_TYPES.map(t=><option key={t.id} value={t.id}>{t.label}</option>)}
+          </select>
+          <input placeholder="Campaign title" value={campaignForm.title} onChange={e=>setCampaignForm(f=>({...f,title:e.target.value}))}/>
+        </div>
+        <div className="grid-2">
+          <input placeholder={campaignForm.type==="percent_off"?"Discount %":campaignForm.type==="flat_off"?"Amount ₱":"Value"} type="number" value={campaignForm.value} onChange={e=>setCampaignForm(f=>({...f,value:e.target.value}))}/>
+          <input placeholder="Min order ₱ (optional)" type="number" value={campaignForm.minOrder} onChange={e=>setCampaignForm(f=>({...f,minOrder:e.target.value}))}/>
+        </div>
+        <div className="grid-2">
+          <div><div className="section-label">Start Date</div><input type="date" value={campaignForm.startDate} onChange={e=>setCampaignForm(f=>({...f,startDate:e.target.value}))}/></div>
+          <div><div className="section-label">End Date</div><input type="date" value={campaignForm.endDate} onChange={e=>setCampaignForm(f=>({...f,endDate:e.target.value}))}/></div>
+        </div>
+        <button className="btn-primary" onClick={saveCampaign} disabled={savingCampaign}>{savingCampaign?"Creating...":"Create Campaign"}</button>
+      </div>
+
+      <div className="card">
+        <div className="card-header"><h3>Active Campaigns ({campaigns.filter(c=>c.active).length})</h3></div>
+        {campaigns.length===0 && <div className="empty"><i className="fas fa-bullhorn"></i><p>No campaigns yet. Create one above to get started.</p></div>}
+        {campaigns.map(c=>{
+          const typeInfo=CAMPAIGN_TYPES.find(t=>t.id===c.type)||{icon:"tag",label:c.type};
+          return (
+            <div key={c.id} className="campaign-card">
+              <div className="left">
+                <div className="campaign-type" style={{color:c.active?"#16a34a":"#94a3b8"}}><i className={`fas fa-${typeInfo.icon}`} style={{marginRight:4}}></i>{typeInfo.label}</div>
+                <div className="campaign-title">{c.title}</div>
+                <div className="campaign-detail">
+                  {c.type==="percent_off"&&`${c.value}% off`}
+                  {c.type==="flat_off"&&`₱${c.value} off`}
+                  {c.type==="bogo"&&"Buy 1 Get 1"}
+                  {c.type==="free_delivery"&&`Free delivery over ₱${c.minOrder||0}`}
+                  {c.endDate&&` · Ends ${new Date(c.endDate).toLocaleDateString("en-PH",{month:"short",day:"numeric"})}`}
+                </div>
+              </div>
+              <div className="btn-group">
+                <button className={c.active?"btn-warn btn-sm":"btn-success btn-sm"} onClick={()=>toggleCampaign(c.id,!c.active)}>{c.active?"Pause":"Activate"}</button>
+                <button className="btn-danger btn-sm" onClick={()=>removeCampaign(c.id)}><i className="fas fa-trash"></i></button>
+              </div>
+            </div>
+          );
+        })}
+      </div>
+
+      <div className="card stack">
+        <h3><i className="fas fa-image" style={{marginRight:6,color:"#f59e0b"}}></i>Promotional Banners</h3>
+        <p className="muted" style={{fontSize:12}}>Banners shown on your store profile in the customer app.</p>
+        <input placeholder="Banner title" value={bannerForm.title} onChange={e=>setBannerForm(f=>({...f,title:e.target.value}))}/>
+        <div className="grid-2">
+          <input placeholder="Link URL (optional)" value={bannerForm.linkUrl} onChange={e=>setBannerForm(f=>({...f,linkUrl:e.target.value}))}/>
+          <label style={{display:"flex",alignItems:"center",gap:8,fontSize:13,fontWeight:700}}>
+            <input type="checkbox" checked={bannerForm.active!==false} onChange={e=>setBannerForm(f=>({...f,active:e.target.checked}))} style={{width:16,height:16,padding:0,margin:0}}/>Active
+          </label>
+        </div>
+        <input type="file" accept="image/*" onChange={e=>setBannerImageFile(e.target.files?.[0]||null)}/>
+        <button className="btn-primary" onClick={saveBanner} disabled={savingBanner}>{savingBanner?"Saving...":"Save Banner"}</button>
+      </div>
+
+      {promoBanners.length>0 && (
+      <div className="card">
+        <h3 style={{marginBottom:10}}>Saved Banners ({promoBanners.length})</h3>
+        {promoBanners.map(b=>(
+          <div key={b.id} className="listing-row">
+            <div className="listing-info">
+              {b.imageUrl?<img src={b.imageUrl} className="listing-thumb" alt={b.title}/>:<div className="listing-thumb"></div>}
+              <div style={{minWidth:0}}>
+                <div className="listing-name">{b.title||"Untitled"}</div>
+                <div className="listing-detail"><span className={`chip ${b.active===false?'chip-red':'chip-green'}`}>{b.active===false?"Inactive":"Active"}</span>{b.linkUrl&&<span className="muted">{b.linkUrl}</span>}</div>
+              </div>
+            </div>
+            <div className="btn-group">
+              <button className="btn-muted btn-sm" onClick={()=>toggleBanner(b.id,b.active===false)}>{b.active===false?"Activate":"Pause"}</button>
+              <button className="btn-danger btn-sm" onClick={()=>removeBanner(b.id)}><i className="fas fa-trash"></i></button>
+            </div>
+          </div>
+        ))}
+      </div>
+      )}
+
+      <div className="card">
+        <h3 style={{marginBottom:8}}><i className="fas fa-rocket" style={{marginRight:6,color:"#2563eb"}}></i>Boost Visibility</h3>
+        <p className="muted" style={{fontSize:13}}>Get your store featured at the top of search results and category pages to reach more customers.</p>
+        <div style={{padding:"16px",background:"var(--info-bg)",border:"1px solid var(--info-border)",borderRadius:12,marginTop:12}}>
+          <div style={{fontWeight:700,fontSize:14,marginBottom:4}}>Featured Store Placement</div>
+          <p className="muted" style={{fontSize:12}}>Boost your store visibility for 7 days. Your store will appear in the "Featured" section of the customer app.</p>
+          <button className="btn-info" style={{marginTop:10}}>Contact Admin to Boost</button>
+        </div>
+      </div>
+    </>)}
+
+    {/* ═══ SETTINGS ═══ */}
+    {activeSection==="settings" && (<>
+      <div className="card stack">
+        <h3><i className="fas fa-store" style={{marginRight:6}}></i>Store Information</h3>
+        <div style={{padding:"12px",background:"#f8fafc",borderRadius:12,border:"1px solid var(--line)"}}>
+          <div style={{fontWeight:700}}>{merchant.storeName||"Your Store"}</div>
+          <div className="muted" style={{fontSize:12,marginTop:2}}>{merchant.address||"No address set"}</div>
+          {merchant.category && <div className="muted" style={{fontSize:12,marginTop:2}}>Category: {merchant.category}</div>}
+          {merchant.phone && <div className="muted" style={{fontSize:12,marginTop:2}}>Phone: {merchant.phone}</div>}
+          {merchant.operatingHours && <div className="muted" style={{fontSize:12,marginTop:2}}>Hours: {merchant.operatingHours}</div>}
+        </div>
+      </div>
+
+      <div className="card stack">
+        <h3><i className="fas fa-toggle-on" style={{marginRight:6}}></i>Store Controls</h3>
+        <div className="toggle-row">
+          <div><div className="toggle-label">{storeOpen?"Store Open":"Store Closed"}</div><div className="toggle-desc">Toggle to show or hide your store from customers.</div></div>
+          <label className="switch"><input type="checkbox" checked={storeOpen} onChange={e=>setStoreOpen(e.target.checked)} disabled={updatingStoreStatus}/><span className="slider"></span></label>
+        </div>
+        <div className={`toggle-row ${busyMode?'warn':''}`}>
+          <div><div className="toggle-label">Busy Mode</div><div className="toggle-desc">{busyMode?"New orders paused.":"Temporarily stop receiving orders during rush."}</div></div>
+          <label className="switch"><input type="checkbox" checked={busyMode} onChange={e=>toggleBusyMode(e.target.checked)}/><span className="slider"></span></label>
+        </div>
+      </div>
+
+      <div className="card stack">
+        <h3><i className="fas fa-user" style={{marginRight:6}}></i>Account</h3>
+        <div style={{padding:"12px",background:"#f8fafc",borderRadius:12,border:"1px solid var(--line)",display:"flex",alignItems:"center",gap:12}}>
+          {user.photoURL && <img src={user.photoURL} style={{width:36,height:36,borderRadius:"50%"}} alt="avatar"/>}
+          <div><div style={{fontWeight:700,fontSize:14}}>{user.displayName||"Merchant"}</div><div className="muted" style={{fontSize:12}}>{user.email}</div></div>
+        </div>
+        <button className="btn-danger" onClick={()=>auth.signOut()} style={{marginTop:4}}><i className="fas fa-sign-out-alt" style={{marginRight:6}}></i>Sign Out</button>
+      </div>
+    </>)}
+
   </div>
- );
+  );
 }
 
 ReactDOM.createRoot(document.getElementById('root')).render(<App/>);
