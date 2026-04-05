@@ -48,10 +48,14 @@ export default function NotificationHandler({ userId, onForegroundMessage }) {
       });
 
       if (token) {
-        await set(ref(db, `users/${userId}/fcmToken`), {
+        const tokenKey = encodeURIComponent(String(token)).replace(/\./g, '%2E');
+        await set(ref(db, `push_tokens/${userId}/${tokenKey}`), {
           token,
-          updatedAt: serverTimestamp(),
+          uid: userId,
+          role: 'user',
           platform: 'web',
+          updatedAt: serverTimestamp(),
+          enabled: true,
         });
       }
 
