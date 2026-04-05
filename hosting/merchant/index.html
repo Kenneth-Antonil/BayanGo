@@ -17,66 +17,77 @@
     }
     *{box-sizing:border-box;margin:0;padding:0}
     body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Inter,sans-serif;background:var(--bg);color:var(--text);min-height:100vh}
-    #root{max-width:960px;margin:0 auto;padding:0 12px 80px}
-    .header{background:linear-gradient(135deg,#166534 0%,#15803d 50%,#16a34a 100%);color:#fff;padding:18px 16px 14px;margin:0 -12px 12px;position:sticky;top:0;z-index:100}
-    .header h1{font-size:18px;font-weight:800;margin-bottom:2px}
+    #root{max-width:960px;margin:0 auto;padding:0 12px 90px}
+    .header{background:linear-gradient(135deg,#166534 0%,#15803d 50%,#16a34a 100%);color:#fff;padding:20px 18px 14px;margin:0 -12px 0;position:sticky;top:0;z-index:100}
+    .header h1{font-size:18px;font-weight:800;margin-bottom:3px}
     .header-sub{font-size:12px;opacity:.85;display:flex;align-items:center;gap:6px}
     .header-row{display:flex;justify-content:space-between;align-items:center}
-    .status-dot{width:8px;height:8px;border-radius:50%;display:inline-block}
-    .status-dot.open{background:#86efac;box-shadow:0 0 6px #86efac}
-    .status-dot.closed{background:#fca5a5;box-shadow:0 0 6px #fca5a5}
-    .nav{display:flex;gap:4px;overflow-x:auto;padding:8px 16px 10px;margin:0 -12px;background:linear-gradient(135deg,#14532d,#166534);scrollbar-width:none;-webkit-overflow-scrolling:touch}
+    .status-dot{width:9px;height:9px;border-radius:50%;display:inline-block}
+    .status-dot.open{background:#86efac;box-shadow:0 0 8px #86efac}
+    .status-dot.closed{background:#fca5a5;box-shadow:0 0 8px #fca5a5}
+    .nav{display:flex;gap:6px;overflow-x:auto;padding:10px 18px 12px;margin:0 -12px 16px;background:linear-gradient(135deg,#14532d,#166534);scrollbar-width:none;-webkit-overflow-scrolling:touch}
     .nav::-webkit-scrollbar{display:none}
-    .nav-btn{padding:7px 14px;border:1px solid rgba(255,255,255,.2);background:rgba(255,255,255,.08);color:rgba(255,255,255,.8);border-radius:999px;font-size:12px;font-weight:700;white-space:nowrap;cursor:pointer;transition:.2s}
-    .nav-btn:hover{background:rgba(255,255,255,.15)}
-    .nav-btn.active{background:#fff;color:#166534;border-color:#fff}
-    .nav-btn .badge{background:#ef4444;color:#fff;font-size:10px;padding:1px 6px;border-radius:999px;margin-left:4px}
-    .card{background:var(--card);border:1px solid var(--line);border-radius:var(--radius);padding:16px;margin-bottom:12px;box-shadow:var(--shadow)}
-    .card-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:12px}
+    .nav-btn{padding:8px 16px;border:1px solid rgba(255,255,255,.2);background:rgba(255,255,255,.08);color:rgba(255,255,255,.8);border-radius:999px;font-size:12px;font-weight:700;white-space:nowrap;cursor:pointer;transition:.2s}
+    .nav-btn:hover{background:rgba(255,255,255,.18)}
+    .nav-btn.active{background:#fff;color:#166534;border-color:#fff;box-shadow:0 2px 8px rgba(0,0,0,.15)}
+    .nav-btn .badge{background:#ef4444;color:#fff;font-size:10px;padding:2px 7px;border-radius:999px;margin-left:5px}
+    .card{background:var(--card);border:1px solid var(--line);border-radius:var(--radius);padding:18px;margin-bottom:14px;box-shadow:var(--shadow)}
+    .card-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:14px}
     .card-header h3{font-size:15px;font-weight:700}
     .card h2{font-size:17px;font-weight:800;margin-bottom:8px}
     .muted{color:var(--muted);font-size:13px}
-    .stat-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:10px;margin-bottom:12px}
-    .stat-card{background:var(--brand-bg);border:1px solid var(--brand-border);border-radius:12px;padding:14px;text-align:center}
+    .stat-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:12px;margin-bottom:14px}
+    .stat-card{background:var(--brand-bg);border:1px solid var(--brand-border);border-radius:12px;padding:16px 14px;text-align:center}
     .stat-card.warn{background:var(--warn-bg);border-color:var(--warn-border)}
     .stat-card.info{background:var(--info-bg);border-color:var(--info-border)}
     .stat-card.danger{background:var(--danger-bg);border-color:var(--danger-border)}
-    .stat-val{font-size:22px;font-weight:800;color:var(--text)}
-    .stat-label{font-size:11px;color:var(--muted);font-weight:600;text-transform:uppercase;letter-spacing:.03em;margin-top:2px}
-    .grid-2{display:grid;grid-template-columns:repeat(2,1fr);gap:10px}
-    .stack{display:grid;gap:10px}
-    input,select,textarea{width:100%;padding:10px 12px;border:1px solid #cbd5e1;border-radius:10px;font-size:14px;background:#fff;font-family:inherit}
+    .stat-val{font-size:22px;font-weight:800;color:var(--text);line-height:1.2}
+    .stat-label{font-size:11px;color:var(--muted);font-weight:600;text-transform:uppercase;letter-spacing:.03em;margin-top:4px;line-height:1.3}
+    .grid-2{display:grid;grid-template-columns:repeat(2,1fr);gap:12px}
+    .stack{display:grid;gap:12px}
+    input,select,textarea{width:100%;padding:11px 14px;border:1px solid #cbd5e1;border-radius:10px;font-size:14px;background:#fff;font-family:inherit;transition:border-color .15s,box-shadow .15s}
     input:focus,select:focus,textarea:focus{outline:0;border-color:var(--brand-light);box-shadow:0 0 0 3px rgba(34,197,94,.12)}
     textarea{resize:vertical;min-height:60px}
-    button{cursor:pointer;border:none;border-radius:10px;padding:10px 14px;font-weight:700;font-size:13px;transition:.15s;font-family:inherit}
+    button{cursor:pointer;border:none;border-radius:10px;padding:11px 16px;font-weight:700;font-size:13px;transition:.15s;font-family:inherit}
+    button:active{transform:scale(.97)}
     .btn-primary{background:linear-gradient(135deg,#166534,#15803d);color:#fff}
     .btn-primary:hover{transform:translateY(-1px);box-shadow:0 4px 12px rgba(22,101,52,.3)}
     .btn-muted{background:#f1f5f9;color:#334155;border:1px solid #e2e8f0}
+    .btn-muted:hover{background:#e2e8f0}
     .btn-warn{background:var(--warn-bg);color:#92400e;border:1px solid var(--warn-border)}
+    .btn-warn:hover{background:#fef3c7}
     .btn-danger{background:var(--danger-bg);color:#991b1b;border:1px solid var(--danger-border)}
+    .btn-danger:hover{background:#fee2e2}
     .btn-success{background:#16a34a;color:#fff}
+    .btn-success:hover{background:#15803d}
     .btn-info{background:var(--info-bg);color:#1e40af;border:1px solid var(--info-border)}
-    .btn-sm{padding:6px 10px;font-size:12px;border-radius:8px}
-    .btn-group{display:flex;gap:6px;flex-wrap:wrap}
-    .toggle-row{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:14px;border:1px solid var(--brand-border);background:var(--brand-bg);border-radius:12px}
+    .btn-info:hover{background:#dbeafe}
+    .btn-sm{padding:7px 11px;font-size:12px;border-radius:8px}
+    .btn-group{display:flex;gap:8px;flex-wrap:wrap}
+    .toggle-row{display:flex;align-items:center;justify-content:space-between;gap:14px;padding:14px 16px;border:1px solid var(--brand-border);background:var(--brand-bg);border-radius:12px}
     .toggle-row.warn{border-color:var(--warn-border);background:var(--warn-bg)}
     .toggle-row.danger{border-color:var(--danger-border);background:var(--danger-bg)}
-    .toggle-label{font-weight:700;font-size:14px}
-    .toggle-desc{font-size:12px;color:var(--muted);margin-top:2px}
+    .toggle-label{font-weight:700;font-size:14px;line-height:1.3}
+    .toggle-desc{font-size:12px;color:var(--muted);margin-top:3px;line-height:1.4}
     .switch{position:relative;width:50px;height:28px;display:inline-block;flex-shrink:0}
-    .switch input{opacity:0;width:0;height:0}
-    .slider{position:absolute;cursor:pointer;inset:0;background:#cbd5e1;border-radius:999px;transition:.2s}
-    .slider:before{content:"";position:absolute;height:22px;width:22px;left:3px;top:3px;background:#fff;border-radius:50%;transition:.2s}
+    .switch input{opacity:0;width:0;height:0;position:absolute}
+    .slider{position:absolute;cursor:pointer;inset:0;background:#cbd5e1;border-radius:999px;transition:.25s}
+    .slider:before{content:"";position:absolute;height:22px;width:22px;left:3px;top:3px;background:#fff;border-radius:50%;transition:.25s;box-shadow:0 1px 3px rgba(0,0,0,.15)}
     .switch input:checked+.slider{background:#16a34a}
     .switch input:checked+.slider:before{transform:translateX(22px)}
-    .tabs{display:flex;gap:4px;overflow-x:auto;margin-bottom:12px;padding-bottom:4px;scrollbar-width:none}
+    .switch-sm{width:40px;height:24px}
+    .switch-sm .slider:before{height:18px;width:18px;left:3px;top:3px}
+    .switch-sm input:checked+.slider:before{transform:translateX(16px)}
+    .tabs{display:flex;gap:6px;overflow-x:auto;margin-bottom:14px;padding-bottom:4px;scrollbar-width:none}
     .tabs::-webkit-scrollbar{display:none}
-    .tab{padding:7px 12px;border:1px solid var(--line);background:var(--card);color:var(--muted);border-radius:999px;font-size:12px;font-weight:700;white-space:nowrap;cursor:pointer}
+    .tab{padding:8px 14px;border:1px solid var(--line);background:var(--card);color:var(--muted);border-radius:999px;font-size:12px;font-weight:700;white-space:nowrap;cursor:pointer;transition:.15s}
+    .tab:hover{background:#f8fafc;border-color:#cbd5e1}
     .tab.active{background:var(--text);color:#fff;border-color:var(--text)}
-    .tab .count{background:rgba(0,0,0,.08);padding:1px 6px;border-radius:999px;font-size:10px;margin-left:4px}
+    .tab.active:hover{background:#1e293b}
+    .tab .count{background:rgba(0,0,0,.08);padding:2px 7px;border-radius:999px;font-size:10px;margin-left:5px}
     .tab.active .count{background:rgba(255,255,255,.2)}
-    .order-card{border:1px solid var(--line);border-radius:12px;padding:14px;margin-bottom:10px;background:#fff;transition:.15s}
-    .order-card:hover{box-shadow:0 2px 8px rgba(0,0,0,.06)}
+    .order-card{border:1px solid var(--line);border-radius:12px;padding:16px;margin-bottom:12px;background:#fff;transition:.15s}
+    .order-card:hover{box-shadow:0 2px 10px rgba(0,0,0,.07)}
     .order-card.new{border-left:4px solid #f59e0b}
     .order-card.preparing{border-left:4px solid #3b82f6}
     .order-card.ready{border-left:4px solid #22c55e}
@@ -84,7 +95,7 @@
     .order-top{display:flex;justify-content:space-between;align-items:flex-start;gap:8px;margin-bottom:8px}
     .order-customer{font-weight:700;font-size:14px}
     .order-time{font-size:11px;color:var(--muted)}
-    .order-badge{font-size:11px;font-weight:700;padding:3px 10px;border-radius:999px;white-space:nowrap}
+    .order-badge{font-size:11px;font-weight:700;padding:4px 11px;border-radius:999px;white-space:nowrap;line-height:1.2}
     .badge-new{background:#fef3c7;color:#92400e}
     .badge-accepted{background:#dbeafe;color:#1e40af}
     .badge-preparing{background:#e0e7ff;color:#3730a3}
@@ -92,20 +103,20 @@
     .badge-delivery{background:#f3e8ff;color:#6b21a8}
     .badge-delivered{background:#f0fdf4;color:#15803d}
     .badge-cancelled{background:#fef2f2;color:#991b1b}
-    .order-items{font-size:13px;color:#475569;margin:6px 0}
-    .order-items li{padding:2px 0;list-style:none}
-    .order-note{font-size:12px;background:#fffbeb;border:1px solid #fde68a;border-radius:8px;padding:8px 10px;margin:8px 0;color:#92400e}
-    .order-note i{margin-right:4px}
-    .order-total{font-weight:800;font-size:15px;margin:8px 0 6px}
-    .order-rider{font-size:12px;background:var(--info-bg);border:1px solid var(--info-border);border-radius:8px;padding:8px 10px;margin:8px 0;display:flex;align-items:center;gap:8px}
+    .order-items{font-size:13px;color:#475569;margin:8px 0;padding-left:2px}
+    .order-items li{padding:3px 0;list-style:none;line-height:1.4}
+    .order-note{font-size:12px;background:#fffbeb;border:1px solid #fde68a;border-radius:8px;padding:10px 12px;margin:10px 0;color:#92400e;line-height:1.4}
+    .order-note i{margin-right:6px}
+    .order-total{font-weight:800;font-size:16px;margin:6px 0 8px}
+    .order-rider{font-size:12px;background:var(--info-bg);border:1px solid var(--info-border);border-radius:10px;padding:10px 12px;margin:10px 0;display:flex;align-items:center;gap:10px}
     .order-rider i{color:var(--info)}
-    .listing-row{display:flex;justify-content:space-between;align-items:center;padding:12px 0;border-top:1px solid #f1f5f9;gap:10px}
+    .listing-row{display:flex;justify-content:space-between;align-items:center;padding:14px 0;border-top:1px solid #f1f5f9;gap:12px}
     .listing-row:first-child{border-top:none;padding-top:0}
-    .listing-info{display:flex;align-items:center;gap:10px;min-width:0;flex:1}
-    .listing-thumb{width:40px;height:40px;border-radius:10px;object-fit:cover;border:1px solid #e2e8f0;flex-shrink:0;background:#f8fafc}
+    .listing-info{display:flex;align-items:center;gap:12px;min-width:0;flex:1}
+    .listing-thumb{width:44px;height:44px;border-radius:10px;object-fit:cover;border:1px solid #e2e8f0;flex-shrink:0;background:#f8fafc}
     .listing-name{font-weight:700;font-size:14px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-    .listing-detail{font-size:12px;color:var(--muted);display:flex;align-items:center;gap:6px;flex-wrap:wrap}
-    .chip{font-size:11px;font-weight:700;padding:2px 8px;border-radius:999px;white-space:nowrap}
+    .listing-detail{font-size:12px;color:var(--muted);display:flex;align-items:center;gap:6px;flex-wrap:wrap;margin-top:3px}
+    .chip{font-size:11px;font-weight:700;padding:3px 9px;border-radius:999px;white-space:nowrap;line-height:1.2}
     .chip-green{background:#ecfdf5;color:#166534;border:1px solid #bbf7d0}
     .chip-red{background:#fef2f2;color:#991b1b;border:1px solid #fecaca}
     .chip-blue{background:#eff6ff;color:#1e40af;border:1px solid #bfdbfe}
@@ -116,19 +127,19 @@
     .preview-box{width:80px;height:80px;border:1px dashed #94a3b8;border-radius:12px;display:flex;align-items:center;justify-content:center;background:#f8fafc;overflow:hidden}
     .preview-box img{width:100%;height:100%;object-fit:cover}
     .logo-img{width:56px;height:56px;border-radius:50%;object-fit:cover;border:3px solid var(--brand-border)}
-    .empty{text-align:center;padding:28px 16px;color:var(--muted)}
-    .empty i{font-size:28px;margin-bottom:8px;display:block;opacity:.4}
-    .txn-row{display:flex;justify-content:space-between;align-items:center;padding:10px 0;border-top:1px solid #f8fafc;font-size:13px}
-    .txn-row:first-child{border-top:none}
+    .empty{text-align:center;padding:32px 16px;color:var(--muted)}
+    .empty i{font-size:30px;margin-bottom:10px;display:block;opacity:.35}
+    .txn-row{display:flex;justify-content:space-between;align-items:center;padding:12px 0;border-top:1px solid #f1f5f9;font-size:13px}
+    .txn-row:first-child{border-top:none;padding-top:0}
     .txn-amount{font-weight:700}
     .txn-amount.positive{color:#16a34a}
     .txn-fee{color:var(--muted);font-size:11px}
     .chart-wrap{position:relative;height:220px;margin:8px 0}
-    .review-card{border:1px solid var(--line);border-radius:10px;padding:12px;margin-bottom:8px}
+    .review-card{border:1px solid var(--line);border-radius:10px;padding:14px;margin-bottom:10px}
     .review-stars{color:#f59e0b;font-size:13px;margin-bottom:4px}
     .review-text{font-size:13px;color:#475569}
     .review-meta{font-size:11px;color:var(--muted);margin-top:4px}
-    .campaign-card{border:1px solid var(--line);border-radius:12px;padding:14px;margin-bottom:10px;display:flex;justify-content:space-between;align-items:center;gap:10px}
+    .campaign-card{border:1px solid var(--line);border-radius:12px;padding:16px;margin-bottom:12px;display:flex;justify-content:space-between;align-items:center;gap:14px}
     .campaign-card .left{flex:1;min-width:0}
     .campaign-type{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.03em;margin-bottom:4px}
     .campaign-title{font-weight:700;font-size:14px}
@@ -144,8 +155,9 @@
     .login-screen .logo-big{width:80px;height:80px;border-radius:50%;background:linear-gradient(135deg,#166534,#22c55e);display:flex;align-items:center;justify-content:center;color:#fff;font-size:32px;margin-bottom:16px}
     .payout-bar{height:8px;background:#e2e8f0;border-radius:999px;overflow:hidden;margin:8px 0}
     .payout-fill{height:100%;background:linear-gradient(90deg,#16a34a,#22c55e);border-radius:999px;transition:.3s}
-    @media(min-width:640px){.stat-grid{grid-template-columns:repeat(4,1fr)}}
-    @media(max-width:480px){.grid-2{grid-template-columns:1fr}}
+    @media(min-width:640px){.stat-grid{grid-template-columns:repeat(4,1fr)} .card{padding:20px} #root{padding:0 16px 90px}}
+    @media(min-width:900px){#root{max-width:960px;padding:0 20px 90px} .header{margin:0 -20px 0;padding:22px 22px 14px} .nav{margin:0 -20px 18px;padding:10px 22px 12px}}
+    @media(max-width:480px){.grid-2{grid-template-columns:1fr} .listing-row{flex-direction:column;align-items:flex-start;gap:10px} .listing-row>div:last-child{align-self:flex-end}}
   </style>
 </head>
 <body>
@@ -587,8 +599,8 @@ function App(){
 
         <div className="order-total">{fmt(o.total)}</div>
 
-        <button className="btn-muted btn-sm" style={{marginBottom:8}} onClick={()=>setExpandedOrder(expanded?null:o.id)}>
-          <i className={`fas fa-chevron-${expanded?'up':'down'}`} style={{marginRight:4}}></i>
+        <button className="btn-muted btn-sm" style={{marginBottom:10,marginTop:4}} onClick={()=>setExpandedOrder(expanded?null:o.id)}>
+          <i className={`fas fa-chevron-${expanded?'up':'down'}`} style={{marginRight:6}}></i>
           {expanded?'Hide':'Show'} Details ({items.length} item{items.length!==1?'s':''})
         </button>
 
@@ -674,7 +686,7 @@ function App(){
       </div>
 
       <div className="card">
-        <h3 style={{marginBottom:12}}><i className="fas fa-sliders" style={{marginRight:6,color:"var(--brand)"}}></i>Quick Controls</h3>
+        <h3 style={{marginBottom:14}}><i className="fas fa-sliders" style={{marginRight:8,color:"var(--brand)"}}></i>Quick Controls</h3>
         <div className="stack">
           <div className="toggle-row">
             <div><div className="toggle-label">Store Status</div><div className="toggle-desc">{storeOpen?"Customers can see and order from your store.":"Your store is hidden from customers."}</div></div>
@@ -684,12 +696,12 @@ function App(){
             <div><div className="toggle-label"><i className="fas fa-pause-circle" style={{marginRight:4,color:"#d97706"}}></i>Busy Mode</div><div className="toggle-desc">{busyMode?"New orders paused. Toggle off when ready.":"Enable to temporarily stop receiving new orders."}</div></div>
             <label className="switch"><input type="checkbox" checked={busyMode} onChange={e=>toggleBusyMode(e.target.checked)}/><span className="slider"></span></label>
           </div>
-          <div style={{display:"flex",alignItems:"center",gap:10,padding:"10px 14px",background:"#f8fafc",borderRadius:12,border:"1px solid var(--line)"}}>
-            <div style={{flex:1}}><div style={{fontWeight:700,fontSize:14}}>Prep Time</div><div className="muted" style={{fontSize:12}}>Estimated minutes to prepare orders</div></div>
-            <div style={{display:"flex",alignItems:"center",gap:6}}>
-              <button className="btn-muted btn-sm" onClick={()=>updatePrepTime(prepTime-5)}>-</button>
-              <span style={{fontWeight:800,fontSize:16,minWidth:32,textAlign:"center"}}>{prepTime}</span>
-              <button className="btn-muted btn-sm" onClick={()=>updatePrepTime(prepTime+5)}>+</button>
+          <div style={{display:"flex",alignItems:"center",gap:14,padding:"14px 16px",background:"#f8fafc",borderRadius:12,border:"1px solid var(--line)"}}>
+            <div style={{flex:1}}><div style={{fontWeight:700,fontSize:14,lineHeight:"1.3"}}>Prep Time</div><div className="muted" style={{fontSize:12,marginTop:3}}>Estimated minutes to prepare orders</div></div>
+            <div style={{display:"flex",alignItems:"center",gap:8}}>
+              <button className="btn-muted btn-sm" style={{width:34,textAlign:"center",padding:"7px 0"}} onClick={()=>updatePrepTime(prepTime-5)}>-</button>
+              <span style={{fontWeight:800,fontSize:18,minWidth:36,textAlign:"center"}}>{prepTime}</span>
+              <button className="btn-muted btn-sm" style={{width:34,textAlign:"center",padding:"7px 0"}} onClick={()=>updatePrepTime(prepTime+5)}>+</button>
               <span className="muted" style={{fontSize:12}}>min</span>
             </div>
           </div>
@@ -697,7 +709,7 @@ function App(){
       </div>
 
       <div className="card">
-        <div className="card-header"><h3><i className="fas fa-bell" style={{marginRight:6,color:"#f59e0b"}}></i>New Orders</h3><span className="chip chip-yellow">{orderGroups.new.length}</span></div>
+        <div className="card-header"><h3><i className="fas fa-bell" style={{marginRight:8,color:"#f59e0b"}}></i>New Orders</h3><span className="chip chip-yellow">{orderGroups.new.length}</span></div>
         {orderGroups.new.length===0 && <p className="muted">No new orders right now.</p>}
         {orderGroups.new.slice(0,5).map(renderOrderCard)}
         {orderGroups.new.length>5 && <button className="btn-muted" style={{width:"100%",marginTop:8}} onClick={()=>{setActiveSection("orders");setOrderTab("new");}}>View all {orderGroups.new.length} new orders</button>}
@@ -756,7 +768,7 @@ function App(){
     {/* ═══ MENU & CATALOG ═══ */}
     {activeSection==="menu" && (<>
       <div className="card stack">
-        <h3><i className="fas fa-plus-circle" style={{marginRight:6,color:"var(--brand)"}}></i>{editingId?"Update Listing":"Add Listing"}</h3>
+        <h3><i className="fas fa-plus-circle" style={{marginRight:8,color:"var(--brand)"}}></i>{editingId?"Update Listing":"Add Listing"}</h3>
         <div className="grid-2">
           <div className="stack">
             <input placeholder="Item name" value={form.name} onChange={e=>setForm(f=>({...f,name:e.target.value}))}/>
@@ -815,11 +827,11 @@ function App(){
                 </div>
               </div>
             </div>
-            <div style={{display:"flex",alignItems:"center",gap:8,flexShrink:0}}>
+            <div style={{display:"flex",alignItems:"center",gap:10,flexShrink:0}}>
               <span className="listing-price">{fmt(l.price)}</span>
-              <label className="switch" style={{width:40,height:22}} title={l.soldOut?"Mark available":"Mark sold out"}>
+              <label className="switch switch-sm" title={l.soldOut?"Mark available":"Mark sold out"}>
                 <input type="checkbox" checked={!l.soldOut} onChange={()=>toggleSoldOut(l.id,l.soldOut)}/>
-                <span className="slider" style={{borderRadius:999}}></span>
+                <span className="slider"></span>
               </label>
               <button className="btn-muted btn-sm" onClick={()=>editListing(l)} title="Edit"><i className="fas fa-pen"></i></button>
               <button className="btn-danger btn-sm" onClick={()=>deleteListing(l.id)} title="Delete"><i className="fas fa-trash"></i></button>
@@ -851,7 +863,7 @@ function App(){
       })()}
 
       <div className="card">
-        <h3 style={{marginBottom:12}}><i className="fas fa-list" style={{marginRight:6,color:"var(--brand)"}}></i>Transaction History</h3>
+        <h3 style={{marginBottom:14}}><i className="fas fa-list" style={{marginRight:8,color:"var(--brand)"}}></i>Transaction History</h3>
         {orders.filter(o=>o.status==='delivered').slice(0,30).map(o=>{
           const gross=Number(o.total||0);
           const fee=Math.round(gross*COMMISSION_RATE);
@@ -873,7 +885,7 @@ function App(){
       </div>
 
       <div className="card">
-        <h3 style={{marginBottom:12}}><i className="fas fa-wallet" style={{marginRight:6,color:"#8b5cf6"}}></i>Payout Status</h3>
+        <h3 style={{marginBottom:14}}><i className="fas fa-wallet" style={{marginRight:8,color:"#8b5cf6"}}></i>Payout Status</h3>
         <div style={{padding:"12px 0"}}>
           <div style={{display:"flex",justifyContent:"space-between",fontSize:13,marginBottom:4}}>
             <span style={{fontWeight:700}}>Available Balance</span>
@@ -902,17 +914,17 @@ function App(){
       </div>
 
       <div className="card">
-        <h3 style={{marginBottom:8}}><i className="fas fa-chart-line" style={{marginRight:6,color:"var(--brand)"}}></i>Sales Trends</h3>
+        <h3 style={{marginBottom:8}}><i className="fas fa-chart-line" style={{marginRight:8,color:"var(--brand)"}}></i>Sales Trends</h3>
         <div className="chart-wrap"><canvas ref={earningsChartRef}></canvas></div>
       </div>
 
       <div className="card">
-        <h3 style={{marginBottom:8}}><i className="fas fa-clock" style={{marginRight:6,color:"#2563eb"}}></i>Peak Hours</h3>
+        <h3 style={{marginBottom:8}}><i className="fas fa-clock" style={{marginRight:8,color:"#2563eb"}}></i>Peak Hours</h3>
         <div className="chart-wrap"><canvas ref={peakChartRef}></canvas></div>
       </div>
 
       <div className="card">
-        <h3 style={{marginBottom:12}}><i className="fas fa-trophy" style={{marginRight:6,color:"#f59e0b"}}></i>Top Selling Items</h3>
+        <h3 style={{marginBottom:14}}><i className="fas fa-trophy" style={{marginRight:8,color:"#f59e0b"}}></i>Top Selling Items</h3>
         {financials.topItems.length===0 && <p className="muted">No sales data yet.</p>}
         {financials.topItems.map((it,i)=>(
           <div key={it.name} className="txn-row">
@@ -926,7 +938,7 @@ function App(){
       </div>
 
       <div className="card">
-        <h3 style={{marginBottom:12}}><i className="fas fa-star" style={{marginRight:6,color:"#f59e0b"}}></i>Customer Feedback</h3>
+        <h3 style={{marginBottom:14}}><i className="fas fa-star" style={{marginRight:8,color:"#f59e0b"}}></i>Customer Feedback</h3>
         {ratings.length===0 && <div className="empty"><i className="fas fa-comment-dots"></i><p>No reviews yet.</p></div>}
         {ratings.slice(0,20).map(r=>(
           <div key={r.id} className="review-card">
@@ -942,7 +954,7 @@ function App(){
     {/* ═══ MARKETING ═══ */}
     {activeSection==="marketing" && (<>
       <div className="card stack">
-        <h3><i className="fas fa-tags" style={{marginRight:6,color:"#8b5cf6"}}></i>Create Campaign</h3>
+        <h3><i className="fas fa-tags" style={{marginRight:8,color:"#8b5cf6"}}></i>Create Campaign</h3>
         <p className="muted" style={{fontSize:12}}>Set up promotions to attract more customers and increase orders.</p>
         <div className="grid-2">
           <select value={campaignForm.type} onChange={e=>setCampaignForm(f=>({...f,type:e.target.value}))}>
@@ -989,7 +1001,7 @@ function App(){
       </div>
 
       <div className="card stack">
-        <h3><i className="fas fa-image" style={{marginRight:6,color:"#f59e0b"}}></i>Promotional Banners</h3>
+        <h3><i className="fas fa-image" style={{marginRight:8,color:"#f59e0b"}}></i>Promotional Banners</h3>
         <p className="muted" style={{fontSize:12}}>Banners shown on your store profile in the customer app.</p>
         <input placeholder="Banner title" value={bannerForm.title} onChange={e=>setBannerForm(f=>({...f,title:e.target.value}))}/>
         <div className="grid-2">
@@ -1024,7 +1036,7 @@ function App(){
       )}
 
       <div className="card">
-        <h3 style={{marginBottom:8}}><i className="fas fa-rocket" style={{marginRight:6,color:"#2563eb"}}></i>Boost Visibility</h3>
+        <h3 style={{marginBottom:8}}><i className="fas fa-rocket" style={{marginRight:8,color:"#2563eb"}}></i>Boost Visibility</h3>
         <p className="muted" style={{fontSize:13}}>Get your store featured at the top of search results and category pages to reach more customers.</p>
         <div style={{padding:"16px",background:"var(--info-bg)",border:"1px solid var(--info-border)",borderRadius:12,marginTop:12}}>
           <div style={{fontWeight:700,fontSize:14,marginBottom:4}}>Featured Store Placement</div>
