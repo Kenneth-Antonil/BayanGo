@@ -533,8 +533,8 @@
             }
           }).catch(() => {});
 
-          const title = payload?.notification?.title || "BayanGo";
-          const body = payload?.notification?.body || "May bagong update ka.";
+          const title = payload?.notification?.title || payload?.data?.title || "BayanGo";
+          const body = payload?.notification?.body || payload?.data?.body || "May bagong update ka.";
           if (Notification.permission === "granted") {
             const type = payload?.data?.type || "";
             const n = new Notification(title, {

@@ -196,8 +196,8 @@
           const SUPPORT_TYPES = ["support_ticket_new", "support_message_user", "support_message_admin"];
           if (SUPPORT_TYPES.includes(type)) return;
 
-          const title = payload?.notification?.title || "BayanGo Rider";
-          const body = payload?.notification?.body || "May bagong order.";
+          const title = payload?.notification?.title || payload?.data?.title || "BayanGo Rider";
+          const body = payload?.notification?.body || payload?.data?.body || "May bagong order.";
           if (typeof onForegroundNotify === "function") onForegroundNotify({ title, body, payload });
           if (Notification.permission === "granted") {
             new Notification(title, {
