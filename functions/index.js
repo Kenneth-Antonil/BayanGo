@@ -14,6 +14,7 @@ const {
   USER_APP_URL,
   RIDER_APP_URL,
   ADMIN_APP_URL,
+  MERCHANT_APP_URL,
   ADMIN_ALLOWED_ORIGINS,
   ORDER_STATUS_LABELS,
   MERCHANT_STATUS_LABELS,
@@ -596,7 +597,25 @@ exports.onNewOrder = onValueCreated(
   async (event) => {
     try {
       const order = event.data.val();
-      if (!order || order.status !== "pending" || order.riderId) return;
+      if (!order || order.riderId) return;
+
+      // Merchant order — notify the merchant
+      if (order.status === "merchant_pending" && order.merchantId) {
+        const merchantTokens = await getUserTokens(order.merchantId);
+        if (merchantTokens.length) {
+          const mResult = await sendBatchNotification(merchantTokens, {
+            title: "BayanGo: New Order!",
+            body: `New order from ${order.customer?.name || "customer"} — ₱${Number(order.total || 0).toLocaleString("en-PH")}. Open the dashboard to accept it.`,
+            type: "new_merchant_order",
+            link: MERCHANT_APP_URL,
+          });
+          console.log(`[onNewOrder ${event.params.orderId}] Merchant notified: Sent:${mResult.sent} Failed:${mResult.failed}`);
+        }
+        return;
+      }
+
+      // Regular order — notify riders
+      if (order.status !== "pending") return;
 
       const riderTokens = await getAllRiderTokens();
       if (!riderTokens.length) return;

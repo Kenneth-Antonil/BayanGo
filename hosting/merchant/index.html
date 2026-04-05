@@ -209,7 +209,9 @@ function getMerchantOrderStatus(o){
   if(o?.status==='delivered') return 'delivered';
   if(o?.status==='cancelled') return 'cancelled';
   if(o?.status==='otw'||o?.status==='buying') return 'delivery';
-  return o?.merchantStatus||'new';
+  const ms=o?.merchantStatus;
+  if(!ms||ms==='new'||ms==='pending') return 'new';
+  return ms;
 }
 function getStatusBadge(s){
   const map={new:"badge-new",accepted:"badge-accepted",preparing:"badge-preparing",ready:"badge-ready",delivery:"badge-delivery",delivered:"badge-delivered",cancelled:"badge-cancelled"};
