@@ -283,10 +283,10 @@ function App(){
     });
     refs.push(()=>listRef.off("value"));
 
-    const ordersRef=db.ref("orders").orderByChild("merchantId").equalTo(uid);
+    const ordersRef=db.ref("orders");
     ordersRef.on("value",s=>{
       const a=[];
-      s.forEach(c=>{const v=c.val()||{};a.push({id:c.key,...v});});
+      s.forEach(c=>{const v=c.val()||{};if(v.merchantId===uid)a.push({id:c.key,...v});});
       a.sort((x,y)=>(y.createdAt||0)-(x.createdAt||0));
       setOrders(a);
     });
