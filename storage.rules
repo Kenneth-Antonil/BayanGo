@@ -44,6 +44,11 @@ service firebase.storage {
       allow write: if isSignedIn() && isImageUpload(5 * 1024 * 1024);
     }
 
+    match /rider_profiles/{allPaths=**} {
+      allow read: if true;
+      allow write: if isSignedIn() && isImageUpload(5 * 1024 * 1024);
+    }
+
     // Default deny for any other object paths.
     match /{allPaths=**} {
       allow read, write: if false;
