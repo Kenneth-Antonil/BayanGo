@@ -339,12 +339,14 @@ async function sendBatchNotification(tokenEntries, { title, body, type, link }) 
     try {
       const response = await messaging.sendEachForMulticast({
         tokens,
+        notification: {
+          title: title || "BayanGo",
+          body: body || "",
+        },
         android: {
           priority: "high",
           ttl: 60 * 60 * 1000, // 1 hour
           notification: {
-            title,
-            body,
             channelId: "default",
             sound: "default",
             priority: "max",
@@ -358,7 +360,6 @@ async function sendBatchNotification(tokenEntries, { title, body, type, link }) 
           },
           payload: {
             aps: {
-              alert: { title, body },
               sound: "default",
               badge: 1,
               "content-available": 1,
@@ -371,12 +372,9 @@ async function sendBatchNotification(tokenEntries, { title, body, type, link }) 
             TTL: "3600",
           },
           notification: {
-            title: title || "BayanGo",
-            body: body || "",
             icon: "https://i.imgur.com/wL8wcBB.jpeg",
-            tag: "bayango-update",
+            tag: type || "bayango-update",
             renotify: true,
-            requireInteraction: false,
           },
           fcm_options: {
             link: resolvedLink,

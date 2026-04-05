@@ -32,6 +32,10 @@ function resolveClickUrl(rawUrl, type) {
 }
 
 messaging.onBackgroundMessage((payload) => {
+  // If the message already has a notification field, the browser displays it
+  // automatically. Only show manually for data-only messages to avoid duplicates.
+  if (payload?.notification) return;
+
   const data = payload?.data || {};
   const title = data.title || 'BayanGo';
   const type = payload?.data?.type || '';

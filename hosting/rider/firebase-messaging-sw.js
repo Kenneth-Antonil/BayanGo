@@ -40,6 +40,10 @@ function resolveClickUrl(rawUrl, type) {
 const SUPPORT_TYPES = ['support_ticket_new', 'support_message_user', 'support_message_admin'];
 
 messaging.onBackgroundMessage((payload) => {
+  // If the message already has a notification field, the browser displays it
+  // automatically. Only show manually for data-only messages to avoid duplicates.
+  if (payload?.notification) return;
+
   const data = payload?.data || {};
   const title = data.title || 'BayanGo';
   const type = payload?.data?.type || '';
