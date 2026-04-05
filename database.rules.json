@@ -58,21 +58,24 @@
     // - Update/delete: order owner (customer), admin, or rider
     // ─────────────────────────────────────────────────────────────────────────
     "orders": {
-      ".indexOn": ["createdAt", "uid"],
+      ".indexOn": ["createdAt", "uid", "merchantId"],
       ".read": "auth != null && (
         root.child('admins').child(auth.uid).val() === true ||
         root.child('riders').child(auth.uid).val() === true ||
-        (query.orderByChild === 'uid' && query.equalTo === auth.uid)
+        (query.orderByChild === 'uid' && query.equalTo === auth.uid) ||
+        (query.orderByChild === 'merchantId' && query.equalTo === auth.uid && root.child('partner_merchants').child(auth.uid).child('approved').val() === true)
       )",
       "$orderId": {
         ".read": "auth != null && (
           data.child('uid').val() === auth.uid ||
+          data.child('merchantId').val() === auth.uid ||
           root.child('admins').child(auth.uid).val() === true ||
           root.child('riders').child(auth.uid).val() === true
         )",
         ".write": "auth != null && (
           (!data.exists() && newData.child('uid').val() === auth.uid) ||
           (data.exists() && data.child('uid').val() === auth.uid) ||
+          (data.exists() && data.child('merchantId').val() === auth.uid && root.child('partner_merchants').child(auth.uid).child('approved').val() === true) ||
           root.child('admins').child(auth.uid).val() === true ||
           root.child('riders').child(auth.uid).val() === true
         )",
