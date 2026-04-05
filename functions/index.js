@@ -370,6 +370,14 @@ async function sendBatchNotification(tokenEntries, { title, body, type, link }) 
             Urgency: "high",
             TTL: "3600",
           },
+          notification: {
+            title: title || "BayanGo",
+            body: body || "",
+            icon: "https://i.imgur.com/wL8wcBB.jpeg",
+            tag: "bayango-update",
+            renotify: true,
+            requireInteraction: false,
+          },
           fcm_options: {
             link: resolvedLink,
           },
