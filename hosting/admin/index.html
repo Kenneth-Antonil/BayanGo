@@ -336,6 +336,7 @@
       const [ready,    setReady]    = useState(false);
       const [user,     setUser]     = useState(null);
       const [marketPricing, setMarketPricing] = useState({});
+      const [authzError, setAuthzError] = useState("");
 
       useEffect(() => {
         let unsubOrders, unsubProducts, unsubVouchers, unsubMarket, unsubAppUsage, unsubAuth, unsubPartnerApplications, unsubPartnerMerchants;
@@ -346,6 +347,7 @@
           unsubAuth = onAuthStateChanged(auth, (currentUser) => {
             setUser(currentUser);
             setReady(true);
+            setAuthzError("");
 
             // Register admin push tokens for receiving notifications
             if (currentUser) enableAdminPush(currentUser);
@@ -359,10 +361,23 @@
             if (!currentUser) {
               setOrders([]);
               setVouchers([]);
+              setPartnerApplications([]);
+              setPartnerMerchants([]);
               setAppUsageStats({ activeUsers: 0, downloadedUsers: 0 });
               setAppUsageMap({});
               return;
             }
+
+            (async () => {
+              try {
+                const adminSnap = await fns.get(fns.ref(db, `admins/${currentUser.uid}`));
+                if (adminSnap.val() !== true) {
+                  setAuthzError("Your account is signed in but not registered in /admins. Merchant applications cannot be loaded.");
+                }
+              } catch (adminCheckErr) {
+                console.error("Admin role check failed:", adminCheckErr?.code, adminCheckErr?.message || adminCheckErr);
+              }
+            })();
 
             // Listen products realtime
             const prodsRef = fns.ref(db, "products");
@@ -485,7 +500,13 @@
               snap.forEach(c => list.push({ id: c.key, sourcePath: "partner_applications", ...(c.val() || {}) }));
               partnerAppsLatest = list;
               syncPartnerApplications();
-            }, err => console.error("Partner applications snapshot error:", err.code, err.message));
+            }, err => {
+              console.error("Partner applications snapshot error:", err.code, err.message);
+              const code = String(err?.code || "").toLowerCase();
+              if (code.includes("permission")) {
+                setAuthzError("Permission denied while reading partner applications. Verify /admins/<uid> = true in Realtime Database.");
+              }
+            });
 
             const legacyPartnerAppsRef = fns.ref(db, "merchant_applications");
             fns.onValue(legacyPartnerAppsRef, snap => {
@@ -735,6 +756,7 @@
             partnerMerchants={partnerMerchants}
             onDecidePartnerApplication={decidePartnerApplication}
             onToggleFeaturedPartnerMerchant={toggleFeaturedPartnerMerchant}
+            authzError={authzError}
           />
         </>
       );
@@ -1087,7 +1109,7 @@
       );
     }
 
-    function AdminDashboard({ user, orders, onUpdateStatus, onBroadcast, products, onAddProduct, onUpdateProduct, onDeleteProduct, marketPricing, onUpdateMarketPricing, vouchers, onAddVoucher, onUpdateVoucher, onDeleteVoucher, appUsageStats, appUsageMap, partnerApplications, partnerMerchants, onDecidePartnerApplication, onToggleFeaturedPartnerMerchant }) {
+    function AdminDashboard({ user, orders, onUpdateStatus, onBroadcast, products, onAddProduct, onUpdateProduct, onDeleteProduct, marketPricing, onUpdateMarketPricing, vouchers, onAddVoucher, onUpdateVoucher, onDeleteVoucher, appUsageStats, appUsageMap, partnerApplications, partnerMerchants, onDecidePartnerApplication, onToggleFeaturedPartnerMerchant, authzError }) {
       const getInitialTab = () => {
         try {
           const hash = (window.location.hash || "").replace("#", "").toLowerCase();
@@ -1502,6 +1524,11 @@
 
       return (
         <div style={{ maxWidth:1340, margin:"0 auto", minHeight:"100vh", background:"#020617", padding:"16px 14px 48px" }}>
+          {!!authzError && (
+            <div style={{ margin:"0 8px 12px", padding:"10px 12px", borderRadius:10, background:"#FEF2F2", border:"1px solid #FECACA", color:"#991B1B", fontSize:12, fontWeight:700 }}>
+              {authzError}
+            </div>
+          )}
 
           <div style={{ padding:"8px 8px 12px" }}>
             <div style={{
