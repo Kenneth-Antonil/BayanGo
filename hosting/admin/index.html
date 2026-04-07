@@ -1142,6 +1142,7 @@
       const [riders,        setRiders]        = useState([]);
       const [assigningOrderId, setAssigningOrderId] = useState(null);
       const [assignRiderId, setAssignRiderId] = useState("");
+      const [cancellingOrderId, setCancellingOrderId] = useState(null);
 
       const getStatusFlow = (order) => order?.locationType === "Island"
         ? ["pending","buying","in_boat","delivered"]
@@ -1151,6 +1152,7 @@
         const nextKey = flow[flow.indexOf(order.status) + 1];
         return nextKey ? `Mark as ${STATUS_INFO[nextKey]?.label || nextKey}` : null;
       };
+      const canCancelOrder = (order) => order?.status !== "delivered" && order?.status !== "cancelled";
 
       const dashboardOrders = orders.filter(o => o.status !== "merchant_pending");
       const viewFilteredOrders = dashboardOrders.filter(o => ordersView === "archive" ? (o.status === "delivered" || o.status === "cancelled") : (o.status !== "delivered" && o.status !== "cancelled"));
@@ -1405,6 +1407,22 @@
         setUpdating(order.id);
         try { await onUpdateStatus(order, next); }
         finally { setUpdating(null); if (selected?.id === order.id) setSelected(s => ({...s, status:next})); }
+      };
+
+      const cancelOrder = async (order) => {
+        if (!order?.id || !canCancelOrder(order)) return;
+        const confirmed = window.confirm(`Cancel order for ${order.customer?.name || "this customer"}?`);
+        if (!confirmed) return;
+        setCancellingOrderId(order.id);
+        try {
+          await onUpdateStatus(order, "cancelled");
+          if (selected?.id === order.id) setSelected(s => s ? ({ ...s, status:"cancelled" }) : s);
+          alert("Order cancelled.");
+        } catch (err) {
+          alert("Failed to cancel order: " + (err.message || err.code || err));
+        } finally {
+          setCancellingOrderId(null);
+        }
       };
 
       const STATUS_INFO = {
@@ -1904,7 +1922,7 @@
                   )}
 
                   {/* Action buttons */}
-                  <div style={{ display:"flex", gap:8 }}>
+                  <div style={{ display:"flex", gap:8, flexWrap:"wrap" }}>
                     <button onClick={() => { setSelected(order); setEditedPrices({}); setProofImages(order.proofImages || []); setAssignRiderId(order.riderId || ""); }} style={{
                       flex:1, padding:"10px", borderRadius:12, background:"#F9FAFB",
                       border:"1px solid #E5E7EB", fontSize:13, fontWeight:600, color:"#555"
@@ -1917,6 +1935,22 @@
                         fontSize:13, fontWeight:700,
                       }}>
                         {updating===order.id ? <><Ic n="hourglass-half" style={{ marginRight:4 }} />Updating...</> : `${getNextLabel(order)} →`}
+                      </button>
+                    )}
+                    {canCancelOrder(order) && (
+                      <button
+                        onClick={() => cancelOrder(order)}
+                        disabled={cancellingOrderId === order.id}
+                        style={{
+                          flex:1, padding:"10px", borderRadius:12,
+                          background: cancellingOrderId===order.id ? "#F3F4F6" : "#FEF2F2",
+                          border:"1px solid #FECACA",
+                          color: cancellingOrderId===order.id ? "#9CA3AF" : "#B91C1C",
+                          fontSize:13, fontWeight:700,
+                        }}
+                      >
+                        <Ic n={cancellingOrderId===order.id ? "hourglass-half" : "ban"} style={{ marginRight:4 }} />
+                        {cancellingOrderId===order.id ? "Cancelling..." : "Cancel Order"}
                       </button>
                     )}
                   </div>
@@ -2146,6 +2180,22 @@
                     fontSize:15, fontWeight:700,
                   }}>
                     {updating===selected.id ? <><Ic n="hourglass-half" style={{ marginRight:4 }} />Updating...</> : `${getNextLabel(selected)} →`}
+                  </button>
+                )}
+                {canCancelOrder(selected) && (
+                  <button
+                    onClick={() => cancelOrder(selected)}
+                    disabled={cancellingOrderId === selected.id}
+                    style={{
+                      width:"100%", marginTop:10, padding:"14px", borderRadius:14,
+                      background: cancellingOrderId===selected.id ? "#F3F4F6" : "#FEF2F2",
+                      border:"1px solid #FECACA",
+                      color: cancellingOrderId===selected.id ? "#9CA3AF" : "#B91C1C",
+                      fontSize:14, fontWeight:700,
+                    }}
+                  >
+                    <Ic n={cancellingOrderId===selected.id ? "hourglass-half" : "ban"} style={{ marginRight:6 }} />
+                    {cancellingOrderId===selected.id ? "Cancelling..." : "Cancel Order"}
                   </button>
                 )}
                 {selected.status === "delivered" && (
