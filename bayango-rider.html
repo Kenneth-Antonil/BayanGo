@@ -522,7 +522,7 @@
           const p = Number(i.price || 0), q = Number(i.qty || 1);
           return s + (i.unit === "kg" ? p * q * Number(i.weightUnit || 1) : p * q);
         }, 0);
-        const serviceFee    = Math.round(subtotal * 0.03);
+        const serviceFee    = 10 + Math.floor(subtotal / 1000) * 5;
         const smallOrderFee = subtotal < 100 ? Math.round(subtotal * 0.05) : 0;
         const total         = Math.max(0, subtotal + Number(deliveryFee || 0) + serviceFee + smallOrderFee - Number(totalDiscount || 0));
         return { subtotal, serviceFee, smallOrderFee, total };
@@ -796,7 +796,7 @@
               const p = Number(i.price||0), q = Number(i.qty||1);
               return s + (i.unit==="kg" ? p*q*Number(i.weightUnit||1) : p*q);
             }, 0);
-            const serviceFee    = Math.round(subtotal * 0.03);
+            const serviceFee    = 10 + Math.floor(subtotal / 1000) * 5;
             const smallOrderFee = subtotal < 100 ? Math.round(subtotal * 0.05) : 0;
             const total         = Math.max(0, subtotal + Number(order.deliveryFee||0) + serviceFee + smallOrderFee - Number(order.totalDiscount||0));
             const hasEdits = Object.keys(riderEditedPrices).length > 0 || riderProofImages.length !== (order.proofImages||[]).length;
@@ -889,7 +889,7 @@
                       <span>Delivery</span><span>{fmt(order.deliveryFee)}</span>
                     </div>
                     <div style={{ display:"flex", justifyContent:"space-between", marginBottom:4, color:"#555" }}>
-                      <span>Service Fee (3%)</span><span>{fmt(serviceFee)}</span>
+                      <span>Service Fee</span><span>{fmt(serviceFee)}</span>
                     </div>
                     {smallOrderFee>0 && <div style={{ display:"flex", justifyContent:"space-between", marginBottom:4, color:"#555" }}>
                       <span>Small Order Fee</span><span>{fmt(smallOrderFee)}</span>
