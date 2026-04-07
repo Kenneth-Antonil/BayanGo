@@ -843,8 +843,8 @@
           const uid = String(entry.applicantUid || entry.uid || "").trim();
           const normalizedStoreName = String(entry.storeName || "").trim().toLowerCase();
           const applicationId = String(entry.applicationId || entry.id || "").trim();
-          if (uid && normalizedStoreName) return `uid:${uid}|store:${normalizedStoreName}`;
           if (uid && applicationId) return `uid:${uid}|app:${applicationId}`;
+          if (uid && normalizedStoreName) return `uid:${uid}|store:${normalizedStoreName}`;
           if (uid) return `uid:${uid}`;
           if (applicationId) return `app:${applicationId}`;
           const fallbackStore = String(entry.storeName || "").trim().toLowerCase();
