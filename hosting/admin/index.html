@@ -837,7 +837,67 @@
         if (normalizedStatus) return normalizedStatus;
         return "pending";
       };
-      const approvedMerchants = merchants.filter((merchant) => {
+      const mergedMerchants = React.useMemo(() => {
+        const byKey = new Map();
+        const makeKey = (entry = {}) => {
+          const uid = String(entry.applicantUid || entry.uid || "").trim();
+          const normalizedStoreName = String(entry.storeName || "").trim().toLowerCase();
+          const applicationId = String(entry.applicationId || entry.id || "").trim();
+          if (uid && normalizedStoreName) return `uid:${uid}|store:${normalizedStoreName}`;
+          if (uid && applicationId) return `uid:${uid}|app:${applicationId}`;
+          if (uid) return `uid:${uid}`;
+          if (applicationId) return `app:${applicationId}`;
+          const fallbackStore = String(entry.storeName || "").trim().toLowerCase();
+          const fallbackContact = String(entry.contactName || "").trim().toLowerCase();
+          return `fallback:${fallbackStore}|${fallbackContact}`;
+        };
+
+        merchants.forEach((merchant) => {
+          const key = makeKey(merchant);
+          byKey.set(key, {
+            ...merchant,
+            _source: "partner_merchants",
+          });
+        });
+
+        applications.forEach((application) => {
+          const appStatus = String(application?.status || "").trim().toLowerCase();
+          const approved = appStatus === "approved";
+          if (!approved) return;
+          const candidate = {
+            id: application.id,
+            applicationId: application.id,
+            applicantUid: application.applicantUid || application.uid || "",
+            contactName: application.contactName || "",
+            contactPhone: application.contactPhone || "",
+            storeName: application.storeName || "",
+            category: application.category || application.storeCategory || "sari",
+            storeCategory: application.storeCategory || application.category || "sari",
+            description: application.description || "",
+            logoUrl: application.logoUrl || "",
+            status: "approved",
+            approved: true,
+            approvedAt: application.reviewedAt || application.updatedAt || application.createdAt || 0,
+            _source: "application_fallback",
+          };
+          const key = makeKey(candidate);
+          const existing = byKey.get(key);
+          if (!existing) {
+            byKey.set(key, candidate);
+            return;
+          }
+          if (existing._source !== "partner_merchants") {
+            byKey.set(key, {
+              ...existing,
+              ...candidate,
+            });
+          }
+        });
+
+        return Array.from(byKey.values()).sort((a, b) => String(a.storeName || "").localeCompare(String(b.storeName || "")));
+      }, [applications, merchants]);
+
+      const approvedMerchants = mergedMerchants.filter((merchant) => {
         return normalizedMerchantStatus(merchant) === "approved";
       });
       const [rejectingId, setRejectingId] = React.useState("");
@@ -988,8 +1048,8 @@
             ))}
           </div>
           <div style={{ background:"#fff", border:"1px solid #E2E8F0", borderRadius:16, padding:14, marginTop:14 }}>
-            <div style={{ fontSize:14, fontWeight:800, marginBottom:10 }}>All Registered Merchants ({merchants.length})</div>
-            {merchants.length === 0 ? <div style={{ fontSize:12, color:"#64748B" }}>No merchants found in partner_merchants.</div> : merchants.map(m => {
+            <div style={{ fontSize:14, fontWeight:800, marginBottom:10 }}>All Registered Merchants ({mergedMerchants.length})</div>
+            {mergedMerchants.length === 0 ? <div style={{ fontSize:12, color:"#64748B" }}>No merchants found in partner_merchants or approved applications.</div> : mergedMerchants.map(m => {
               const status = normalizedMerchantStatus(m);
               const statusStyle = status === "approved"
                 ? { bg:"#DCFCE7", color:"#166534", label:"Approved" }
