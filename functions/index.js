@@ -679,16 +679,18 @@ exports.onOrderUpdated = onValueUpdated(
             });
           }
         }
-        if (before.status === "merchant_pending" && after.status === "pending" && !after.riderId) {
-          const riderTokens = await getAllRiderTokens();
-          if (riderTokens.length) {
-            await sendBatchNotification(riderTokens, {
-              title: "BayanGo: New Order!",
-              body: `New merchant order from ${after.customer?.name || "customer"}. Open the app to accept it.`,
-              type: "new_order",
-              link: RIDER_APP_URL,
-            });
-          }
+      }
+
+      // 1a. Merchant order becomes open for riders -> notify riders (uid-independent)
+      if (before.status === "merchant_pending" && after.status === "pending" && !after.riderId) {
+        const riderTokens = await getAllRiderTokens();
+        if (riderTokens.length) {
+          await sendBatchNotification(riderTokens, {
+            title: "BayanGo: New Order!",
+            body: `New merchant order from ${after.customer?.name || "customer"}. Open the app to accept it.`,
+            type: "new_order",
+            link: RIDER_APP_URL,
+          });
         }
       }
 
