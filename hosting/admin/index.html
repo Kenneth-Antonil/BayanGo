@@ -641,13 +641,15 @@
         }
         await fns.update(fns.ref(db), applicationUpdates);
         if (decision === "approve" && uid) {
+          const merchantCategory = application.category || application.storeCategory || "sari";
           await fns.update(fns.ref(db, "partner_merchants/" + uid), {
             applicantUid: uid,
             applicationId: application.id,
             contactName: application.contactName || "",
             contactPhone: application.contactPhone || "",
             storeName: application.storeName || "",
-            storeCategory: application.storeCategory || "sari",
+            category: merchantCategory,
+            storeCategory: merchantCategory,
             description: application.description || "",
             logoUrl: application.logoUrl || "",
             approved: true,
@@ -789,7 +791,7 @@
                 {m.logoUrl ? <img src={m.logoUrl} alt={m.storeName} style={{ width:32, height:32, borderRadius:"50%", objectFit:"cover", border:"1px solid #E2E8F0" }} /> : <div style={{ width:32, height:32, borderRadius:"50%", background:"#E2E8F0" }} />}
                 <div style={{ flex:1, minWidth:0 }}>
                   <div style={{ fontWeight:700, fontSize:13 }}>{m.storeName || "Store"}</div>
-                  <div style={{ fontSize:11, color:"#64748B" }}>{m.contactName || "-"} • {m.storeCategory || "sari"}</div>
+                  <div style={{ fontSize:11, color:"#64748B" }}>{m.contactName || "-"} • {m.category || m.storeCategory || "sari"}</div>
                 </div>
                 <button onClick={() => onToggleFeatured?.(m.id, m.featuredInApp !== true)} style={{
                   padding:"7px 10px",

@@ -1133,7 +1133,7 @@ function App(){
         <div style={{padding:"12px",background:"#f8fafc",borderRadius:12,border:"1px solid var(--line)"}}>
           <div style={{fontWeight:700}}>{merchant.storeName||"Your Store"}</div>
           <div className="muted" style={{fontSize:12,marginTop:2}}>{merchant.address||"No address set"}</div>
-          {merchant.category && <div className="muted" style={{fontSize:12,marginTop:2}}>Category: {merchant.category}</div>}
+          {(merchant.category || merchant.storeCategory) && <div className="muted" style={{fontSize:12,marginTop:2}}>Category: {merchant.category || merchant.storeCategory}</div>}
           {merchant.phone && <div className="muted" style={{fontSize:12,marginTop:2}}>Phone: {merchant.phone}</div>}
           {merchant.operatingHours && <div className="muted" style={{fontSize:12,marginTop:2}}>Hours: {merchant.operatingHours}</div>}
         </div>
