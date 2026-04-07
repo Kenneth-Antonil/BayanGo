@@ -1744,13 +1744,24 @@
           if (p.source !== "partner" || p.merchantId !== activeStoreProfile?.merchantId || p.active === false) return;
           counts[p.cat] = (counts[p.cat] || 0) + 1;
         });
-        const tabs = [{ id: "all", label: "All", count: Object.values(counts).reduce((sum, v) => sum + v, 0), icon: "layer-group", color: "#334155" }];
+        const totalCount = Object.values(counts).reduce((sum, v) => sum + v, 0);
+        const tabs = [{ id: "all", label: "All", count: totalCount, icon: "layer-group", color: "#334155" }];
+
+        storeListingCategories.forEach((cat) => {
+          if (cat.id === "all") return;
+          const count = counts[cat.id] || 0;
+          if (count === 0 && !cat.isCustom) return;
+          tabs.push({ ...cat, count });
+        });
+
         Object.keys(counts).forEach((catId) => {
+          if (tabs.some((tab) => tab.id === catId)) return;
           const meta = storeCategoryMap[catId] || { id: catId, label: catId, icon: "tag", color: "#64748B" };
           tabs.push({ ...meta, count: counts[catId] });
         });
+
         return tabs;
-      }, [activeStoreProfile?.merchantId, products, storeCategoryMap]);
+      }, [activeStoreProfile?.merchantId, products, storeCategoryMap, storeListingCategories]);
       const activeStoreBanners = useMemo(() => {
         const raw = activeStoreProfile?.storeBanners;
         if (!raw) return [];
