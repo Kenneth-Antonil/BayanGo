@@ -817,7 +817,7 @@
     }
 
     function PartnersPanel({ applications, merchants, onDecide, onToggleFeatured }) {
-      const pending = applications.filter(a => !["approved", "rejected"].includes(String(a.status || "").toLowerCase()));
+      const pending = applications.filter(a => (a.status || "pending") === "pending");
       return (
         <div style={{ padding:"16px 20px" }}>
           <div style={{ fontSize:20, fontWeight:800, color:"#0F172A", marginBottom:10 }}>Partner Merchants</div>
@@ -1680,7 +1680,7 @@
               { key:"grocery", label:"Grocery",      icon:"basket-shopping" },
               { key:"products",label:"Produkto",     icon:"store" },
               { key:"data",    label:"Data",         icon:"chart-column" },
-              { key:"partners",label:"Partners",     icon:"handshake", badge: partnerApplications.filter(a => !["approved", "rejected"].includes(String(a.status || "").toLowerCase())).length },
+              { key:"partners",label:"Partners",     icon:"handshake", badge: partnerApplications.filter(a => (a.status || "pending") === "pending").length },
               { key:"vouchers",label:"Vouchers",     icon:"ticket" },
               { key:"settings",label:"Settings",     icon:"gear" },
             ].map(t => (
