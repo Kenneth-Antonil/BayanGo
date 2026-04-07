@@ -2288,7 +2288,7 @@
                       </div>
                     )}
                     {p.img && p.img.startsWith("http")
-                      ? <img src={p.img} alt={p.name} style={{width:"100%",height:"100%",objectFit:"contain",padding:"6px"}} onError={e=>{e.target.style.display="none";e.target.nextSibling.style.display="flex";}} />
+                      ? <img src={p.img} alt={p.name} style={{width:"100%",height:"100%",objectFit:"cover"}} onError={e=>{e.target.style.display="none";e.target.nextSibling.style.display="flex";}} />
                       : null}
                     <div style={{display:p.img&&p.img.startsWith("http")?"none":"flex",alignItems:"center",justifyContent:"center",width:"100%",height:"100%"}}>
                       <Ic n={CATEGORIES.find(c=>c.id===p.cat)?.icon} size={40} style={{color:CATEGORIES.find(c=>c.id===p.cat)?.color,opacity:.5}} />
@@ -2315,8 +2315,8 @@
                         })}
                       </div>
                     )}
-                    <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between" }}>
-                      <div>
+                    <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", gap:8, flexWrap:"wrap" }}>
+                      <div style={{ minWidth:0, flex:"1 1 auto" }}>
                         <span style={{ fontSize:17, fontWeight:800, color:"#166534" }}>
                           {p.unit === "kg" ? fmt(p.price * (cartWeightUnit[p.id] || 1)) : fmt(p.price)}
                         </span>
@@ -3096,7 +3096,7 @@
                         )}
                         <div style={{
                           height:116, overflow:"hidden", background:`linear-gradient(135deg,${(storeCategoryMap[p.cat]?.color || "#94A3B8")}12,${(storeCategoryMap[p.cat]?.color || "#94A3B8")}06)`,
-                          display:"flex", alignItems:"center", justifyContent:"center", padding:"12px"
+                          display:"flex", alignItems:"center", justifyContent:"center"
                         }}>
                           {p.merchantLogo && (
                             <div style={{
@@ -3107,9 +3107,9 @@
                             </div>
                           )}
                           {p.img && p.img.startsWith("http")
-                            ? <img src={p.img} alt={p.name} style={{ width:84, height:84, borderRadius:16, objectFit:"contain", background:"#fff", border:"1px solid #DCFCE7", padding:"8px", boxShadow:"inset 0 1px 0 rgba(255,255,255,.7)" }} onError={e=>{e.target.style.display="none";e.target.nextSibling.style.display="flex";}} />
+                            ? <img src={p.img} alt={p.name} style={{ width:"100%", height:"100%", objectFit:"cover" }} onError={e=>{e.target.style.display="none";e.target.nextSibling.style.display="flex";}} />
                             : null}
-                          <div style={{display:p.img&&p.img.startsWith("http")?"none":"flex",alignItems:"center",justifyContent:"center",width:84,height:84,borderRadius:16,background:"#fff",border:"1px solid #DCFCE7"}}>
+                          <div style={{display:p.img&&p.img.startsWith("http")?"none":"flex",alignItems:"center",justifyContent:"center",width:"100%",height:"100%"}}>
                             <Ic n={storeCategoryMap[p.cat]?.icon || "tag"} size={40} style={{color:storeCategoryMap[p.cat]?.color || "#94A3B8",opacity:.5}} />
                           </div>
                         </div>
@@ -3130,8 +3130,8 @@
                               })}
                             </div>
                           )}
-                          <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between" }}>
-                            <div>
+                          <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", gap:8, flexWrap:"wrap" }}>
+                            <div style={{ minWidth:0, flex:"1 1 auto" }}>
                               <span style={{ fontSize:17, fontWeight:800, color:"#166534" }}>
                                 {p.unit === "kg" ? fmt(p.price * (cartWeightUnit[p.id] || 1)) : fmt(p.price)}
                               </span>
@@ -3150,8 +3150,8 @@
                                 </div>
                               ) : (
                                 <button onClick={() => add(p.id)} style={{
-                                  minWidth:108, height:36, borderRadius:11, background:"linear-gradient(135deg,#166534,#22C55E)", color:"#fff", fontSize:12, fontWeight:800,
-                                  display:"flex", alignItems:"center", justifyContent:"center", gap:6, boxShadow:"0 6px 16px rgba(34,197,94,.34)", padding:"0 12px"
+                                  minWidth:96, height:36, borderRadius:11, background:"linear-gradient(135deg,#166534,#22C55E)", color:"#fff", fontSize:12, fontWeight:800,
+                                  display:"flex", alignItems:"center", justifyContent:"center", gap:6, boxShadow:"0 6px 16px rgba(34,197,94,.34)", padding:"0 12px", marginLeft:"auto"
                                 }}><Ic n="bag-shopping" size={12} />Add to Bag</button>
                               )
                             )}
