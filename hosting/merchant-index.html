@@ -21,7 +21,7 @@ const app=firebase.initializeApp({apiKey:"AIzaSyC0AQ3rkH-fhxlThobjDDtrvxttAfFLXT
 const db=firebase.database(app);const auth=firebase.auth(app);const storage=firebase.storage(app);
 </script>
 <script type="text/babel">
-const CATEGORIES=["isda","karne","gulay","prutas","ulam","sari","gamot","hardware"];
+const CATEGORIES=["isda","karne","gulay","prutas","bigas","ulam","sari","gamot","hardware"];
 function App(){
  const displayOrderStatus=(order)=>{
   if(order?.status==='delivered') return 'delivered';
