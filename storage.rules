@@ -23,6 +23,11 @@ service firebase.storage {
       allow write: if isSignedIn();
     }
 
+    match /product_images/{allPaths=**} {
+      allow read: if true;
+      allow write: if isSignedIn();
+    }
+
     match /order_proofs/{allPaths=**} {
       allow read: if isSignedIn();
       allow write: if isSignedIn();
