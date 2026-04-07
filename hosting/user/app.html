@@ -2975,6 +2975,7 @@
                   <div style={{ minWidth:0 }}>
                     <div style={{ fontSize:18, fontWeight:900, color:"#111827", whiteSpace:"nowrap", textOverflow:"ellipsis", overflow:"hidden" }}>{activeStoreProfile.storeName}</div>
                     <div style={{ fontSize:11, color:"#64748B" }}>{activeStoreProfile.storeOpen ? "Open" : "Closed"} • {storeListings.length} listings</div>
+                    <div style={{ fontSize:11, color:"#64748B", marginTop:2 }}>Category: {CATEGORIES.find(c => c.id === activeStoreProfile.storeCategory)?.label || activeStoreProfile.storeCategory || "General Goods"}</div>
                   </div>
                 </div>
                 {!!activeStoreProfile.storeDescription && (
@@ -3015,7 +3016,7 @@
                           }}>SOLD OUT</div>
                         )}
                         <div style={{
-                          height:116, overflow:"hidden", background:`linear-gradient(135deg,${CATEGORIES.find(c=>c.id===p.cat)?.color}12,${CATEGORIES.find(c=>c.id===p.cat)?.color}06)`,
+                          height:116, overflow:"hidden", background:`linear-gradient(135deg,${(CATEGORIES.find(c=>c.id===p.cat)?.color || "#94A3B8")}12,${(CATEGORIES.find(c=>c.id===p.cat)?.color || "#94A3B8")}06)`,
                           display:"flex", alignItems:"center", justifyContent:"center", padding:"12px"
                         }}>
                           {p.merchantLogo && (
@@ -3030,7 +3031,7 @@
                             ? <img src={p.img} alt={p.name} style={{ width:84, height:84, borderRadius:16, objectFit:"contain", background:"#fff", border:"1px solid #DCFCE7", padding:"8px", boxShadow:"inset 0 1px 0 rgba(255,255,255,.7)" }} onError={e=>{e.target.style.display="none";e.target.nextSibling.style.display="flex";}} />
                             : null}
                           <div style={{display:p.img&&p.img.startsWith("http")?"none":"flex",alignItems:"center",justifyContent:"center",width:84,height:84,borderRadius:16,background:"#fff",border:"1px solid #DCFCE7"}}>
-                            <Ic n={CATEGORIES.find(c=>c.id===p.cat)?.icon} size={40} style={{color:CATEGORIES.find(c=>c.id===p.cat)?.color,opacity:.5}} />
+                            <Ic n={CATEGORIES.find(c=>c.id===p.cat)?.icon || "tag"} size={40} style={{color:CATEGORIES.find(c=>c.id===p.cat)?.color || "#94A3B8",opacity:.5}} />
                           </div>
                         </div>
                         <div style={{ padding:"11px 14px 14px" }}>

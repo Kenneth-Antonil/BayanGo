@@ -428,6 +428,11 @@ function App(){
   const updatePrepTime=async(mins)=>{
     await db.ref("partner_merchants/"+user.uid).update({prepTimeMinutes:Math.max(5,Math.min(120,Number(mins)||15))});
   };
+  const updateStoreCategory=async(cat)=>{
+    if(!user) return;
+    const valid=CATEGORIES.some(c=>c.id===cat)?cat:"sari";
+    await db.ref("partner_merchants/"+user.uid).update({storeCategory:valid,category:valid,updatedAt:Date.now()});
+  };
 
   const uploadLogo=async(file)=>{
     if(!user||!file)return;
@@ -461,7 +466,7 @@ function App(){
         await ref.put(listingImageFile);
         img=await ref.getDownloadURL();
       }
-      const payload={name:form.name,cat:form.cat,img,price:Number(form.price||0),unit:form.unit||"pc",stock:Number(form.stock||0),basePrice:Number(form.price||0),autoPriceEnabled:false,merchantId:user.uid,merchantLogo:merchant?.logoUrl||"",storeName:merchant?.storeName||"",active:true,approved:true,menuTime:form.menuTime||"all",description:form.description||"",updatedAt:Date.now()};
+      const payload={name:form.name,cat:form.cat||"sari",img,price:Number(form.price||0),unit:form.unit||"pc",stock:Number(form.stock||0),basePrice:Number(form.price||0),autoPriceEnabled:false,merchantId:user.uid,merchantLogo:merchant?.logoUrl||"",storeName:merchant?.storeName||"",active:true,approved:true,menuTime:form.menuTime||"all",description:form.description||"",updatedAt:Date.now()};
       if(editingId){
         await db.ref("merchant_listings/"+user.uid+"/"+editingId).update(payload);
       }else{
@@ -707,6 +712,12 @@ function App(){
               <button className="btn-muted btn-sm" style={{width:34,textAlign:"center",padding:"7px 0"}} onClick={()=>updatePrepTime(prepTime+5)}>+</button>
               <span className="muted" style={{fontSize:12}}>min</span>
             </div>
+          </div>
+          <div style={{display:"flex",alignItems:"center",gap:14,padding:"14px 16px",background:"#f8fafc",borderRadius:12,border:"1px solid var(--line)"}}>
+            <div style={{flex:1}}><div style={{fontWeight:700,fontSize:14,lineHeight:"1.3"}}>Store Category</div><div className="muted" style={{fontSize:12,marginTop:3}}>Same category field used in the main user listing.</div></div>
+            <select value={merchant?.storeCategory||merchant?.category||"sari"} onChange={e=>updateStoreCategory(e.target.value)} style={{maxWidth:220}}>
+              {CATEGORIES.map(c=><option key={c.id} value={c.id}>{c.label}</option>)}
+            </select>
           </div>
         </div>
       </div>
