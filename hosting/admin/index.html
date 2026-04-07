@@ -490,6 +490,39 @@
               return "pending";
             };
 
+codex/fix-application-data-not-appearing-flkdbx
+            const collectApplicationsFromSnapshot = (snap, sourcePath) => {
+              const list = [];
+              snap.forEach(c => {
+                const value = c.val() || {};
+                const looksLikeApplication = typeof value === "object" && value !== null && (
+                  value.applicantUid ||
+                  value.storeName ||
+                  value.businessAddress ||
+                  value.contactName ||
+                  value.createdAt
+                );
+                if (looksLikeApplication) {
+                  list.push({ id: c.key, sourcePath, ...value });
+                  return;
+                }
+                if (typeof value === "object" && value !== null) {
+                  Object.entries(value).forEach(([nestedKey, nestedValue]) => {
+                    if (nestedValue && typeof nestedValue === "object") {
+                      list.push({
+                        id: nestedKey,
+                        parentId: c.key,
+                        sourcePath,
+                        ...(nestedValue || {})
+                      });
+                    }
+                  });
+                }
+              });
+              return list;
+            };
+
+main
             const syncPartnerApplications = () => {
               const merged = new Map();
               [...partnerAppsLatest, ...legacyPartnerAppsLatest, ...typoLegacyPartnerAppsLatest].forEach(app => {
@@ -506,9 +539,7 @@
 
             const partnerAppsRef = fns.ref(db, "partner_applications");
             fns.onValue(partnerAppsRef, snap => {
-              const list = [];
-              snap.forEach(c => list.push({ id: c.key, sourcePath: "partner_applications", ...(c.val() || {}) }));
-              partnerAppsLatest = list;
+              partnerAppsLatest = collectApplicationsFromSnapshot(snap, "partner_applications");
               syncPartnerApplications();
             }, err => {
               console.error("Partner applications snapshot error:", err.code, err.message);
@@ -520,9 +551,7 @@
 
             const legacyPartnerAppsRef = fns.ref(db, "merchant_applications");
             fns.onValue(legacyPartnerAppsRef, snap => {
-              const list = [];
-              snap.forEach(c => list.push({ id: c.key, sourcePath: "merchant_applications", ...(c.val() || {}) }));
-              legacyPartnerAppsLatest = list;
+              legacyPartnerAppsLatest = collectApplicationsFromSnapshot(snap, "merchant_applications");
               syncPartnerApplications();
             }, err => {
               const code = String(err?.code || "").toLowerCase();
@@ -535,9 +564,7 @@
 
             const typoLegacyPartnerAppsRef = fns.ref(db, "mechant_applications");
             fns.onValue(typoLegacyPartnerAppsRef, snap => {
-              const list = [];
-              snap.forEach(c => list.push({ id: c.key, sourcePath: "mechant_applications", ...(c.val() || {}) }));
-              typoLegacyPartnerAppsLatest = list;
+              typoLegacyPartnerAppsLatest = collectApplicationsFromSnapshot(snap, "mechant_applications");
               syncPartnerApplications();
             }, err => {
               const code = String(err?.code || "").toLowerCase();
