@@ -483,12 +483,56 @@
             let partnerAppsLatest = [];
             let legacyPartnerAppsLatest = [];
             let typoLegacyPartnerAppsLatest = [];
+            const normalizeApplicationStatus = (rawStatus) => {
+              const normalized = String(rawStatus || "").trim().toLowerCase();
+              if (!normalized) return "pending";
+              if (normalized === "approved" || normalized === "rejected") return normalized;
+              return "pending";
+            };
+
+            const isApplicationRecord = (value) => {
+              if (!value || typeof value !== "object") return false;
+              return (
+                typeof value.applicantUid === "string" ||
+                typeof value.storeName === "string" ||
+                typeof value.businessAddress === "string" ||
+                typeof value.contactName === "string" ||
+                Number.isFinite(Number(value.createdAt))
+              );
+            };
+
+            const collectApplicationsFromSnapshot = (snap, sourcePath) => {
+              const list = [];
+              snap.forEach(c => {
+                const value = c.val() || {};
+                const looksLikeApplication = isApplicationRecord(value);
+                if (looksLikeApplication) {
+                  list.push({ id: c.key, sourcePath, ...value });
+                  return;
+                }
+                if (typeof value === "object" && value !== null) {
+                  Object.entries(value).forEach(([nestedKey, nestedValue]) => {
+                    if (isApplicationRecord(nestedValue)) {
+                      list.push({
+                        id: nestedKey,
+                        parentId: c.key,
+                        sourcePath,
+                        ...(nestedValue || {})
+                      });
+                    }
+                  });
+                }
+              });
+              return list;
+            };
+
             const syncPartnerApplications = () => {
               const merged = new Map();
               [...partnerAppsLatest, ...legacyPartnerAppsLatest, ...typoLegacyPartnerAppsLatest].forEach(app => {
+                const normalizedApp = { ...app, status: normalizeApplicationStatus(app.status) };
                 const existing = merged.get(app.id);
-                if (!existing || Number(app.createdAt || 0) >= Number(existing.createdAt || 0)) {
-                  merged.set(app.id, app);
+                if (!existing || Number(normalizedApp.createdAt || 0) >= Number(existing.createdAt || 0)) {
+                  merged.set(app.id, normalizedApp);
                 }
               });
               const list = Array.from(merged.values());
@@ -498,9 +542,7 @@
 
             const partnerAppsRef = fns.ref(db, "partner_applications");
             fns.onValue(partnerAppsRef, snap => {
-              const list = [];
-              snap.forEach(c => list.push({ id: c.key, sourcePath: "partner_applications", ...(c.val() || {}) }));
-              partnerAppsLatest = list;
+              partnerAppsLatest = collectApplicationsFromSnapshot(snap, "partner_applications");
               syncPartnerApplications();
             }, err => {
               console.error("Partner applications snapshot error:", err.code, err.message);
@@ -512,9 +554,7 @@
 
             const legacyPartnerAppsRef = fns.ref(db, "merchant_applications");
             fns.onValue(legacyPartnerAppsRef, snap => {
-              const list = [];
-              snap.forEach(c => list.push({ id: c.key, sourcePath: "merchant_applications", ...(c.val() || {}) }));
-              legacyPartnerAppsLatest = list;
+              legacyPartnerAppsLatest = collectApplicationsFromSnapshot(snap, "merchant_applications");
               syncPartnerApplications();
             }, err => {
               const code = String(err?.code || "").toLowerCase();
@@ -527,9 +567,7 @@
 
             const typoLegacyPartnerAppsRef = fns.ref(db, "mechant_applications");
             fns.onValue(typoLegacyPartnerAppsRef, snap => {
-              const list = [];
-              snap.forEach(c => list.push({ id: c.key, sourcePath: "mechant_applications", ...(c.val() || {}) }));
-              typoLegacyPartnerAppsLatest = list;
+              typoLegacyPartnerAppsLatest = collectApplicationsFromSnapshot(snap, "mechant_applications");
               syncPartnerApplications();
             }, err => {
               const code = String(err?.code || "").toLowerCase();
@@ -792,9 +830,9 @@
             <div style={{ fontSize:14, fontWeight:800, marginBottom:10 }}>Pending Applications ({pending.length})</div>
             {pending.length === 0 ? <div style={{ fontSize:12, color:"#64748B" }}>No pending partner applications.</div> : pending.map(app => (
               <div key={app.id} style={{ border:"1px solid #E5E7EB", borderRadius:12, padding:12, marginBottom:10 }}>
-                <div style={{ fontWeight:800 }}>{app.storeName || "Unnamed store"}</div>
-                <div style={{ fontSize:12, color:"#64748B", marginTop:2 }}>{app.contactName || "-"} • {app.contactPhone || "-"}</div>
-                <div style={{ fontSize:12, color:"#334155", marginTop:4 }}>{app.description || "No description provided."}</div>
+                <div style={{ fontWeight:800 }}>{String(app.storeName || "Unnamed store")}</div>
+                <div style={{ fontSize:12, color:"#64748B", marginTop:2 }}>{String(app.contactName || "-")} • {String(app.contactPhone || "-")}</div>
+                <div style={{ fontSize:12, color:"#334155", marginTop:4 }}>{typeof app.description === "string" ? app.description : "No description provided."}</div>
                 <div style={{ display:"flex", gap:8, marginTop:10 }}>
                   <button onClick={() => onDecide(app, "approve")} style={{ padding:"8px 12px", borderRadius:10, background:"#166534", color:"#fff", fontWeight:700, fontSize:12 }}>Approve</button>
                   <button onClick={() => onDecide(app, "reject")} style={{ padding:"8px 12px", borderRadius:10, background:"#EF4444", color:"#fff", fontWeight:700, fontSize:12 }}>Reject</button>
