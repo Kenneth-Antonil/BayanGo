@@ -821,6 +821,15 @@
 
     function PartnersPanel({ applications, merchants, onDecide, onToggleFeatured }) {
       const pending = applications.filter(a => !["approved", "rejected"].includes(String(a.status || "").toLowerCase()));
+      const approvedMerchants = merchants.filter((merchant) => {
+        const normalizedStatus = String(merchant?.status || "").trim().toLowerCase();
+        const normalizedApproved = String(merchant?.approved || "").trim().toLowerCase();
+        return merchant?.approved === true
+          || merchant?.approved === 1
+          || normalizedApproved === "true"
+          || normalizedApproved === "approved"
+          || normalizedStatus === "approved";
+      });
       const [rejectingId, setRejectingId] = React.useState("");
       const [rejectionMessage, setRejectionMessage] = React.useState("");
       const knownMetaFields = new Set([
@@ -949,8 +958,8 @@
             ))}
           </div>
           <div style={{ background:"#fff", border:"1px solid #E2E8F0", borderRadius:16, padding:14 }}>
-            <div style={{ fontSize:14, fontWeight:800, marginBottom:10 }}>Approved Merchants ({merchants.filter(m => m.approved).length})</div>
-            {merchants.filter(m => m.approved).map(m => (
+            <div style={{ fontSize:14, fontWeight:800, marginBottom:10 }}>Approved Merchants ({approvedMerchants.length})</div>
+            {approvedMerchants.map(m => (
               <div key={m.id} style={{ display:"flex", alignItems:"center", gap:10, padding:"8px 0", borderTop:"1px solid #F1F5F9" }}>
                 {m.logoUrl ? <img src={m.logoUrl} alt={m.storeName} style={{ width:32, height:32, borderRadius:"50%", objectFit:"cover", border:"1px solid #E2E8F0" }} /> : <div style={{ width:32, height:32, borderRadius:"50%", background:"#E2E8F0" }} />}
                 <div style={{ flex:1, minWidth:0 }}>
