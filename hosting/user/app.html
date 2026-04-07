@@ -796,7 +796,7 @@
                 storeOpen: merchant.storeOpen !== false,
                 merchantFeatured: merchant.featuredInApp === true,
                 storeDescription: merchant.description || "",
-                storeCategory: merchant.storeCategory || entry.cat || "sari",
+                storeCategory: merchant.category || merchant.storeCategory || entry.cat || "sari",
                 storeBanners: merchant.promoBanners || null,
                 storeCustomCategories: merchant.customCategories || [],
               };
@@ -1662,7 +1662,7 @@
               merchantLogo: p.merchantLogo || "",
               storeOpen: p.storeOpen !== false,
               storeDescription: p.storeDescription || "",
-              storeCategory: p.storeCategory || "sari",
+              storeCategory: p.category || p.storeCategory || "sari",
               merchantFeatured: p.merchantFeatured === true,
               storeBanners: p.storeBanners || null,
               storeCustomCategories: p.storeCustomCategories || [],
