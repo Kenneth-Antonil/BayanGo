@@ -673,15 +673,18 @@
         await fns.remove(fns.ref(db, "vouchers/" + voucherId));
       }, []);
 
-      const decidePartnerApplication = useCallback(async (application, decision) => {
+      const decidePartnerApplication = useCallback(async (application, decision, reviewMessage = "") => {
         const { db, fns } = await initFirebase();
         const status = decision === "approve" ? "approved" : "rejected";
         const uid = application.applicantUid || application.uid;
+        const cleanReviewMessage = String(reviewMessage || "").trim();
         const updates = {
           status,
           reviewedAt: Date.now(),
           reviewedByUid: user?.uid || null,
           reviewedByEmail: user?.email || null,
+          reviewMessage: cleanReviewMessage || null,
+          rejectionMessage: status === "rejected" ? (cleanReviewMessage || null) : null,
         };
         const applicationUpdates = {
           ["partner_applications/" + application.id]: updates,
@@ -818,6 +821,62 @@
 
     function PartnersPanel({ applications, merchants, onDecide, onToggleFeatured }) {
       const pending = applications.filter(a => !["approved", "rejected"].includes(String(a.status || "").toLowerCase()));
+      const [rejectingId, setRejectingId] = React.useState("");
+      const [rejectionMessage, setRejectionMessage] = React.useState("");
+      const knownMetaFields = new Set([
+        "id", "parentId", "sourcePath", "status", "createdAt", "updatedAt", "reviewedAt", "reviewedByUid", "reviewedByEmail", "reviewMessage", "rejectionMessage"
+      ]);
+      const extractAttachmentUrls = React.useCallback((application) => {
+        const urls = [];
+        const pushUrl = (urlValue, label) => {
+          if (typeof urlValue !== "string") return;
+          const trimmed = urlValue.trim();
+          if (!/^https?:\/\//i.test(trimmed)) return;
+          if (!/\.(pdf|png|jpg|jpeg|webp|gif|heic|doc|docx)$/i.test(trimmed) && !trimmed.includes("firebasestorage")) return;
+          urls.push({ label, url: trimmed });
+        };
+        Object.entries(application || {}).forEach(([key, value]) => {
+          if (typeof value === "string") {
+            pushUrl(value, key);
+            return;
+          }
+          if (Array.isArray(value)) {
+            value.forEach((item, idx) => {
+              if (typeof item === "string") pushUrl(item, `${key}[${idx}]`);
+              if (item && typeof item === "object") {
+                Object.entries(item).forEach(([nestedKey, nestedValue]) => {
+                  if (typeof nestedValue === "string") pushUrl(nestedValue, `${key}[${idx}].${nestedKey}`);
+                });
+              }
+            });
+            return;
+          }
+          if (value && typeof value === "object") {
+            Object.entries(value).forEach(([nestedKey, nestedValue]) => {
+              if (typeof nestedValue === "string") pushUrl(nestedValue, `${key}.${nestedKey}`);
+            });
+          }
+        });
+        return urls;
+      }, []);
+      const startReject = (app) => {
+        setRejectingId(app.id);
+        setRejectionMessage(app.rejectionMessage || app.reviewMessage || "");
+      };
+      const submitReject = async (app) => {
+        await onDecide(app, "reject", rejectionMessage);
+        setRejectingId("");
+        setRejectionMessage("");
+      };
+      const fmtDateTime = (value) => {
+        const timestamp = Number(value || 0);
+        if (!timestamp) return "—";
+        try {
+          return new Date(timestamp).toLocaleString("en-PH", { dateStyle:"medium", timeStyle:"short" });
+        } catch (_) {
+          return "—";
+        }
+      };
       return (
         <div style={{ padding:"16px 20px" }}>
           <div style={{ fontSize:20, fontWeight:800, color:"#0F172A", marginBottom:10 }}>Partner Merchants</div>
@@ -828,10 +887,64 @@
                 <div style={{ fontWeight:800 }}>{app.storeName || "Unnamed store"}</div>
                 <div style={{ fontSize:12, color:"#64748B", marginTop:2 }}>{app.contactName || "-"} • {app.contactPhone || "-"}</div>
                 <div style={{ fontSize:12, color:"#334155", marginTop:4 }}>{app.description || "No description provided."}</div>
-                <div style={{ display:"flex", gap:8, marginTop:10 }}>
-                  <button onClick={() => onDecide(app, "approve")} style={{ padding:"8px 12px", borderRadius:10, background:"#166534", color:"#fff", fontWeight:700, fontSize:12 }}>Approve</button>
-                  <button onClick={() => onDecide(app, "reject")} style={{ padding:"8px 12px", borderRadius:10, background:"#EF4444", color:"#fff", fontWeight:700, fontSize:12 }}>Reject</button>
+                <div style={{ fontSize:11, color:"#64748B", marginTop:6 }}>
+                  Submitted: {fmtDateTime(app.createdAt)} • Source: {app.sourcePath || "partner_applications"}
                 </div>
+                <details style={{ marginTop:10, border:"1px solid #E2E8F0", borderRadius:10, padding:"8px 10px", background:"#F8FAFC" }}>
+                  <summary style={{ fontSize:12, fontWeight:700, cursor:"pointer", color:"#0F172A" }}>View complete application details</summary>
+                  <div style={{ marginTop:8, fontSize:11 }}>
+                    {extractAttachmentUrls(app).length > 0 ? (
+                      <div style={{ marginBottom:8 }}>
+                        <div style={{ fontWeight:700, color:"#0F172A", marginBottom:4 }}>Attachments</div>
+                        {extractAttachmentUrls(app).map((item, idx) => (
+                          <div key={item.url + idx} style={{ marginBottom:4 }}>
+                            <a href={item.url} target="_blank" rel="noopener noreferrer" style={{ color:"#0EA5E9", textDecoration:"underline" }}>
+                              {item.label}
+                            </a>
+                          </div>
+                        ))}
+                      </div>
+                    ) : (
+                      <div style={{ fontSize:11, color:"#64748B", marginBottom:8 }}>No attachment links detected.</div>
+                    )}
+                    <div style={{ fontWeight:700, color:"#0F172A", marginBottom:4 }}>Raw fields</div>
+                    <div style={{ display:"grid", gridTemplateColumns:"minmax(120px,180px) 1fr", gap:"4px 8px" }}>
+                      {Object.entries(app || {}).map(([key, value]) => {
+                        if (knownMetaFields.has(key)) return null;
+                        let display = value;
+                        if (typeof value === "object") {
+                          try { display = JSON.stringify(value); } catch (_) { display = "[Object]"; }
+                        }
+                        return (
+                          <React.Fragment key={key}>
+                            <div style={{ color:"#475569", wordBreak:"break-word" }}>{key}</div>
+                            <div style={{ color:"#0F172A", wordBreak:"break-word" }}>{String(display ?? "—")}</div>
+                          </React.Fragment>
+                        );
+                      })}
+                    </div>
+                  </div>
+                </details>
+                <div style={{ display:"flex", gap:8, marginTop:10 }}>
+                  <button onClick={() => onDecide(app, "approve", "")} style={{ padding:"8px 12px", borderRadius:10, background:"#166534", color:"#fff", fontWeight:700, fontSize:12 }}>Approve</button>
+                  <button onClick={() => startReject(app)} style={{ padding:"8px 12px", borderRadius:10, background:"#EF4444", color:"#fff", fontWeight:700, fontSize:12 }}>Reject</button>
+                </div>
+                {rejectingId === app.id && (
+                  <div style={{ marginTop:10, border:"1px solid #FECACA", borderRadius:10, padding:10, background:"#FEF2F2" }}>
+                    <div style={{ fontSize:12, fontWeight:700, color:"#7F1D1D", marginBottom:6 }}>Rejection message (shown to applicant)</div>
+                    <textarea
+                      value={rejectionMessage}
+                      onChange={(e) => setRejectionMessage(e.target.value)}
+                      placeholder="Tell the applicant why this was rejected..."
+                      rows={3}
+                      style={{ width:"100%", border:"1px solid #FCA5A5", borderRadius:8, padding:8, fontSize:12, resize:"vertical", background:"#fff" }}
+                    />
+                    <div style={{ display:"flex", gap:8, marginTop:8 }}>
+                      <button onClick={() => submitReject(app)} style={{ padding:"7px 10px", borderRadius:8, background:"#B91C1C", color:"#fff", fontSize:12, fontWeight:700 }}>Confirm Reject</button>
+                      <button onClick={() => { setRejectingId(""); setRejectionMessage(""); }} style={{ padding:"7px 10px", borderRadius:8, background:"#E2E8F0", color:"#334155", fontSize:12, fontWeight:700 }}>Cancel</button>
+                    </div>
+                  </div>
+                )}
               </div>
             ))}
           </div>
