@@ -641,6 +641,12 @@
         const status = decision === "approve" ? "approved" : "rejected";
         const uid = application.applicantUid || application.uid;
         const cleanReviewMessage = String(reviewMessage || "").trim();
+        const sourcePath = String(application?.sourcePath || "partner_applications").replace(/^\/+|\/+$/g, "") || "partner_applications";
+        const appId = String(application?.id || "").trim();
+        if (!appId) throw new Error("Missing application id.");
+        const applicationPath = application?.parentId
+          ? `${sourcePath}/${application.parentId}/${appId}`
+          : `${sourcePath}/${appId}`;
         const updates = {
           status,
           reviewedAt: Date.now(),
@@ -650,7 +656,7 @@
           rejectionMessage: status === "rejected" ? (cleanReviewMessage || null) : null,
         };
         const applicationUpdates = {
-          ["partner_applications/" + application.id]: updates,
+          [applicationPath]: updates,
         };
         await fns.update(fns.ref(db), applicationUpdates);
         if (decision === "approve" && uid) {
@@ -815,6 +821,7 @@
           const key = makeKey(merchant);
           byKey.set(key, {
             ...merchant,
+            _merchantId: merchant.id || merchant.applicantUid || merchant.uid || "",
             _source: "partner_merchants",
           });
         });
@@ -827,6 +834,7 @@
             id: application.id,
             applicationId: application.id,
             applicantUid: application.applicantUid || application.uid || "",
+            _merchantId: application.applicantUid || application.uid || "",
             contactName: application.contactName || "",
             contactPhone: application.contactPhone || "",
             storeName: application.storeName || "",
@@ -995,11 +1003,13 @@
                   <div style={{ fontWeight:700, fontSize:13 }}>{m.storeName || "Store"}</div>
                   <div style={{ fontSize:11, color:"#64748B" }}>{m.contactName || "-"} • {m.category || m.storeCategory || "sari"}</div>
                 </div>
-                <button onClick={() => onToggleFeatured?.(m.id, m.featuredInApp !== true)} style={{
+                <button disabled={!m._merchantId} onClick={() => onToggleFeatured?.(m._merchantId, m.featuredInApp !== true)} style={{
                   padding:"7px 10px",
                   borderRadius:999,
                   background:m.featuredInApp ? "#FDE68A" : "#E2E8F0",
                   color:m.featuredInApp ? "#92400E" : "#334155",
+                  opacity:m._merchantId ? 1 : 0.55,
+                  cursor:m._merchantId ? "pointer" : "not-allowed",
                   fontSize:11,
                   fontWeight:800
                 }}>{m.featuredInApp ? "Featured" : "Set Featured"}</button>
