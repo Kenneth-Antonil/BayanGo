@@ -490,6 +490,7 @@
               return "pending";
             };
 
+codex/fix-application-data-not-appearing-flkdbx
             const collectApplicationsFromSnapshot = (snap, sourcePath) => {
               const list = [];
               snap.forEach(c => {
@@ -521,6 +522,7 @@
               return list;
             };
 
+main
             const syncPartnerApplications = () => {
               const merged = new Map();
               [...partnerAppsLatest, ...legacyPartnerAppsLatest, ...typoLegacyPartnerAppsLatest].forEach(app => {
@@ -817,7 +819,7 @@
     }
 
     function PartnersPanel({ applications, merchants, onDecide, onToggleFeatured }) {
-      const pending = applications.filter(a => (a.status || "pending") === "pending");
+      const pending = applications.filter(a => !["approved", "rejected"].includes(String(a.status || "").toLowerCase()));
       return (
         <div style={{ padding:"16px 20px" }}>
           <div style={{ fontSize:20, fontWeight:800, color:"#0F172A", marginBottom:10 }}>Partner Merchants</div>
@@ -1680,7 +1682,7 @@
               { key:"grocery", label:"Grocery",      icon:"basket-shopping" },
               { key:"products",label:"Produkto",     icon:"store" },
               { key:"data",    label:"Data",         icon:"chart-column" },
-              { key:"partners",label:"Partners",     icon:"handshake", badge: partnerApplications.filter(a => (a.status || "pending") === "pending").length },
+              { key:"partners",label:"Partners",     icon:"handshake", badge: partnerApplications.filter(a => !["approved", "rejected"].includes(String(a.status || "").toLowerCase())).length },
               { key:"vouchers",label:"Vouchers",     icon:"ticket" },
               { key:"settings",label:"Settings",     icon:"gear" },
             ].map(t => (
