@@ -481,8 +481,6 @@
             unsubAppUsage = () => fns.off(usageRef);
 
             let partnerAppsLatest = [];
-            let legacyPartnerAppsLatest = [];
-            let typoLegacyPartnerAppsLatest = [];
             const normalizeApplicationStatus = (rawStatus) => {
               const normalized = String(rawStatus || "").trim().toLowerCase();
               if (!normalized) return "pending";
@@ -522,15 +520,7 @@
             };
 
             const syncPartnerApplications = () => {
-              const merged = new Map();
-              [...partnerAppsLatest, ...legacyPartnerAppsLatest, ...typoLegacyPartnerAppsLatest].forEach(app => {
-                const normalizedApp = { ...app, status: normalizeApplicationStatus(app.status) };
-                const existing = merged.get(app.id);
-                if (!existing || Number(normalizedApp.createdAt || 0) >= Number(existing.createdAt || 0)) {
-                  merged.set(app.id, normalizedApp);
-                }
-              });
-              const list = Array.from(merged.values());
+              const list = [...partnerAppsLatest].map(app => ({ ...app, status: normalizeApplicationStatus(app.status) }));
               list.sort((a, b) => Number(b.createdAt || 0) - Number(a.createdAt || 0));
               setPartnerApplications(list);
             };
@@ -547,35 +537,8 @@
               }
             });
 
-            const legacyPartnerAppsRef = fns.ref(db, "merchant_applications");
-            fns.onValue(legacyPartnerAppsRef, snap => {
-              legacyPartnerAppsLatest = collectApplicationsFromSnapshot(snap, "merchant_applications");
-              syncPartnerApplications();
-            }, err => {
-              const code = String(err?.code || "").toLowerCase();
-              if (!code.includes("permission")) {
-                console.error("Legacy merchant applications snapshot error:", err.code, err.message);
-              }
-              legacyPartnerAppsLatest = [];
-              syncPartnerApplications();
-            });
-
-            const typoLegacyPartnerAppsRef = fns.ref(db, "mechant_applications");
-            fns.onValue(typoLegacyPartnerAppsRef, snap => {
-              typoLegacyPartnerAppsLatest = collectApplicationsFromSnapshot(snap, "mechant_applications");
-              syncPartnerApplications();
-            }, err => {
-              const code = String(err?.code || "").toLowerCase();
-              if (!code.includes("permission")) {
-                console.error("Legacy mechant applications snapshot error:", err.code, err.message);
-              }
-              typoLegacyPartnerAppsLatest = [];
-              syncPartnerApplications();
-            });
             unsubPartnerApplications = () => {
               fns.off(partnerAppsRef);
-              fns.off(legacyPartnerAppsRef);
-              fns.off(typoLegacyPartnerAppsRef);
             };
 
             const partnerMerchantsRef = fns.ref(db, "partner_merchants");
@@ -689,10 +652,6 @@
         const applicationUpdates = {
           ["partner_applications/" + application.id]: updates,
         };
-        if (application.sourcePath === "merchant_applications" || application.sourcePath === "mechant_applications" || application.mirrorLegacy !== false) {
-          applicationUpdates["merchant_applications/" + application.id] = updates;
-          applicationUpdates["mechant_applications/" + application.id] = updates;
-        }
         await fns.update(fns.ref(db), applicationUpdates);
         if (decision === "approve" && uid) {
           const merchantCategory = application.category || application.storeCategory || "sari";
