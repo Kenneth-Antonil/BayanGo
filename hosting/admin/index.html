@@ -2482,6 +2482,94 @@
       );
     }
 
+    function ProductModal({ product, onSave, onClose, saving }) {
+      const [name, setName] = useState(product?.name || "");
+      const [cat, setCat] = useState(product?.cat || "isda");
+      const [unit, setUnit] = useState(product?.unit || "kg");
+      const [basePrice, setBasePrice] = useState(
+        Number.isFinite(Number(product?.basePrice))
+          ? String(Number(product.basePrice))
+          : Number.isFinite(Number(product?.price))
+            ? String(Number(product.price))
+            : ""
+      );
+      const [img, setImg] = useState(product?.img || "");
+      const [stock, setStock] = useState(product?.stock !== false);
+      const [autoPriceEnabled, setAutoPriceEnabled] = useState(product?.autoPriceEnabled !== false);
+
+      const handleSubmit = async (e) => {
+        e?.preventDefault?.();
+        const cleanName = name.trim();
+        if (!cleanName) return alert("Kailangan ang pangalan ng produkto.");
+        const parsedPrice = Number(basePrice);
+        if (!Number.isFinite(parsedPrice) || parsedPrice < 0) {
+          return alert("Maglagay ng tamang base price.");
+        }
+        await onSave({
+          name: cleanName,
+          cat,
+          unit: unit.trim() || "kg",
+          basePrice: roundPrice(parsedPrice),
+          price: roundPrice(parsedPrice),
+          img: img.trim(),
+          stock,
+          autoPriceEnabled,
+        });
+      };
+
+      return (
+        <div style={{ position:"fixed", inset:0, zIndex:450, background:"rgba(0,0,0,.6)", backdropFilter:"blur(3px)", display:"flex", alignItems:"center", justifyContent:"center", padding:20 }}
+          onClick={() => !saving && onClose?.()}>
+          <form className="pop" onClick={e => e.stopPropagation()} onSubmit={handleSubmit} style={{ width:"100%", maxWidth:520, background:"#fff", borderRadius:20, padding:"20px 18px", border:"1px solid #E5E7EB" }}>
+            <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", marginBottom:12 }}>
+              <h3 style={{ fontSize:18, fontWeight:800, margin:0 }}>
+                <Ic n={product ? "pen-to-square" : "plus"} style={{ marginRight:8, color:"#166534" }} />
+                {product ? "I-edit ang Produkto" : "Dagdag na Produkto"}
+              </h3>
+              <button type="button" onClick={() => !saving && onClose?.()} style={{ width:32, height:32, borderRadius:10, border:"1px solid #E5E7EB", background:"#fff", color:"#666" }}>✕</button>
+            </div>
+
+            <div style={{ display:"grid", gap:10 }}>
+              <input value={name} onChange={e => setName(e.target.value)} placeholder="Pangalan ng produkto" required
+                style={{ padding:"11px 12px", borderRadius:10, border:"1px solid #D1D5DB", fontSize:14 }} />
+
+              <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:10 }}>
+                <select value={cat} onChange={e => setCat(e.target.value)} style={{ padding:"11px 12px", borderRadius:10, border:"1px solid #D1D5DB", background:"#fff" }}>
+                  {CATEGORIES.map(c => <option key={c.id} value={c.id}>{c.label}</option>)}
+                </select>
+                <input value={unit} onChange={e => setUnit(e.target.value)} placeholder="Unit (kg, pc, bundle)"
+                  style={{ padding:"11px 12px", borderRadius:10, border:"1px solid #D1D5DB", fontSize:14 }} />
+              </div>
+
+              <input type="number" min="0" step="1" value={basePrice} onChange={e => setBasePrice(e.target.value)} placeholder="Base price (₱)"
+                style={{ padding:"11px 12px", borderRadius:10, border:"1px solid #D1D5DB", fontSize:14 }} />
+              <input value={img} onChange={e => setImg(e.target.value)} placeholder="Image URL (optional)"
+                style={{ padding:"11px 12px", borderRadius:10, border:"1px solid #D1D5DB", fontSize:14 }} />
+
+              <label style={{ display:"flex", alignItems:"center", gap:8, fontSize:13, color:"#333" }}>
+                <input type="checkbox" checked={autoPriceEnabled} onChange={e => setAutoPriceEnabled(e.target.checked)} />
+                Enable auto pricing (base price × market factor)
+              </label>
+
+              <label style={{ display:"flex", alignItems:"center", gap:8, fontSize:13, color:"#333" }}>
+                <input type="checkbox" checked={stock} onChange={e => setStock(e.target.checked)} />
+                In stock
+              </label>
+            </div>
+
+            <div style={{ marginTop:16, display:"flex", gap:10 }}>
+              <button type="button" onClick={() => !saving && onClose?.()} disabled={saving} style={{ flex:1, padding:"12px", borderRadius:12, border:"1px solid #E5E7EB", background:"#fff", fontWeight:700 }}>
+                Cancel
+              </button>
+              <button type="submit" disabled={saving} style={{ flex:1, padding:"12px", borderRadius:12, border:"none", background:saving ? "#86EFAC" : "linear-gradient(135deg,#166534,#22C55E)", color:"#fff", fontWeight:800 }}>
+                {saving ? "Nagse-save..." : "Save Product"}
+              </button>
+            </div>
+          </form>
+        </div>
+      );
+    }
+
     /* ══════════════════ VOUCHERS PANEL ══════════════════ */
     function VouchersPanel({ vouchers, onAdd, onUpdate, onDelete }) {
       const [code, setCode] = useState("");
