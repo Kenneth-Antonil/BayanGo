@@ -1738,8 +1738,9 @@
                   background: activeCat===cat.id ? cat.color : "#fff",
                   color: activeCat===cat.id ? "#fff" : "#555",
                   boxShadow: activeCat===cat.id ? `0 4px 14px ${cat.color}40` : "0 1px 3px rgba(0,0,0,.06)",
-                  border: activeCat===cat.id ? "none" : "1px solid #E5E7EB",
-                  transition:"all .22s ease"
+                  border:"1px solid",
+                  borderColor: activeCat===cat.id ? cat.color : "#E5E7EB",
+                  transition:"background-color .22s ease, color .22s ease, box-shadow .22s ease, border-color .22s ease"
                 }}>
                   <Ic n={cat.icon} size={14} />{cat.label}
                 </button>
