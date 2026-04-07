@@ -126,7 +126,6 @@
         applicantEmail: u.email || '',
         status: 'pending',
         createdAt: Date.now(),
-        mirrorLegacy: true,
       };
 
       if (!payload.storeName || !payload.storeCategory || !payload.businessAddress || !payload.businessPermitNo || !payload.govIdType || !payload.contactName || !payload.contactPhone || !payload.operatingHours || !payload.description) {
@@ -152,15 +151,7 @@
         const newAppRef = db.ref('partner_applications').push();
         const appKey = newAppRef.key;
 
-        // Primary write path: always required.
         await db.ref('partner_applications/' + appKey).set(payload);
-
-        // Legacy mirror write: best-effort only so admin workflow is not blocked.
-        try {
-          await db.ref('merchant_applications/' + appKey).set(payload);
-        } catch (legacyErr) {
-          console.warn('Legacy merchant_applications mirror failed:', legacyErr);
-        }
 
         msgEl.style.color = '#166534';
         msgEl.textContent = 'Application submitted successfully! Hintayin ang approval sa admin dashboard.';

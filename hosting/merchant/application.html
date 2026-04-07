@@ -847,10 +847,7 @@
     try {
       const newRef = db.ref('partner_applications').push();
       const key    = newRef.key;
-      await db.ref().update({
-        ['partner_applications/' + key]:  { ...payload, mirrorLegacy: true },
-        ['merchant_applications/' + key]: { ...payload, mirrorLegacy: true }
-      });
+      await db.ref('partner_applications/' + key).set(payload);
       document.getElementById('main-form').style.display      = 'none';
       document.getElementById('stepper').style.display        = 'none';
       document.getElementById('success-screen').style.display = 'block';
