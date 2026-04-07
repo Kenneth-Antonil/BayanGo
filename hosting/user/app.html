@@ -3015,8 +3015,8 @@
                           }}>SOLD OUT</div>
                         )}
                         <div style={{
-                          height:96, overflow:"hidden", background:`linear-gradient(135deg,${CATEGORIES.find(c=>c.id===p.cat)?.color}12,${CATEGORIES.find(c=>c.id===p.cat)?.color}06)`,
-                          display:"flex", alignItems:"center", justifyContent:"center"
+                          height:116, overflow:"hidden", background:`linear-gradient(135deg,${CATEGORIES.find(c=>c.id===p.cat)?.color}12,${CATEGORIES.find(c=>c.id===p.cat)?.color}06)`,
+                          display:"flex", alignItems:"center", justifyContent:"center", padding:"12px"
                         }}>
                           {p.merchantLogo && (
                             <div style={{
@@ -3027,9 +3027,9 @@
                             </div>
                           )}
                           {p.img && p.img.startsWith("http")
-                            ? <img src={p.img} alt={p.name} style={{width:"100%",height:"100%",objectFit:"contain",padding:"6px"}} onError={e=>{e.target.style.display="none";e.target.nextSibling.style.display="flex";}} />
+                            ? <img src={p.img} alt={p.name} style={{ width:84, height:84, borderRadius:16, objectFit:"contain", background:"#fff", border:"1px solid #DCFCE7", padding:"8px", boxShadow:"inset 0 1px 0 rgba(255,255,255,.7)" }} onError={e=>{e.target.style.display="none";e.target.nextSibling.style.display="flex";}} />
                             : null}
-                          <div style={{display:p.img&&p.img.startsWith("http")?"none":"flex",alignItems:"center",justifyContent:"center",width:"100%",height:"100%"}}>
+                          <div style={{display:p.img&&p.img.startsWith("http")?"none":"flex",alignItems:"center",justifyContent:"center",width:84,height:84,borderRadius:16,background:"#fff",border:"1px solid #DCFCE7"}}>
                             <Ic n={CATEGORIES.find(c=>c.id===p.cat)?.icon} size={40} style={{color:CATEGORIES.find(c=>c.id===p.cat)?.color,opacity:.5}} />
                           </div>
                         </div>
@@ -3063,16 +3063,16 @@
                             </div>
                             {!isStoreClosed && p.stock && (
                               cart[p.id] ? (
-                                <div style={{ display:"flex", alignItems:"center", gap:5 }}>
-                                  <button onClick={() => rem(p.id)} style={{ width:28, height:28, borderRadius:8, background:"#F3F4F6", fontSize:16, fontWeight:700, color:"#555", display:"flex", alignItems:"center", justifyContent:"center" }}>−</button>
-                                  <span style={{ fontSize:14, fontWeight:800, minWidth:16, textAlign:"center" }}>{cart[p.id]}</span>
-                                  <button onClick={() => add(p.id)} style={{ width:28, height:28, borderRadius:8, background:"#22C55E", fontSize:16, fontWeight:700, color:"#fff", display:"flex", alignItems:"center", justifyContent:"center" }}>+</button>
+                                <div style={{ display:"flex", alignItems:"center", gap:6, background:"#F0FDF4", border:"1px solid #BBF7D0", borderRadius:12, padding:"4px" }}>
+                                  <button onClick={() => rem(p.id)} style={{ width:28, height:28, borderRadius:8, background:"#fff", fontSize:16, fontWeight:700, color:"#166534", display:"flex", alignItems:"center", justifyContent:"center", border:"1px solid #DCFCE7" }}>−</button>
+                                  <span style={{ fontSize:14, fontWeight:800, minWidth:18, textAlign:"center", color:"#166534" }}>{cart[p.id]}</span>
+                                  <button onClick={() => add(p.id)} style={{ width:28, height:28, borderRadius:8, background:"#16A34A", fontSize:16, fontWeight:700, color:"#fff", display:"flex", alignItems:"center", justifyContent:"center", boxShadow:"0 3px 8px rgba(22,163,74,.35)" }}>+</button>
                                 </div>
                               ) : (
                                 <button onClick={() => add(p.id)} style={{
-                                  width:34, height:34, borderRadius:10, background:"#22C55E", color:"#fff", fontSize:20,
-                                  display:"flex", alignItems:"center", justifyContent:"center", boxShadow:"0 3px 10px #22C55E40"
-                                }}>+</button>
+                                  minWidth:108, height:36, borderRadius:11, background:"linear-gradient(135deg,#166534,#22C55E)", color:"#fff", fontSize:12, fontWeight:800,
+                                  display:"flex", alignItems:"center", justifyContent:"center", gap:6, boxShadow:"0 6px 16px rgba(34,197,94,.34)", padding:"0 12px"
+                                }}><Ic n="bag-shopping" size={12} />Add to Bag</button>
                               )
                             )}
                           </div>
