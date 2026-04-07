@@ -798,6 +798,7 @@
                 storeDescription: merchant.description || "",
                 storeCategory: merchant.storeCategory || entry.cat || "sari",
                 storeBanners: merchant.promoBanners || null,
+                storeCustomCategories: merchant.customCategories || [],
               };
             })
             .filter((entry) => entry.active !== false);
@@ -1491,6 +1492,7 @@
       const [showAddressEditor, setShowAddressEditor] = useState(false);
       const [showPaymentPicker, setShowPaymentPicker] = useState(false);
       const [activeStoreProfile, setActiveStoreProfile] = useState(null);
+      const [activeStoreCat, setActiveStoreCat] = useState("all");
       const [notifications, setNotifications]  = useState([]);
       const [notifLastSeen, setNotifLastSeen]  = useState(() => {
         try { return parseInt(localStorage.getItem("bayango_notif_last_seen") || "0", 10); } catch { return 0; }
@@ -1663,6 +1665,7 @@
               storeCategory: p.storeCategory || "sari",
               merchantFeatured: p.merchantFeatured === true,
               storeBanners: p.storeBanners || null,
+              storeCustomCategories: p.storeCustomCategories || [],
             };
           }
         });
@@ -1705,18 +1708,49 @@
         const store = partnerStores.find((entry) => entry.merchantId === merchantId);
         if (!store) return;
         setActiveStoreProfile(store);
+        setActiveStoreCat("all");
         setActivePage("merchant");
       }, [partnerStores]);
       const closeStoreProfile = useCallback(() => {
         setActiveStoreProfile(null);
+        setActiveStoreCat("all");
         setActivePage("shop");
       }, []);
+      const storeListingCategories = useMemo(() => {
+        const rawCustom = activeStoreProfile?.storeCustomCategories;
+        const customList = Array.isArray(rawCustom) ? rawCustom : Object.values(rawCustom || {});
+        const customMap = {};
+        customList
+          .map((entry) => String(entry || "").trim())
+          .filter(Boolean)
+          .forEach((name) => {
+            const id = name.toLowerCase().replace(/[^a-z0-9]+/g, "_").replace(/^_+|_+$/g, "");
+            if (!id || CATEGORIES.some((c) => c.id === id)) return;
+            customMap[id] = { id, label: name, icon: "tag", color: "#64748B", isCustom: true };
+          });
+        return [...CATEGORIES, ...Object.values(customMap)];
+      }, [activeStoreProfile?.storeCustomCategories]);
+      const storeCategoryMap = useMemo(() => Object.fromEntries(storeListingCategories.map((cat) => [cat.id, cat])), [storeListingCategories]);
       const storeListings = useMemo(() => {
         if (!activeStoreProfile?.merchantId) return [];
         return products
           .filter((p) => p.source === "partner" && p.merchantId === activeStoreProfile.merchantId && p.active !== false)
+          .filter((p) => activeStoreCat === "all" ? true : p.cat === activeStoreCat)
           .sort((a, b) => String(a.name || "").localeCompare(String(b.name || "")));
-      }, [activeStoreProfile?.merchantId, products]);
+      }, [activeStoreCat, activeStoreProfile?.merchantId, products]);
+      const activeStoreCategoryTabs = useMemo(() => {
+        const counts = {};
+        products.forEach((p) => {
+          if (p.source !== "partner" || p.merchantId !== activeStoreProfile?.merchantId || p.active === false) return;
+          counts[p.cat] = (counts[p.cat] || 0) + 1;
+        });
+        const tabs = [{ id: "all", label: "All", count: Object.values(counts).reduce((sum, v) => sum + v, 0), icon: "layer-group", color: "#334155" }];
+        Object.keys(counts).forEach((catId) => {
+          const meta = storeCategoryMap[catId] || { id: catId, label: catId, icon: "tag", color: "#64748B" };
+          tabs.push({ ...meta, count: counts[catId] });
+        });
+        return tabs;
+      }, [activeStoreProfile?.merchantId, products, storeCategoryMap]);
       const activeStoreBanners = useMemo(() => {
         const raw = activeStoreProfile?.storeBanners;
         if (!raw) return [];
@@ -1730,6 +1764,12 @@
           setActivePage("shop");
         }
       }, [activePage, activeStoreProfile]);
+      useEffect(() => {
+        if (activeStoreCat === "all") return;
+        if (!activeStoreCategoryTabs.some((cat) => cat.id === activeStoreCat)) {
+          setActiveStoreCat("all");
+        }
+      }, [activeStoreCat, activeStoreCategoryTabs]);
 
       useEffect(() => {
         if (!_fbDb) return;
@@ -2989,6 +3029,23 @@
                 )}
               </div>
               <div style={{ padding:`0 20px ${totalItemCount > 0 && !showCart ? "138px" : "16px"}` }}>
+                <div style={{ display:"flex", gap:8, overflowX:"auto", padding:"0 0 10px", scrollbarWidth:"none" }}>
+                  {activeStoreCategoryTabs.map((cat) => (
+                    <button key={cat.id} onClick={() => setActiveStoreCat(cat.id)} style={{
+                      padding:"8px 12px",
+                      borderRadius:999,
+                      whiteSpace:"nowrap",
+                      border:`1px solid ${activeStoreCat===cat.id ? cat.color : "#E2E8F0"}`,
+                      background:activeStoreCat===cat.id ? cat.color : "#fff",
+                      color:activeStoreCat===cat.id ? "#fff" : "#334155",
+                      fontSize:12,
+                      fontWeight:700
+                    }}>
+                      <Ic n={cat.icon || "tag"} size={11} style={{ marginRight:6 }} />
+                      {cat.label} ({cat.count})
+                    </button>
+                  ))}
+                </div>
                 <div style={{ fontSize:14, fontWeight:800, color:"#111827", marginBottom:10 }}>Store Listings</div>
                 <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:12 }}>
                   {storeListings.map((p, i) => {
@@ -3015,7 +3072,7 @@
                           }}>SOLD OUT</div>
                         )}
                         <div style={{
-                          height:116, overflow:"hidden", background:`linear-gradient(135deg,${CATEGORIES.find(c=>c.id===p.cat)?.color}12,${CATEGORIES.find(c=>c.id===p.cat)?.color}06)`,
+                          height:116, overflow:"hidden", background:`linear-gradient(135deg,${(storeCategoryMap[p.cat]?.color || "#94A3B8")}12,${(storeCategoryMap[p.cat]?.color || "#94A3B8")}06)`,
                           display:"flex", alignItems:"center", justifyContent:"center", padding:"12px"
                         }}>
                           {p.merchantLogo && (
@@ -3030,7 +3087,7 @@
                             ? <img src={p.img} alt={p.name} style={{ width:84, height:84, borderRadius:16, objectFit:"contain", background:"#fff", border:"1px solid #DCFCE7", padding:"8px", boxShadow:"inset 0 1px 0 rgba(255,255,255,.7)" }} onError={e=>{e.target.style.display="none";e.target.nextSibling.style.display="flex";}} />
                             : null}
                           <div style={{display:p.img&&p.img.startsWith("http")?"none":"flex",alignItems:"center",justifyContent:"center",width:84,height:84,borderRadius:16,background:"#fff",border:"1px solid #DCFCE7"}}>
-                            <Ic n={CATEGORIES.find(c=>c.id===p.cat)?.icon} size={40} style={{color:CATEGORIES.find(c=>c.id===p.cat)?.color,opacity:.5}} />
+                            <Ic n={storeCategoryMap[p.cat]?.icon || "tag"} size={40} style={{color:storeCategoryMap[p.cat]?.color || "#94A3B8",opacity:.5}} />
                           </div>
                         </div>
                         <div style={{ padding:"11px 14px 14px" }}>

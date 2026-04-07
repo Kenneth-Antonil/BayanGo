@@ -186,6 +186,7 @@ const CATEGORIES=[
   {id:"hardware",label:"Hardware",icon:"screwdriver-wrench",color:"#F59E0B"},
 ];
 const CAT_MAP=Object.fromEntries(CATEGORIES.map(c=>[c.id,c]));
+const DEFAULT_LISTING_CATEGORY="sari";
 const COMMISSION_RATE=0.05;
 const MENU_TIMES=[
   {id:"all",label:"All Day"},
@@ -234,11 +235,12 @@ function App(){
   const [expandedOrder,setExpandedOrder]=React.useState(null);
 
   // Menu/Listings
-  const [form,setForm]=React.useState({name:"",cat:"sari",price:"",unit:"pc",stock:"",img:"",menuTime:"all",description:""});
+  const [form,setForm]=React.useState({name:"",cat:DEFAULT_LISTING_CATEGORY,price:"",unit:"pc",stock:"",img:"",menuTime:"all",description:""});
   const [listingImageFile,setListingImageFile]=React.useState(null);
   const [savingListing,setSavingListing]=React.useState(false);
   const [editingId,setEditingId]=React.useState(null);
   const [menuFilter,setMenuFilter]=React.useState("all");
+  const [newCustomCategory,setNewCustomCategory]=React.useState("");
 
   // Store controls
   const [updatingStoreStatus,setUpdatingStoreStatus]=React.useState(false);
@@ -340,6 +342,38 @@ function App(){
     if(!raw)return[];
     return Object.entries(raw).map(([id,v])=>({id,...(v||{})})).filter(Boolean).sort((a,b)=>(b.createdAt||0)-(a.createdAt||0));
   },[merchant?.campaigns]);
+  const merchantCustomCategories=React.useMemo(()=>{
+    const raw=merchant?.customCategories;
+    const list=Array.isArray(raw)?raw:Object.values(raw||{});
+    return list
+      .map(entry=>String(entry||"").trim())
+      .filter(Boolean)
+      .filter((name,index,arr)=>arr.findIndex(v=>v.toLowerCase()===name.toLowerCase())===index);
+  },[merchant?.customCategories]);
+  const allListingCategories=React.useMemo(()=>{
+    const merged=[...CATEGORIES.map(c=>({id:c.id,label:c.label,isCustom:false}))];
+    merchantCustomCategories.forEach(name=>{
+      const id=name.toLowerCase().replace(/[^a-z0-9]+/g,"_").replace(/^_+|_+$/g,"");
+      if(!id || merged.some(c=>c.id===id))return;
+      merged.push({id,label:name,isCustom:true});
+    });
+    return merged;
+  },[merchantCustomCategories]);
+  const categoryLabelMap=React.useMemo(()=>{
+    const map={};
+    allListingCategories.forEach(c=>{map[c.id]=c.label;});
+    return map;
+  },[allListingCategories]);
+  const ensureValidCategory=React.useCallback((cat)=>{
+    if(cat && allListingCategories.some(c=>c.id===cat)) return cat;
+    return DEFAULT_LISTING_CATEGORY;
+  },[allListingCategories]);
+
+  React.useEffect(()=>{
+    if(!form.cat) return;
+    if(allListingCategories.some(c=>c.id===form.cat)) return;
+    setForm(prev=>({...prev,cat:DEFAULT_LISTING_CATEGORY}));
+  },[allListingCategories,form.cat]);
 
   // Computed order groups
   const orderGroups=React.useMemo(()=>{
@@ -461,13 +495,13 @@ function App(){
         await ref.put(listingImageFile);
         img=await ref.getDownloadURL();
       }
-      const payload={name:form.name,cat:form.cat,img,price:Number(form.price||0),unit:form.unit||"pc",stock:Number(form.stock||0),basePrice:Number(form.price||0),autoPriceEnabled:false,merchantId:user.uid,merchantLogo:merchant?.logoUrl||"",storeName:merchant?.storeName||"",active:true,approved:true,menuTime:form.menuTime||"all",description:form.description||"",updatedAt:Date.now()};
+      const payload={name:form.name,cat:ensureValidCategory(form.cat),img,price:Number(form.price||0),unit:form.unit||"pc",stock:Number(form.stock||0),basePrice:Number(form.price||0),autoPriceEnabled:false,merchantId:user.uid,merchantLogo:merchant?.logoUrl||"",storeName:merchant?.storeName||"",active:true,approved:true,menuTime:form.menuTime||"all",description:form.description||"",updatedAt:Date.now()};
       if(editingId){
         await db.ref("merchant_listings/"+user.uid+"/"+editingId).update(payload);
       }else{
         await db.ref("merchant_listings/"+user.uid).push({...payload,createdAt:Date.now(),soldOut:false});
       }
-      setForm({name:"",cat:"sari",price:"",unit:"pc",stock:"",img:"",menuTime:"all",description:""});
+      setForm({name:"",cat:DEFAULT_LISTING_CATEGORY,price:"",unit:"pc",stock:"",img:"",menuTime:"all",description:""});
       setListingImageFile(null);setEditingId(null);
     }catch(e){alert("Save error: "+(e?.message||"Unknown"));}
     finally{setSavingListing(false);}
@@ -475,14 +509,39 @@ function App(){
 
   const editListing=(l)=>{
     setEditingId(l.id);setListingImageFile(null);
-    setForm({name:l.name||"",cat:l.cat||"sari",price:String(l.price??""),unit:l.unit||"pc",stock:String(l.stock??""),img:l.img||"",menuTime:l.menuTime||"all",description:l.description||""});
+    setForm({name:l.name||"",cat:ensureValidCategory(l.cat||DEFAULT_LISTING_CATEGORY),price:String(l.price??""),unit:l.unit||"pc",stock:String(l.stock??""),img:l.img||"",menuTime:l.menuTime||"all",description:l.description||""});
     setActiveSection("menu");
   };
 
   const deleteListing=async(id)=>{
     if(!window.confirm("Delete this listing?"))return;
     await db.ref("merchant_listings/"+user.uid+"/"+id).remove();
-    if(editingId===id){setEditingId(null);setForm({name:"",cat:"sari",price:"",unit:"pc",stock:"",img:"",menuTime:"all",description:""});setListingImageFile(null);}
+    if(editingId===id){setEditingId(null);setForm({name:"",cat:DEFAULT_LISTING_CATEGORY,price:"",unit:"pc",stock:"",img:"",menuTime:"all",description:""});setListingImageFile(null);}
+  };
+
+  const addCustomCategory=async()=>{
+    if(!user) return;
+    const rawName=newCustomCategory.trim();
+    if(!rawName) return;
+    const id=rawName.toLowerCase().replace(/[^a-z0-9]+/g,"_").replace(/^_+|_+$/g,"");
+    if(!id) return alert("Invalid category name.");
+    if(CATEGORIES.some(c=>c.id===id)||merchantCustomCategories.some(c=>c.toLowerCase()===rawName.toLowerCase())){
+      return alert("Category already exists.");
+    }
+    const next=[...merchantCustomCategories,rawName];
+    await db.ref("partner_merchants/"+user.uid).update({customCategories:next,updatedAt:Date.now()});
+    setNewCustomCategory("");
+  };
+  const removeCustomCategory=async(name)=>{
+    if(!user||!name) return;
+    const targetId=name.toLowerCase().replace(/[^a-z0-9]+/g,"_").replace(/^_+|_+$/g,"");
+    const inUse=listings.some(l=>String(l.cat||"")===targetId);
+    if(inUse){
+      alert("This category is used by active listings. Reassign those listings first.");
+      return;
+    }
+    const next=merchantCustomCategories.filter(c=>c.toLowerCase()!==name.toLowerCase());
+    await db.ref("partner_merchants/"+user.uid).update({customCategories:next,updatedAt:Date.now()});
   };
 
   const toggleSoldOut=async(id,current)=>{
@@ -776,7 +835,7 @@ function App(){
           <div className="stack">
             <input placeholder="Item name" value={form.name} onChange={e=>setForm(f=>({...f,name:e.target.value}))}/>
             <select value={form.cat} onChange={e=>setForm(f=>({...f,cat:e.target.value}))}>
-              {CATEGORIES.map(c=><option key={c.id} value={c.id}>{c.label}</option>)}
+              {allListingCategories.map(c=><option key={c.id} value={c.id}>{c.label}{c.isCustom?" (Custom)":""}</option>)}
             </select>
           </div>
           <div className="stack">
@@ -802,7 +861,25 @@ function App(){
         </div>
         <div className="btn-group">
           <button className="btn-primary" onClick={saveListing} disabled={savingListing}>{savingListing?"Saving...":(editingId?"Update Listing":"Save Listing")}</button>
-          {editingId && <button className="btn-muted" onClick={()=>{setEditingId(null);setListingImageFile(null);setForm({name:"",cat:"sari",price:"",unit:"pc",stock:"",img:"",menuTime:"all",description:""});}}>Cancel</button>}
+          {editingId && <button className="btn-muted" onClick={()=>{setEditingId(null);setListingImageFile(null);setForm({name:"",cat:DEFAULT_LISTING_CATEGORY,price:"",unit:"pc",stock:"",img:"",menuTime:"all",description:""});}}>Cancel</button>}
+        </div>
+      </div>
+
+      <div className="card stack">
+        <h3><i className="fas fa-tags" style={{marginRight:8,color:"var(--brand)"}}></i>Custom Store Categories</h3>
+        <p className="muted" style={{fontSize:12}}>Add categories unique to your store (example: Milk Tea, Silog Meals). These appear in the user app store page and your menu filter.</p>
+        <div className="btn-group">
+          <input placeholder="New category name" value={newCustomCategory} onChange={e=>setNewCustomCategory(e.target.value)} onKeyDown={e=>{if(e.key==="Enter"){e.preventDefault();addCustomCategory();}}}/>
+          <button className="btn-primary" onClick={addCustomCategory}>Add Category</button>
+        </div>
+        <div style={{display:"flex",flexWrap:"wrap",gap:8}}>
+          {merchantCustomCategories.length===0 && <span className="muted" style={{fontSize:12}}>No custom categories yet.</span>}
+          {merchantCustomCategories.map(name=>(
+            <span key={name} className="chip chip-purple" style={{display:"inline-flex",alignItems:"center",gap:6}}>
+              {name}
+              <button className="btn-danger btn-sm" style={{padding:"2px 6px"}} onClick={()=>removeCustomCategory(name)} title="Remove category"><i className="fas fa-xmark"></i></button>
+            </span>
+          ))}
         </div>
       </div>
 
@@ -812,7 +889,7 @@ function App(){
         </div>
         <div className="tabs" style={{marginBottom:10}}>
           <button className={`tab ${menuFilter==="all"?"active":""}`} onClick={()=>setMenuFilter("all")}>All</button>
-          {CATEGORIES.map(c=>{
+          {allListingCategories.map(c=>{
             const count=listings.filter(l=>l.cat===c.id).length;
             return count>0 && <button key={c.id} className={`tab ${menuFilter===c.id?"active":""}`} onClick={()=>setMenuFilter(c.id)}>{c.label}<span className="count">{count}</span></button>;
           })}
@@ -824,7 +901,7 @@ function App(){
               <div style={{minWidth:0}}>
                 <div className="listing-name">{l.name}</div>
                 <div className="listing-detail">
-                  <span className={`chip ${CAT_MAP[l.cat]?'chip-blue':'chip-green'}`}>{CAT_MAP[l.cat]?.label||l.cat}</span>
+                  <span className={`chip ${CAT_MAP[l.cat]?'chip-blue':'chip-green'}`}>{categoryLabelMap[l.cat]||l.cat}</span>
                   {l.menuTime&&l.menuTime!=="all" && <span className="chip chip-purple">{MENU_TIMES.find(t=>t.id===l.menuTime)?.label||l.menuTime}</span>}
                   <span className={`chip ${l.soldOut?'chip-red':'chip-green'}`}>{l.soldOut?"Sold Out":"In Stock: "+Number(l.stock||0)}</span>
                 </div>
