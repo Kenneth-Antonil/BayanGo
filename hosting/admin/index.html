@@ -819,7 +819,7 @@
       );
     }
 
-    function PartnersPanel({ applications, merchants, onDecide, onToggleFeatured }) {
+    function PartnersPanel({ applications = [], merchants = [], onDecide, onToggleFeatured }) {
       const pending = applications.filter(a => !["approved", "rejected"].includes(String(a.status || "").toLowerCase()));
       const normalizedMerchantStatus = (merchant) => {
         const normalizedStatus = String(merchant?.status || "").trim().toLowerCase();
@@ -1380,8 +1380,10 @@
 
     function AdminDashboard({ user, orders, onUpdateStatus, onBroadcast, products, onAddProduct, onUpdateProduct, onDeleteProduct, marketPricing, onUpdateMarketPricing, vouchers, onAddVoucher, onUpdateVoucher, onDeleteVoucher, appUsageStats, appUsageMap, partnerApplications, partnerMerchants, onDecidePartnerApplication, onToggleFeaturedPartnerMerchant, authzError }) {
       const getInitialTab = () => {
+        const validTabs = new Set(["orders", "grocery", "products", "data", "partners", "vouchers", "settings"]);
         try {
           const hash = (window.location.hash || "").replace("#", "").toLowerCase();
+          if (validTabs.has(hash)) return hash;
         } catch {}
         return "orders";
       };
@@ -1412,6 +1414,15 @@
       const [assigningOrderId, setAssigningOrderId] = useState(null);
       const [assignRiderId, setAssignRiderId] = useState("");
       const [cancellingOrderId, setCancellingOrderId] = useState(null);
+
+      useEffect(() => {
+        try {
+          const nextHash = `#${tab}`;
+          if (window.location.hash !== nextHash) {
+            window.history.replaceState(null, "", nextHash);
+          }
+        } catch {}
+      }, [tab]);
 
       const getStatusFlow = (order) => order?.locationType === "Island"
         ? ["pending","buying","in_boat","delivered"]
@@ -1895,7 +1906,7 @@
               { key:"grocery", label:"Grocery",      icon:"basket-shopping" },
               { key:"products",label:"Produkto",     icon:"store" },
               { key:"data",    label:"Data",         icon:"chart-column" },
-              { key:"partners",label:"Partners",     icon:"handshake", badge: partnerApplications.filter(a => !["approved", "rejected"].includes(String(a.status || "").toLowerCase())).length },
+              { key:"partners",label:"Partners",     icon:"handshake", badge: (partnerApplications || []).filter(a => !["approved", "rejected"].includes(String(a.status || "").toLowerCase())).length },
               { key:"vouchers",label:"Vouchers",     icon:"ticket" },
               { key:"settings",label:"Settings",     icon:"gear" },
             ].map(t => (
