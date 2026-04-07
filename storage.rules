@@ -25,7 +25,7 @@ service firebase.storage {
 
     match /product_images/{allPaths=**} {
       allow read: if true;
-      allow write: if isSignedIn();
+      allow write: if isSignedIn() || isImageUpload(5 * 1024 * 1024);
     }
 
     match /order_proofs/{allPaths=**} {
