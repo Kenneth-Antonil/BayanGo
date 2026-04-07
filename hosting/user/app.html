@@ -796,7 +796,7 @@
                 storeOpen: merchant.storeOpen !== false,
                 merchantFeatured: merchant.featuredInApp === true,
                 storeDescription: merchant.description || "",
-                storeCategory: merchant.storeCategory || entry.cat || "sari",
+                storeCategory: merchant.storeCategory || merchant.category || entry.cat || "sari",
                 storeBanners: merchant.promoBanners || null,
               };
             })

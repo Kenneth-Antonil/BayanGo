@@ -431,7 +431,7 @@ function App(){
   const updateStoreCategory=async(cat)=>{
     if(!user) return;
     const valid=CATEGORIES.some(c=>c.id===cat)?cat:"sari";
-    await db.ref("partner_merchants/"+user.uid).update({storeCategory:valid,category:valid,updatedAt:Date.now()});
+    await db.ref("partner_merchants/"+user.uid).update({storeCategory:valid,updatedAt:Date.now()});
   };
 
   const uploadLogo=async(file)=>{
@@ -1067,7 +1067,7 @@ function App(){
         <div style={{padding:"12px",background:"#f8fafc",borderRadius:12,border:"1px solid var(--line)"}}>
           <div style={{fontWeight:700}}>{merchant.storeName||"Your Store"}</div>
           <div className="muted" style={{fontSize:12,marginTop:2}}>{merchant.address||"No address set"}</div>
-          {merchant.category && <div className="muted" style={{fontSize:12,marginTop:2}}>Category: {merchant.category}</div>}
+          {(merchant.storeCategory || merchant.category) && <div className="muted" style={{fontSize:12,marginTop:2}}>Category: {CAT_MAP[merchant.storeCategory || merchant.category]?.label || merchant.storeCategory || merchant.category}</div>}
           {merchant.phone && <div className="muted" style={{fontSize:12,marginTop:2}}>Phone: {merchant.phone}</div>}
           {merchant.operatingHours && <div className="muted" style={{fontSize:12,marginTop:2}}>Hours: {merchant.operatingHours}</div>}
         </div>
