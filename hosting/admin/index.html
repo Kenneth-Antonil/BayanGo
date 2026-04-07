@@ -821,14 +821,24 @@
 
     function PartnersPanel({ applications, merchants, onDecide, onToggleFeatured }) {
       const pending = applications.filter(a => !["approved", "rejected"].includes(String(a.status || "").toLowerCase()));
-      const approvedMerchants = merchants.filter((merchant) => {
+      const normalizedMerchantStatus = (merchant) => {
         const normalizedStatus = String(merchant?.status || "").trim().toLowerCase();
         const normalizedApproved = String(merchant?.approved || "").trim().toLowerCase();
-        return merchant?.approved === true
+        if (
+          merchant?.approved === true
           || merchant?.approved === 1
           || normalizedApproved === "true"
           || normalizedApproved === "approved"
-          || normalizedStatus === "approved";
+          || normalizedStatus === "approved"
+        ) {
+          return "approved";
+        }
+        if (normalizedStatus === "rejected") return "rejected";
+        if (normalizedStatus) return normalizedStatus;
+        return "pending";
+      };
+      const approvedMerchants = merchants.filter((merchant) => {
+        return normalizedMerchantStatus(merchant) === "approved";
       });
       const [rejectingId, setRejectingId] = React.useState("");
       const [rejectionMessage, setRejectionMessage] = React.useState("");
@@ -976,6 +986,29 @@
                 }}>{m.featuredInApp ? "Featured" : "Set Featured"}</button>
               </div>
             ))}
+          </div>
+          <div style={{ background:"#fff", border:"1px solid #E2E8F0", borderRadius:16, padding:14, marginTop:14 }}>
+            <div style={{ fontSize:14, fontWeight:800, marginBottom:10 }}>All Registered Merchants ({merchants.length})</div>
+            {merchants.length === 0 ? <div style={{ fontSize:12, color:"#64748B" }}>No merchants found in partner_merchants.</div> : merchants.map(m => {
+              const status = normalizedMerchantStatus(m);
+              const statusStyle = status === "approved"
+                ? { bg:"#DCFCE7", color:"#166534", label:"Approved" }
+                : status === "rejected"
+                  ? { bg:"#FEE2E2", color:"#991B1B", label:"Rejected" }
+                  : { bg:"#E2E8F0", color:"#334155", label:(status || "Pending").replace(/_/g, " ") };
+              return (
+                <div key={`all-${m.id}`} style={{ display:"flex", alignItems:"center", gap:10, padding:"8px 0", borderTop:"1px solid #F1F5F9" }}>
+                  {m.logoUrl ? <img src={m.logoUrl} alt={m.storeName} style={{ width:32, height:32, borderRadius:"50%", objectFit:"cover", border:"1px solid #E2E8F0" }} /> : <div style={{ width:32, height:32, borderRadius:"50%", background:"#E2E8F0" }} />}
+                  <div style={{ flex:1, minWidth:0 }}>
+                    <div style={{ fontWeight:700, fontSize:13 }}>{m.storeName || "Store"}</div>
+                    <div style={{ fontSize:11, color:"#64748B" }}>{m.contactName || "-"} • {m.category || m.storeCategory || "sari"}</div>
+                  </div>
+                  <span style={{ padding:"4px 8px", borderRadius:999, background:statusStyle.bg, color:statusStyle.color, fontSize:10, fontWeight:800, textTransform:"capitalize" }}>
+                    {statusStyle.label}
+                  </span>
+                </div>
+              );
+            })}
           </div>
         </div>
       );
