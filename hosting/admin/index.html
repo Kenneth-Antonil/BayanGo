@@ -490,7 +490,6 @@
               return "pending";
             };
 
-codex/fix-application-data-not-appearing-flkdbx
             const collectApplicationsFromSnapshot = (snap, sourcePath) => {
               const list = [];
               snap.forEach(c => {
@@ -522,7 +521,6 @@ codex/fix-application-data-not-appearing-flkdbx
               return list;
             };
 
-main
             const syncPartnerApplications = () => {
               const merged = new Map();
               [...partnerAppsLatest, ...legacyPartnerAppsLatest, ...typoLegacyPartnerAppsLatest].forEach(app => {
