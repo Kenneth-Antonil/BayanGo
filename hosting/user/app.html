@@ -780,6 +780,18 @@
         let baseProductsRaw = [];
         let partnerListingsRaw = [];
         let partnerMerchantsById = {};
+        const isApprovedMerchant = (merchant) => {
+          const approvedValue = merchant?.approved;
+          const normalizedApproved = String(approvedValue || "").trim().toLowerCase();
+          const normalizedStatus = String(merchant?.status || "").trim().toLowerCase();
+          return (
+            approvedValue === true
+            || approvedValue === 1
+            || normalizedApproved === "true"
+            || normalizedApproved === "approved"
+            || normalizedStatus === "approved"
+          );
+        };
         const refreshMergedProducts = () => {
           const regularProducts = baseProductsRaw.map((entry) => ({
             ...entry,
@@ -861,7 +873,7 @@
             const map = {};
             snap.forEach(child => {
               const raw = child.val() || {};
-              if (raw.approved !== true) return;
+              if (!isApprovedMerchant(raw)) return;
               map[child.key] = raw;
             });
             partnerMerchantsById = map;
