@@ -1488,6 +1488,7 @@
         return "shop";
       };
       const [activePage,     setActivePage]     = useState(getInitialPage);
+      const [activeService,  setActiveService]  = useState("pabili");
       const [customItems,    setCustomItems]    = useState([]);
       const [showCustomList, setShowCustomList] = useState(false);
       const [newItemName,    setNewItemName]    = useState("");
@@ -2082,7 +2083,196 @@
           {(activePage === "shop" || activePage === "checkout") && <>
           {activePage === "shop" && <>
 
+          {/* ── Service Menu Cards ── */}
+          <div style={{ padding:"16px 20px 4px", background:"#F8FAF8" }}>
+            <div style={{ fontSize:11, fontWeight:800, color:"#6B7280", letterSpacing:".08em", textTransform:"uppercase", marginBottom:10 }}>Piliin ang Serbisyo</div>
+            <div style={{ display:"flex", gap:10 }}>
 
+              {/* Pabili */}
+              <button onClick={() => setActiveService("pabili")} style={{
+                flex:1, borderRadius:16, padding:"14px 10px", textAlign:"center",
+                border: activeService==="pabili" ? "2.5px solid #16A34A" : "1.5px solid #E5E7EB",
+                background: activeService==="pabili" ? "linear-gradient(145deg,#F0FDF4,#DCFCE7)" : "#fff",
+                boxShadow: activeService==="pabili" ? "0 4px 16px rgba(22,163,74,.18)" : "0 1px 4px rgba(0,0,0,.05)",
+                transition:"all .22s ease", cursor:"pointer",
+              }}>
+                <div style={{
+                  width:40, height:40, borderRadius:"50%", margin:"0 auto 8px",
+                  background: activeService==="pabili" ? "linear-gradient(135deg,#16A34A,#22C55E)" : "#F0FDF4",
+                  display:"flex", alignItems:"center", justifyContent:"center",
+                  boxShadow: activeService==="pabili" ? "0 4px 12px rgba(22,163,74,.35)" : "none",
+                }}>
+                  <Ic n="basket-shopping" size={18} style={{ color: activeService==="pabili" ? "#fff" : "#16A34A" }} />
+                </div>
+                <div style={{ fontSize:13, fontWeight:800, color: activeService==="pabili" ? "#14532D" : "#374151", lineHeight:1.2, marginBottom:3 }}>Pabili</div>
+                <div style={{ fontSize:9, fontWeight:700, color: activeService==="pabili" ? "#16A34A" : "#9CA3AF", letterSpacing:".04em", textTransform:"uppercase" }}>Core Service</div>
+              </button>
+
+              {/* Palakad */}
+              <button onClick={() => setActiveService("palakad")} style={{
+                flex:1, borderRadius:16, padding:"14px 10px", textAlign:"center",
+                border: activeService==="palakad" ? "2.5px solid #2563EB" : "1.5px solid #E5E7EB",
+                background: activeService==="palakad" ? "linear-gradient(145deg,#EFF6FF,#DBEAFE)" : "#fff",
+                boxShadow: activeService==="palakad" ? "0 4px 16px rgba(37,99,235,.18)" : "0 1px 4px rgba(0,0,0,.05)",
+                transition:"all .22s ease", cursor:"pointer",
+              }}>
+                <div style={{
+                  width:40, height:40, borderRadius:"50%", margin:"0 auto 8px",
+                  background: activeService==="palakad" ? "linear-gradient(135deg,#1D4ED8,#3B82F6)" : "#EFF6FF",
+                  display:"flex", alignItems:"center", justifyContent:"center",
+                  boxShadow: activeService==="palakad" ? "0 4px 12px rgba(37,99,235,.35)" : "none",
+                }}>
+                  <Ic n="person-walking" size={18} style={{ color: activeService==="palakad" ? "#fff" : "#2563EB" }} />
+                </div>
+                <div style={{ fontSize:13, fontWeight:800, color: activeService==="palakad" ? "#1E3A8A" : "#374151", lineHeight:1.2, marginBottom:3 }}>Palakad</div>
+                <div style={{ fontSize:9, fontWeight:700, color: activeService==="palakad" ? "#2563EB" : "#9CA3AF", letterSpacing:".04em", textTransform:"uppercase" }}>Concierge</div>
+              </button>
+
+              {/* B2B */}
+              <button onClick={() => setActiveService("b2b")} style={{
+                flex:1, borderRadius:16, padding:"14px 10px", textAlign:"center",
+                border: activeService==="b2b" ? "2.5px solid #7C3AED" : "1.5px solid #E5E7EB",
+                background: activeService==="b2b" ? "linear-gradient(145deg,#F5F3FF,#EDE9FE)" : "#fff",
+                boxShadow: activeService==="b2b" ? "0 4px 16px rgba(124,58,237,.18)" : "0 1px 4px rgba(0,0,0,.05)",
+                transition:"all .22s ease", cursor:"pointer",
+              }}>
+                <div style={{
+                  width:40, height:40, borderRadius:"50%", margin:"0 auto 8px",
+                  background: activeService==="b2b" ? "linear-gradient(135deg,#6D28D9,#8B5CF6)" : "#F5F3FF",
+                  display:"flex", alignItems:"center", justifyContent:"center",
+                  boxShadow: activeService==="b2b" ? "0 4px 12px rgba(124,58,237,.35)" : "none",
+                }}>
+                  <Ic n="building" size={18} style={{ color: activeService==="b2b" ? "#fff" : "#7C3AED" }} />
+                </div>
+                <div style={{ fontSize:13, fontWeight:800, color: activeService==="b2b" ? "#4C1D95" : "#374151", lineHeight:1.2, marginBottom:3 }}>B2B</div>
+                <div style={{ fontSize:9, fontWeight:700, color: activeService==="b2b" ? "#7C3AED" : "#9CA3AF", letterSpacing:".04em", textTransform:"uppercase" }}>Business</div>
+              </button>
+
+            </div>
+          </div>
+
+          {/* ── Palakad Concierge Page ── */}
+          {activeService === "palakad" && (
+            <div style={{ padding:"24px 20px", display:"flex", flexDirection:"column", gap:16 }}>
+              <div style={{ textAlign:"center", padding:"32px 20px 24px" }}>
+                <div style={{
+                  width:72, height:72, borderRadius:"50%", margin:"0 auto 16px",
+                  background:"linear-gradient(135deg,#1D4ED8,#3B82F6)",
+                  display:"flex", alignItems:"center", justifyContent:"center",
+                  boxShadow:"0 8px 24px rgba(37,99,235,.3)",
+                }}>
+                  <Ic n="person-walking" size={32} style={{ color:"#fff" }} />
+                </div>
+                <div style={{ fontSize:22, fontWeight:800, color:"#1E3A8A", marginBottom:6 }}>Palakad</div>
+                <div style={{ fontSize:14, color:"#2563EB", fontWeight:600, marginBottom:12 }}>Specialized Concierge Service</div>
+                <div style={{ fontSize:13, color:"#6B7280", lineHeight:1.6, maxWidth:280, margin:"0 auto" }}>
+                  Hayaan mo kaming gawin ang mga gawaing kailangan mong gawin. Bayarin, kuhanin, ihatid — lahat ng para sa'yo.
+                </div>
+              </div>
+
+              <div style={{ display:"flex", flexDirection:"column", gap:10 }}>
+                {[
+                  { icon:"money-bill-wave",    title:"Bayad Bills",       desc:"Bayarin ang kuryente, tubig, internet at iba pa" },
+                  { icon:"file-lines",         title:"Kunin ng Dokumento", desc:"Government IDs, certificates, clearances" },
+                  { icon:"box",                title:"Pick-up & Deliver",  desc:"Kuhanin at ihatid ang iyong mga package" },
+                  { icon:"store",              title:"Bilhin sa Tindahan",  desc:"Bilhin ang mga item mula sa anumang tindahan" },
+                ].map(item => (
+                  <div key={item.title} style={{
+                    background:"#fff", border:"1.5px solid #DBEAFE", borderRadius:14,
+                    padding:"14px 16px", display:"flex", alignItems:"center", gap:14,
+                    boxShadow:"0 2px 8px rgba(37,99,235,.06)",
+                  }}>
+                    <div style={{
+                      width:40, height:40, borderRadius:12, flexShrink:0,
+                      background:"linear-gradient(135deg,#EFF6FF,#DBEAFE)",
+                      display:"flex", alignItems:"center", justifyContent:"center",
+                    }}>
+                      <Ic n={item.icon} size={16} style={{ color:"#2563EB" }} />
+                    </div>
+                    <div style={{ flex:1 }}>
+                      <div style={{ fontSize:13, fontWeight:800, color:"#1E3A8A" }}>{item.title}</div>
+                      <div style={{ fontSize:11, color:"#6B7280", marginTop:2 }}>{item.desc}</div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+
+              <div style={{
+                background:"linear-gradient(135deg,#EFF6FF,#DBEAFE)", border:"1.5px solid #93C5FD",
+                borderRadius:16, padding:"18px 20px", textAlign:"center",
+              }}>
+                <div style={{ fontSize:13, fontWeight:800, color:"#1D4ED8", marginBottom:6 }}>
+                  <Ic n="clock" size={13} style={{ marginRight:6 }} />Malapit nang dumating!
+                </div>
+                <div style={{ fontSize:12, color:"#3B82F6", fontWeight:500 }}>
+                  Ang serbisyong ito ay kasalukuyang pinaghandaan. Abangan ang aming opisyal na paglulunsad!
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* ── B2B Business Page ── */}
+          {activeService === "b2b" && (
+            <div style={{ padding:"24px 20px", display:"flex", flexDirection:"column", gap:16 }}>
+              <div style={{ textAlign:"center", padding:"32px 20px 24px" }}>
+                <div style={{
+                  width:72, height:72, borderRadius:"50%", margin:"0 auto 16px",
+                  background:"linear-gradient(135deg,#6D28D9,#8B5CF6)",
+                  display:"flex", alignItems:"center", justifyContent:"center",
+                  boxShadow:"0 8px 24px rgba(124,58,237,.3)",
+                }}>
+                  <Ic n="building" size={32} style={{ color:"#fff" }} />
+                </div>
+                <div style={{ fontSize:22, fontWeight:800, color:"#4C1D95", marginBottom:6 }}>B2B</div>
+                <div style={{ fontSize:14, color:"#7C3AED", fontWeight:600, marginBottom:12 }}>Business to Business</div>
+                <div style={{ fontSize:13, color:"#6B7280", lineHeight:1.6, maxWidth:280, margin:"0 auto" }}>
+                  Pang-negosyo na solusyon para sa bulk orders, regular resupply, at partnership sa inyong negosyo.
+                </div>
+              </div>
+
+              <div style={{ display:"flex", flexDirection:"column", gap:10 }}>
+                {[
+                  { icon:"boxes-stacking",   title:"Bulk Orders",         desc:"Malaking dami ng pagkain at pangunahing pangangailangan" },
+                  { icon:"rotate",           title:"Regular Resupply",    desc:"Awtomatikong pag-order para sa inyong negosyo" },
+                  { icon:"handshake",        title:"Partner Discounts",   desc:"Espesyal na presyo para sa mga B2B partner" },
+                  { icon:"truck-fast",       title:"Priority Delivery",   desc:"Inuuna ang delivery para sa mga business account" },
+                ].map(item => (
+                  <div key={item.title} style={{
+                    background:"#fff", border:"1.5px solid #EDE9FE", borderRadius:14,
+                    padding:"14px 16px", display:"flex", alignItems:"center", gap:14,
+                    boxShadow:"0 2px 8px rgba(124,58,237,.06)",
+                  }}>
+                    <div style={{
+                      width:40, height:40, borderRadius:12, flexShrink:0,
+                      background:"linear-gradient(135deg,#F5F3FF,#EDE9FE)",
+                      display:"flex", alignItems:"center", justifyContent:"center",
+                    }}>
+                      <Ic n={item.icon} size={16} style={{ color:"#7C3AED" }} />
+                    </div>
+                    <div style={{ flex:1 }}>
+                      <div style={{ fontSize:13, fontWeight:800, color:"#4C1D95" }}>{item.title}</div>
+                      <div style={{ fontSize:11, color:"#6B7280", marginTop:2 }}>{item.desc}</div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+
+              <div style={{
+                background:"linear-gradient(135deg,#F5F3FF,#EDE9FE)", border:"1.5px solid #C4B5FD",
+                borderRadius:16, padding:"18px 20px", textAlign:"center",
+              }}>
+                <div style={{ fontSize:13, fontWeight:800, color:"#6D28D9", marginBottom:6 }}>
+                  <Ic n="clock" size={13} style={{ marginRight:6 }} />Malapit nang dumating!
+                </div>
+                <div style={{ fontSize:12, color:"#7C3AED", fontWeight:500 }}>
+                  Ang serbisyong ito ay kasalukuyang pinaghandaan. Para sa mga katanungan, makipag-ugnayan sa aming koponan.
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* ── Pabili Content (existing shop) ── */}
+          {activeService === "pabili" && <>
 
           {/* ── Search ── */}
           <div style={{
@@ -2578,6 +2768,8 @@
             </div>
           )}
 
+
+          </> /* end pabili content */}
 
           </> /* end shop page */}
 
