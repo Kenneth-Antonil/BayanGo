@@ -2207,22 +2207,13 @@
 
               {/* Pabili */}
               <button onClick={() => setActiveService("pabili")} style={{
-                flex:1, borderRadius:16, padding:"14px 10px", textAlign:"center",
+                flex:1, borderRadius:16, padding:0, overflow:"hidden",
                 border: activeService==="pabili" ? "2.5px solid #16A34A" : "1.5px solid #E5E7EB",
-                background: activeService==="pabili" ? "linear-gradient(145deg,#F0FDF4,#DCFCE7)" : "#fff",
                 boxShadow: activeService==="pabili" ? "0 4px 16px rgba(22,163,74,.18)" : "0 1px 4px rgba(0,0,0,.05)",
-                transition:"all .22s ease", cursor:"pointer",
+                transition:"all .22s ease", cursor:"pointer", background:"#fff",
               }}>
-                <div style={{
-                  width:40, height:40, borderRadius:"50%", margin:"0 auto 8px",
-                  background: activeService==="pabili" ? "linear-gradient(135deg,#16A34A,#22C55E)" : "#F0FDF4",
-                  display:"flex", alignItems:"center", justifyContent:"center",
-                  boxShadow: activeService==="pabili" ? "0 4px 12px rgba(22,163,74,.35)" : "none",
-                }}>
-                  <Ic n="basket-shopping" size={18} style={{ color: activeService==="pabili" ? "#fff" : "#16A34A" }} />
-                </div>
-                <div style={{ fontSize:13, fontWeight:800, color: activeService==="pabili" ? "#14532D" : "#374151", lineHeight:1.2, marginBottom:3 }}>Pabili</div>
-                <div style={{ fontSize:9, fontWeight:700, color: activeService==="pabili" ? "#16A34A" : "#9CA3AF", letterSpacing:".04em", textTransform:"uppercase" }}>Core Service</div>
+                <img src="https://i.imgur.com/5lXj1jd.png" alt="Pabili"
+                  style={{ width:"100%", height:"100%", objectFit:"cover", display:"block" }} />
               </button>
 
               {/* Palakad */}
