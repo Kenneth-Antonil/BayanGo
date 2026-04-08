@@ -381,6 +381,7 @@
       const [user, setUser] = useState(null);
       const [marketPricing, setMarketPricing] = useState({});
       const [authzError, setAuthzError] = useState("");
+      const [partnerDataLoaded, setPartnerDataLoaded] = useState(false);
 
       useEffect(() => {
         let unsubOrders, unsubProducts, unsubVouchers, unsubMarket, unsubAppUsage, unsubAuth, unsubPartnerApplications, unsubPartnerMerchants;
@@ -391,7 +392,8 @@
             setReady(true);
             setAuthzError("");
             if (currentUser) enableAdminPush(currentUser);
-            unsubOrders?.(); unsubProducts?.(); unsubVouchers?.(); unsubAppUsage?.();
+            unsubOrders?.(); unsubProducts?.(); unsubVouchers?.(); unsubAppUsage?.(); unsubPartnerApplications?.(); unsubPartnerMerchants?.(); unsubMarket?.();
+            setPartnerDataLoaded(false);
             if (!currentUser) {
               setOrders([]); setVouchers([]); setPartnerApplications([]); setPartnerMerchants([]);
               setAppUsageStats({ activeUsers: 0, downloadedUsers: 0 }); setAppUsageMap({});
@@ -500,13 +502,19 @@
                 merged.push({ ...app, status: normalizeApplicationStatus(app.status) });
               });
               merged.sort((a, b) => Number(b.createdAt || 0) - Number(a.createdAt || 0));
+              console.log("[BayanGo Admin] Partner applications synced:", merged.length, "total from", partnerAppsFromPrimary.length, "+", partnerAppsFromMerchant.length, "+", partnerAppsFromLegacy.length);
               setPartnerApplications(merged);
+              setPartnerDataLoaded(true);
             };
 
             const partnerAppsRef = fns.ref(db, "partner_applications");
-            fns.onValue(partnerAppsRef, snap => { partnerAppsFromPrimary = collectApplicationsFromSnapshot(snap, "partner_applications"); syncPartnerApplications(); }, err => {
+            fns.onValue(partnerAppsRef, snap => {
+              console.log("[BayanGo Admin] partner_applications snapshot:", snap.exists() ? "has data" : "empty", "children:", snap.size || 0);
+              partnerAppsFromPrimary = collectApplicationsFromSnapshot(snap, "partner_applications"); syncPartnerApplications();
+            }, err => {
               console.error("Partner applications error:", err);
-              if (String(err?.code || "").toLowerCase().includes("permission")) setAuthzError("Permission denied for partner applications.");
+              setPartnerDataLoaded(true);
+              if (String(err?.code || "").toLowerCase().includes("permission")) setAuthzError("Permission denied reading partner_applications. Check /admins/" + (currentUser?.uid || "???") + " in Firebase.");
             });
 
             // Legacy path: merchant_applications
@@ -527,6 +535,7 @@
             fns.onValue(partnerMerchantsRef, snap => {
               const list = []; snap.forEach(c => list.push({ id: c.key, ...(c.val() || {}) }));
               list.sort((a, b) => String(a.storeName || "").localeCompare(String(b.storeName || "")));
+              console.log("[BayanGo Admin] partner_merchants loaded:", list.length);
               setPartnerMerchants(list);
             }, err => {
               console.error("Partner merchants error:", err?.code, err?.message);
@@ -616,7 +625,7 @@
             appUsageStats={appUsageStats} appUsageMap={appUsageMap}
             partnerApplications={partnerApplications} partnerMerchants={partnerMerchants}
             onDecidePartnerApplication={decidePartnerApplication} onToggleFeaturedPartnerMerchant={toggleFeaturedPartnerMerchant}
-            authzError={authzError}
+            authzError={authzError} partnerDataLoaded={partnerDataLoaded}
           />
         </>
       );
@@ -1072,8 +1081,9 @@
     }
 
     /* ══════════════════ PARTNERS PANEL ══════════════════ */
-    function PartnersPanel({ applications = [], merchants = [], onDecide, onToggleFeatured }) {
+    function PartnersPanel({ applications = [], merchants = [], onDecide, onToggleFeatured, dataLoaded = true, authzError = "", adminUid = "" }) {
       const pending = applications.filter(a => !["approved", "rejected"].includes(String(a.status || "").toLowerCase()));
+      const rejected = applications.filter(a => String(a.status || "").toLowerCase() === "rejected");
       const normalizedMerchantStatus = (merchant) => {
         const s = String(merchant?.status || "").trim().toLowerCase();
         const a = String(merchant?.approved || "").trim().toLowerCase();
@@ -1130,12 +1140,38 @@
         <div style={{ padding: "20px 24px" }}>
           <h2 style={{ fontSize: 18, fontWeight: 800, marginBottom: 16 }}>Partner Merchants</h2>
 
+          {!!authzError && (
+            <div className="card" style={{ marginBottom: 16, background: "#FEF2F2", border: "1px solid #FECACA" }}>
+              <div style={{ display: "flex", alignItems: "flex-start", gap: 10 }}>
+                <Ic n="triangle-exclamation" style={{ color: "#DC2626", fontSize: 18, marginTop: 2, flexShrink: 0 }} />
+                <div>
+                  <div style={{ fontWeight: 800, fontSize: 14, color: "#991B1B", marginBottom: 4 }}>Permission Error</div>
+                  <div style={{ fontSize: 12, color: "#7F1D1D" }}>{authzError}</div>
+                  {adminUid && <div style={{ fontSize: 11, color: "#9CA3AF", marginTop: 6 }}>Your UID: <code style={{ background: "#FEE2E2", padding: "1px 6px", borderRadius: 4, fontFamily: "monospace", fontSize: 11 }}>{adminUid}</code></div>}
+                  <div style={{ fontSize: 11, color: "#9CA3AF", marginTop: 4 }}>Make sure this UID is set to <code style={{ background: "#FEE2E2", padding: "1px 6px", borderRadius: 4 }}>true</code> under <code style={{ background: "#FEE2E2", padding: "1px 6px", borderRadius: 4 }}>/admins/{"{uid}"}</code> in Firebase Realtime Database.</div>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {!dataLoaded && !authzError && (
+            <div className="card" style={{ marginBottom: 16, textAlign: "center", padding: "32px 16px" }}>
+              <Ic n="spinner" className="spin" size={24} style={{ color: "var(--brand)", marginBottom: 8 }} />
+              <div style={{ fontSize: 13, fontWeight: 700, color: "var(--text-secondary)" }}>Loading partner applications...</div>
+              <div style={{ fontSize: 11, color: "var(--text-muted)", marginTop: 4 }}>Connecting to Firebase Realtime Database</div>
+            </div>
+          )}
+
           <div className="card" style={{ marginBottom: 16 }}>
             <div style={{ fontSize: 14, fontWeight: 800, marginBottom: 12, display: "flex", alignItems: "center", gap: 8 }}>
               Pending Applications
               {pending.length > 0 && <span style={{ background: "#EF4444", color: "#fff", borderRadius: 10, fontSize: 11, fontWeight: 800, padding: "2px 8px" }}>{pending.length}</span>}
             </div>
-            {pending.length === 0 ? <div style={{ fontSize: 12, color: "var(--text-muted)", padding: "10px 0" }}>No pending applications.</div> :
+            {pending.length === 0 ? (
+              <div style={{ fontSize: 12, color: "var(--text-muted)", padding: "10px 0" }}>
+                {dataLoaded ? (authzError ? "Cannot load applications due to permission error above." : "No pending applications.") : "Loading..."}
+              </div>
+            ) :
             pending.map(app => (
               <div key={app.id} style={{ border: "1px solid var(--border)", borderRadius: 12, padding: 14, marginBottom: 10 }}>
                 <div style={{ fontWeight: 800, fontSize: 14 }}>{app.storeName || "Unnamed store"}</div>
@@ -1224,7 +1260,28 @@
             })}
           </div>
 
-          <div className="card">
+          {rejected.length > 0 && (
+            <div className="card" style={{ marginBottom: 16 }}>
+              <details>
+                <summary style={{ fontSize: 14, fontWeight: 800, cursor: "pointer", display: "flex", alignItems: "center", gap: 8 }}>
+                  Rejected Applications
+                  <span style={{ background: "#FEE2E2", color: "#991B1B", borderRadius: 10, fontSize: 11, fontWeight: 800, padding: "2px 8px" }}>{rejected.length}</span>
+                </summary>
+                <div style={{ marginTop: 10 }}>
+                  {rejected.map(app => (
+                    <div key={app.id} style={{ border: "1px solid var(--border)", borderRadius: 10, padding: 10, marginBottom: 8, opacity: 0.7 }}>
+                      <div style={{ fontWeight: 700, fontSize: 13 }}>{app.storeName || "Unnamed store"}</div>
+                      <div style={{ fontSize: 11, color: "var(--text-muted)", marginTop: 2 }}>{app.contactName || "-"} · {app.contactPhone || "-"}</div>
+                      {app.rejectionMessage && <div style={{ fontSize: 11, color: "#991B1B", marginTop: 4, fontStyle: "italic" }}>Reason: {app.rejectionMessage}</div>}
+                      <div style={{ fontSize: 10, color: "var(--text-muted)", marginTop: 4 }}>Submitted: {fmtDateTime(app.createdAt)} {app.reviewedAt ? ` · Reviewed: ${fmtDateTime(app.reviewedAt)}` : ""}</div>
+                    </div>
+                  ))}
+                </div>
+              </details>
+            </div>
+          )}
+
+          <div className="card" style={{ marginBottom: 16 }}>
             <div style={{ fontSize: 14, fontWeight: 800, marginBottom: 12 }}>All Merchants ({mergedMerchants.length})</div>
             {mergedMerchants.length === 0 ? <div style={{ fontSize: 12, color: "var(--text-muted)" }}>No merchants found.</div> :
             mergedMerchants.map((m, idx) => {
@@ -1246,6 +1303,17 @@
               );
             })}
           </div>
+
+          {dataLoaded && (
+            <div style={{ fontSize: 10, color: "var(--text-muted)", padding: "8px 0", display: "flex", flexWrap: "wrap", gap: 12 }}>
+              <span>Total applications: {applications.length}</span>
+              <span>Pending: {pending.length}</span>
+              <span>Rejected: {rejected.length}</span>
+              <span>Approved: {applications.filter(a => String(a.status || "").toLowerCase() === "approved").length}</span>
+              <span>Merchants in DB: {merchants.length}</span>
+              <span>Sources: {[...new Set(applications.map(a => a.sourcePath))].join(", ") || "none"}</span>
+            </div>
+          )}
         </div>
       );
     }
@@ -1519,7 +1587,7 @@
     }
 
     /* ══════════════════ ADMIN DASHBOARD (Main Shell) ══════════════════ */
-    function AdminDashboard({ user, onLogout, orders, onUpdateStatus, onBroadcast, products, onAddProduct, onUpdateProduct, onDeleteProduct, marketPricing, onUpdateMarketPricing, vouchers, onAddVoucher, onUpdateVoucher, onDeleteVoucher, appUsageStats, appUsageMap, partnerApplications, partnerMerchants, onDecidePartnerApplication, onToggleFeaturedPartnerMerchant, authzError }) {
+    function AdminDashboard({ user, onLogout, orders, onUpdateStatus, onBroadcast, products, onAddProduct, onUpdateProduct, onDeleteProduct, marketPricing, onUpdateMarketPricing, vouchers, onAddVoucher, onUpdateVoucher, onDeleteVoucher, appUsageStats, appUsageMap, partnerApplications, partnerMerchants, onDecidePartnerApplication, onToggleFeaturedPartnerMerchant, authzError, partnerDataLoaded }) {
       const getInitialTab = () => {
         const validTabs = new Set(["dashboard", "orders", "grocery", "products", "data", "partners", "vouchers", "settings"]);
         try { const hash = (window.location.hash || "").replace("#", "").toLowerCase(); if (validTabs.has(hash)) return hash; } catch {}
@@ -1762,7 +1830,7 @@
 
             {tab === "dashboard" && <DashboardOverview orders={orders} appUsageStats={appUsageStats} products={products} />}
             {tab === "grocery" && <GroceryTab orders={dashboardOrders} />}
-            {tab === "partners" && <PartnersPanel applications={partnerApplications} merchants={partnerMerchants} onDecide={onDecidePartnerApplication} onToggleFeatured={onToggleFeaturedPartnerMerchant} />}
+            {tab === "partners" && <PartnersPanel applications={partnerApplications} merchants={partnerMerchants} onDecide={onDecidePartnerApplication} onToggleFeatured={onToggleFeaturedPartnerMerchant} dataLoaded={partnerDataLoaded} authzError={authzError} adminUid={user?.uid} />}
             {tab === "products" && <ProductsPanel products={products} onAdd={onAddProduct} onUpdate={onUpdateProduct} onDelete={onDeleteProduct} marketPricing={marketPricing} onUpdateMarketPricing={onUpdateMarketPricing} />}
             {tab === "data" && <DataTab orders={orders} />}
             {tab === "vouchers" && <VouchersPanel vouchers={vouchers} onAdd={onAddVoucher} onUpdate={onUpdateVoucher} onDelete={onDeleteVoucher} />}
