@@ -2201,16 +2201,17 @@
           {activePage === "shop" && <>
 
           {/* ── Service Menu Cards ── */}
-          <div style={{ padding:"16px 20px 4px", background:"#F8FAF8" }}>
-            <div style={{ fontSize:11, fontWeight:800, color:"#6B7280", letterSpacing:".08em", textTransform:"uppercase", marginBottom:10 }}>Select a Service</div>
-            <div style={{ display:"flex", gap:10 }}>
+          <div style={{ padding:"12px 20px 8px", background:"#F8FAF8" }}>
+            <div style={{ display:"flex", gap:8 }}>
 
               {/* Pabili */}
               <button onClick={() => setActiveService("pabili")} style={{
-                flex:1, borderRadius:16, padding:0, overflow:"hidden",
-                border: activeService==="pabili" ? "2.5px solid #16A34A" : "1.5px solid #E5E7EB",
-                boxShadow: activeService==="pabili" ? "0 4px 16px rgba(22,163,74,.18)" : "0 1px 4px rgba(0,0,0,.05)",
-                transition:"all .22s ease", cursor:"pointer", background:"#fff",
+                flex:1, height:80, borderRadius:14, padding:0, overflow:"hidden",
+                border:"none", outline:"none", WebkitTapHighlightColor:"transparent",
+                opacity: activeService==="pabili" ? 1 : 0.55,
+                boxShadow: activeService==="pabili" ? "0 6px 18px rgba(0,0,0,.16)" : "none",
+                transform: activeService==="pabili" ? "scale(1.04)" : "scale(1)",
+                transition:"all .2s ease", cursor:"pointer",
               }}>
                 <img src="https://i.imgur.com/5lXj1jd.png" alt="Pabili"
                   style={{ width:"100%", height:"100%", objectFit:"cover", display:"block" }} />
@@ -2218,42 +2219,28 @@
 
               {/* Palakad */}
               <button onClick={() => setActiveService("palakad")} style={{
-                flex:1, borderRadius:16, padding:"14px 10px", textAlign:"center",
-                border: activeService==="palakad" ? "2.5px solid #2563EB" : "1.5px solid #E5E7EB",
-                background: activeService==="palakad" ? "linear-gradient(145deg,#EFF6FF,#DBEAFE)" : "#fff",
-                boxShadow: activeService==="palakad" ? "0 4px 16px rgba(37,99,235,.18)" : "0 1px 4px rgba(0,0,0,.05)",
-                transition:"all .22s ease", cursor:"pointer",
+                flex:1, height:80, borderRadius:14, padding:0, overflow:"hidden",
+                border:"none", outline:"none", WebkitTapHighlightColor:"transparent",
+                opacity: activeService==="palakad" ? 1 : 0.55,
+                boxShadow: activeService==="palakad" ? "0 6px 18px rgba(0,0,0,.16)" : "none",
+                transform: activeService==="palakad" ? "scale(1.04)" : "scale(1)",
+                transition:"all .2s ease", cursor:"pointer",
               }}>
-                <div style={{
-                  width:40, height:40, borderRadius:"50%", margin:"0 auto 8px",
-                  background: activeService==="palakad" ? "linear-gradient(135deg,#1D4ED8,#3B82F6)" : "#EFF6FF",
-                  display:"flex", alignItems:"center", justifyContent:"center",
-                  boxShadow: activeService==="palakad" ? "0 4px 12px rgba(37,99,235,.35)" : "none",
-                }}>
-                  <Ic n="person-walking" size={18} style={{ color: activeService==="palakad" ? "#fff" : "#2563EB" }} />
-                </div>
-                <div style={{ fontSize:13, fontWeight:800, color: activeService==="palakad" ? "#1E3A8A" : "#374151", lineHeight:1.2, marginBottom:3 }}>Palakad</div>
-                <div style={{ fontSize:9, fontWeight:700, color: activeService==="palakad" ? "#2563EB" : "#9CA3AF", letterSpacing:".04em", textTransform:"uppercase" }}>Concierge</div>
+                <img src="https://i.imgur.com/s3CGHke.png" alt="Palakad"
+                  style={{ width:"100%", height:"100%", objectFit:"cover", display:"block" }} />
               </button>
 
               {/* B2B */}
               <button onClick={() => setActiveService("b2b")} style={{
-                flex:1, borderRadius:16, padding:"14px 10px", textAlign:"center",
-                border: activeService==="b2b" ? "2.5px solid #7C3AED" : "1.5px solid #E5E7EB",
-                background: activeService==="b2b" ? "linear-gradient(145deg,#F5F3FF,#EDE9FE)" : "#fff",
-                boxShadow: activeService==="b2b" ? "0 4px 16px rgba(124,58,237,.18)" : "0 1px 4px rgba(0,0,0,.05)",
-                transition:"all .22s ease", cursor:"pointer",
+                flex:1, height:80, borderRadius:14, padding:0, overflow:"hidden",
+                border:"none", outline:"none", WebkitTapHighlightColor:"transparent",
+                opacity: activeService==="b2b" ? 1 : 0.55,
+                boxShadow: activeService==="b2b" ? "0 6px 18px rgba(0,0,0,.16)" : "none",
+                transform: activeService==="b2b" ? "scale(1.04)" : "scale(1)",
+                transition:"all .2s ease", cursor:"pointer",
               }}>
-                <div style={{
-                  width:40, height:40, borderRadius:"50%", margin:"0 auto 8px",
-                  background: activeService==="b2b" ? "linear-gradient(135deg,#6D28D9,#8B5CF6)" : "#F5F3FF",
-                  display:"flex", alignItems:"center", justifyContent:"center",
-                  boxShadow: activeService==="b2b" ? "0 4px 12px rgba(124,58,237,.35)" : "none",
-                }}>
-                  <Ic n="building" size={18} style={{ color: activeService==="b2b" ? "#fff" : "#7C3AED" }} />
-                </div>
-                <div style={{ fontSize:13, fontWeight:800, color: activeService==="b2b" ? "#4C1D95" : "#374151", lineHeight:1.2, marginBottom:3 }}>B2B</div>
-                <div style={{ fontSize:9, fontWeight:700, color: activeService==="b2b" ? "#7C3AED" : "#9CA3AF", letterSpacing:".04em", textTransform:"uppercase" }}>Business</div>
+                <img src="https://i.imgur.com/X4ZTY2t.png" alt="B2B"
+                  style={{ width:"100%", height:"100%", objectFit:"cover", display:"block" }} />
               </button>
 
             </div>
