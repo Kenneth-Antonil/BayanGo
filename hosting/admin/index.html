@@ -466,7 +466,10 @@
             }, err => console.error("App usage error:", err));
             unsubAppUsage = () => fns.off(usageRef);
 
-            let partnerAppsLatest = [];
+            // Partner applications: read from all 3 legacy paths and merge
+            let partnerAppsFromPrimary = [];
+            let partnerAppsFromMerchant = [];
+            let partnerAppsFromLegacy = [];
             const normalizeApplicationStatus = (rawStatus) => {
               const n = String(rawStatus || "").trim().toLowerCase();
               if (!n) return "pending";
@@ -488,22 +491,46 @@
               return list;
             };
             const syncPartnerApplications = () => {
-              const list = [...partnerAppsLatest].map(app => ({ ...app, status: normalizeApplicationStatus(app.status) }));
-              list.sort((a, b) => Number(b.createdAt || 0) - Number(a.createdAt || 0));
-              setPartnerApplications(list);
+              const seen = new Set();
+              const merged = [];
+              [...partnerAppsFromPrimary, ...partnerAppsFromMerchant, ...partnerAppsFromLegacy].forEach(app => {
+                const dedupeKey = app.applicantUid ? `uid:${app.applicantUid}|${app.id}` : app.id;
+                if (seen.has(dedupeKey)) return;
+                seen.add(dedupeKey);
+                merged.push({ ...app, status: normalizeApplicationStatus(app.status) });
+              });
+              merged.sort((a, b) => Number(b.createdAt || 0) - Number(a.createdAt || 0));
+              setPartnerApplications(merged);
             };
+
             const partnerAppsRef = fns.ref(db, "partner_applications");
-            fns.onValue(partnerAppsRef, snap => { partnerAppsLatest = collectApplicationsFromSnapshot(snap, "partner_applications"); syncPartnerApplications(); }, err => {
+            fns.onValue(partnerAppsRef, snap => { partnerAppsFromPrimary = collectApplicationsFromSnapshot(snap, "partner_applications"); syncPartnerApplications(); }, err => {
               console.error("Partner applications error:", err);
               if (String(err?.code || "").toLowerCase().includes("permission")) setAuthzError("Permission denied for partner applications.");
             });
-            unsubPartnerApplications = () => fns.off(partnerAppsRef);
+
+            // Legacy path: merchant_applications
+            const merchantAppsRef = fns.ref(db, "merchant_applications");
+            fns.onValue(merchantAppsRef, snap => { partnerAppsFromMerchant = collectApplicationsFromSnapshot(snap, "merchant_applications"); syncPartnerApplications(); }, err => {
+              console.error("merchant_applications read error (may not exist):", err?.code);
+            });
+
+            // Legacy typo path: mechant_applications
+            const legacyAppsRef = fns.ref(db, "mechant_applications");
+            fns.onValue(legacyAppsRef, snap => { partnerAppsFromLegacy = collectApplicationsFromSnapshot(snap, "mechant_applications"); syncPartnerApplications(); }, err => {
+              console.error("mechant_applications read error (may not exist):", err?.code);
+            });
+
+            unsubPartnerApplications = () => { fns.off(partnerAppsRef); fns.off(merchantAppsRef); fns.off(legacyAppsRef); };
 
             const partnerMerchantsRef = fns.ref(db, "partner_merchants");
             fns.onValue(partnerMerchantsRef, snap => {
               const list = []; snap.forEach(c => list.push({ id: c.key, ...(c.val() || {}) }));
               list.sort((a, b) => String(a.storeName || "").localeCompare(String(b.storeName || "")));
               setPartnerMerchants(list);
+            }, err => {
+              console.error("Partner merchants error:", err?.code, err?.message);
+              if (String(err?.code || "").toLowerCase().includes("permission")) setAuthzError("Permission denied for partner merchants.");
             });
             unsubPartnerMerchants = () => fns.off(partnerMerchantsRef);
           });
@@ -542,7 +569,7 @@
         if (!appId) throw new Error("Missing application id.");
         const applicationPath = application?.parentId ? `${sourcePath}/${application.parentId}/${appId}` : `${sourcePath}/${appId}`;
         const updates = { status, reviewedAt: Date.now(), reviewedByUid: user?.uid || null, reviewedByEmail: user?.email || null, reviewMessage: String(reviewMessage || "").trim() || null, rejectionMessage: status === "rejected" ? (String(reviewMessage || "").trim() || null) : null };
-        await fns.update(fns.ref(db), { [applicationPath]: updates });
+        await fns.update(fns.ref(db, applicationPath), updates);
         if (decision === "approve" && uid) {
           const merchantCategory = application.category || application.storeCategory || "sari";
           await fns.update(fns.ref(db, "partner_merchants/" + uid), { applicantUid: uid, applicationId: application.id, contactName: application.contactName || "", contactPhone: application.contactPhone || "", storeName: application.storeName || "", category: merchantCategory, storeCategory: merchantCategory, description: application.description || "", logoUrl: application.logoUrl || "", approved: true, approvedAt: Date.now(), approvedByUid: user?.uid || null, approvedByEmail: user?.email || null });
@@ -1161,20 +1188,41 @@
 
           <div className="card" style={{ marginBottom: 16 }}>
             <div style={{ fontSize: 14, fontWeight: 800, marginBottom: 12 }}>Approved Merchants ({approvedMerchants.length})</div>
-            {approvedMerchants.map((m, idx) => (
-              <div key={m.id} style={{ display: "flex", alignItems: "center", gap: 10, padding: "8px 0", borderTop: idx > 0 ? "1px solid var(--border-light)" : "none" }}>
-                {m.logoUrl ? <img src={m.logoUrl} alt={m.storeName} style={{ width: 34, height: 34, borderRadius: "50%", objectFit: "cover", border: "1px solid var(--border)" }} /> : <div style={{ width: 34, height: 34, borderRadius: "50%", background: "var(--border)" }} />}
-                <div style={{ flex: 1, minWidth: 0 }}>
-                  <div style={{ fontWeight: 700, fontSize: 13 }}>{m.storeName || "Store"}</div>
-                  <div style={{ fontSize: 11, color: "var(--text-muted)" }}>{m.contactName || "-"} · {m.category || m.storeCategory || "sari"}</div>
+            {approvedMerchants.length === 0 ? <div style={{ fontSize: 12, color: "var(--text-muted)", padding: "10px 0" }}>No approved merchants yet.</div> :
+            approvedMerchants.map((m, idx) => {
+              const storeIsOpen = m.storeOpen !== false;
+              const isBusy = m.busyMode === true;
+              return (
+                <div key={m.id} style={{ padding: "10px 0", borderTop: idx > 0 ? "1px solid var(--border-light)" : "none" }}>
+                  <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                    {m.logoUrl ? <img src={m.logoUrl} alt={m.storeName} style={{ width: 38, height: 38, borderRadius: "50%", objectFit: "cover", border: "1px solid var(--border)" }} /> : <div style={{ width: 38, height: 38, borderRadius: "50%", background: "var(--border)", display: "flex", alignItems: "center", justifyContent: "center" }}><Ic n="store" style={{ color: "var(--text-muted)", fontSize: 14 }} /></div>}
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                        <span style={{ fontWeight: 700, fontSize: 13 }}>{m.storeName || "Store"}</span>
+                        <span style={{ width: 7, height: 7, borderRadius: "50%", background: storeIsOpen ? (isBusy ? "#F59E0B" : "#22C55E") : "#DC2626", flexShrink: 0 }} title={storeIsOpen ? (isBusy ? "Busy" : "Open") : "Closed"} />
+                      </div>
+                      <div style={{ fontSize: 11, color: "var(--text-muted)", marginTop: 1 }}>
+                        {m.contactName || "-"} · {m.category || m.storeCategory || "sari"}
+                        {m.prepTimeMinutes && <span> · ~{m.prepTimeMinutes}min prep</span>}
+                      </div>
+                      <div style={{ fontSize: 10, color: "var(--text-muted)", marginTop: 2, display: "flex", gap: 8 }}>
+                        <span style={{ color: storeIsOpen ? (isBusy ? "#D97706" : "var(--brand)") : "var(--red)", fontWeight: 700 }}>
+                          {storeIsOpen ? (isBusy ? "Busy Mode" : "Open") : "Closed"}
+                        </span>
+                        {m.approvedAt && <span>Approved: {new Date(m.approvedAt).toLocaleDateString("en-PH")}</span>}
+                      </div>
+                    </div>
+                    <div style={{ display: "flex", flexDirection: "column", gap: 4, alignItems: "flex-end" }}>
+                      <button disabled={!m._merchantId} onClick={() => { onToggleFeatured?.(m._merchantId, m.featuredInApp !== true); toast.success(m.featuredInApp ? "Removed from featured" : "Marked as featured"); }} className="btn" style={{
+                        padding: "5px 10px", fontSize: 10, borderRadius: 20,
+                        background: m.featuredInApp ? "#FDE68A" : "var(--surface-alt)", color: m.featuredInApp ? "#92400E" : "var(--text-secondary)",
+                        border: `1px solid ${m.featuredInApp ? "#FCD34D" : "var(--border)"}`, opacity: m._merchantId ? 1 : 0.5
+                      }}><Ic n="star" style={{ marginRight: 3 }} />{m.featuredInApp ? "Featured" : "Set Featured"}</button>
+                    </div>
+                  </div>
                 </div>
-                <button disabled={!m._merchantId} onClick={() => { onToggleFeatured?.(m._merchantId, m.featuredInApp !== true); toast.success(m.featuredInApp ? "Removed from featured" : "Marked as featured"); }} className="btn" style={{
-                  padding: "6px 12px", fontSize: 11, borderRadius: 20,
-                  background: m.featuredInApp ? "#FDE68A" : "var(--surface-alt)", color: m.featuredInApp ? "#92400E" : "var(--text-secondary)",
-                  border: `1px solid ${m.featuredInApp ? "#FCD34D" : "var(--border)"}`, opacity: m._merchantId ? 1 : 0.5
-                }}>{m.featuredInApp ? "Featured" : "Set Featured"}</button>
-              </div>
-            ))}
+              );
+            })}
           </div>
 
           <div className="card">
@@ -1183,10 +1231,17 @@
             mergedMerchants.map((m, idx) => {
               const status = normalizedMerchantStatus(m);
               const sty = status === "approved" ? { bg: "#DCFCE7", color: "#166534" } : status === "rejected" ? { bg: "#FEE2E2", color: "#991B1B" } : { bg: "#F1F5F9", color: "#475569" };
+              const storeIsOpen = m.storeOpen !== false;
               return (
                 <div key={`all-${m.id}`} style={{ display: "flex", alignItems: "center", gap: 10, padding: "8px 0", borderTop: idx > 0 ? "1px solid var(--border-light)" : "none" }}>
                   {m.logoUrl ? <img src={m.logoUrl} alt={m.storeName} style={{ width: 32, height: 32, borderRadius: "50%", objectFit: "cover" }} /> : <div style={{ width: 32, height: 32, borderRadius: "50%", background: "var(--border)" }} />}
-                  <div style={{ flex: 1 }}><div style={{ fontWeight: 700, fontSize: 13 }}>{m.storeName || "Store"}</div><div style={{ fontSize: 11, color: "var(--text-muted)" }}>{m.contactName || "-"}</div></div>
+                  <div style={{ flex: 1 }}>
+                    <div style={{ display: "flex", alignItems: "center", gap: 5 }}>
+                      <span style={{ fontWeight: 700, fontSize: 13 }}>{m.storeName || "Store"}</span>
+                      {status === "approved" && <span style={{ width: 6, height: 6, borderRadius: "50%", background: storeIsOpen ? "#22C55E" : "#DC2626" }} />}
+                    </div>
+                    <div style={{ fontSize: 11, color: "var(--text-muted)" }}>{m.contactName || "-"} · {m.contactPhone || ""}</div>
+                  </div>
                   <span className="status-badge" style={{ background: sty.bg, color: sty.color, textTransform: "capitalize" }}>{status}</span>
                 </div>
               );
