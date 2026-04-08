@@ -1439,6 +1439,123 @@
     }
 
     /* ══════════════════ USER APP ══════════════════ */
+    /* ══════════════════ PRODUCT CARD ══════════════════ */
+    function ProductCard({ p, cart, add, rem, cartWeightUnit, setCartWeightUnit, openStoreProfile, catColor, catIcon, animDelay }) {
+      const isStoreClosed = p.source === "partner" && p.storeOpen === false;
+      const color = catColor || "#94A3B8";
+      const icon  = catIcon  || "tag";
+      return (
+        <div className="fade-up" style={{
+          animationDelay: animDelay || "0s",
+          background:"#fff", borderRadius:18, overflow:"hidden",
+          border:"1.5px solid #F0F0F0", boxShadow:"0 2px 12px rgba(0,0,0,.05)",
+          opacity: (!p.stock || isStoreClosed) ? .5 : 1,
+          filter: isStoreClosed ? "grayscale(.4)" : "none",
+          position:"relative", display:"flex", flexDirection:"column"
+        }}>
+          {isStoreClosed && (
+            <div style={{
+              position:"absolute", top:8, left:p.merchantLogo ? 42 : 8,
+              background:"#334155", color:"#fff", fontSize:9, fontWeight:800,
+              padding:"3px 8px", borderRadius:6, zIndex:4, letterSpacing:".06em"
+            }}>STORE CLOSED</div>
+          )}
+          {!p.stock && (
+            <div style={{
+              position:"absolute", top:8, right:8, background:"#EF4444",
+              color:"#fff", fontSize:9, fontWeight:800, padding:"3px 8px",
+              borderRadius:6, zIndex:2, letterSpacing:".06em"
+            }}>SOLD OUT</div>
+          )}
+          <div style={{
+            height:110, position:"relative", overflow:"hidden",
+            background:`linear-gradient(135deg,${color}18,${color}07)`,
+            display:"flex", alignItems:"center", justifyContent:"center"
+          }}>
+            {p.merchantLogo && (
+              <div style={{
+                position:"absolute", top:8, left:8, width:26, height:26, borderRadius:"50%",
+                overflow:"hidden", border:"2px solid #fff", boxShadow:"0 2px 6px rgba(0,0,0,.18)",
+                zIndex:3, background:"#fff"
+              }}>
+                <img src={p.merchantLogo} alt={p.storeName||"Partner"} style={{width:"100%",height:"100%",objectFit:"cover"}} />
+              </div>
+            )}
+            {p.img && p.img.startsWith("http") && (
+              <img src={p.img} alt={p.name}
+                style={{position:"absolute",inset:0,width:"100%",height:"100%",objectFit:"cover"}}
+                onError={e => e.target.remove()} />
+            )}
+            <Ic n={icon} size={36} style={{color, opacity:.3}} />
+          </div>
+          <div style={{ padding:"10px 12px 12px", flex:1, display:"flex", flexDirection:"column" }}>
+            <div style={{ fontSize:13, fontWeight:700, color:"#111", lineHeight:1.3, marginBottom:3 }}>{p.name}</div>
+            <div style={{ fontSize:10, color:"#9CA3AF", marginBottom:8 }}>per {p.unit}</div>
+            {p.unit === "kg" && (
+              <div style={{ display:"flex", gap:3, marginBottom:8 }}>
+                {[{w:0.25,l:"¼kg"},{w:0.5,l:"½kg"},{w:1,l:"1kg"}].map(({w,l}) => {
+                  const sel = (cartWeightUnit[p.id] || 1) === w;
+                  return (
+                    <button key={w} onClick={() => setCartWeightUnit(u => ({...u,[p.id]:w}))} style={{
+                      flex:1, padding:"5px 0", borderRadius:8, fontSize:11, fontWeight:800,
+                      background: sel ? "#16A34A" : "#F3F4F6",
+                      color: sel ? "#fff" : "#6B7280",
+                      border: sel ? "1.5px solid #16A34A" : "1.5px solid #E5E7EB",
+                      transition:"all .15s"
+                    }}>{l}</button>
+                  );
+                })}
+              </div>
+            )}
+            <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", gap:6, marginTop:"auto" }}>
+              <div>
+                <div style={{ fontSize:15, fontWeight:900, color:"#166534", lineHeight:1.1 }}>
+                  {p.unit==="kg" ? fmt(p.price*(cartWeightUnit[p.id]||1)) : fmt(p.price)}
+                </div>
+                {p.unit==="kg" && <div style={{ fontSize:9, color:"#9CA3AF" }}>/{cartWeightUnit[p.id]===0.25?"¼kg":cartWeightUnit[p.id]===0.5?"½kg":"1kg"}</div>}
+              </div>
+              {!isStoreClosed && p.stock && (
+                cart[p.id] ? (
+                  <div style={{ display:"flex", alignItems:"center", gap:3, background:"#F0FDF4", borderRadius:10, padding:"3px" }}>
+                    <button onClick={() => rem(p.id)} style={{
+                      width:28, height:28, borderRadius:8, background:"#fff", fontSize:16, fontWeight:700, color:"#166534",
+                      display:"flex", alignItems:"center", justifyContent:"center", border:"1px solid #D1FAE5", flexShrink:0
+                    }}>−</button>
+                    <span style={{ fontSize:13, fontWeight:800, minWidth:20, textAlign:"center", color:"#166534" }}>{cart[p.id]}</span>
+                    <button onClick={() => add(p.id)} style={{
+                      width:28, height:28, borderRadius:8, background:"#16A34A", fontSize:16, fontWeight:700, color:"#fff",
+                      display:"flex", alignItems:"center", justifyContent:"center", boxShadow:"0 2px 8px rgba(22,163,74,.4)", flexShrink:0
+                    }}>+</button>
+                  </div>
+                ) : (
+                  <button onClick={() => add(p.id)} style={{
+                    width:34, height:34, borderRadius:10, background:"#16A34A",
+                    color:"#fff", fontSize:22, display:"flex", alignItems:"center", justifyContent:"center",
+                    boxShadow:"0 4px 12px rgba(22,163,74,.38)", flexShrink:0
+                  }}>+</button>
+                )
+              )}
+            </div>
+            {p.source==="partner" && openStoreProfile && (
+              <button onClick={() => openStoreProfile(p.merchantId)} style={{
+                marginTop:8, display:"inline-flex", alignItems:"center", gap:5,
+                maxWidth:"100%", padding:"4px 8px", borderRadius:999,
+                background: isStoreClosed ? "#E2E8F0" : "#ECFDF3",
+                border:`1px solid ${isStoreClosed ? "#CBD5E1" : "#BBF7D0"}`,
+                fontSize:9, fontWeight:800, color: isStoreClosed ? "#334155" : "#166534",
+                textAlign:"left", overflow:"hidden"
+              }}>
+                <Ic n="store" size={9} style={{flexShrink:0}} />
+                <span style={{ whiteSpace:"nowrap", overflow:"hidden", textOverflow:"ellipsis" }}>
+                  {p.storeName||"Partner Merchant"} {isStoreClosed?"• Closed":"• Open"}
+                </span>
+              </button>
+            )}
+          </div>
+        </div>
+      );
+    }
+
     function UserApp({ products, orders, onOrder, user, onLogout, gcashSettings, onOpenLegal }) {
       const [activeCat,      setActiveCat]      = useState("all");
       const [cart,           setCart]           = useState({});
@@ -2433,138 +2550,22 @@
           </div>
 
           {/* ── Products Grid ── */}
-          <div style={{ padding:`0 20px ${totalItemCount > 0 && !showCart ? "138px" : "16px"}` }}>
+          <div style={{ padding:`0 20px ${totalItemCount > 0 ? "138px" : "16px"}` }}>
             <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:12 }}>
               {filtered.map((p, i) => (
-                (() => {
-                  const isStoreClosed = p.source === "partner" && p.storeOpen === false;
-                  const isUnavailable = !p.stock || isStoreClosed;
-                  return (
-                <div key={p.id} className="fade-up" style={{
-                  animationDelay:`${i*.05}s`,
-                  background:"#fff", borderRadius:18, overflow:"hidden",
-                  border:"1px solid #F0F0F0", boxShadow:"0 2px 8px rgba(0,0,0,.04)",
-                  opacity:isUnavailable ? .5 : 1, position:"relative",
-                  filter:isStoreClosed ? "grayscale(.35)" : "none"
-                }}>
-                  {isStoreClosed && (
-                    <div style={{
-                      position:"absolute",
-                      top:10,
-                      left:p.source === "partner" && p.merchantLogo ? 42 : 10,
-                      background:"#334155",
-                      color:"#fff", fontSize:9, fontWeight:800, padding:"3px 8px",
-                      borderRadius:6, zIndex:4, letterSpacing:".04em"
-                    }}>STORE CLOSED</div>
-                  )}
-                  {!p.stock && (
-                    <div style={{
-                      position:"absolute", top:10, right:10, background:"#EF4444",
-                      color:"#fff", fontSize:9, fontWeight:800, padding:"3px 8px",
-                      borderRadius:6, zIndex:2, letterSpacing:".04em"
-                    }}>SOLD OUT</div>
-                  )}
-                  <div style={{
-                    height:96, overflow:"hidden",
-                    background:`linear-gradient(135deg,${CATEGORIES.find(c=>c.id===p.cat)?.color}12,${CATEGORIES.find(c=>c.id===p.cat)?.color}06)`,
-                    display:"flex", alignItems:"center", justifyContent:"center"
-                  }}>
-                    {p.source === "partner" && p.merchantLogo && (
-                      <div style={{
-                        position:"absolute", top:8, left:8, width:28, height:28, borderRadius:"50%",
-                        overflow:"hidden", border:"2px solid #fff", boxShadow:"0 2px 6px rgba(0,0,0,.2)", zIndex:3, background:"#fff"
-                      }}>
-                        <img src={p.merchantLogo} alt={p.storeName || "Partner"} style={{ width:"100%", height:"100%", objectFit:"cover" }} />
-                      </div>
-                    )}
-                    {p.img && p.img.startsWith("http")
-                      ? <img src={p.img} alt={p.name} style={{width:"100%",height:"100%",objectFit:"cover"}} onError={e=>{e.target.style.display="none";e.target.nextSibling.style.display="flex";}} />
-                      : null}
-                    <div style={{display:p.img&&p.img.startsWith("http")?"none":"flex",alignItems:"center",justifyContent:"center",width:"100%",height:"100%"}}>
-                      <Ic n={CATEGORIES.find(c=>c.id===p.cat)?.icon} size={40} style={{color:CATEGORIES.find(c=>c.id===p.cat)?.color,opacity:.5}} />
-                    </div>
-                  </div>
-                  <div style={{ padding:"11px 14px 14px" }}>
-                    <div style={{ fontSize:13, fontWeight:700, color:"#111", marginBottom:2, lineHeight:1.25 }}>{p.name}</div>
-                    <div style={{ fontSize:11, color:"#aaa", marginBottom:8 }}>
-                      per {p.unit}
-                    </div>
-                    {p.unit === "kg" && (
-                      <div style={{ display:"flex", gap:4, marginBottom:10 }}>
-                        {[{w:0.25,l:"¼kg"},{w:0.5,l:"½kg"},{w:1,l:"1kg"}].map(({w,l}) => {
-                          const sel = (cartWeightUnit[p.id] || 1) === w;
-                          return (
-                            <button key={w} onClick={() => setCartWeightUnit(u => ({...u,[p.id]:w}))} style={{
-                              flex:1, padding:"5px 0", borderRadius:8, fontSize:11, fontWeight:800,
-                              background: sel ? "#166534" : "#F3F4F6",
-                              color: sel ? "#fff" : "#6B7280",
-                              border: sel ? "none" : "1px solid #E5E7EB",
-                              transition:"all .15s",
-                            }}>{l}</button>
-                          );
-                        })}
-                      </div>
-                    )}
-                    <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", gap:8, flexWrap:"wrap" }}>
-                      <div style={{ minWidth:0, flex:"1 1 auto" }}>
-                        <span style={{ fontSize:17, fontWeight:800, color:"#166534" }}>
-                          {p.unit === "kg" ? fmt(p.price * (cartWeightUnit[p.id] || 1)) : fmt(p.price)}
-                        </span>
-                        {p.unit === "kg" && (
-                          <span style={{ fontSize:10, color:"#9CA3AF", marginLeft:3 }}>
-                            / {cartWeightUnit[p.id] === 0.25 ? "¼kg" : cartWeightUnit[p.id] === 0.5 ? "½kg" : "1kg"}
-                          </span>
-                        )}
-                      </div>
-                      {!isStoreClosed && p.stock && (
-                        cart[p.id] ? (
-                          <div style={{ display:"flex", alignItems:"center", gap:5 }}>
-                            <button onClick={() => rem(p.id)} style={{ width:28, height:28, borderRadius:8, background:"#F3F4F6", fontSize:16, fontWeight:700, color:"#555", display:"flex", alignItems:"center", justifyContent:"center" }}>−</button>
-                            <span style={{ fontSize:14, fontWeight:800, minWidth:16, textAlign:"center" }}>{cart[p.id]}</span>
-                            <button onClick={() => add(p.id)} style={{ width:28, height:28, borderRadius:8, background:"#22C55E", fontSize:16, fontWeight:700, color:"#fff", display:"flex", alignItems:"center", justifyContent:"center" }}>+</button>
-                          </div>
-                        ) : (
-                          <button onClick={() => add(p.id)} style={{
-                            width:34, height:34, borderRadius:10, background:"#22C55E",
-                            color:"#fff", fontSize:20, display:"flex", alignItems:"center", justifyContent:"center",
-                            boxShadow:"0 3px 10px #22C55E40"
-                          }}>+</button>
-                        )
-                      )}
-                    </div>
-                    {p.source === "partner" && (
-                      <div style={{
-                        marginTop:10,
-                        display:"inline-flex",
-                        alignItems:"center",
-                        gap:6,
-                        maxWidth:"100%",
-                        padding:"5px 9px",
-                        borderRadius:999,
-                        background:isStoreClosed ? "#E2E8F0" : "#ECFDF3",
-                        border:`1px solid ${isStoreClosed ? "#CBD5E1" : "#BBF7D0"}`
-                      }}>
-                        <Ic n="store" size={10} style={{ color:isStoreClosed ? "#475569" : "#166534", flexShrink:0 }} />
-                        <button onClick={() => openStoreProfile(p.merchantId)} style={{
-                          fontSize:10,
-                          fontWeight:800,
-                          color:isStoreClosed ? "#334155" : "#166534",
-                          whiteSpace:"nowrap",
-                          overflow:"hidden",
-                          textOverflow:"ellipsis",
-                          background:"transparent",
-                          border:"none",
-                          padding:0,
-                          textAlign:"left"
-                        }}>
-                          {p.storeName || "Partner Merchant"} {isStoreClosed ? "• Closed" : "• Open"}
-                        </button>
-                      </div>
-                    )}
-                  </div>
-                </div>
-                  );
-                })()
+                <ProductCard
+                  key={p.id}
+                  p={p}
+                  cart={cart}
+                  add={add}
+                  rem={rem}
+                  cartWeightUnit={cartWeightUnit}
+                  setCartWeightUnit={setCartWeightUnit}
+                  openStoreProfile={openStoreProfile}
+                  catColor={CATEGORIES.find(c=>c.id===p.cat)?.color}
+                  catIcon={CATEGORIES.find(c=>c.id===p.cat)?.icon}
+                  animDelay={`${i*.05}s`}
+                />
               ))}
             </div>
             {filtered.length === 0 && (
@@ -2574,25 +2575,6 @@
               </div>
             )}
           </div>
-
-          {/* ── Floating Cart ── */}
-          {totalItemCount > 0 && !showCart && (
-            <div className="slide-up" style={{
-              position:"fixed", bottom:`calc(env(safe-area-inset-bottom,0px) + 76px)`,
-              left:20, right:20,
-              zIndex:100
-            }}>
-              <button onClick={() => setShowCart(true)} style={{
-                width:"100%", padding:"15px 24px", borderRadius:18,
-                background:"linear-gradient(135deg,#166534,#22C55E)",
-                color:"#fff", display:"flex", alignItems:"center", justifyContent:"space-between",
-                boxShadow:"0 8px 32px rgba(22,101,52,.38)", fontSize:15, fontWeight:700
-              }}>
-                <span><Ic n="basket-shopping" style={{marginRight:6}} />Basket ({totalItemCount} item{totalItemCount>1?"s":""})</span>
-                <span style={{ fontSize:16, fontWeight:800 }}>~{fmt(subtotal + customEstTotal)}</span>
-              </button>
-            </div>
-          )}
 
           {/* ── Custom List Drawer ── */}
           {showCustomList && (
@@ -2685,89 +2667,6 @@
               </div>
             </div>
           )}
-
-          {/* ── Cart Drawer ── */}
-          {showCart && (
-            <div style={{ position:"fixed", inset:0, zIndex:200, background:"rgba(0,0,0,.55)", backdropFilter:"blur(4px)" }}
-              onClick={() => setShowCart(false)}>
-              <div className="slide-in" onClick={e => e.stopPropagation()} style={{
-                position:"absolute", right:0, top:0, bottom:0,
-                width:"100%", maxWidth:420, background:"#FAFAFA",
-                display:"flex", flexDirection:"column"
-              }}>
-                <div style={{ padding:"calc(env(safe-area-inset-top,0px) + 20px) 24px 20px", borderBottom:"1px solid #E5E7EB", display:"flex", alignItems:"center", justifyContent:"space-between", background:"#fff" }}>
-                  <h2 style={{ fontSize:19, fontWeight:800 }}><Ic n="basket-shopping" style={{marginRight:6}} />Your Basket</h2>
-                  <button onClick={() => setShowCart(false)} style={{ width:36, height:36, borderRadius:10, background:"#F3F4F6", fontSize:18, display:"flex", alignItems:"center", justifyContent:"center" }}><Ic n="xmark" /></button>
-                </div>
-                <div style={{ flex:1, overflowY:"auto", padding:"12px 24px" }}>
-                  {cartItems.map(item => (
-                    <div key={item.id} className="fade-up" style={{ display:"flex", alignItems:"center", gap:12, padding:"13px 0", borderBottom:"1px solid #F0F0F0" }}>
-                      <div style={{ width:50, height:50, borderRadius:13, overflow:"hidden", background:"#F0FDF4", display:"flex", alignItems:"center", justifyContent:"center" }}>
-                        {item.img && item.img.startsWith("http")
-                          ? <img src={item.img} alt={item.name} style={{width:"100%",height:"100%",objectFit:"cover"}} />
-                          : <Ic n={CATEGORIES.find(c=>c.id===item.cat)?.icon||"cube"} size={22} style={{color:CATEGORIES.find(c=>c.id===item.cat)?.color||"#999"}} />}
-                      </div>
-                      <div style={{ flex:1 }}>
-                        <div style={{ fontSize:14, fontWeight:700, color:"#111" }}>{item.name}</div>
-                        <div style={{ fontSize:12, color:"#999" }}>
-                          {item.unit === "kg"
-                            ? `${fmt(item.price * item.weightUnit)} / ${item.weightUnit === 0.25 ? "¼kg" : item.weightUnit === 0.5 ? "½kg" : "1kg"}`
-                            : `${fmt(item.price)} / ${item.unit}`}
-                        </div>
-                      </div>
-                      <div style={{ display:"flex", alignItems:"center", gap:7 }}>
-                        <button onClick={() => rem(item.id)} style={{ width:30, height:30, borderRadius:8, background:"#F3F4F6", fontSize:16, fontWeight:700, color:"#666", display:"flex", alignItems:"center", justifyContent:"center" }}>−</button>
-                        <span style={{ fontSize:14, fontWeight:800, minWidth:20, textAlign:"center" }}>{item.qty}</span>
-                        <button onClick={() => add(item.id)} style={{ width:30, height:30, borderRadius:8, background:"#22C55E", fontSize:16, fontWeight:700, color:"#fff", display:"flex", alignItems:"center", justifyContent:"center" }}>+</button>
-                      </div>
-                      <div style={{ fontSize:14, fontWeight:800, color:"#166534", minWidth:58, textAlign:"right" }}>{fmt(item.price * item.weightUnit * item.qty)}</div>
-                    </div>
-                  ))}
-                  {customItems.length > 0 && (
-                    <>
-                      <div style={{ padding:"10px 0 6px", fontSize:12, fontWeight:700, color:"#888", display:"flex", alignItems:"center", justifyContent:"space-between" }}>
-                        <span><Ic n="list-check" style={{marginRight:5}} />Custom Items</span>
-                        <button onClick={() => setShowCustomList(true)} style={{ fontSize:11, color:"#166534", fontWeight:700, textDecoration:"underline" }}>I-edit</button>
-                      </div>
-                      {customItems.map(item => (
-                        <div key={item.id} style={{ display:"flex", alignItems:"center", gap:12, padding:"11px 0", borderBottom:"1px solid #F0F0F0" }}>
-                          <div style={{ width:50, height:50, borderRadius:13, display:"flex", alignItems:"center", justifyContent:"center", background:"#F0FDF4" }}><Ic n="pen-to-square" size={22} style={{color:"#22C55E"}} /></div>
-                          <div style={{ flex:1 }}>
-                            <div style={{ fontSize:14, fontWeight:700, color:"#111" }}>{item.name}</div>
-                            <div style={{ fontSize:11, color:"#999" }}>{item.unit} • <span style={{ fontStyle:"italic" }}>estimated</span></div>
-                          </div>
-                          <div style={{ fontSize:14, fontWeight:800, color:"#166534", minWidth:58, textAlign:"right" }}>~{fmt(item.estPrice)}</div>
-                        </div>
-                      ))}
-                    </>
-                  )}
-                </div>
-                <div style={{ padding:"18px 24px", paddingBottom:"calc(env(safe-area-inset-bottom,0px) + 18px)", background:"#fff", borderTop:"1px solid #E5E7EB" }}>
-                  {[["Subtotal (catalog)",fmt(subtotal)],
-                    ...(customEstTotal > 0 ? [["Custom items (est.)", "~"+fmt(customEstTotal)]] : []),
-                    ["Delivery ("+deliveryMetaLabel+")",fmt(deliveryFee)],
-                    ["Service Fee",fmt(serviceFee)],
-                    ...(smallOrderFee > 0 ? [["Small Order Fee (5%)",fmt(smallOrderFee)]] : []),
-                    ...(freeShipDiscount > 0 ? [["FREE DELIVERY SA FIRST ORDER","-"+fmt(freeShipDiscount)]] : []),
-                    ...(appliedVoucher && voucherDiscount > 0 ? [[`Voucher (${appliedVoucher.code})`,"-"+fmt(voucherDiscount)]] : [])
-                  ].map(([l,v]) => (
-                    <div key={l} style={{ display:"flex", justifyContent:"space-between", marginBottom:6, fontSize:13, color:"#777" }}>
-                      <span>{l}</span><span style={{ fontWeight:600 }}>{v}</span>
-                    </div>
-                  ))}
-                  <div style={{ display:"flex", justifyContent:"space-between", paddingTop:12, borderTop:"2px dashed #E5E7EB", fontSize:17, fontWeight:800, color:"#111" }}>
-                    <span>Total</span><span>{fmt(total)}</span>
-                  </div>
-                  <button onClick={() => { setShowCart(false); setActivePage("checkout"); }} style={{
-                    width:"100%", marginTop:14, padding:"15px", borderRadius:16,
-                    background:"linear-gradient(135deg,#166534,#22C55E)", color:"#fff",
-                    fontSize:15, fontWeight:700, boxShadow:"0 4px 16px rgba(22,101,52,.3)"
-                  }}>Proceed to Checkout</button>
-                </div>
-              </div>
-            </div>
-          )}
-
 
           </> /* end pabili content */}
 
@@ -3243,18 +3142,14 @@
                   </div>
                 )}
               </div>
-              <div style={{ padding:`0 20px ${totalItemCount > 0 && !showCart ? "138px" : "16px"}` }}>
+              <div style={{ padding:`0 20px ${totalItemCount > 0 ? "138px" : "16px"}` }}>
                 <div style={{ display:"flex", gap:8, overflowX:"auto", padding:"0 0 10px", scrollbarWidth:"none" }}>
                   {activeStoreCategoryTabs.map((cat) => (
                     <button key={cat.id} onClick={() => setActiveStoreCat(cat.id)} style={{
-                      padding:"8px 12px",
-                      borderRadius:999,
-                      whiteSpace:"nowrap",
-                      border:`1px solid ${activeStoreCat===cat.id ? cat.color : "#E2E8F0"}`,
+                      padding:"8px 14px", borderRadius:999, whiteSpace:"nowrap", fontSize:12, fontWeight:700,
+                      border:`1.5px solid ${activeStoreCat===cat.id ? cat.color : "#E2E8F0"}`,
                       background:activeStoreCat===cat.id ? cat.color : "#fff",
                       color:activeStoreCat===cat.id ? "#fff" : "#334155",
-                      fontSize:12,
-                      fontWeight:700
                     }}>
                       <Ic n={cat.icon || "tag"} size={11} style={{ marginRight:6 }} />
                       {cat.label} ({cat.count})
@@ -3263,114 +3158,24 @@
                 </div>
                 <div style={{ fontSize:14, fontWeight:800, color:"#111827", marginBottom:10 }}>Store Listings</div>
                 <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:12 }}>
-                  {storeListings.map((p, i) => {
-                    const isStoreClosed = p.storeOpen === false;
-                    const isUnavailable = !p.stock || isStoreClosed;
-                    return (
-                      <div key={p.id} className="fade-up" style={{
-                        animationDelay:`${i*.05}s`,
-                        background:"#fff", borderRadius:18, overflow:"hidden",
-                        border:"1px solid #F0F0F0", boxShadow:"0 2px 8px rgba(0,0,0,.04)",
-                        opacity:isUnavailable ? .5 : 1, position:"relative",
-                        filter:isStoreClosed ? "grayscale(.35)" : "none"
-                      }}>
-                        {isStoreClosed && (
-                          <div style={{
-                            position:"absolute", top:10, left:p.merchantLogo ? 42 : 10, background:"#334155",
-                            color:"#fff", fontSize:9, fontWeight:800, padding:"3px 8px", borderRadius:6, zIndex:4, letterSpacing:".04em"
-                          }}>STORE CLOSED</div>
-                        )}
-                        {!p.stock && (
-                          <div style={{
-                            position:"absolute", top:10, right:10, background:"#EF4444",
-                            color:"#fff", fontSize:9, fontWeight:800, padding:"3px 8px", borderRadius:6, zIndex:2, letterSpacing:".04em"
-                          }}>SOLD OUT</div>
-                        )}
-                        <div style={{
-                          height:116, overflow:"hidden", background:`linear-gradient(135deg,${(storeCategoryMap[p.cat]?.color || "#94A3B8")}12,${(storeCategoryMap[p.cat]?.color || "#94A3B8")}06)`,
-                          display:"flex", alignItems:"center", justifyContent:"center"
-                        }}>
-                          {p.merchantLogo && (
-                            <div style={{
-                              position:"absolute", top:8, left:8, width:28, height:28, borderRadius:"50%",
-                              overflow:"hidden", border:"2px solid #fff", boxShadow:"0 2px 6px rgba(0,0,0,.2)", zIndex:3, background:"#fff"
-                            }}>
-                              <img src={p.merchantLogo} alt={p.storeName || "Partner"} style={{ width:"100%", height:"100%", objectFit:"cover" }} />
-                            </div>
-                          )}
-                          {p.img && p.img.startsWith("http")
-                            ? <img src={p.img} alt={p.name} style={{ width:"100%", height:"100%", objectFit:"cover" }} onError={e=>{e.target.style.display="none";e.target.nextSibling.style.display="flex";}} />
-                            : null}
-                          <div style={{display:p.img&&p.img.startsWith("http")?"none":"flex",alignItems:"center",justifyContent:"center",width:"100%",height:"100%"}}>
-                            <Ic n={storeCategoryMap[p.cat]?.icon || "tag"} size={40} style={{color:storeCategoryMap[p.cat]?.color || "#94A3B8",opacity:.5}} />
-                          </div>
-                        </div>
-                        <div style={{ padding:"11px 14px 14px" }}>
-                          <div style={{ fontSize:13, fontWeight:700, color:"#111", marginBottom:2, lineHeight:1.25 }}>{p.name}</div>
-                          <div style={{ fontSize:11, color:"#aaa", marginBottom:8 }}>per {p.unit}</div>
-                          {p.unit === "kg" && (
-                            <div style={{ display:"flex", gap:4, marginBottom:10 }}>
-                              {[{w:0.25,l:"¼kg"},{w:0.5,l:"½kg"},{w:1,l:"1kg"}].map(({w,l}) => {
-                                const sel = (cartWeightUnit[p.id] || 1) === w;
-                                return (
-                                  <button key={w} onClick={() => setCartWeightUnit(u => ({...u,[p.id]:w}))} style={{
-                                    flex:1, padding:"5px 0", borderRadius:8, fontSize:11, fontWeight:800,
-                                    background: sel ? "#166534" : "#F3F4F6", color: sel ? "#fff" : "#6B7280",
-                                    border: sel ? "none" : "1px solid #E5E7EB", transition:"all .15s"
-                                  }}>{l}</button>
-                                );
-                              })}
-                            </div>
-                          )}
-                          <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", gap:8, flexWrap:"wrap" }}>
-                            <div style={{ minWidth:0, flex:"1 1 auto" }}>
-                              <span style={{ fontSize:17, fontWeight:800, color:"#166534" }}>
-                                {p.unit === "kg" ? fmt(p.price * (cartWeightUnit[p.id] || 1)) : fmt(p.price)}
-                              </span>
-                              {p.unit === "kg" && (
-                                <span style={{ fontSize:10, color:"#9CA3AF", marginLeft:3 }}>
-                                  / {cartWeightUnit[p.id] === 0.25 ? "¼kg" : cartWeightUnit[p.id] === 0.5 ? "½kg" : "1kg"}
-                                </span>
-                              )}
-                            </div>
-                            {!isStoreClosed && p.stock && (
-                              cart[p.id] ? (
-                                <div style={{ display:"flex", alignItems:"center", gap:6, background:"#F0FDF4", border:"1px solid #BBF7D0", borderRadius:12, padding:"4px" }}>
-                                  <button onClick={() => rem(p.id)} style={{ width:28, height:28, borderRadius:8, background:"#fff", fontSize:16, fontWeight:700, color:"#166534", display:"flex", alignItems:"center", justifyContent:"center", border:"1px solid #DCFCE7" }}>−</button>
-                                  <span style={{ fontSize:14, fontWeight:800, minWidth:18, textAlign:"center", color:"#166534" }}>{cart[p.id]}</span>
-                                  <button onClick={() => add(p.id)} style={{ width:28, height:28, borderRadius:8, background:"#16A34A", fontSize:16, fontWeight:700, color:"#fff", display:"flex", alignItems:"center", justifyContent:"center", boxShadow:"0 3px 8px rgba(22,163,74,.35)" }}>+</button>
-                                </div>
-                              ) : (
-                                <button onClick={() => add(p.id)} style={{
-                                  minWidth:96, height:36, borderRadius:11, background:"linear-gradient(135deg,#166534,#22C55E)", color:"#fff", fontSize:12, fontWeight:800,
-                                  display:"flex", alignItems:"center", justifyContent:"center", gap:6, boxShadow:"0 6px 16px rgba(34,197,94,.34)", padding:"0 12px", marginLeft:"auto"
-                                }}><Ic n="bag-shopping" size={12} />Add to Bag</button>
-                              )
-                            )}
-                          </div>
-                        </div>
-                      </div>
-                    );
-                  })}
+                  {storeListings.map((p, i) => (
+                    <ProductCard
+                      key={p.id}
+                      p={p}
+                      cart={cart}
+                      add={add}
+                      rem={rem}
+                      cartWeightUnit={cartWeightUnit}
+                      setCartWeightUnit={setCartWeightUnit}
+                      openStoreProfile={null}
+                      catColor={storeCategoryMap[p.cat]?.color || CATEGORIES.find(c=>c.id===p.cat)?.color}
+                      catIcon={storeCategoryMap[p.cat]?.icon || CATEGORIES.find(c=>c.id===p.cat)?.icon}
+                      animDelay={`${i*.05}s`}
+                    />
+                  ))}
                 </div>
                 {storeListings.length === 0 && <div style={{ fontSize:12, color:"#94A3B8" }}>No active listings for this store.</div>}
               </div>
-
-              {totalItemCount > 0 && !showCart && (
-                <div className="slide-up" style={{
-                  position:"fixed", bottom:`calc(env(safe-area-inset-bottom,0px) + 76px)`,
-                  left:20, right:20, zIndex:100
-                }}>
-                  <button onClick={() => setShowCart(true)} style={{
-                    width:"100%", padding:"15px 24px", borderRadius:18, background:"linear-gradient(135deg,#166534,#22C55E)",
-                    color:"#fff", display:"flex", alignItems:"center", justifyContent:"space-between",
-                    boxShadow:"0 8px 32px rgba(22,101,52,.38)", fontSize:15, fontWeight:700
-                  }}>
-                    <span><Ic n="basket-shopping" style={{marginRight:6}} />Basket ({totalItemCount} item{totalItemCount>1?"s":""})</span>
-                    <span style={{ fontSize:16, fontWeight:800 }}>~{fmt(subtotal + customEstTotal)}</span>
-                  </button>
-                </div>
-              )}
             </>
           )}
 
@@ -3626,6 +3431,106 @@
           {/* ── Rider Profile Modal ── */}
           {riderProfileView && (
             <RiderProfileModal riderId={riderProfileView.riderId} riderName={riderProfileView.riderName} riderPhoto={riderProfileView.riderPhoto} onClose={() => setRiderProfileView(null)} />
+          )}
+
+          {/* ── Global Floating Cart ── */}
+          {totalItemCount > 0 && !showCart && activePage !== "checkout" && (
+            <div className="slide-up" style={{
+              position:"fixed", bottom:`calc(env(safe-area-inset-bottom,0px) + 76px)`,
+              left:20, right:20, zIndex:100, maxWidth:"calc(480px - 40px)", margin:"0 auto"
+            }}>
+              <button onClick={() => setShowCart(true)} style={{
+                width:"100%", padding:"15px 24px", borderRadius:18,
+                background:"linear-gradient(135deg,#166534,#22C55E)",
+                color:"#fff", display:"flex", alignItems:"center", justifyContent:"space-between",
+                boxShadow:"0 8px 32px rgba(22,101,52,.38)", fontSize:15, fontWeight:700
+              }}>
+                <span><Ic n="basket-shopping" style={{marginRight:6}} />Basket ({totalItemCount} item{totalItemCount>1?"s":""})</span>
+                <span style={{ fontSize:16, fontWeight:800 }}>~{fmt(subtotal + customEstTotal)}</span>
+              </button>
+            </div>
+          )}
+
+          {/* ── Global Cart Drawer ── */}
+          {showCart && (
+            <div style={{ position:"fixed", inset:0, zIndex:200, background:"rgba(0,0,0,.55)", backdropFilter:"blur(4px)" }}
+              onClick={() => setShowCart(false)}>
+              <div className="slide-in" onClick={e => e.stopPropagation()} style={{
+                position:"absolute", right:0, top:0, bottom:0,
+                width:"100%", maxWidth:420, background:"#FAFAFA",
+                display:"flex", flexDirection:"column"
+              }}>
+                <div style={{ padding:"calc(env(safe-area-inset-top,0px) + 20px) 24px 20px", borderBottom:"1px solid #E5E7EB", display:"flex", alignItems:"center", justifyContent:"space-between", background:"#fff" }}>
+                  <h2 style={{ fontSize:19, fontWeight:800 }}><Ic n="basket-shopping" style={{marginRight:6}} />Your Basket</h2>
+                  <button onClick={() => setShowCart(false)} style={{ width:36, height:36, borderRadius:10, background:"#F3F4F6", fontSize:18, display:"flex", alignItems:"center", justifyContent:"center" }}><Ic n="xmark" /></button>
+                </div>
+                <div style={{ flex:1, overflowY:"auto", padding:"12px 24px" }}>
+                  {cartItems.map(item => (
+                    <div key={item.id} className="fade-up" style={{ display:"flex", alignItems:"center", gap:12, padding:"13px 0", borderBottom:"1px solid #F0F0F0" }}>
+                      <div style={{ width:50, height:50, borderRadius:13, overflow:"hidden", background:"#F0FDF4", display:"flex", alignItems:"center", justifyContent:"center" }}>
+                        {item.img && item.img.startsWith("http")
+                          ? <img src={item.img} alt={item.name} style={{width:"100%",height:"100%",objectFit:"cover"}} />
+                          : <Ic n={CATEGORIES.find(c=>c.id===item.cat)?.icon||"cube"} size={22} style={{color:CATEGORIES.find(c=>c.id===item.cat)?.color||"#999"}} />}
+                      </div>
+                      <div style={{ flex:1 }}>
+                        <div style={{ fontSize:14, fontWeight:700, color:"#111" }}>{item.name}</div>
+                        <div style={{ fontSize:12, color:"#999" }}>
+                          {item.unit === "kg"
+                            ? `${fmt(item.price * item.weightUnit)} / ${item.weightUnit === 0.25 ? "¼kg" : item.weightUnit === 0.5 ? "½kg" : "1kg"}`
+                            : `${fmt(item.price)} / ${item.unit}`}
+                        </div>
+                      </div>
+                      <div style={{ display:"flex", alignItems:"center", gap:6 }}>
+                        <button onClick={() => rem(item.id)} style={{ width:30, height:30, borderRadius:8, background:"#F3F4F6", fontSize:16, fontWeight:700, color:"#666", display:"flex", alignItems:"center", justifyContent:"center" }}>−</button>
+                        <span style={{ fontSize:14, fontWeight:800, minWidth:20, textAlign:"center" }}>{item.qty}</span>
+                        <button onClick={() => add(item.id)} style={{ width:30, height:30, borderRadius:8, background:"#16A34A", fontSize:16, fontWeight:700, color:"#fff", display:"flex", alignItems:"center", justifyContent:"center" }}>+</button>
+                      </div>
+                      <div style={{ fontSize:14, fontWeight:800, color:"#166534", minWidth:58, textAlign:"right" }}>{fmt(item.price * item.weightUnit * item.qty)}</div>
+                    </div>
+                  ))}
+                  {customItems.length > 0 && (
+                    <>
+                      <div style={{ padding:"10px 0 6px", fontSize:12, fontWeight:700, color:"#888", display:"flex", alignItems:"center", justifyContent:"space-between" }}>
+                        <span><Ic n="list-check" style={{marginRight:5}} />Custom Items</span>
+                        <button onClick={() => setShowCustomList(true)} style={{ fontSize:11, color:"#166534", fontWeight:700, textDecoration:"underline" }}>Edit</button>
+                      </div>
+                      {customItems.map(item => (
+                        <div key={item.id} style={{ display:"flex", alignItems:"center", gap:12, padding:"11px 0", borderBottom:"1px solid #F0F0F0" }}>
+                          <div style={{ width:50, height:50, borderRadius:13, display:"flex", alignItems:"center", justifyContent:"center", background:"#F0FDF4" }}><Ic n="pen-to-square" size={22} style={{color:"#22C55E"}} /></div>
+                          <div style={{ flex:1 }}>
+                            <div style={{ fontSize:14, fontWeight:700, color:"#111" }}>{item.name}</div>
+                            <div style={{ fontSize:11, color:"#999" }}>{item.unit} • <span style={{ fontStyle:"italic" }}>estimated</span></div>
+                          </div>
+                          <div style={{ fontSize:14, fontWeight:800, color:"#166534", minWidth:58, textAlign:"right" }}>~{fmt(item.estPrice)}</div>
+                        </div>
+                      ))}
+                    </>
+                  )}
+                </div>
+                <div style={{ padding:"18px 24px", paddingBottom:"calc(env(safe-area-inset-bottom,0px) + 18px)", background:"#fff", borderTop:"1px solid #E5E7EB" }}>
+                  {[["Subtotal (catalog)",fmt(subtotal)],
+                    ...(customEstTotal > 0 ? [["Custom items (est.)", "~"+fmt(customEstTotal)]] : []),
+                    ["Delivery ("+deliveryMetaLabel+")",fmt(deliveryFee)],
+                    ["Service Fee",fmt(serviceFee)],
+                    ...(smallOrderFee > 0 ? [["Small Order Fee (5%)",fmt(smallOrderFee)]] : []),
+                    ...(freeShipDiscount > 0 ? [["FREE DELIVERY SA FIRST ORDER","-"+fmt(freeShipDiscount)]] : []),
+                    ...(appliedVoucher && voucherDiscount > 0 ? [[`Voucher (${appliedVoucher.code})`,"-"+fmt(voucherDiscount)]] : [])
+                  ].map(([l,v]) => (
+                    <div key={l} style={{ display:"flex", justifyContent:"space-between", marginBottom:6, fontSize:13, color:"#777" }}>
+                      <span>{l}</span><span style={{ fontWeight:600 }}>{v}</span>
+                    </div>
+                  ))}
+                  <div style={{ display:"flex", justifyContent:"space-between", paddingTop:12, borderTop:"2px dashed #E5E7EB", fontSize:17, fontWeight:800, color:"#111" }}>
+                    <span>Total</span><span>{fmt(total)}</span>
+                  </div>
+                  <button onClick={() => { setShowCart(false); setActivePage("checkout"); }} style={{
+                    width:"100%", marginTop:14, padding:"15px", borderRadius:16,
+                    background:"linear-gradient(135deg,#166534,#22C55E)", color:"#fff",
+                    fontSize:15, fontWeight:700, boxShadow:"0 4px 16px rgba(22,101,52,.3)"
+                  }}>Proceed to Checkout</button>
+                </div>
+              </div>
+            </div>
           )}
 
           {/* ── Bottom Nav ── */}
