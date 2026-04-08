@@ -727,7 +727,6 @@
       const orderDelta = todayOrders.length - yesterdayOrders.length;
 
       const activeRiders = [...new Set(dashboardOrders.filter(o => (o.status === "otw" || o.status === "in_boat") && o.riderId).map(o => o.riderId))].length;
-      const lowStockProducts = products.filter(p => !p.stock).length;
 
       const timeline = Array.from({ length: 7 }).map((_, idx) => {
         const d = new Date(); d.setDate(d.getDate() - (6 - idx));
@@ -756,7 +755,7 @@
               { label: "Avg Order Value", value: fmt(avgOrderValue), icon: "chart-line", iconBg: "#FCE7F3", iconColor: "#DB2777" },
               { label: "Active Riders", value: activeRiders, icon: "motorcycle", iconBg: "#F0F9FF", iconColor: "#0369A1" },
               { label: "Active Users", value: appUsageStats?.activeUsers || 0, icon: "users", iconBg: "#EDE9FE", iconColor: "#7C3AED" },
-              { label: "Out of Stock", value: lowStockProducts, icon: "triangle-exclamation", iconBg: lowStockProducts > 0 ? "#FEE2E2" : "#F1F5F9", iconColor: lowStockProducts > 0 ? "#DC2626" : "#94A3B8" },
+              { label: "App Total Downloads", value: appUsageStats?.downloadedUsers || 0, icon: "download", iconBg: "#ECFDF5", iconColor: "#059669" },
             ].map(k => (
               <div key={k.label} className="metric-card">
                 <div className="metric-icon" style={{ background: k.iconBg, color: k.iconColor }}><Ic n={k.icon} /></div>
