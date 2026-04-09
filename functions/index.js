@@ -100,6 +100,75 @@ exports.processNotificationQueue = onValueCreated(
 );
 
 // ─────────────────────────────────────────────────────────────────────────────
+// RTDB-TRIGGERED: partner merchant enforcement updates
+// Sends in-app notification + email queue payload when access is moderated.
+// ─────────────────────────────────────────────────────────────────────────────
+exports.notifyPartnerMerchantModeration = onValueUpdated(
+  { ref: "partner_merchants/{merchantId}", region: "asia-southeast1" },
+  async (event) => {
+    const before = event.data.before.val() || {};
+    const after = event.data.after.val() || {};
+    const merchantId = event.params.merchantId;
+    const prevAction = String(before?.enforcementStatus || before?.moderation?.action || "active").trim().toLowerCase();
+    const nextAction = String(after?.enforcementStatus || after?.moderation?.action || "active").trim().toLowerCase();
+    if (!["active", "suspended", "revoked", "deleted"].includes(nextAction)) return;
+    if (prevAction === nextAction) return;
+
+    const db = getDatabase();
+    const candidates = [
+      after?.contactEmail,
+      after?.applicantEmail,
+      after?.email,
+      before?.contactEmail,
+      before?.applicantEmail,
+      before?.email,
+    ]
+      .map((v) => String(v || "").trim().toLowerCase())
+      .filter(Boolean)
+      .filter((email, idx, arr) => arr.indexOf(email) === idx);
+
+    const reason = String(after?.moderation?.reason || "").trim();
+    const storeName = String(after?.storeName || "your store").trim();
+    const actionLabel =
+      nextAction === "suspended" ? "suspended" :
+      nextAction === "revoked" ? "access revoked" :
+      nextAction === "deleted" ? "marked as deleted" : "restored";
+    const title = nextAction === "active" ? "✅ Store access restored" : "⚠️ Store compliance action";
+    const body = nextAction === "active"
+      ? `${storeName} has been re-activated.`
+      : `${storeName} was ${actionLabel} due to policy violations.${reason ? ` Reason: ${reason}` : ""}`;
+
+    if (after?.applicantUid) {
+      await db.ref("notification_queue").push({
+        uid: after.applicantUid,
+        title,
+        body,
+        link: `${MERCHANT_APP_URL}`,
+        createdAt: Date.now(),
+      });
+    }
+
+    if (candidates.length > 0) {
+      const safeReason = reason ? `\nReason: ${reason}` : "";
+      const htmlReason = reason ? `<p><strong>Reason:</strong> ${reason}</p>` : "";
+      await db.ref("mail").push({
+        to: candidates,
+        message: {
+          subject: `[BayanGo] Store access update: ${storeName}`,
+          text: `Hello partner,\n\nYour store "${storeName}" has been ${actionLabel}.${safeReason}\n\nIf you believe this is a mistake, reply to BayanGo support.\n\n- BayanGo Admin`,
+          html: `<p>Hello partner,</p><p>Your store <strong>${storeName}</strong> has been <strong>${actionLabel}</strong>.</p>${htmlReason}<p>If you believe this is a mistake, please contact BayanGo support.</p><p>- BayanGo Admin</p>`,
+        },
+        meta: {
+          merchantId,
+          enforcementStatus: nextAction,
+          triggeredAt: Date.now(),
+        },
+      });
+    }
+  }
+);
+
+// ─────────────────────────────────────────────────────────────────────────────
 // HTTPS: PAYMONGO WEBHOOK (PAYMENT EVENTS)
 // ─────────────────────────────────────────────────────────────────────────────
 exports.paymongoWebhook = onRequest(

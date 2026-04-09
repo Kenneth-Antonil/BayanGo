@@ -602,6 +602,33 @@
         await fns.update(fns.ref(db, "partner_merchants/" + merchantId), { featuredInApp: featured === true, featuredUpdatedAt: Date.now(), featuredUpdatedByUid: user?.uid || null });
       }, [user?.uid]);
 
+      const moderatePartnerMerchant = useCallback(async (merchantId, action, reason = "") => {
+        if (!merchantId) throw new Error("Missing merchant id.");
+        const normalizedAction = String(action || "").trim().toLowerCase();
+        if (!["active", "suspended", "revoked", "deleted"].includes(normalizedAction)) throw new Error("Invalid moderation action.");
+        const { db, fns } = await initFirebase();
+        const now = Date.now();
+        const moderationPayload = {
+          action: normalizedAction,
+          reason: String(reason || "").trim() || null,
+          updatedAt: now,
+          updatedByUid: user?.uid || null,
+          updatedByEmail: user?.email || null,
+        };
+        const updates = {
+          moderation: moderationPayload,
+          enforcementStatus: normalizedAction,
+          enforcementUpdatedAt: now,
+          enforcementUpdatedByUid: user?.uid || null,
+          storeOpen: normalizedAction === "active",
+        };
+        if (normalizedAction === "deleted") {
+          updates.deletedAt = now;
+          updates.deletedByUid = user?.uid || null;
+        }
+        await fns.update(fns.ref(db, "partner_merchants/" + merchantId), updates);
+      }, [user?.email, user?.uid]);
+
       if (!ready) return (
         <div style={{ minHeight: "100vh", background: "var(--bg)", display: "flex", alignItems: "center", justifyContent: "center", flexDirection: "column", gap: 16 }}>
           <Ic n="gear" size={40} className="spin" style={{ color: "var(--brand)" }} />
@@ -635,7 +662,7 @@
             vouchers={vouchers} onAddVoucher={addVoucher} onUpdateVoucher={updateVoucher} onDeleteVoucher={deleteVoucher}
             appUsageStats={appUsageStats} appUsageMap={appUsageMap}
             partnerApplications={partnerApplications} partnerMerchants={partnerMerchants}
-            onDecidePartnerApplication={decidePartnerApplication} onToggleFeaturedPartnerMerchant={toggleFeaturedPartnerMerchant}
+            onDecidePartnerApplication={decidePartnerApplication} onToggleFeaturedPartnerMerchant={toggleFeaturedPartnerMerchant} onModeratePartnerMerchant={moderatePartnerMerchant}
             authzError={authzError} partnerDataLoaded={partnerDataLoaded}
           />
         </>
@@ -1092,7 +1119,7 @@
     }
 
     /* ══════════════════ PARTNERS PANEL ══════════════════ */
-    function PartnersPanel({ applications = [], merchants = [], onDecide, onToggleFeatured, dataLoaded = true, authzError = "", adminUid = "" }) {
+    function PartnersPanel({ applications = [], merchants = [], onDecide, onToggleFeatured, onModerateMerchant, dataLoaded = true, authzError = "", adminUid = "" }) {
       const [partnerTab, setPartnerTab] = useState("pending");
       const [searchQ, setSearchQ] = useState("");
       const [rejectingId, setRejectingId] = useState("");
@@ -1111,6 +1138,12 @@
         if (merchant?.approved === true || merchant?.approved === 1 || a === "true" || a === "approved" || s === "approved") return "approved";
         if (s === "rejected") return "rejected";
         return s || "pending";
+      };
+      const normalizedEnforcementStatus = (merchant) => {
+        const explicit = String(merchant?.enforcementStatus || merchant?.moderation?.action || "").trim().toLowerCase();
+        if (["active", "suspended", "revoked", "deleted"].includes(explicit)) return explicit;
+        if (merchant?.deletedAt) return "deleted";
+        return "active";
       };
 
       const mergedMerchants = useMemo(() => {
@@ -1406,6 +1439,9 @@
                 const attachments = extractAttachmentUrls(m);
                 const storeIsOpen = m.storeOpen !== false;
                 const isBusy = m.busyMode === true;
+                const enforcementStatus = normalizedEnforcementStatus(m);
+                const isRestricted = enforcementStatus !== "active";
+                const enforcementReason = String(m?.moderation?.reason || "").trim();
                 
                 return (
                   <div key={merchantRowId} className="card" style={{ marginBottom: 10, borderLeft: `4px solid ${catMeta.color}` }}>
@@ -1423,6 +1459,14 @@
                           <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
                             <div style={{ fontWeight: 800, fontSize: 15 }}>{m.storeName || "Unnamed"}</div>
                             <span style={{ width: 8, height: 8, borderRadius: "50%", background: storeIsOpen ? (isBusy ? "#F59E0B" : "#22C55E") : "#DC2626", flexShrink: 0 }} />
+                            {isRestricted && (
+                              <span style={{
+                                padding: "2px 6px", borderRadius: 999, fontSize: 9, fontWeight: 800,
+                                background: enforcementStatus === "suspended" ? "#FEF3C7" : "#FEE2E2",
+                                color: enforcementStatus === "suspended" ? "#92400E" : "#991B1B",
+                                textTransform: "uppercase",
+                              }}>{enforcementStatus}</span>
+                            )}
                             {m.featuredInApp && <Ic n="star" style={{ color: "#F59E0B", fontSize: 12 }} />}
                           </div>
                           <div style={{ fontSize: 12, color: "var(--muted)", marginTop: 2 }}>{m.contactName} • {m.contactPhone}</div>
@@ -1456,6 +1500,21 @@
                           </div>
                         )}
 
+                        {isRestricted && (
+                          <div style={{
+                            marginBottom: 16,
+                            background: "#FEF2F2",
+                            border: "1px solid #FECACA",
+                            borderRadius: 10,
+                            padding: "10px 12px",
+                          }}>
+                            <div style={{ fontSize: 10, fontWeight: 800, textTransform: "uppercase", color: "#991B1B", marginBottom: 4 }}>
+                              Enforcement Status: {enforcementStatus}
+                            </div>
+                            <div style={{ fontSize: 12, color: "#7F1D1D" }}>{enforcementReason || "No reason provided."}</div>
+                          </div>
+                        )}
+
                         {attachments.length > 0 && (
                           <div style={{ marginBottom: 16 }}>
                             <div style={{ fontSize: 10, fontWeight: 700, color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: ".04em", marginBottom: 6 }}>Documents</div>
@@ -1486,6 +1545,41 @@
                             <Ic n="whatsapp" className="fa-brands" style={{ marginRight: 6 }} />Contact
                           </button>
                         </div>
+                        <div style={{ display: "grid", gridTemplateColumns: "repeat(3, minmax(0,1fr))", gap: 8, marginTop: 10 }}>
+                          <button onClick={() => {
+                            const reason = window.prompt("Reason for suspension (required):", enforcementReason || "");
+                            if (reason === null) return;
+                            if (!String(reason).trim()) { toast.error("Suspension reason is required."); return; }
+                            onModerateMerchant?.(m._merchantId, "suspended", reason).then(() => toast.success("Merchant suspended. Partner will receive an email."));
+                          }} style={{ height: 36, borderRadius: 8, fontSize: 11, fontWeight: 700, cursor: "pointer", background: "#FEF3C7", color: "#92400E", border: "1px solid #FDE68A" }}>
+                            Suspend
+                          </button>
+                          <button onClick={() => {
+                            const reason = window.prompt("Reason for revoking access (required):", enforcementReason || "");
+                            if (reason === null) return;
+                            if (!String(reason).trim()) { toast.error("Revocation reason is required."); return; }
+                            onModerateMerchant?.(m._merchantId, "revoked", reason).then(() => toast.success("Access revoked. Partner will receive an email."));
+                          }} style={{ height: 36, borderRadius: 8, fontSize: 11, fontWeight: 700, cursor: "pointer", background: "#FEE2E2", color: "#991B1B", border: "1px solid #FECACA" }}>
+                            Revoke Access
+                          </button>
+                          <button onClick={() => {
+                            const reason = window.prompt("Reason for deleting store (required):", enforcementReason || "");
+                            if (reason === null) return;
+                            if (!String(reason).trim()) { toast.error("Deletion reason is required."); return; }
+                            if (!window.confirm(`Delete store access for ${m.storeName || "this merchant"}?`)) return;
+                            onModerateMerchant?.(m._merchantId, "deleted", reason).then(() => toast.success("Store marked as deleted. Partner will receive an email."));
+                          }} style={{ height: 36, borderRadius: 8, fontSize: 11, fontWeight: 700, cursor: "pointer", background: "#111827", color: "#fff", border: "1px solid #1F2937" }}>
+                            Delete Store
+                          </button>
+                        </div>
+                        {isRestricted && (
+                          <button onClick={() => onModerateMerchant?.(m._merchantId, "active", "").then(() => toast.success("Merchant re-activated."))} style={{
+                            width: "100%", marginTop: 8, height: 34, borderRadius: 8, fontSize: 11, fontWeight: 700, cursor: "pointer",
+                            background: "#DCFCE7", color: "#166534", border: "1px solid #BBF7D0"
+                          }}>
+                            Restore Access
+                          </button>
+                        )}
                       </div>
                     )}
                   </div>
@@ -1808,7 +1902,7 @@
     }
 
     /* ══════════════════ ADMIN DASHBOARD (Main Shell) ══════════════════ */
-    function AdminDashboard({ user, onLogout, orders, onUpdateStatus, onBroadcast, products, onAddProduct, onUpdateProduct, onDeleteProduct, marketPricing, onUpdateMarketPricing, vouchers, onAddVoucher, onUpdateVoucher, onDeleteVoucher, appUsageStats, appUsageMap, partnerApplications, partnerMerchants, onDecidePartnerApplication, onToggleFeaturedPartnerMerchant, authzError, partnerDataLoaded }) {
+    function AdminDashboard({ user, onLogout, orders, onUpdateStatus, onBroadcast, products, onAddProduct, onUpdateProduct, onDeleteProduct, marketPricing, onUpdateMarketPricing, vouchers, onAddVoucher, onUpdateVoucher, onDeleteVoucher, appUsageStats, appUsageMap, partnerApplications, partnerMerchants, onDecidePartnerApplication, onToggleFeaturedPartnerMerchant, onModeratePartnerMerchant, authzError, partnerDataLoaded }) {
       const getInitialTab = () => {
         const validTabs = new Set(["dashboard", "orders", "grocery", "products", "data", "partners", "vouchers", "settings"]);
         try { const hash = (window.location.hash || "").replace("#", "").toLowerCase(); if (validTabs.has(hash)) return hash; } catch {}
@@ -2051,7 +2145,7 @@
 
             {tab === "dashboard" && <DashboardOverview orders={orders} appUsageStats={appUsageStats} products={products} />}
             {tab === "grocery" && <GroceryTab orders={dashboardOrders} />}
-            {tab === "partners" && <PartnersPanel applications={partnerApplications} merchants={partnerMerchants} onDecide={onDecidePartnerApplication} onToggleFeatured={onToggleFeaturedPartnerMerchant} dataLoaded={partnerDataLoaded} authzError={authzError} adminUid={user?.uid} />}
+            {tab === "partners" && <PartnersPanel applications={partnerApplications} merchants={partnerMerchants} onDecide={onDecidePartnerApplication} onToggleFeatured={onToggleFeaturedPartnerMerchant} onModerateMerchant={onModeratePartnerMerchant} dataLoaded={partnerDataLoaded} authzError={authzError} adminUid={user?.uid} />}
             {tab === "products" && <ProductsPanel products={products} onAdd={onAddProduct} onUpdate={onUpdateProduct} onDelete={onDeleteProduct} marketPricing={marketPricing} onUpdateMarketPricing={onUpdateMarketPricing} />}
             {tab === "data" && <DataTab orders={orders} />}
             {tab === "vouchers" && <VouchersPanel vouchers={vouchers} onAdd={onAddVoucher} onUpdate={onUpdateVoucher} onDelete={onDeleteVoucher} />}
