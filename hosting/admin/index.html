@@ -1398,16 +1398,17 @@
                   <Ic n="store" size={28} style={{ color: "var(--muted)", opacity: .4, marginBottom: 8, display: "block" }} />
                   <div style={{ fontSize: 13, fontWeight: 700, color: "var(--muted)" }}>{searchQ ? "No merchants found" : "No approved merchants yet"}</div>
                 </div>
-              ) : filteredMerchants.map(m => {
+              ) : filteredMerchants.map((m, idx) => {
                 const catMeta = getCatMeta(m.category || m.storeCategory);
-                const isExpanded = expandedMerchant === (m._merchantId || m.id);
+                const merchantRowId = m._merchantId || m.id || m.applicantUid || m.uid || `${m.storeName || "merchant"}-${m.contactPhone || "no-phone"}-${idx}`;
+                const isExpanded = expandedMerchant === merchantRowId;
                 const attachments = extractAttachmentUrls(m);
                 const storeIsOpen = m.storeOpen !== false;
                 const isBusy = m.busyMode === true;
                 
                 return (
-                  <div key={m._merchantId || m.id} className="card" style={{ marginBottom: 10, borderLeft: `4px solid ${catMeta.color}`, cursor: "pointer" }}
-                    onClick={() => setExpandedMerchant(isExpanded ? null : (m._merchantId || m.id))}>
+                  <div key={merchantRowId} className="card" style={{ marginBottom: 10, borderLeft: `4px solid ${catMeta.color}`, cursor: "pointer" }}
+                    onClick={() => setExpandedMerchant(isExpanded ? null : merchantRowId)}>
                     <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
                       <div style={{ width: 44, height: 44, borderRadius: 12, background: `${catMeta.color}15`, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
                         <Ic n={catMeta.icon} style={{ color: catMeta.color, fontSize: 18 }} />
