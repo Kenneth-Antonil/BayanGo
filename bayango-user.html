@@ -1605,10 +1605,11 @@
                   </div>
                 ) : (
                   <button onClick={() => add(p.id)} style={{
-                    minWidth:108, height:36, borderRadius:11, background:"linear-gradient(135deg,#166534,#22C55E)",
-                    color:"#fff", fontSize:12, fontWeight:800, display:"flex", alignItems:"center", justifyContent:"center",
-                    gap:6, boxShadow:"0 6px 16px rgba(34,197,94,.34)", padding:"0 12px"
-                  }}><Ic n="bag-shopping" size={12} />Add to Bag</button>
+                    minWidth:110, height:40, borderRadius:12, background:"#22C55E",
+                    color:"#fff", fontSize:13, fontWeight:700, display:"flex", alignItems:"center", justifyContent:"center",
+                    gap:8, boxShadow:"0 4px 12px rgba(34,197,94,0.4)", border:"1px solid #16A34A",
+                    transition: "all 0.2s ease", cursor: "pointer"
+                  }}><Ic n="bag-shopping" size={14} />Add to Bag</button>
                 )
               )}
             </div>
@@ -1961,10 +1962,11 @@
                     <span>Total</span><span>{fmt(total)}</span>
                   </div>
                   <button onClick={() => { setShowCart(false); setShowCheckout(true); }} style={{
-                    width:"100%", marginTop:14, padding:"15px", borderRadius:16,
-                    background:"linear-gradient(135deg,#166534,#22C55E)", color:"#fff",
-                    fontSize:15, fontWeight:700, boxShadow:"0 4px 16px rgba(22,101,52,.3)"
-                  }}>Proceed to Checkout</button>
+                    width:"100%", marginTop:14, padding:"16px", borderRadius:14,
+                    background:"#22C55E", color:"#fff",
+                    fontSize:16, fontWeight:700, boxShadow:"0 4px 12px rgba(34,197,94,0.4)",
+                    border:"1px solid #16A34A", transition: "all 0.2s ease", cursor: "pointer"
+                  }}>Proceed to Checkout <Ic n="arrow-right" style={{marginLeft:8}} /></button>
                 </div>
               </div>
             </div>
@@ -2297,12 +2299,13 @@
                 </div>
 
                 <button onClick={placeOrder} disabled={!name||!phone||!addr||!hasPinnedLocation} style={{
-                  width:"100%", padding:"17px", borderRadius:16,
-                  background:(!name||!phone||!addr||!hasPinnedLocation)?"#D1D5DB":"linear-gradient(135deg,#166534,#22C55E)",
-                  color:"#fff", fontSize:16, fontWeight:700,
-                  boxShadow:(!name||!phone||!addr||!hasPinnedLocation)?"none":"0 4px 20px rgba(22,101,52,.35)",
-                  transition:"all .2s"
-                }}>Place Order Now! <Ic n="bag-shopping" style={{marginLeft:6}} /></button>
+                  width:"100%", padding:"18px", borderRadius:14,
+                  background:(!name||!phone||!addr||!hasPinnedLocation)?"#D1D5DB":"#22C55E",
+                  color:"#fff", fontSize:17, fontWeight:700,
+                  boxShadow:(!name||!phone||!addr||!hasPinnedLocation)?"none":"0 4px 12px rgba(34,197,94,0.4)",
+                  border:(!name||!phone||!addr||!hasPinnedLocation)?"none":"1px solid #16A34A",
+                  transition:"all .2s", cursor: (!name||!phone||!addr||!hasPinnedLocation)?"not-allowed":"pointer"
+                }}>Place Order Now! <Ic n="bag-shopping" style={{marginLeft:8}} /></button>
                 {!hasPinnedLocation && (
                   <div style={{ marginTop:8, fontSize:11, color:"#B45309" }}>
                     <Ic n="triangle-exclamation" style={{marginRight:4}} />I-pin muna ang exact location bago mag-order.
