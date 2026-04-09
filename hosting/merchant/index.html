@@ -245,6 +245,60 @@ function App(){
   // Store controls
   const [updatingStoreStatus,setUpdatingStoreStatus]=React.useState(false);
 
+  // Store profile editing
+  const [profileForm,setProfileForm]=React.useState({storeName:"",description:"",address:"",phone:"",openTime:"07:00",closeTime:"21:00"});
+  const [savingProfile,setSavingProfile]=React.useState(false);
+  const [logoFile,setLogoFile]=React.useState(null);
+
+  // Sync profile form from merchant data
+  React.useEffect(()=>{
+    if(!merchant)return;
+    setProfileForm(prev=>({
+      storeName:merchant.storeName||prev.storeName||"",
+      description:merchant.description||prev.description||"",
+      address:merchant.address||merchant.businessAddress||prev.address||"",
+      phone:merchant.contactPhone||merchant.phone||prev.phone||"",
+      openTime:merchant.openTime||prev.openTime||"07:00",
+      closeTime:merchant.closeTime||prev.closeTime||"21:00",
+    }));
+  },[merchant?.storeName,merchant?.description,merchant?.address,merchant?.contactPhone]);
+
+  const saveStoreProfile=async()=>{
+    if(!user||savingProfile)return;
+    setSavingProfile(true);
+    try{
+      const updates={
+        storeName:profileForm.storeName.trim(),
+        description:profileForm.description.trim(),
+        address:profileForm.address.trim(),
+        contactPhone:profileForm.phone.trim(),
+        openTime:profileForm.openTime,
+        closeTime:profileForm.closeTime,
+        operatingHours:`${profileForm.openTime} - ${profileForm.closeTime}`,
+        updatedAt:Date.now()
+      };
+      if(logoFile){
+        const ref=storage.ref(`merchant_logos/${user.uid}_${Date.now()}_${logoFile.name}`);
+        await ref.put(logoFile);
+        updates.logoUrl=await ref.getDownloadURL();
+        // Also update all listings with new logo
+        const snap=await db.ref("merchant_listings/"+user.uid).once("value");
+        const listUpdates={};
+        snap.forEach(c=>{listUpdates[`${c.key}/merchantLogo`]=updates.logoUrl;});
+        if(Object.keys(listUpdates).length)await db.ref("merchant_listings/"+user.uid).update(listUpdates);
+        setLogoFile(null);
+      }
+      await db.ref("partner_merchants/"+user.uid).update(updates);
+      // Also update storeName on all listings
+      const snap=await db.ref("merchant_listings/"+user.uid).once("value");
+      const nameUpdates={};
+      snap.forEach(c=>{nameUpdates[`${c.key}/storeName`]=updates.storeName;});
+      if(Object.keys(nameUpdates).length)await db.ref("merchant_listings/"+user.uid).update(nameUpdates);
+      alert("Store profile updated!");
+    }catch(e){alert("Error: "+(e?.message||"Unknown"));}
+    finally{setSavingProfile(false);}
+  };
+
   // Promotions/Banners
   const [bannerForm,setBannerForm]=React.useState({title:"",imageUrl:"",linkUrl:"",active:true});
   const [bannerImageFile,setBannerImageFile]=React.useState(null);
@@ -726,6 +780,7 @@ function App(){
         {id:"dashboard",label:"Dashboard",icon:"gauge-high"},
         {id:"orders",label:"Orders",icon:"receipt",badge:orderGroups.new.length||null},
         {id:"menu",label:"Menu",icon:"utensils"},
+        {id:"store_profile",label:"Store Profile",icon:"store"},
         {id:"financials",label:"Financials",icon:"peso-sign"},
         {id:"analytics",label:"Analytics",icon:"chart-line"},
         {id:"marketing",label:"Marketing",icon:"bullhorn"},
@@ -1127,6 +1182,146 @@ function App(){
     </>)}
 
     {/* ═══ SETTINGS ═══ */}
+    {/* ═══ STORE PROFILE ═══ */}
+    {activeSection==="store_profile" && (<>
+      {/* Preview Card */}
+      <div className="card" style={{padding:0,overflow:"hidden",marginBottom:14}}>
+        <div style={{height:100,background:merchant?.logoUrl?"linear-gradient(135deg,#166534,#22C55E)":"linear-gradient(135deg,#166534,#15803D)",position:"relative"}}>
+          {promoBanners.filter(b=>b.active!==false&&b.imageUrl).length>0 && (
+            <img src={promoBanners.filter(b=>b.active!==false&&b.imageUrl)[0].imageUrl} alt="" style={{width:"100%",height:"100%",objectFit:"cover"}} />
+          )}
+          <div style={{position:"absolute",inset:0,background:"linear-gradient(180deg,rgba(0,0,0,.05),rgba(0,0,0,.45))"}} />
+          <div style={{position:"absolute",top:10,right:10,padding:"4px 10px",borderRadius:20,fontSize:10,fontWeight:800,background:storeOpen?"rgba(22,163,74,.9)":"rgba(220,38,38,.9)",color:"#fff",display:"flex",alignItems:"center",gap:4}}>
+            <span style={{width:6,height:6,borderRadius:"50%",background:storeOpen?"#86EFAC":"#FCA5A5"}} />
+            {storeOpen?(busyMode?"Busy":"Open"):"Closed"}
+          </div>
+        </div>
+        <div style={{padding:"16px",marginTop:-28,position:"relative"}}>
+          <div style={{display:"flex",alignItems:"flex-end",gap:12}}>
+            {merchant?.logoUrl
+              ? <img src={merchant.logoUrl} alt="" style={{width:56,height:56,borderRadius:14,objectFit:"cover",border:"3px solid #fff",boxShadow:"0 2px 8px rgba(0,0,0,.12)"}} />
+              : <div style={{width:56,height:56,borderRadius:14,background:"#F1F5F9",border:"3px solid #fff",boxShadow:"0 2px 8px rgba(0,0,0,.12)",display:"flex",alignItems:"center",justifyContent:"center"}}><i className="fas fa-store" style={{color:"#94A3B8",fontSize:22}}></i></div>}
+            <div style={{flex:1,minWidth:0}}>
+              <div style={{fontSize:18,fontWeight:900,color:"#111827"}}>{merchant?.storeName||"Your Store"}</div>
+              <div style={{fontSize:11,color:"#64748B",marginTop:2}}>
+                {CAT_MAP[merchant?.category]?.label||merchant?.storeCategory||"General Goods"} · {listings.length} items
+              </div>
+            </div>
+          </div>
+          {!!merchant?.description && <div style={{marginTop:10,fontSize:12,color:"#475569",lineHeight:1.5}}>{merchant.description}</div>}
+          <div style={{marginTop:10,display:"flex",gap:8,flexWrap:"wrap"}}>
+            {merchant?.operatingHours && <span style={{padding:"4px 10px",borderRadius:20,fontSize:10,fontWeight:700,background:"#EFF6FF",color:"#2563EB",border:"1px solid #BFDBFE"}}><i className="fas fa-clock" style={{marginRight:4}}></i>{merchant.operatingHours}</span>}
+            {merchant?.contactPhone && <span style={{padding:"4px 10px",borderRadius:20,fontSize:10,fontWeight:700,background:"#F0FDF4",color:"#166534",border:"1px solid #BBF7D0"}}><i className="fas fa-phone" style={{marginRight:4}}></i>{merchant.contactPhone}</span>}
+            {merchant?.address && <span style={{padding:"4px 10px",borderRadius:20,fontSize:10,fontWeight:700,background:"#F8FAFC",color:"#475569",border:"1px solid #E2E8F0"}}><i className="fas fa-location-dot" style={{marginRight:4}}></i>{merchant.address}</span>}
+          </div>
+        </div>
+      </div>
+      <div style={{fontSize:11,color:"var(--muted)",marginBottom:14,textAlign:"center"}}>
+        <i className="fas fa-eye" style={{marginRight:4}}></i>This is how customers see your store
+      </div>
+
+      {/* Edit Form */}
+      <div className="card stack">
+        <h3><i className="fas fa-pen" style={{marginRight:6,color:"var(--brand)"}}></i>Edit Store Profile</h3>
+
+        <div>
+          <div className="section-label">Store Logo</div>
+          <div style={{display:"flex",alignItems:"center",gap:14}}>
+            {merchant?.logoUrl
+              ? <img src={merchant.logoUrl} alt="" style={{width:60,height:60,borderRadius:14,objectFit:"cover",border:"2px solid var(--brand-border)"}} />
+              : <div style={{width:60,height:60,borderRadius:14,background:"var(--brand-bg)",border:"2px dashed var(--brand-border)",display:"flex",alignItems:"center",justifyContent:"center"}}><i className="fas fa-camera" style={{color:"var(--brand)",fontSize:18}}></i></div>}
+            <div>
+              <label className="btn-muted btn-sm" style={{cursor:"pointer",display:"inline-block"}}>
+                <i className="fas fa-upload" style={{marginRight:4}}></i>{logoFile?"Change Image":"Upload Logo"}
+                <input type="file" accept="image/*" style={{display:"none"}} onChange={e=>{if(e.target.files[0])setLogoFile(e.target.files[0]);}} />
+              </label>
+              {logoFile && <div style={{fontSize:10,color:"var(--brand)",marginTop:4,fontWeight:600}}>{logoFile.name}</div>}
+            </div>
+          </div>
+        </div>
+
+        <div>
+          <div className="section-label">Store Name</div>
+          <input value={profileForm.storeName} onChange={e=>setProfileForm(p=>({...p,storeName:e.target.value}))} placeholder="Your store name" />
+        </div>
+
+        <div>
+          <div className="section-label">Description</div>
+          <textarea value={profileForm.description} onChange={e=>setProfileForm(p=>({...p,description:e.target.value}))} placeholder="Describe your store..." rows={3} />
+        </div>
+
+        <div>
+          <div className="section-label">Business Address</div>
+          <input value={profileForm.address} onChange={e=>setProfileForm(p=>({...p,address:e.target.value}))} placeholder="Complete address" />
+        </div>
+
+        <div>
+          <div className="section-label">Contact Phone</div>
+          <input value={profileForm.phone} onChange={e=>setProfileForm(p=>({...p,phone:e.target.value}))} placeholder="09XXXXXXXXX" maxLength={11} />
+        </div>
+
+        <div>
+          <div className="section-label">Operating Hours</div>
+          <div style={{display:"grid",gridTemplateColumns:"1fr auto 1fr",gap:8,alignItems:"center"}}>
+            <select value={profileForm.openTime} onChange={e=>setProfileForm(p=>({...p,openTime:e.target.value}))}>
+              {Array.from({length:19},(_,i)=>i+5).flatMap(h=>[0,30].map(m=>{
+                const val=`${String(h).padStart(2,'0')}:${String(m).padStart(2,'0')}`;
+                const h12=h>12?h-12:h===0?12:h;
+                const ampm=h>=12?"PM":"AM";
+                return <option key={val} value={val}>{h12}:{String(m).padStart(2,'0')} {ampm}</option>;
+              }))}
+            </select>
+            <span style={{fontWeight:700,color:"var(--muted)",fontSize:13}}>to</span>
+            <select value={profileForm.closeTime} onChange={e=>setProfileForm(p=>({...p,closeTime:e.target.value}))}>
+              {Array.from({length:19},(_,i)=>i+5).flatMap(h=>[0,30].map(m=>{
+                const val=`${String(h).padStart(2,'0')}:${String(m).padStart(2,'0')}`;
+                const h12=h>12?h-12:h===0?12:h;
+                const ampm=h>=12?"PM":"AM";
+                return <option key={val} value={val}>{h12}:{String(m).padStart(2,'0')} {ampm}</option>;
+              }))}
+            </select>
+          </div>
+        </div>
+
+        <button className="btn-primary" onClick={saveStoreProfile} disabled={savingProfile} style={{marginTop:8}}>
+          <i className={`fas fa-${savingProfile?"spinner fa-spin":"check"}`} style={{marginRight:6}}></i>
+          {savingProfile?"Saving...":"Save Store Profile"}
+        </button>
+      </div>
+
+      {/* Custom Categories */}
+      <div className="card stack">
+        <h3><i className="fas fa-tags" style={{marginRight:6,color:"#A855F7"}}></i>Custom Categories</h3>
+        <p className="muted" style={{fontSize:12}}>Add custom categories for your menu items beyond the standard ones.</p>
+        <div style={{display:"flex",gap:8}}>
+          <input value={newCustomCategory} onChange={e=>setNewCustomCategory(e.target.value)} placeholder="New category name" onKeyDown={e=>{if(e.key==="Enter")addCustomCategory();}} style={{flex:1}} />
+          <button className="btn-primary btn-sm" onClick={addCustomCategory}><i className="fas fa-plus"></i></button>
+        </div>
+        {merchantCustomCategories.length>0 && (
+          <div style={{display:"flex",gap:6,flexWrap:"wrap",marginTop:4}}>
+            {merchantCustomCategories.map(name=>(
+              <span key={name} style={{display:"inline-flex",alignItems:"center",gap:6,padding:"5px 10px",borderRadius:20,fontSize:11,fontWeight:700,background:"#FAF5FF",color:"#7C3AED",border:"1px solid #E9D5FF"}}>
+                <i className="fas fa-tag" style={{fontSize:9}}></i>{name}
+                <button onClick={()=>removeCustomCategory(name)} style={{background:"none",border:"none",color:"#DC2626",cursor:"pointer",fontSize:10,padding:0}}><i className="fas fa-xmark"></i></button>
+              </span>
+            ))}
+          </div>
+        )}
+        {merchantCustomCategories.length===0 && <div className="muted" style={{fontSize:12}}>No custom categories yet.</div>}
+      </div>
+
+      {/* Prep Time */}
+      <div className="card stack">
+        <h3><i className="fas fa-clock" style={{marginRight:6,color:"#2563EB"}}></i>Preparation Time</h3>
+        <p className="muted" style={{fontSize:12}}>Average time to prepare orders. This helps set customer expectations.</p>
+        <div style={{display:"flex",alignItems:"center",gap:10}}>
+          <button className="btn-muted btn-sm" onClick={()=>updatePrepTime(prepTime-5)} disabled={prepTime<=5}><i className="fas fa-minus"></i></button>
+          <div style={{fontSize:24,fontWeight:800,color:"var(--text)",minWidth:50,textAlign:"center"}}>{prepTime}<span style={{fontSize:12,fontWeight:600,color:"var(--muted)"}}> min</span></div>
+          <button className="btn-muted btn-sm" onClick={()=>updatePrepTime(prepTime+5)} disabled={prepTime>=120}><i className="fas fa-plus"></i></button>
+        </div>
+      </div>
+    </>)}
+
     {activeSection==="settings" && (<>
       <div className="card stack">
         <h3><i className="fas fa-store" style={{marginRight:6}}></i>Store Information</h3>
