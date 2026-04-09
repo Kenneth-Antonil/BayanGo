@@ -780,6 +780,16 @@
         let baseProductsRaw = [];
         let partnerListingsRaw = [];
         let partnerMerchantsById = {};
+        const normalizeMerchantModerationAction = (merchant) => {
+          const explicitAction = String(
+            merchant?.moderation?.action
+            || merchant?.enforcementStatus
+            || ""
+          ).trim().toLowerCase();
+          if (["active", "suspended", "revoked", "deleted"].includes(explicitAction)) return explicitAction;
+          if (merchant?.deletedAt) return "deleted";
+          return "active";
+        };
         const isApprovedMerchant = (merchant) => {
           const approvedValue = merchant?.approved;
           const normalizedApproved = String(approvedValue || "").trim().toLowerCase();
@@ -792,6 +802,11 @@
             || normalizedStatus === "approved"
           );
         };
+        const isMerchantVisibleInUserApp = (merchant) => {
+          if (!isApprovedMerchant(merchant)) return false;
+          const moderationAction = normalizeMerchantModerationAction(merchant);
+          return moderationAction === "active";
+        };
         const refreshMergedProducts = () => {
           const regularProducts = baseProductsRaw.map((entry) => ({
             ...entry,
@@ -800,6 +815,7 @@
           const partnerProducts = partnerListingsRaw
             .map((entry) => {
               const merchant = partnerMerchantsById[entry.merchantId] || {};
+              if (!isMerchantVisibleInUserApp(merchant)) return null;
               return {
                 ...entry,
                 source: "partner",
@@ -813,6 +829,7 @@
                 storeCustomCategories: merchant.customCategories || [],
               };
             })
+            .filter(Boolean)
             .filter((entry) => entry.active !== false);
           setProducts([...regularProducts, ...partnerProducts]);
         };
@@ -873,7 +890,7 @@
             const map = {};
             snap.forEach(child => {
               const raw = child.val() || {};
-              if (!isApprovedMerchant(raw)) return;
+              if (!isMerchantVisibleInUserApp(raw)) return;
               map[child.key] = raw;
             });
             partnerMerchantsById = map;
