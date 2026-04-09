@@ -1400,7 +1400,8 @@
                 </div>
               ) : filteredMerchants.map((m, idx) => {
                 const catMeta = getCatMeta(m.category || m.storeCategory);
-                const merchantRowId = m._merchantId || m.id || m.applicantUid || m.uid || `${m.storeName || "merchant"}-${m.contactPhone || "no-phone"}-${idx}`;
+                const merchantBaseId = m._merchantId || m.id || m.applicantUid || m.uid || `${m.storeName || "merchant"}-${m.contactPhone || "no-phone"}`;
+                const merchantRowId = `${merchantBaseId}-${idx}`;
                 const isExpanded = expandedMerchant === merchantRowId;
                 const attachments = extractAttachmentUrls(m);
                 const storeIsOpen = m.storeOpen !== false;
