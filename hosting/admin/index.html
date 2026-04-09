@@ -1098,6 +1098,7 @@
       const [rejectingId, setRejectingId] = useState("");
       const [rejectionMessage, setRejectionMessage] = useState("");
       const [expandedMerchant, setExpandedMerchant] = useState(null);
+      const [viewingDoc, setViewingDoc] = useState(null); // {url, label}
       const knownMetaFields = new Set(["id", "parentId", "sourcePath", "status", "createdAt", "updatedAt", "reviewedAt", "reviewedByUid", "reviewedByEmail", "reviewMessage", "rejectionMessage"]);
 
       const pending = applications.filter(a => !["approved", "rejected"].includes(String(a.status || "").toLowerCase()));
@@ -1150,10 +1151,17 @@
           if (typeof urlValue !== "string") return;
           const trimmed = urlValue.trim();
           if (!/^https?:\/\//i.test(trimmed)) return;
+          // Support Firebase Storage URLs even without common extensions
           if (!/\.(pdf|png|jpg|jpeg|webp|gif|heic|doc|docx)$/i.test(trimmed) && !trimmed.includes("firebasestorage")) return;
           urls.push({ label, url: trimmed });
         };
+        
+        // Check specific fields first
+        if (application.permitUrl) pushUrl(application.permitUrl, "Business Permit");
+        if (application.govIdUrl) pushUrl(application.govIdUrl, "Government ID");
+        
         Object.entries(application || {}).forEach(([key, value]) => {
+          if (key === 'permitUrl' || key === 'govIdUrl') return; // Already added
           if (typeof value === "string") { pushUrl(value, key); return; }
           if (Array.isArray(value)) { value.forEach((item, idx) => { if (typeof item === "string") pushUrl(item, `${key}[${idx}]`); if (item && typeof item === "object") Object.entries(item).forEach(([nk, nv]) => { if (typeof nv === "string") pushUrl(nv, `${key}[${idx}].${nk}`); }); }); return; }
           if (value && typeof value === "object") Object.entries(value).forEach(([nk, nv]) => { if (typeof nv === "string") pushUrl(nv, `${key}.${nk}`); });
@@ -1171,11 +1179,36 @@
         { id: "gulay", label: "Vegetables", icon: "leaf", color: "#22C55E" },
         { id: "isda", label: "Fish", icon: "fish", color: "#0EA5E9" },
         { id: "karne", label: "Meat", icon: "drumstick-bite", color: "#EF4444" },
+        { id: "prutas", label: "Fruits", icon: "apple-whole", color: "#F97316" },
+        { id: "bigas", label: "Rice", icon: "bowl-rice", color: "#EAB308" },
+        { id: "bakery", label: "Bakery", icon: "bread-slice", color: "#D97706" },
+        { id: "water", label: "Water Station", icon: "droplet", color: "#38BDF8" },
+        { id: "laundry", label: "Laundry", icon: "shirt", color: "#818CF8" },
       ];
       const getCatMeta = (catId) => PARTNER_CATEGORIES.find(c => c.id === catId) || { label: catId || "General", icon: "tag", color: "#64748B" };
 
       return (
         <div style={{ padding: "20px 24px" }}>
+          {/* Document Viewer Modal */}
+          {viewingDoc && (
+            <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,.85)", z-index: 9999, display: "flex", flexDirection: "column", padding: 20 }}>
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", color: "#fff", marginBottom: 15 }}>
+                <h3 style={{ fontSize: 16 }}>{viewingDoc.label}</h3>
+                <button onClick={() => setViewingDoc(null)} style={{ color: "#fff", fontSize: 24 }}><Ic n="xmark" /></button>
+              </div>
+              <div style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center", overflow: "hidden" }}>
+                {viewingDoc.url.toLowerCase().endsWith('.pdf') ? (
+                  <iframe src={viewingDoc.url} style={{ width: "100%", height: "100%", border: "none" }} />
+                ) : (
+                  <img src={viewingDoc.url} style={{ maxWidth: "100%", maxHeight: "100%", objectFit: "contain" }} />
+                )}
+              </div>
+              <div style={{ marginTop: 15, textAlign: "center" }}>
+                <a href={viewingDoc.url} target="_blank" style={{ color: "#fff", fontSize: 13, textDecoration: "underline" }}>Open in new tab</a>
+              </div>
+            </div>
+          )}
+
           {/* Header with stats */}
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}>
             <h2 style={{ fontSize: 18, fontWeight: 800 }}>Partner Merchants</h2>
@@ -1247,6 +1280,7 @@
                 </div>
               ) : pending.map(app => {
                 const catMeta = getCatMeta(app.category || app.storeCategory);
+                const attachments = extractAttachmentUrls(app);
                 return (
                 <div key={app.id} className="card" style={{ marginBottom: 12, borderLeft: "4px solid #F59E0B" }}>
                   <div style={{ display: "flex", alignItems: "flex-start", gap: 12 }}>
@@ -1254,12 +1288,22 @@
                       <Ic n={catMeta.icon} style={{ color: catMeta.color, fontSize: 18 }} />
                     </div>
                     <div style={{ flex: 1, minWidth: 0 }}>
-                      <div style={{ fontWeight: 800, fontSize: 15 }}>{app.storeName || "Unnamed Store"}</div>
+                      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
+                        <div style={{ fontWeight: 800, fontSize: 15 }}>{app.storeName || "Unnamed Store"}</div>
+                        <div style={{ fontSize: 10, fontWeight: 700, color: "var(--muted)" }}>{fmtDateTime(app.createdAt)}</div>
+                      </div>
                       <div style={{ fontSize: 12, color: "var(--muted)", marginTop: 2, display: "flex", flexWrap: "wrap", gap: 8 }}>
                         <span><Ic n="user" size={10} style={{ marginRight: 3 }} />{app.contactName || "-"}</span>
                         <span><Ic n="phone" size={10} style={{ marginRight: 3 }} />{app.contactPhone || "-"}</span>
                       </div>
-                      <div style={{ display: "flex", gap: 6, marginTop: 6, flexWrap: "wrap" }}>
+                      
+                      {app.description && (
+                        <div style={{ fontSize: 12, color: "var(--text-secondary)", marginTop: 6, fontStyle: "italic", background: "#F8FAFC", padding: "6px 10px", borderRadius: 8 }}>
+                          "{app.description}"
+                        </div>
+                      )}
+
+                      <div style={{ display: "flex", gap: 6, marginTop: 10, flexWrap: "wrap" }}>
                         <span style={{ padding: "2px 8px", borderRadius: 20, fontSize: 10, fontWeight: 700, background: `${catMeta.color}15`, color: catMeta.color, border: `1px solid ${catMeta.color}30` }}>
                           <Ic n={catMeta.icon} size={9} style={{ marginRight: 3 }} />{catMeta.label}
                         </span>
@@ -1302,23 +1346,34 @@
                   </details>
 
                   <div style={{ display: "flex", gap: 8, marginTop: 12 }}>
-                    <button onClick={() => { onDecide(app, "approve", ""); toast.success(`${app.storeName || "Store"} approved!`); }} style={{
-                      padding: "9px 18px", borderRadius: 10, fontSize: 13, fontWeight: 700, border: "none", cursor: "pointer",
-                      background: "linear-gradient(135deg, #166534, #15803D)", color: "#fff", display: "flex", alignItems: "center", gap: 6,
-                    }}><Ic n="check" /> Approve</button>
-                    <button onClick={() => { setRejectingId(app.id); setRejectionMessage(""); }} style={{
-                      padding: "9px 18px", borderRadius: 10, fontSize: 13, fontWeight: 700, border: "1px solid #FECACA", cursor: "pointer",
-                      background: "#FEF2F2", color: "#991B1B", display: "flex", alignItems: "center", gap: 6,
-                    }}><Ic n="xmark" /> Reject</button>
+                    <button className="btn btn-brand" onClick={() => { onDecide(app, "approve", ""); toast.success(`${app.storeName || "Store"} approved!`); }} style={{ padding: "8px 16px", fontSize: 12 }}>
+                      <Ic n="check" style={{ marginRight: 6 }} />Approve
+                    </button>
+                    <button className="btn btn-danger" onClick={() => setRejectingId(app.id)} style={{ padding: "8px 16px", fontSize: 12 }}>
+                      <Ic n="xmark" style={{ marginRight: 6 }} />Reject
+                    </button>
                   </div>
 
+                  {attachments.length > 0 && (
+                    <div style={{ marginTop: 12, display: "flex", gap: 8, flexWrap: "wrap" }}>
+                      {attachments.map((doc, idx) => (
+                        <button key={idx} onClick={() => setViewingDoc(doc)} style={{ 
+                          padding: "6px 10px", borderRadius: 8, background: "#fff", border: "1px solid var(--border)", 
+                          fontSize: 11, fontWeight: 700, color: "var(--brand)", cursor: "pointer", display: "flex", alignItems: "center", gap: 5 
+                        }}>
+                          <Ic n="file-image" /> {doc.label}
+                        </button>
+                      ))}
+                    </div>
+                  )}
+
                   {rejectingId === app.id && (
-                    <div style={{ marginTop: 10, border: "1px solid #FECACA", borderRadius: 10, padding: 12, background: "#FEF2F2" }}>
-                      <div style={{ fontSize: 12, fontWeight: 700, color: "#7F1D1D", marginBottom: 6 }}>Rejection reason</div>
-                      <textarea value={rejectionMessage} onChange={e => setRejectionMessage(e.target.value)} placeholder="Explain why this application is being rejected..." rows={3} style={{ width: "100%", padding: "10px 12px", border: "1px solid #FCA5A5", borderRadius: 8, fontSize: 13, fontFamily: "inherit", resize: "vertical" }} />
-                      <div style={{ display: "flex", gap: 8, marginTop: 8 }}>
-                        <button onClick={async () => { await onDecide(app, "reject", rejectionMessage); setRejectingId(""); toast.info("Application rejected."); }} style={{ padding: "8px 14px", borderRadius: 8, fontSize: 12, fontWeight: 700, background: "#DC2626", color: "#fff", border: "none", cursor: "pointer" }}>Confirm Reject</button>
-                        <button onClick={() => setRejectingId("")} style={{ padding: "8px 14px", borderRadius: 8, fontSize: 12, fontWeight: 700, background: "#F1F5F9", color: "#334155", border: "1px solid #E2E8F0", cursor: "pointer" }}>Cancel</button>
+                    <div style={{ marginTop: 12, background: "#FEF2F2", padding: 12, borderRadius: 10, border: "1px solid #FECACA" }}>
+                      <div style={{ fontSize: 12, fontWeight: 700, color: "#991B1B", marginBottom: 6 }}>Rejection Reason</div>
+                      <textarea value={rejectionMessage} onChange={e => setRejectionMessage(e.target.value)} placeholder="Explain why this application is being rejected..." rows={3} style={{ width: "100%", padding: "10px 12px", border: "1px solid #FCA5A5", borderRadius: 8, fontSize: 13, fontFamily: "inherit", resize: "vertical", outline: "none" }} />
+                      <div style={{ display: "flex", gap: 6, marginTop: 8 }}>
+                        <button className="btn btn-danger" onClick={() => { onDecide?.(app, "rejected", rejectionMessage); setRejectingId(""); setRejectionMessage(""); toast.error("Application rejected"); }} style={{ padding: "8px 16px", fontSize: 12 }}>Confirm Rejection</button>
+                        <button className="btn btn-outline" onClick={() => setRejectingId("")} style={{ padding: "8px 16px", fontSize: 12 }}>Cancel</button>
                       </div>
                     </div>
                   )}
@@ -1331,11 +1386,11 @@
           {/* ── MERCHANTS TAB ── */}
           {partnerTab === "merchants" && (
             <div>
-              {/* Search */}
-              <div style={{ marginBottom: 12, display: "flex", alignItems: "center", gap: 8, background: "#fff", border: "1px solid var(--border)", borderRadius: 10, padding: "8px 12px" }}>
-                <Ic n="magnifying-glass" size={14} style={{ color: "var(--muted)" }} />
-                <input value={searchQ} onChange={e => setSearchQ(e.target.value)} placeholder="Search merchants..." style={{ flex: 1, border: "none", outline: "none", fontSize: 13, background: "transparent" }} />
-                {searchQ && <button onClick={() => setSearchQ("")} style={{ border: "none", background: "none", color: "var(--muted)", cursor: "pointer" }}><Ic n="xmark" size={12} /></button>}
+              <div style={{ display: "flex", gap: 8, marginBottom: 12 }}>
+                <div style={{ flex: 1, display: "flex", alignItems: "center", gap: 10, background: "#fff", border: "1px solid var(--border)", borderRadius: 10, padding: "0 12px", height: 44 }}>
+                  <Ic n="magnifying-glass" style={{ color: "var(--muted)", fontSize: 14 }} />
+                  <input value={searchQ} onChange={e => setSearchQ(e.target.value)} placeholder="Search merchants by name, owner, or phone..." style={{ flex: 1, border: "none", outline: "none", fontSize: 13, background: "transparent" }} />
+                </div>
               </div>
 
               {filteredMerchants.length === 0 ? (
@@ -1343,80 +1398,84 @@
                   <Ic n="store" size={28} style={{ color: "var(--muted)", opacity: .4, marginBottom: 8, display: "block" }} />
                   <div style={{ fontSize: 13, fontWeight: 700, color: "var(--muted)" }}>{searchQ ? "No merchants found" : "No approved merchants yet"}</div>
                 </div>
-              ) : filteredMerchants.map((m) => {
-                const storeIsOpen = m.storeOpen !== false;
-                const isBusy = m.busyMode === true;
+              ) : filteredMerchants.map(m => {
                 const catMeta = getCatMeta(m.category || m.storeCategory);
                 const isExpanded = expandedMerchant === (m._merchantId || m.id);
+                const attachments = extractAttachmentUrls(m);
+                const storeIsOpen = m.storeOpen !== false;
+                const isBusy = m.busyMode === true;
+                
                 return (
-                  <div key={m._merchantId || m.id} className="card" style={{ marginBottom: 10, borderLeft: `4px solid ${storeIsOpen ? (isBusy ? "#F59E0B" : "#22C55E") : "#DC2626"}`, cursor: "pointer" }}
+                  <div key={m._merchantId || m.id} className="card" style={{ marginBottom: 10, borderLeft: `4px solid ${catMeta.color}`, cursor: "pointer" }}
                     onClick={() => setExpandedMerchant(isExpanded ? null : (m._merchantId || m.id))}>
                     <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-                      {m.logoUrl
-                        ? <img src={m.logoUrl} alt={m.storeName} style={{ width: 48, height: 48, borderRadius: 12, objectFit: "cover", border: "1px solid var(--border)", flexShrink: 0 }} />
-                        : <div style={{ width: 48, height: 48, borderRadius: 12, background: `${catMeta.color}10`, border: "1px solid var(--border)", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
-                            <Ic n={catMeta.icon} style={{ color: catMeta.color, fontSize: 18 }} />
-                          </div>}
+                      <div style={{ width: 44, height: 44, borderRadius: 12, background: `${catMeta.color}15`, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+                        <Ic n={catMeta.icon} style={{ color: catMeta.color, fontSize: 18 }} />
+                      </div>
                       <div style={{ flex: 1, minWidth: 0 }}>
-                        <div style={{ display: "flex", alignItems: "center", gap: 6, flexWrap: "wrap" }}>
-                          <span style={{ fontWeight: 800, fontSize: 14 }}>{m.storeName || "Store"}</span>
+                        <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                          <div style={{ fontWeight: 800, fontSize: 15 }}>{m.storeName || "Unnamed"}</div>
                           <span style={{ width: 8, height: 8, borderRadius: "50%", background: storeIsOpen ? (isBusy ? "#F59E0B" : "#22C55E") : "#DC2626", flexShrink: 0 }} />
-                          {m.featuredInApp && <span style={{ background: "#FDE68A", color: "#92400E", padding: "2px 6px", borderRadius: 20, fontSize: 9, fontWeight: 800 }}><Ic n="star" size={8} style={{ marginRight: 2 }} />Featured</span>}
+                          {m.featuredInApp && <Ic n="star" style={{ color: "#F59E0B", fontSize: 12 }} />}
                         </div>
-                        <div style={{ fontSize: 11, color: "var(--muted)", marginTop: 2, display: "flex", gap: 8, flexWrap: "wrap" }}>
-                          <span>{m.contactName || "-"}</span>
-                          <span style={{ color: catMeta.color }}>{catMeta.label}</span>
-                          {m.prepTimeMinutes && <span>~{m.prepTimeMinutes}min</span>}
-                        </div>
+                        <div style={{ fontSize: 12, color: "var(--muted)", marginTop: 2 }}>{m.contactName} • {m.contactPhone}</div>
                       </div>
-                      <div style={{ display: "flex", flexDirection: "column", gap: 4, alignItems: "flex-end" }}>
-                        <span style={{
-                          padding: "4px 10px", borderRadius: 20, fontSize: 10, fontWeight: 800,
-                          background: storeIsOpen ? (isBusy ? "#FEF3C7" : "#DCFCE7") : "#FEE2E2",
-                          color: storeIsOpen ? (isBusy ? "#92400E" : "#166534") : "#991B1B",
-                        }}>
-                          {storeIsOpen ? (isBusy ? "Busy" : "Open") : "Closed"}
-                        </span>
-                        <Ic n={isExpanded ? "chevron-up" : "chevron-down"} size={12} style={{ color: "var(--muted)" }} />
-                      </div>
+                      <Ic n={isExpanded ? "chevron-up" : "chevron-down"} size={12} style={{ color: "var(--muted)" }} />
                     </div>
 
                     {isExpanded && (
-                      <div onClick={e => e.stopPropagation()} style={{ marginTop: 14, paddingTop: 14, borderTop: "1px solid var(--border)" }}>
-                        {/* Detail Grid */}
-                        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8, marginBottom: 12 }}>
+                      <div className="fade-up" style={{ marginTop: 16, paddingTop: 16, borderTop: "1px solid var(--border-light)" }} onClick={e => e.stopPropagation()}>
+                        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16, marginBottom: 16 }}>
                           {[
-                            { label: "Contact", value: m.contactName || "-", icon: "user" },
-                            { label: "Phone", value: m.contactPhone || "-", icon: "phone" },
-                            { label: "Category", value: catMeta.label, icon: catMeta.icon },
-                            { label: "Prep Time", value: m.prepTimeMinutes ? `${m.prepTimeMinutes} min` : "Default", icon: "clock" },
-                            { label: "Approved", value: m.approvedAt ? new Date(m.approvedAt).toLocaleDateString("en-PH") : "-", icon: "calendar-check" },
-                            { label: "UID", value: (m._merchantId || m.applicantUid || "-").substring(0, 12) + "...", icon: "fingerprint" },
-                          ].map(detail => (
-                            <div key={detail.label} style={{ padding: "8px 10px", background: "#F8FAFC", borderRadius: 8, fontSize: 11 }}>
-                              <div style={{ color: "var(--muted)", fontWeight: 700, marginBottom: 2, display: "flex", alignItems: "center", gap: 4 }}>
-                                <Ic n={detail.icon} size={10} />{detail.label}
+                            { label: "Category", value: catMeta.label, icon: "tag" },
+                            { label: "Address", value: m.businessAddress || m.address || "-", icon: "location-dot" },
+                            { label: "Hours", value: m.operatingHours || "-", icon: "clock" },
+                            { label: "Permit #", value: m.businessPermitNo || "-", icon: "file-contract" },
+                          ].map(item => (
+                            <div key={item.label}>
+                              <div style={{ fontSize: 10, fontWeight: 700, color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: ".04em", marginBottom: 3 }}>
+                                <Ic n={item.icon} size={10} style={{ marginRight: 4 }} />{item.label}
                               </div>
-                              <div style={{ fontWeight: 600, color: "#334155", wordBreak: "break-all" }}>{detail.value}</div>
+                              <div style={{ fontSize: 13, fontWeight: 600, color: "var(--text-secondary)" }}>{item.value}</div>
                             </div>
                           ))}
                         </div>
 
-                        {!!m.description && (
-                          <div style={{ padding: "10px 12px", background: "#F8FAFC", borderRadius: 8, fontSize: 12, color: "#475569", lineHeight: 1.5, marginBottom: 12 }}>
-                            {m.description}
+                        {m.description && (
+                          <div style={{ marginBottom: 16 }}>
+                            <div style={{ fontSize: 10, fontWeight: 700, color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: ".04em", marginBottom: 4 }}>Description</div>
+                            <div style={{ fontSize: 12, color: "var(--text-secondary)", lineHeight: 1.5, background: "var(--surface-alt)", padding: 12, borderRadius: 10 }}>{m.description}</div>
                           </div>
                         )}
 
-                        {/* Actions */}
-                        <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+                        {attachments.length > 0 && (
+                          <div style={{ marginBottom: 16 }}>
+                            <div style={{ fontSize: 10, fontWeight: 700, color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: ".04em", marginBottom: 6 }}>Documents</div>
+                            <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+                              {attachments.map((doc, idx) => (
+                                <button key={idx} onClick={() => setViewingDoc(doc)} style={{ 
+                                  padding: "6px 12px", borderRadius: 8, background: "#fff", border: "1px solid var(--border)", 
+                                  fontSize: 11, fontWeight: 700, color: "var(--brand)", cursor: "pointer", display: "flex", alignItems: "center", gap: 5 
+                                }}>
+                                  <Ic n="file-image" /> {doc.label}
+                                </button>
+                              ))}
+                            </div>
+                          </div>
+                        )}
+
+                        <div style={{ display: "flex", gap: 8 }}>
                           <button disabled={!m._merchantId} onClick={() => { onToggleFeatured?.(m._merchantId, m.featuredInApp !== true); toast.success(m.featuredInApp ? "Removed from featured" : "Marked as featured"); }} style={{
-                            padding: "8px 14px", borderRadius: 10, fontSize: 12, fontWeight: 700, cursor: "pointer", border: "1px solid",
-                            background: m.featuredInApp ? "#FDE68A" : "#fff", color: m.featuredInApp ? "#92400E" : "#334155",
-                            borderColor: m.featuredInApp ? "#FCD34D" : "#E2E8F0", display: "flex", alignItems: "center", gap: 5,
+                            flex: 1, height: 40, borderRadius: 10, fontSize: 12, fontWeight: 700, cursor: "pointer",
+                            background: m.featuredInApp ? "#FEF9C3" : "#F1F5F9",
+                            color: m.featuredInApp ? "#854D0E" : "#475569",
+                            border: `1px solid ${m.featuredInApp ? "#FEF08A" : "#E2E8F0"}`,
                             opacity: m._merchantId ? 1 : 0.5
                           }}>
-                            <Ic n="star" size={11} />{m.featuredInApp ? "Remove Featured" : "Set Featured"}
+                            <Ic n="star" style={{ marginRight: 6 }} />{m.featuredInApp ? "Unfeature" : "Feature in App"}
+                          </button>
+                          <button onClick={() => window.open(`https://wa.me/${m.contactPhone?.replace(/\D/g, "")}`, "_blank")} style={{ flex: 1, height: 40, borderRadius: 10, fontSize: 12, fontWeight: 700, cursor: "pointer", background: "#DCFCE7", color: "#166534", border: "1px solid #BBF7D0" }}>
+                            <Ic n="whatsapp" className="fa-brands" style={{ marginRight: 6 }} />Contact
                           </button>
                         </div>
                       </div>
@@ -1432,24 +1491,26 @@
             <div>
               {rejected.length === 0 ? (
                 <div className="card" style={{ textAlign: "center", padding: "32px 16px" }}>
-                  <Ic n="circle-check" size={28} style={{ color: "#22C55E", opacity: .5, marginBottom: 8, display: "block" }} />
+                  <Ic n="circle-xmark" size={28} style={{ color: "var(--muted)", opacity: .4, marginBottom: 8, display: "block" }} />
                   <div style={{ fontSize: 13, fontWeight: 700, color: "var(--muted)" }}>No rejected applications</div>
                 </div>
               ) : rejected.map(app => (
-                <div key={app.id} className="card" style={{ marginBottom: 10, borderLeft: "4px solid #EF4444", opacity: .85 }}>
-                  <div style={{ display: "flex", alignItems: "flex-start", gap: 10 }}>
-                    <div style={{ width: 36, height: 36, borderRadius: 10, background: "#FEE2E2", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
-                      <Ic n="xmark" style={{ color: "#DC2626", fontSize: 14 }} />
+                <div key={app.id} className="card" style={{ marginBottom: 12, borderLeft: "4px solid #EF4444", opacity: .9 }}>
+                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
+                    <div style={{ fontWeight: 800, fontSize: 15 }}>{app.storeName}</div>
+                    <div style={{ fontSize: 10, fontWeight: 700, color: "var(--muted)" }}>{fmtDateTime(app.reviewedAt || app.updatedAt)}</div>
+                  </div>
+                  <div style={{ fontSize: 12, color: "var(--muted)", marginTop: 2 }}>{app.contactName} • {app.contactPhone}</div>
+                  {app.rejectionMessage && (
+                    <div style={{ marginTop: 10, fontSize: 12, color: "#991B1B", background: "#FEF2F2", padding: "10px 12px", borderRadius: 8, border: "1px solid #FEE2E2" }}>
+                      <div style={{ fontSize: 10, fontWeight: 800, textTransform: "uppercase", marginBottom: 4, opacity: .7 }}>Rejection Reason</div>
+                      {app.rejectionMessage}
                     </div>
-                    <div style={{ flex: 1 }}>
-                      <div style={{ fontWeight: 700, fontSize: 14 }}>{app.storeName || "Unnamed store"}</div>
-                      <div style={{ fontSize: 11, color: "var(--muted)", marginTop: 2 }}>{app.contactName || "-"} · {app.contactPhone || "-"}</div>
-                      {app.rejectionMessage && <div style={{ fontSize: 12, color: "#991B1B", marginTop: 6, padding: "6px 10px", background: "#FEF2F2", borderRadius: 8, fontStyle: "italic" }}>"{app.rejectionMessage}"</div>}
-                      <div style={{ fontSize: 10, color: "var(--muted)", marginTop: 6, display: "flex", gap: 10, flexWrap: "wrap" }}>
-                        <span>Submitted: {fmtDateTime(app.createdAt)}</span>
-                        {app.reviewedAt && <span>Reviewed: {fmtDateTime(app.reviewedAt)}</span>}
-                      </div>
-                    </div>
+                  )}
+                  <div style={{ marginTop: 12, display: "flex", gap: 8 }}>
+                    <button className="btn btn-outline" onClick={() => onDecide?.(app, "approved")} style={{ padding: "6px 12px", fontSize: 11 }}>
+                      <Ic n="rotate-left" style={{ marginRight: 5 }} /> Re-approve
+                    </button>
                   </div>
                 </div>
               ))}
