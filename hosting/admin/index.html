@@ -1407,22 +1407,28 @@
                 const isBusy = m.busyMode === true;
                 
                 return (
-                  <div key={merchantRowId} className="card" style={{ marginBottom: 10, borderLeft: `4px solid ${catMeta.color}`, cursor: "pointer" }}
-                    onClick={() => setExpandedMerchant(isExpanded ? null : merchantRowId)}>
-                    <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-                      <div style={{ width: 44, height: 44, borderRadius: 12, background: `${catMeta.color}15`, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
-                        <Ic n={catMeta.icon} style={{ color: catMeta.color, fontSize: 18 }} />
-                      </div>
-                      <div style={{ flex: 1, minWidth: 0 }}>
-                        <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-                          <div style={{ fontWeight: 800, fontSize: 15 }}>{m.storeName || "Unnamed"}</div>
-                          <span style={{ width: 8, height: 8, borderRadius: "50%", background: storeIsOpen ? (isBusy ? "#F59E0B" : "#22C55E") : "#DC2626", flexShrink: 0 }} />
-                          {m.featuredInApp && <Ic n="star" style={{ color: "#F59E0B", fontSize: 12 }} />}
+                  <div key={merchantRowId} className="card" style={{ marginBottom: 10, borderLeft: `4px solid ${catMeta.color}` }}>
+                    <button
+                      type="button"
+                      onClick={() => setExpandedMerchant(isExpanded ? null : merchantRowId)}
+                      aria-expanded={isExpanded}
+                      style={{ width: "100%", background: "transparent", border: "none", padding: 0, textAlign: "left", cursor: "pointer" }}
+                    >
+                      <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+                        <div style={{ width: 44, height: 44, borderRadius: 12, background: `${catMeta.color}15`, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+                          <Ic n={catMeta.icon} style={{ color: catMeta.color, fontSize: 18 }} />
                         </div>
-                        <div style={{ fontSize: 12, color: "var(--muted)", marginTop: 2 }}>{m.contactName} • {m.contactPhone}</div>
+                        <div style={{ flex: 1, minWidth: 0 }}>
+                          <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                            <div style={{ fontWeight: 800, fontSize: 15 }}>{m.storeName || "Unnamed"}</div>
+                            <span style={{ width: 8, height: 8, borderRadius: "50%", background: storeIsOpen ? (isBusy ? "#F59E0B" : "#22C55E") : "#DC2626", flexShrink: 0 }} />
+                            {m.featuredInApp && <Ic n="star" style={{ color: "#F59E0B", fontSize: 12 }} />}
+                          </div>
+                          <div style={{ fontSize: 12, color: "var(--muted)", marginTop: 2 }}>{m.contactName} • {m.contactPhone}</div>
+                        </div>
+                        <Ic n={isExpanded ? "chevron-up" : "chevron-down"} size={12} style={{ color: "var(--muted)" }} />
                       </div>
-                      <Ic n={isExpanded ? "chevron-up" : "chevron-down"} size={12} style={{ color: "var(--muted)" }} />
-                    </div>
+                    </button>
 
                     {isExpanded && (
                       <div className="fade-up" style={{ marginTop: 16, paddingTop: 16, borderTop: "1px solid var(--border-light)" }} onClick={e => e.stopPropagation()}>
