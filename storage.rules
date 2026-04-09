@@ -13,6 +13,12 @@ service firebase.storage {
         && request.resource.size < maxBytes;
     }
 
+    function isApplicationDocumentUpload(maxBytes) {
+      return request.resource != null
+        && request.resource.contentType.matches("(image/.*|application/pdf)")
+        && request.resource.size < maxBytes;
+    }
+
     match /gcash_qr/{allPaths=**} {
       allow read: if true;
       allow write: if isSignedIn() || isImageUpload(5 * 1024 * 1024);
@@ -31,6 +37,13 @@ service firebase.storage {
     match /order_proofs/{allPaths=**} {
       allow read: if isSignedIn();
       allow write: if isSignedIn();
+    }
+
+    match /applications/{uid}/{fileName} {
+      allow read: if isSignedIn() && request.auth.uid == uid;
+      allow write: if isSignedIn()
+        && request.auth.uid == uid
+        && isApplicationDocumentUpload(5 * 1024 * 1024);
     }
 
 
