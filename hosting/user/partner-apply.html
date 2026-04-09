@@ -1,76 +1,270 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>Apply as Partner Merchant</title>
+  <title>Apply as Partner Merchant - BayanGo</title>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" />
   <style>
-    body { font-family: Arial; background: #f8fafc; margin: 0; }
-    .wrap { max-width: 640px; margin: 0 auto; padding: 18px; }
-    .card { background: #fff; border: 1px solid #e2e8f0; border-radius: 14px; padding: 14px; }
-    input, textarea, select { width: 100%; padding: 10px; border: 1px solid #cbd5e1; border-radius: 8px; margin: 6px 0 10px; }
-    label { font-weight: 700; color: #1e293b; font-size: 14px; display: block; margin-top: 8px; }
-    .req { color: #dc2626; }
-    .note { font-size: 13px; color: #334155; margin: 4px 0 10px; }
-    button { padding: 10px 14px; border: none; border-radius: 10px; background: #166534; color: #fff; font-weight: 700; cursor: pointer; }
-    .check { display: flex; gap: 8px; align-items: flex-start; margin: 10px 0; }
-    .check input { width: auto; margin-top: 3px; }
+    :root {
+      --brand: #166534; --brand-light: #22C55E; --brand-bg: #F0FDF4; --brand-border: #BBF7D0;
+      --bg: #F8FAFC; --card: #FFFFFF; --text: #0F172A; --muted: #64748B;
+      --danger: #DC2626; --danger-bg: #FEF2F2; --danger-border: #FECACA;
+      --warn-bg: #FFFBEB; --warn-border: #FDE68A;
+      --radius: 16px; --shadow: 0 1px 3px rgba(0,0,0,.06), 0 4px 16px rgba(0,0,0,.04);
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Inter, sans-serif; background: var(--bg); color: var(--text); min-height: 100vh; }
+    .page { max-width: 600px; margin: 0 auto; padding: 0 16px 40px; }
+
+    .hero {
+      background: linear-gradient(135deg, #166534 0%, #15803D 50%, #16A34A 100%);
+      color: #fff; padding: 32px 20px 28px; margin: 0 -16px 20px; text-align: center;
+    }
+    .hero-icon { width: 64px; height: 64px; border-radius: 50%; background: rgba(255,255,255,.18); display: inline-flex; align-items: center; justify-content: center; font-size: 28px; margin-bottom: 12px; }
+    .hero h1 { font-size: 22px; font-weight: 900; margin-bottom: 6px; }
+    .hero p { font-size: 13px; opacity: .9; line-height: 1.5; max-width: 440px; margin: 0 auto; }
+
+    .steps { display: flex; gap: 4px; padding: 0 4px; margin-bottom: 20px; }
+    .step { flex: 1; height: 4px; border-radius: 4px; background: #E2E8F0; transition: background .3s; }
+    .step.active { background: var(--brand-light); }
+    .step.done { background: var(--brand); }
+
+    .card { background: var(--card); border: 1px solid #E2E8F0; border-radius: var(--radius); padding: 20px; margin-bottom: 16px; box-shadow: var(--shadow); }
+    .card-title { font-size: 16px; font-weight: 800; margin-bottom: 4px; display: flex; align-items: center; gap: 8px; }
+    .card-subtitle { font-size: 12px; color: var(--muted); margin-bottom: 16px; }
+
+    .form-group { margin-bottom: 14px; }
+    .form-label { font-size: 13px; font-weight: 700; color: #1E293B; margin-bottom: 5px; display: block; }
+    .form-label .req { color: var(--danger); margin-left: 2px; }
+    .form-hint { font-size: 11px; color: var(--muted); margin-top: 3px; }
+    .form-input, .form-select, .form-textarea {
+      width: 100%; padding: 12px 14px; border: 1.5px solid #CBD5E1; border-radius: 12px;
+      font-size: 14px; font-family: inherit; background: #fff; transition: border-color .2s, box-shadow .2s;
+    }
+    .form-input:focus, .form-select:focus, .form-textarea:focus {
+      outline: none; border-color: var(--brand-light); box-shadow: 0 0 0 3px rgba(34,197,94,.12);
+    }
+    .form-input.error, .form-select.error, .form-textarea.error { border-color: var(--danger); }
+    .form-textarea { resize: vertical; min-height: 80px; }
+    .form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+
+    .category-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
+    .cat-btn {
+      padding: 12px 8px; border: 2px solid #E2E8F0; border-radius: 12px;
+      background: #fff; cursor: pointer; text-align: center; transition: all .2s;
+    }
+    .cat-btn:hover { border-color: #BBF7D0; background: #F0FDF4; }
+    .cat-btn.selected { border-color: var(--brand); background: var(--brand-bg); }
+    .cat-btn i { display: block; font-size: 20px; margin-bottom: 4px; }
+    .cat-btn span { font-size: 11px; font-weight: 700; color: #334155; }
+
+    .hours-grid { display: grid; grid-template-columns: 1fr auto 1fr; gap: 8px; align-items: center; }
+    .hours-sep { font-size: 13px; font-weight: 700; color: var(--muted); text-align: center; }
+
+    .checkbox-row { display: flex; gap: 10px; align-items: flex-start; padding: 14px; background: var(--brand-bg); border: 1px solid var(--brand-border); border-radius: 12px; }
+    .checkbox-row input[type="checkbox"] { width: 18px; height: 18px; margin-top: 2px; accent-color: var(--brand); flex-shrink: 0; }
+    .checkbox-row span { font-size: 13px; line-height: 1.45; color: #334155; }
+
+    .btn { padding: 14px 24px; border: none; border-radius: 14px; font-size: 15px; font-weight: 800; cursor: pointer; transition: all .2s; display: inline-flex; align-items: center; justify-content: center; gap: 8px; }
+    .btn:active { transform: scale(.97); }
+    .btn-primary { background: linear-gradient(135deg, #166534, #15803D); color: #fff; width: 100%; }
+    .btn-primary:hover { box-shadow: 0 4px 16px rgba(22,101,52,.3); transform: translateY(-1px); }
+    .btn-primary:disabled { opacity: .5; cursor: not-allowed; transform: none; box-shadow: none; }
+    .btn-outline { background: transparent; border: 2px solid #E2E8F0; color: #334155; }
+    .btn-outline:hover { border-color: #CBD5E1; background: #F8FAFC; }
+    .btn-nav { display: flex; gap: 10px; margin-top: 8px; }
+    .btn-nav .btn { flex: 1; padding: 12px 16px; font-size: 14px; }
+
+    .msg { padding: 12px 14px; border-radius: 12px; font-size: 13px; font-weight: 600; margin-top: 12px; display: none; }
+    .msg.success { background: var(--brand-bg); color: var(--brand); border: 1px solid var(--brand-border); display: block; }
+    .msg.error { background: var(--danger-bg); color: var(--danger); border: 1px solid var(--danger-border); display: block; }
+    .msg.info { background: var(--warn-bg); color: #92400E; border: 1px solid var(--warn-border); display: block; }
+
+    .login-card { text-align: center; padding: 40px 20px; }
+    .login-card .login-icon { width: 72px; height: 72px; border-radius: 50%; background: linear-gradient(135deg, #166534, #22C55E); display: inline-flex; align-items: center; justify-content: center; color: #fff; font-size: 30px; margin-bottom: 16px; }
+    .login-card h2 { font-size: 20px; font-weight: 800; margin-bottom: 6px; }
+    .login-card p { font-size: 13px; color: var(--muted); margin-bottom: 20px; }
+    .btn-google { background: #fff; border: 2px solid #E2E8F0; color: #334155; padding: 13px 24px; border-radius: 12px; font-size: 14px; font-weight: 700; cursor: pointer; display: inline-flex; align-items: center; gap: 10px; transition: .2s; }
+    .btn-google:hover { border-color: #CBD5E1; box-shadow: 0 2px 8px rgba(0,0,0,.08); }
+    .btn-google img { width: 20px; height: 20px; }
+
+    .success-screen { text-align: center; padding: 48px 20px; }
+    .success-icon { width: 80px; height: 80px; border-radius: 50%; background: var(--brand-bg); border: 3px solid var(--brand-border); display: inline-flex; align-items: center; justify-content: center; font-size: 36px; color: var(--brand); margin-bottom: 16px; }
+    .success-screen h2 { font-size: 20px; font-weight: 800; margin-bottom: 8px; color: var(--brand); }
+    .success-screen p { font-size: 13px; color: var(--muted); line-height: 1.5; }
+
+    .existing-app { padding: 20px; background: var(--warn-bg); border: 1px solid var(--warn-border); border-radius: var(--radius); text-align: center; }
+    .existing-app h3 { font-size: 16px; font-weight: 800; color: #92400E; margin-bottom: 6px; }
+    .existing-app .status-pill { display: inline-block; padding: 5px 14px; border-radius: 20px; font-size: 12px; font-weight: 800; text-transform: uppercase; margin: 8px 0; }
+    .status-pending { background: #FDE68A; color: #92400E; }
+    .status-approved { background: #BBF7D0; color: #166534; }
+    .status-rejected { background: #FECACA; color: #991B1B; }
+
+    @media (max-width: 480px) {
+      .category-grid { grid-template-columns: repeat(2, 1fr); }
+      .form-row { grid-template-columns: 1fr; }
+    }
   </style>
 </head>
 <body>
-  <div class="wrap">
-    <div class="card">
-      <h2>Partner Merchant Application</h2>
-      <p>Mag-apply dito para magkaroon ng partner merchant dashboard access.</p>
-      <p class="note">New requirements: kumpletong business details at confirmation na valid ang permits bago ma-review ang application.</p>
-      <div id="auth"></div>
-      <div id="form" style="display:none">
-        <label for="storeName">Store name <span class="req">*</span></label>
-        <input id="storeName" placeholder="Store name" />
+  <div class="page">
+    <div class="hero">
+      <div class="hero-icon"><i class="fas fa-store"></i></div>
+      <h1>Become a Partner Merchant</h1>
+      <p>Join BayanGo's growing network of local merchants. Reach more customers in Binangonan and grow your business!</p>
+    </div>
 
-        <label for="storeCategory">Store category <span class="req">*</span></label>
-        <select id="storeCategory">
-          <option value="sari">General Goods</option>
-          <option value="ulam">Cooked Meals</option>
-          <option value="gamot">Medicine</option>
-          <option value="hardware">Hardware</option>
-          <option value="gulay">Vegetables</option>
-        </select>
+    <div id="auth-section">
+      <div class="card login-card">
+        <div class="login-icon"><i class="fas fa-user"></i></div>
+        <h2>Sign In to Apply</h2>
+        <p>You'll need a Google account to get started.</p>
+        <button class="btn-google" id="loginBtn">
+          <img src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg" alt="G" />
+          Sign in with Google
+        </button>
+      </div>
+    </div>
 
-        <label for="businessAddress">Business address <span class="req">*</span></label>
-        <input id="businessAddress" placeholder="Complete business address" />
+    <div id="existing-section" style="display:none"></div>
 
-        <label for="businessPermitNo">Business permit number <span class="req">*</span></label>
-        <input id="businessPermitNo" placeholder="City/Municipal business permit no." />
+    <div id="form-section" style="display:none">
+      <div class="steps" id="stepBar">
+        <div class="step active" data-step="1"></div>
+        <div class="step" data-step="2"></div>
+        <div class="step" data-step="3"></div>
+      </div>
 
-        <label for="govIdType">Owner government ID type <span class="req">*</span></label>
-        <select id="govIdType">
-          <option value="">Select one</option>
-          <option value="drivers_license">Driver's License</option>
-          <option value="national_id">National ID</option>
-          <option value="passport">Passport</option>
-          <option value="postal_id">Postal ID</option>
-        </select>
+      <!-- STEP 1: Store Info -->
+      <div id="step1" class="step-content">
+        <div class="card">
+          <div class="card-title"><i class="fas fa-store" style="color:var(--brand)"></i> Store Information</div>
+          <div class="card-subtitle">Tell us about your store</div>
 
-        <label for="contactName">Contact person <span class="req">*</span></label>
-        <input id="contactName" placeholder="Contact person" />
+          <div class="form-group">
+            <label class="form-label">Store Name <span class="req">*</span></label>
+            <input class="form-input" id="storeName" placeholder="e.g. Maria's Sari-Sari Store" />
+          </div>
 
-        <label for="contactPhone">Phone number <span class="req">*</span></label>
-        <input id="contactPhone" placeholder="09XXXXXXXXX" />
+          <div class="form-group">
+            <label class="form-label">Store Category <span class="req">*</span></label>
+            <div class="category-grid" id="categoryGrid"></div>
+          </div>
 
-        <label for="operatingHours">Operating hours <span class="req">*</span></label>
-        <input id="operatingHours" placeholder="e.g. 7:00 AM - 9:00 PM" />
+          <div class="form-group">
+            <label class="form-label">Store Description <span class="req">*</span></label>
+            <textarea class="form-textarea" id="description" placeholder="Describe your store, what you sell, and what makes it special..."></textarea>
+          </div>
 
-        <label for="description">Store description <span class="req">*</span></label>
-        <textarea id="description" rows="4" placeholder="Store description"></textarea>
+          <div class="form-group">
+            <label class="form-label">Business Address <span class="req">*</span></label>
+            <input class="form-input" id="businessAddress" placeholder="Complete business address in Binangonan" />
+          </div>
 
-        <label class="check">
-          <input type="checkbox" id="termsCheck" />
-          <span>Kinukumpirma ko na tama ang details na nilagay ko at may valid business documents ako para sa verification. <span class="req">*</span></span>
-        </label>
+          <div class="form-group">
+            <label class="form-label">Operating Hours <span class="req">*</span></label>
+            <div class="hours-grid">
+              <select class="form-select" id="openTime">
+                <option value="">Open</option>
+              </select>
+              <span class="hours-sep">to</span>
+              <select class="form-select" id="closeTime">
+                <option value="">Close</option>
+              </select>
+            </div>
+            <div class="form-hint">Select your typical daily operating hours</div>
+          </div>
+        </div>
 
-        <button id="submitBtn">Submit Application</button>
-        <p id="msg"></p>
+        <div class="btn-nav">
+          <button class="btn btn-primary" onclick="goStep(2)">Next: Owner Details <i class="fas fa-arrow-right"></i></button>
+        </div>
+      </div>
+
+      <!-- STEP 2: Owner Details -->
+      <div id="step2" class="step-content" style="display:none">
+        <div class="card">
+          <div class="card-title"><i class="fas fa-user-tie" style="color:#2563EB"></i> Owner Details</div>
+          <div class="card-subtitle">Business owner and contact information</div>
+
+          <div class="form-group">
+            <label class="form-label">Contact Person <span class="req">*</span></label>
+            <input class="form-input" id="contactName" placeholder="Full name of store owner/manager" />
+          </div>
+
+          <div class="form-row">
+            <div class="form-group">
+              <label class="form-label">Phone Number <span class="req">*</span></label>
+              <input class="form-input" id="contactPhone" placeholder="09XXXXXXXXX" maxlength="11" />
+            </div>
+            <div class="form-group">
+              <label class="form-label">Alt. Phone</label>
+              <input class="form-input" id="altPhone" placeholder="Optional" maxlength="11" />
+            </div>
+          </div>
+
+          <div class="form-group">
+            <label class="form-label">Business Permit Number <span class="req">*</span></label>
+            <input class="form-input" id="businessPermitNo" placeholder="City/Municipal business permit no." />
+            <div class="form-hint">Enter your LGU-issued business permit number</div>
+          </div>
+
+          <div class="form-group">
+            <label class="form-label">Government ID Type <span class="req">*</span></label>
+            <select class="form-select" id="govIdType">
+              <option value="">Select ID type</option>
+              <option value="drivers_license">Driver's License</option>
+              <option value="national_id">Philippine National ID</option>
+              <option value="passport">Passport</option>
+              <option value="postal_id">Postal ID</option>
+              <option value="voters_id">Voter's ID</option>
+              <option value="prc_id">PRC ID</option>
+              <option value="sss_id">SSS ID</option>
+              <option value="umid">UMID</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="btn-nav">
+          <button class="btn btn-outline" onclick="goStep(1)"><i class="fas fa-arrow-left"></i> Back</button>
+          <button class="btn btn-primary" onclick="goStep(3)">Review & Submit <i class="fas fa-arrow-right"></i></button>
+        </div>
+      </div>
+
+      <!-- STEP 3: Review -->
+      <div id="step3" class="step-content" style="display:none">
+        <div class="card">
+          <div class="card-title"><i class="fas fa-clipboard-check" style="color:#16A34A"></i> Review Your Application</div>
+          <div class="card-subtitle">Please verify all information before submitting</div>
+
+          <div id="reviewContent" style="font-size:13px; line-height:1.6;"></div>
+        </div>
+
+        <div class="card">
+          <label class="checkbox-row">
+            <input type="checkbox" id="termsCheck" />
+            <span>
+              I confirm that all the information I provided is accurate and truthful. I have valid business documents ready for verification if requested by BayanGo.
+            </span>
+          </label>
+        </div>
+
+        <div id="msgBox" class="msg"></div>
+
+        <div class="btn-nav">
+          <button class="btn btn-outline" onclick="goStep(2)"><i class="fas fa-arrow-left"></i> Back</button>
+          <button class="btn btn-primary" id="submitBtn" onclick="submitApplication()"><i class="fas fa-paper-plane"></i> Submit Application</button>
+        </div>
+      </div>
+    </div>
+
+    <div id="success-section" style="display:none">
+      <div class="card success-screen">
+        <div class="success-icon"><i class="fas fa-check"></i></div>
+        <h2>Application Submitted!</h2>
+        <p>Your partner merchant application has been received. Our team will review your application and you'll be notified once it's approved.</p>
+        <p style="margin-top:12px;font-size:12px;color:var(--muted);">Typical review time: 1-3 business days</p>
       </div>
     </div>
   </div>
@@ -88,82 +282,281 @@
       appId: "1:199013441811:web:315a38f03ddc9b676e3ae6",
       databaseURL: "https://bayango-315c6-default-rtdb.asia-southeast1.firebasedatabase.app"
     });
-
     const auth = firebase.auth(app);
     const db = firebase.database(app);
-    const authEl = document.getElementById('auth');
-    const formEl = document.getElementById('form');
-    const msgEl = document.getElementById('msg');
 
-    auth.onAuthStateChanged((u) => {
-      if (!u) {
-        authEl.innerHTML = '<button id="loginBtn">Sign in with Google</button>';
-        document.getElementById('loginBtn').onclick = () => auth.signInWithPopup(new firebase.auth.GoogleAuthProvider());
-        formEl.style.display = 'none';
-        return;
-      }
-      authEl.innerHTML = '<p>Signed in as <b>' + (u.displayName || u.email) + '</b></p>';
-      formEl.style.display = 'block';
+    const CATEGORIES = [
+      { id: "sari", label: "General Goods", icon: "store", color: "#EC4899" },
+      { id: "ulam", label: "Cooked Meals", icon: "bowl-food", color: "#A855F7" },
+      { id: "gamot", label: "Medicine", icon: "pills", color: "#14B8A6" },
+      { id: "hardware", label: "Hardware", icon: "screwdriver-wrench", color: "#F59E0B" },
+      { id: "gulay", label: "Vegetables", icon: "leaf", color: "#22C55E" },
+      { id: "isda", label: "Fish", icon: "fish", color: "#0EA5E9" },
+      { id: "karne", label: "Meat", icon: "drumstick-bite", color: "#EF4444" },
+      { id: "prutas", label: "Fruits", icon: "apple-whole", color: "#F97316" },
+      { id: "bigas", label: "Rice", icon: "bowl-rice", color: "#EAB308" },
+      { id: "bakery", label: "Bakery", icon: "bread-slice", color: "#D97706" },
+      { id: "water", label: "Water Station", icon: "droplet", color: "#38BDF8" },
+      { id: "laundry", label: "Laundry", icon: "shirt", color: "#818CF8" },
+    ];
+
+    let selectedCategory = "";
+    let currentStep = 1;
+
+    // Build category grid
+    const grid = document.getElementById("categoryGrid");
+    CATEGORIES.forEach(cat => {
+      const btn = document.createElement("button");
+      btn.type = "button";
+      btn.className = "cat-btn";
+      btn.dataset.catId = cat.id;
+      btn.innerHTML = `<i class="fas fa-${cat.icon}" style="color:${cat.color}"></i><span>${cat.label}</span>`;
+      btn.onclick = () => {
+        document.querySelectorAll(".cat-btn").forEach(b => b.classList.remove("selected"));
+        btn.classList.add("selected");
+        selectedCategory = cat.id;
+      };
+      grid.appendChild(btn);
     });
 
-    document.getElementById('submitBtn').onclick = async () => {
-      const u = auth.currentUser;
-      if (!u) return;
+    // Build time selectors
+    function buildTimeOptions(selectEl) {
+      for (let h = 5; h <= 23; h++) {
+        for (let m = 0; m < 60; m += 30) {
+          const hour12 = h > 12 ? h - 12 : h === 0 ? 12 : h;
+          const ampm = h >= 12 ? "PM" : "AM";
+          const label = `${hour12}:${String(m).padStart(2, "0")} ${ampm}`;
+          const value = `${String(h).padStart(2, "0")}:${String(m).padStart(2, "0")}`;
+          const opt = document.createElement("option");
+          opt.value = value;
+          opt.textContent = label;
+          selectEl.appendChild(opt);
+        }
+      }
+    }
+    buildTimeOptions(document.getElementById("openTime"));
+    buildTimeOptions(document.getElementById("closeTime"));
+    document.getElementById("openTime").value = "07:00";
+    document.getElementById("closeTime").value = "21:00";
 
-      const payload = {
-        storeName: storeName.value.trim(),
-        category: storeCategory.value,
-        storeCategory: storeCategory.value,
-        businessAddress: businessAddress.value.trim(),
-        businessPermitNo: businessPermitNo.value.trim(),
-        govIdType: govIdType.value,
-        contactName: contactName.value.trim(),
-        contactPhone: contactPhone.value.trim(),
-        operatingHours: operatingHours.value.trim(),
-        description: description.value.trim(),
-        termsAccepted: termsCheck.checked,
-        applicantUid: u.uid,
-        applicantEmail: u.email || '',
-        status: 'pending',
-        createdAt: Date.now(),
+    function goStep(step) {
+      if (step > currentStep && !validateStep(currentStep)) return;
+      currentStep = step;
+      document.querySelectorAll(".step-content").forEach(el => el.style.display = "none");
+      document.getElementById("step" + step).style.display = "block";
+      document.querySelectorAll(".steps .step").forEach(el => {
+        const s = parseInt(el.dataset.step);
+        el.classList.remove("active", "done");
+        if (s === step) el.classList.add("active");
+        else if (s < step) el.classList.add("done");
+      });
+      window.scrollTo({ top: 0, behavior: "smooth" });
+      if (step === 3) buildReview();
+    }
+
+    function validateStep(step) {
+      const clear = (id) => document.getElementById(id)?.classList.remove("error");
+      const markErr = (id) => { document.getElementById(id)?.classList.add("error"); return false; };
+
+      if (step === 1) {
+        clear("storeName"); clear("description"); clear("businessAddress");
+        if (!document.getElementById("storeName").value.trim()) return markErr("storeName");
+        if (!selectedCategory) { alert("Please select a store category."); return false; }
+        if (!document.getElementById("description").value.trim()) return markErr("description");
+        if (!document.getElementById("businessAddress").value.trim()) return markErr("businessAddress");
+        if (!document.getElementById("openTime").value || !document.getElementById("closeTime").value) {
+          alert("Please set operating hours."); return false;
+        }
+      }
+      if (step === 2) {
+        clear("contactName"); clear("contactPhone"); clear("businessPermitNo"); clear("govIdType");
+        if (!document.getElementById("contactName").value.trim()) return markErr("contactName");
+        const phone = document.getElementById("contactPhone").value.trim();
+        if (!/^09\d{9}$/.test(phone)) {
+          markErr("contactPhone");
+          alert("Please enter a valid PH mobile number (09XXXXXXXXX).");
+          return false;
+        }
+        if (!document.getElementById("businessPermitNo").value.trim()) return markErr("businessPermitNo");
+        if (!document.getElementById("govIdType").value) return markErr("govIdType");
+      }
+      return true;
+    }
+
+    function getFormData() {
+      const catMeta = CATEGORIES.find(c => c.id === selectedCategory) || {};
+      const openTime = document.getElementById("openTime").value;
+      const closeTime = document.getElementById("closeTime").value;
+      const openEl = document.getElementById("openTime");
+      const closeEl = document.getElementById("closeTime");
+      const openLabel = openEl.options[openEl.selectedIndex]?.text || openTime;
+      const closeLabel = closeEl.options[closeEl.selectedIndex]?.text || closeTime;
+
+      return {
+        storeName: document.getElementById("storeName").value.trim(),
+        category: selectedCategory,
+        storeCategory: selectedCategory,
+        categoryLabel: catMeta.label || selectedCategory,
+        description: document.getElementById("description").value.trim(),
+        businessAddress: document.getElementById("businessAddress").value.trim(),
+        operatingHours: `${openLabel} - ${closeLabel}`,
+        openTime, closeTime,
+        contactName: document.getElementById("contactName").value.trim(),
+        contactPhone: document.getElementById("contactPhone").value.trim(),
+        altPhone: document.getElementById("altPhone").value.trim(),
+        businessPermitNo: document.getElementById("businessPermitNo").value.trim(),
+        govIdType: document.getElementById("govIdType").value,
       };
+    }
 
-      if (!payload.storeName || !payload.storeCategory || !payload.businessAddress || !payload.businessPermitNo || !payload.govIdType || !payload.contactName || !payload.contactPhone || !payload.operatingHours || !payload.description) {
-        msgEl.textContent = 'Please complete all required fields.';
-        return;
-      }
-      if (!/^09\d{9}$/.test(payload.contactPhone)) {
-        msgEl.textContent = 'Please enter a valid PH mobile number (09XXXXXXXXX).';
-        return;
-      }
-      if (!payload.termsAccepted) {
-        msgEl.textContent = 'Please confirm the declaration before submitting.';
-        return;
-      }
+    function buildReview() {
+      const d = getFormData();
+      const govIdLabels = { drivers_license:"Driver's License", national_id:"Philippine National ID", passport:"Passport", postal_id:"Postal ID", voters_id:"Voter's ID", prc_id:"PRC ID", sss_id:"SSS ID", umid:"UMID" };
+      const rows = [
+        ["Store Name", d.storeName],
+        ["Category", d.categoryLabel],
+        ["Description", d.description],
+        ["Address", d.businessAddress],
+        ["Operating Hours", d.operatingHours],
+        ["Contact Person", d.contactName],
+        ["Phone", d.contactPhone + (d.altPhone ? ` / ${d.altPhone}` : "")],
+        ["Business Permit", d.businessPermitNo],
+        ["Government ID", govIdLabels[d.govIdType] || d.govIdType],
+      ];
+      document.getElementById("reviewContent").innerHTML = rows.map(([label, val]) =>
+        `<div style="display:flex;padding:8px 0;border-bottom:1px solid #F1F5F9;">
+          <span style="width:130px;flex-shrink:0;font-weight:700;color:var(--muted);font-size:12px;">${label}</span>
+          <span style="flex:1;color:#1E293B;">${val || '<span style="color:#DC2626">Missing</span>'}</span>
+        </div>`
+      ).join("");
+    }
 
-      const btn = document.getElementById('submitBtn');
+    function showMsg(type, text) {
+      const box = document.getElementById("msgBox");
+      box.className = "msg " + type;
+      box.textContent = text;
+    }
+
+    async function submitApplication() {
+      if (!validateStep(1) || !validateStep(2)) return;
+      if (!document.getElementById("termsCheck").checked) {
+        showMsg("error", "Please confirm the declaration before submitting.");
+        return;
+      }
+      const user = auth.currentUser;
+      if (!user) return;
+
+      const btn = document.getElementById("submitBtn");
       btn.disabled = true;
-      btn.textContent = 'Submitting...';
-      msgEl.style.color = '#334155';
-      msgEl.textContent = 'Saving your application...';
+      btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Submitting...';
+      showMsg("info", "Saving your application...");
 
       try {
-        const newAppRef = db.ref('partner_applications').push();
-        const appKey = newAppRef.key;
+        const d = getFormData();
+        const payload = {
+          ...d,
+          termsAccepted: true,
+          applicantUid: user.uid,
+          applicantEmail: user.email || "",
+          applicantDisplayName: user.displayName || "",
+          status: "pending",
+          createdAt: Date.now(),
+        };
 
-        await db.ref('partner_applications/' + appKey).set(payload);
+        await db.ref("partner_applications").push().set(payload);
 
-        msgEl.style.color = '#166534';
-        msgEl.textContent = 'Application submitted successfully! Hintayin ang approval sa admin dashboard.';
-        btn.textContent = 'Submitted';
+        document.getElementById("form-section").style.display = "none";
+        document.getElementById("success-section").style.display = "block";
       } catch (e) {
-        console.error('Submission failed:', e);
-        msgEl.style.color = '#dc2626';
-        msgEl.textContent = 'Failed to submit application: ' + (e.message || 'Unknown error') + '. Please try again.';
+        console.error("Submission failed:", e);
+        showMsg("error", "Failed to submit: " + (e.message || "Unknown error"));
         btn.disabled = false;
-        btn.textContent = 'Submit Application';
+        btn.innerHTML = '<i class="fas fa-paper-plane"></i> Submit Application';
       }
-    };
+    }
+
+    // Auth state
+    document.getElementById("loginBtn").onclick = () => auth.signInWithPopup(new firebase.auth.GoogleAuthProvider());
+
+    auth.onAuthStateChanged(async (user) => {
+      if (!user) {
+        document.getElementById("auth-section").style.display = "block";
+        document.getElementById("form-section").style.display = "none";
+        document.getElementById("existing-section").style.display = "none";
+        document.getElementById("success-section").style.display = "none";
+        return;
+      }
+
+      document.getElementById("auth-section").style.display = "none";
+
+      // Check for existing application
+      try {
+        const snap = await db.ref("partner_applications").orderByChild("applicantUid").equalTo(user.uid).once("value");
+        if (snap.exists()) {
+          let latestApp = null;
+          snap.forEach(child => {
+            const val = child.val() || {};
+            if (!latestApp || (val.createdAt || 0) > (latestApp.createdAt || 0)) {
+              latestApp = { id: child.key, ...val };
+            }
+          });
+
+          if (latestApp) {
+            const status = String(latestApp.status || "pending").toLowerCase();
+            const el = document.getElementById("existing-section");
+            const statusLabels = { pending: "Under Review", approved: "Approved", rejected: "Rejected" };
+            const statusClass = status === "approved" ? "status-approved" : status === "rejected" ? "status-rejected" : "status-pending";
+
+            let extraMsg = "";
+            if (status === "approved") {
+              extraMsg = `<p style="margin-top:12px;font-size:13px;color:#166534;">Your store is live! Access your <a href="/merchant/" style="color:#166534;font-weight:800;">Merchant Dashboard</a> to manage your store.</p>`;
+            } else if (status === "rejected") {
+              extraMsg = `<p style="margin-top:12px;font-size:13px;color:#991B1B;">${latestApp.rejectionMessage ? "Reason: " + latestApp.rejectionMessage : "Contact support for details."}</p>
+              <button class="btn btn-primary" style="margin-top:14px;" onclick="document.getElementById('existing-section').style.display='none';document.getElementById('form-section').style.display='block';">Apply Again</button>`;
+            }
+
+            el.innerHTML = `<div class="existing-app">
+              <i class="fas fa-file-circle-check" style="font-size:28px;color:#D97706;margin-bottom:10px;"></i>
+              <h3>Application ${status === "pending" ? "Submitted" : statusLabels[status]}</h3>
+              <div class="status-pill ${statusClass}">${statusLabels[status] || status}</div>
+              <p style="font-size:13px;color:#92400E;margin-top:6px;">Store: <b>${latestApp.storeName || "N/A"}</b></p>
+              <p style="font-size:11px;color:var(--muted);margin-top:6px;">Submitted: ${new Date(latestApp.createdAt || 0).toLocaleDateString("en-PH", { dateStyle: "medium" })}</p>
+              ${extraMsg}
+            </div>`;
+            el.style.display = "block";
+
+            if (status !== "rejected") return;
+          }
+        }
+      } catch (err) {
+        console.error("Error checking existing application:", err);
+      }
+
+      // Check if already an approved merchant
+      try {
+        const merchantSnap = await db.ref("partner_merchants/" + user.uid).once("value");
+        if (merchantSnap.exists()) {
+          const m = merchantSnap.val() || {};
+          if (m.approved === true || String(m.approved).toLowerCase() === "true" || String(m.status).toLowerCase() === "approved") {
+            const el = document.getElementById("existing-section");
+            el.innerHTML = `<div class="existing-app" style="background:#F0FDF4;border-color:#BBF7D0;">
+              <i class="fas fa-circle-check" style="font-size:32px;color:#166534;margin-bottom:10px;"></i>
+              <h3 style="color:#166534;">You're Already a Partner!</h3>
+              <div class="status-pill status-approved">Active Merchant</div>
+              <p style="font-size:13px;color:#166534;margin-top:10px;">Store: <b>${m.storeName || "Your Store"}</b></p>
+              <a href="/merchant/" class="btn btn-primary" style="margin-top:14px;text-decoration:none;">Go to Merchant Dashboard</a>
+            </div>`;
+            el.style.display = "block";
+            return;
+          }
+        }
+      } catch (err) {
+        console.error("Error checking merchant status:", err);
+      }
+
+      document.getElementById("form-section").style.display = "block";
+      goStep(1);
+    });
   </script>
 </body>
 </html>

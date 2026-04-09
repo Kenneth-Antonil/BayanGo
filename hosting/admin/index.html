@@ -581,7 +581,18 @@
         await fns.update(fns.ref(db, applicationPath), updates);
         if (decision === "approve" && uid) {
           const merchantCategory = application.category || application.storeCategory || "sari";
-          await fns.update(fns.ref(db, "partner_merchants/" + uid), { applicantUid: uid, applicationId: application.id, contactName: application.contactName || "", contactPhone: application.contactPhone || "", storeName: application.storeName || "", category: merchantCategory, storeCategory: merchantCategory, description: application.description || "", logoUrl: application.logoUrl || "", approved: true, approvedAt: Date.now(), approvedByUid: user?.uid || null, approvedByEmail: user?.email || null });
+          await fns.update(fns.ref(db, "partner_merchants/" + uid), {
+            applicantUid: uid, applicationId: application.id,
+            contactName: application.contactName || "", contactPhone: application.contactPhone || "",
+            storeName: application.storeName || "", category: merchantCategory, storeCategory: merchantCategory,
+            description: application.description || "", logoUrl: application.logoUrl || "",
+            businessAddress: application.businessAddress || "", address: application.businessAddress || "",
+            operatingHours: application.operatingHours || "",
+            openTime: application.openTime || "", closeTime: application.closeTime || "",
+            businessPermitNo: application.businessPermitNo || "", govIdType: application.govIdType || "",
+            approved: true, approvedAt: Date.now(), approvedByUid: user?.uid || null, approvedByEmail: user?.email || null,
+            storeOpen: true,
+          });
         }
       }, [user?.email, user?.uid]);
 
@@ -1082,8 +1093,17 @@
 
     /* ══════════════════ PARTNERS PANEL ══════════════════ */
     function PartnersPanel({ applications = [], merchants = [], onDecide, onToggleFeatured, dataLoaded = true, authzError = "", adminUid = "" }) {
+      const [partnerTab, setPartnerTab] = useState("pending");
+      const [searchQ, setSearchQ] = useState("");
+      const [rejectingId, setRejectingId] = useState("");
+      const [rejectionMessage, setRejectionMessage] = useState("");
+      const [expandedMerchant, setExpandedMerchant] = useState(null);
+      const knownMetaFields = new Set(["id", "parentId", "sourcePath", "status", "createdAt", "updatedAt", "reviewedAt", "reviewedByUid", "reviewedByEmail", "reviewMessage", "rejectionMessage"]);
+
       const pending = applications.filter(a => !["approved", "rejected"].includes(String(a.status || "").toLowerCase()));
       const rejected = applications.filter(a => String(a.status || "").toLowerCase() === "rejected");
+      const approved = applications.filter(a => String(a.status || "").toLowerCase() === "approved");
+
       const normalizedMerchantStatus = (merchant) => {
         const s = String(merchant?.status || "").trim().toLowerCase();
         const a = String(merchant?.approved || "").trim().toLowerCase();
@@ -1091,6 +1111,7 @@
         if (s === "rejected") return "rejected";
         return s || "pending";
       };
+
       const mergedMerchants = useMemo(() => {
         const byKey = new Map();
         const makeKey = (entry = {}) => {
@@ -1113,9 +1134,15 @@
       }, [applications, merchants]);
 
       const approvedMerchants = mergedMerchants.filter(m => normalizedMerchantStatus(m) === "approved");
-      const [rejectingId, setRejectingId] = useState("");
-      const [rejectionMessage, setRejectionMessage] = useState("");
-      const knownMetaFields = new Set(["id", "parentId", "sourcePath", "status", "createdAt", "updatedAt", "reviewedAt", "reviewedByUid", "reviewedByEmail", "reviewMessage", "rejectionMessage"]);
+      const filteredMerchants = useMemo(() => {
+        if (!searchQ.trim()) return approvedMerchants;
+        const q = searchQ.trim().toLowerCase();
+        return approvedMerchants.filter(m =>
+          String(m.storeName || "").toLowerCase().includes(q) ||
+          String(m.contactName || "").toLowerCase().includes(q) ||
+          String(m.contactPhone || "").includes(q)
+        );
+      }, [approvedMerchants, searchQ]);
 
       const extractAttachmentUrls = useCallback((application) => {
         const urls = [];
@@ -1136,9 +1163,39 @@
 
       const fmtDateTime = (value) => { const t = Number(value || 0); if (!t) return "\u2014"; try { return new Date(t).toLocaleString("en-PH", { dateStyle: "medium", timeStyle: "short" }); } catch (_) { return "\u2014"; } };
 
+      const PARTNER_CATEGORIES = [
+        { id: "sari", label: "General Goods", icon: "store", color: "#EC4899" },
+        { id: "ulam", label: "Cooked Meals", icon: "bowl-food", color: "#A855F7" },
+        { id: "gamot", label: "Medicine", icon: "pills", color: "#14B8A6" },
+        { id: "hardware", label: "Hardware", icon: "screwdriver-wrench", color: "#F59E0B" },
+        { id: "gulay", label: "Vegetables", icon: "leaf", color: "#22C55E" },
+        { id: "isda", label: "Fish", icon: "fish", color: "#0EA5E9" },
+        { id: "karne", label: "Meat", icon: "drumstick-bite", color: "#EF4444" },
+      ];
+      const getCatMeta = (catId) => PARTNER_CATEGORIES.find(c => c.id === catId) || { label: catId || "General", icon: "tag", color: "#64748B" };
+
       return (
         <div style={{ padding: "20px 24px" }}>
-          <h2 style={{ fontSize: 18, fontWeight: 800, marginBottom: 16 }}>Partner Merchants</h2>
+          {/* Header with stats */}
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}>
+            <h2 style={{ fontSize: 18, fontWeight: 800 }}>Partner Merchants</h2>
+          </div>
+
+          {/* Stats Row */}
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 10, marginBottom: 16 }}>
+            {[
+              { label: "Total", value: applications.length, bg: "#F1F5F9", color: "#334155", icon: "file-lines" },
+              { label: "Pending", value: pending.length, bg: "#FEF3C7", color: "#92400E", icon: "clock" },
+              { label: "Approved", value: approvedMerchants.length, bg: "#DCFCE7", color: "#166534", icon: "circle-check" },
+              { label: "Featured", value: approvedMerchants.filter(m => m.featuredInApp).length, bg: "#FEF9C3", color: "#854D0E", icon: "star" },
+            ].map(stat => (
+              <div key={stat.label} style={{ background: stat.bg, borderRadius: 12, padding: "14px 12px", textAlign: "center" }}>
+                <Ic n={stat.icon} style={{ color: stat.color, fontSize: 16, marginBottom: 4, display: "block" }} />
+                <div style={{ fontSize: 22, fontWeight: 800, color: stat.color }}>{stat.value}</div>
+                <div style={{ fontSize: 10, fontWeight: 700, color: stat.color, opacity: .7, textTransform: "uppercase", letterSpacing: ".03em" }}>{stat.label}</div>
+              </div>
+            ))}
+          </div>
 
           {!!authzError && (
             <div className="card" style={{ marginBottom: 16, background: "#FEF2F2", border: "1px solid #FECACA" }}>
@@ -1148,7 +1205,6 @@
                   <div style={{ fontWeight: 800, fontSize: 14, color: "#991B1B", marginBottom: 4 }}>Permission Error</div>
                   <div style={{ fontSize: 12, color: "#7F1D1D" }}>{authzError}</div>
                   {adminUid && <div style={{ fontSize: 11, color: "#9CA3AF", marginTop: 6 }}>Your UID: <code style={{ background: "#FEE2E2", padding: "1px 6px", borderRadius: 4, fontFamily: "monospace", fontSize: 11 }}>{adminUid}</code></div>}
-                  <div style={{ fontSize: 11, color: "#9CA3AF", marginTop: 4 }}>Make sure this UID is set to <code style={{ background: "#FEE2E2", padding: "1px 6px", borderRadius: 4 }}>true</code> under <code style={{ background: "#FEE2E2", padding: "1px 6px", borderRadius: 4 }}>/admins/{"{uid}"}</code> in Firebase Realtime Database.</div>
                 </div>
               </div>
             </div>
@@ -1157,161 +1213,257 @@
           {!dataLoaded && !authzError && (
             <div className="card" style={{ marginBottom: 16, textAlign: "center", padding: "32px 16px" }}>
               <Ic n="spinner" className="spin" size={24} style={{ color: "var(--brand)", marginBottom: 8 }} />
-              <div style={{ fontSize: 13, fontWeight: 700, color: "var(--text-secondary)" }}>Loading partner applications...</div>
-              <div style={{ fontSize: 11, color: "var(--text-muted)", marginTop: 4 }}>Connecting to Firebase Realtime Database</div>
+              <div style={{ fontSize: 13, fontWeight: 700, color: "var(--text-secondary)" }}>Loading partner data...</div>
             </div>
           )}
 
-          <div className="card" style={{ marginBottom: 16 }}>
-            <div style={{ fontSize: 14, fontWeight: 800, marginBottom: 12, display: "flex", alignItems: "center", gap: 8 }}>
-              Pending Applications
-              {pending.length > 0 && <span style={{ background: "#EF4444", color: "#fff", borderRadius: 10, fontSize: 11, fontWeight: 800, padding: "2px 8px" }}>{pending.length}</span>}
-            </div>
-            {pending.length === 0 ? (
-              <div style={{ fontSize: 12, color: "var(--text-muted)", padding: "10px 0" }}>
-                {dataLoaded ? (authzError ? "Cannot load applications due to permission error above." : "No pending applications.") : "Loading..."}
-              </div>
-            ) :
-            pending.map(app => (
-              <div key={app.id} style={{ border: "1px solid var(--border)", borderRadius: 12, padding: 14, marginBottom: 10 }}>
-                <div style={{ fontWeight: 800, fontSize: 14 }}>{app.storeName || "Unnamed store"}</div>
-                <div style={{ fontSize: 12, color: "var(--text-muted)", marginTop: 2 }}>{app.contactName || "-"} · {app.contactPhone || "-"}</div>
-                <div style={{ fontSize: 12, color: "var(--text-secondary)", marginTop: 4 }}>{app.description || "No description."}</div>
-                <div style={{ fontSize: 11, color: "var(--text-muted)", marginTop: 6 }}>Submitted: {fmtDateTime(app.createdAt)}</div>
-
-                <details style={{ marginTop: 10, border: "1px solid var(--border)", borderRadius: 10, padding: "8px 10px", background: "var(--surface-alt)" }}>
-                  <summary style={{ fontSize: 12, fontWeight: 700, cursor: "pointer" }}>View full details</summary>
-                  <div style={{ marginTop: 8, fontSize: 11 }}>
-                    {extractAttachmentUrls(app).length > 0 && (
-                      <div style={{ marginBottom: 8 }}>
-                        <div style={{ fontWeight: 700, marginBottom: 4 }}>Attachments</div>
-                        {extractAttachmentUrls(app).map((item, idx) => (
-                          <div key={item.url + idx} style={{ marginBottom: 3 }}><a href={item.url} target="_blank" rel="noopener noreferrer" style={{ color: "var(--blue)", textDecoration: "underline" }}>{item.label}</a></div>
-                        ))}
-                      </div>
-                    )}
-                    <div style={{ fontWeight: 700, marginBottom: 4 }}>Raw fields</div>
-                    <div style={{ display: "grid", gridTemplateColumns: "minmax(100px,160px) 1fr", gap: "3px 8px" }}>
-                      {Object.entries(app || {}).map(([key, value]) => {
-                        if (knownMetaFields.has(key)) return null;
-                        let display = value;
-                        if (typeof value === "object") { try { display = JSON.stringify(value); } catch (_) { display = "[Object]"; } }
-                        return (<React.Fragment key={key}><div style={{ color: "var(--text-secondary)", wordBreak: "break-word" }}>{key}</div><div style={{ wordBreak: "break-word" }}>{String(display ?? "\u2014")}</div></React.Fragment>);
-                      })}
-                    </div>
-                  </div>
-                </details>
-
-                <div style={{ display: "flex", gap: 8, marginTop: 10 }}>
-                  <button onClick={() => { onDecide(app, "approve", ""); toast.success(`${app.storeName || "Store"} approved!`); }} className="btn btn-brand" style={{ padding: "8px 14px" }}>Approve</button>
-                  <button onClick={() => { setRejectingId(app.id); setRejectionMessage(app.rejectionMessage || ""); }} className="btn btn-danger" style={{ padding: "8px 14px" }}>Reject</button>
-                </div>
-
-                {rejectingId === app.id && (
-                  <div style={{ marginTop: 10, border: "1px solid #FECACA", borderRadius: 10, padding: 10, background: "#FEF2F2" }}>
-                    <div style={{ fontSize: 12, fontWeight: 700, color: "#7F1D1D", marginBottom: 6 }}>Rejection reason</div>
-                    <textarea value={rejectionMessage} onChange={e => setRejectionMessage(e.target.value)} placeholder="Reason..." rows={3} className="input" style={{ borderColor: "#FCA5A5", marginBottom: 8 }} />
-                    <div style={{ display: "flex", gap: 8 }}>
-                      <button onClick={async () => { await onDecide(app, "reject", rejectionMessage); setRejectingId(""); toast.info("Application rejected."); }} className="btn btn-danger" style={{ fontSize: 12 }}>Confirm Reject</button>
-                      <button onClick={() => setRejectingId("")} className="btn btn-outline" style={{ fontSize: 12 }}>Cancel</button>
-                    </div>
-                  </div>
-                )}
-              </div>
+          {/* Tab Navigation */}
+          <div style={{ display: "flex", gap: 6, marginBottom: 16 }}>
+            {[
+              { key: "pending", label: "Pending", count: pending.length, color: "#F59E0B" },
+              { key: "merchants", label: "Merchants", count: approvedMerchants.length, color: "#22C55E" },
+              { key: "rejected", label: "Rejected", count: rejected.length, color: "#EF4444" },
+            ].map(t => (
+              <button key={t.key} onClick={() => setPartnerTab(t.key)} className="tab" style={{
+                padding: "8px 14px", borderRadius: 999, fontSize: 12, fontWeight: 700, border: "1px solid",
+                background: partnerTab === t.key ? "var(--text)" : "#fff",
+                color: partnerTab === t.key ? "#fff" : "var(--muted)",
+                borderColor: partnerTab === t.key ? "var(--text)" : "var(--border)",
+                cursor: "pointer"
+              }}>
+                {t.label}
+                {t.count > 0 && <span style={{ marginLeft: 5, background: partnerTab === t.key ? "rgba(255,255,255,.2)" : t.color + "20", color: partnerTab === t.key ? "#fff" : t.color, padding: "2px 7px", borderRadius: 20, fontSize: 10, fontWeight: 800 }}>{t.count}</span>}
+              </button>
             ))}
           </div>
 
-          <div className="card" style={{ marginBottom: 16 }}>
-            <div style={{ fontSize: 14, fontWeight: 800, marginBottom: 12 }}>Approved Merchants ({approvedMerchants.length})</div>
-            {approvedMerchants.length === 0 ? <div style={{ fontSize: 12, color: "var(--text-muted)", padding: "10px 0" }}>No approved merchants yet.</div> :
-            approvedMerchants.map((m, idx) => {
-              const storeIsOpen = m.storeOpen !== false;
-              const isBusy = m.busyMode === true;
-              return (
-                <div key={m.id} style={{ padding: "10px 0", borderTop: idx > 0 ? "1px solid var(--border-light)" : "none" }}>
-                  <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-                    {m.logoUrl ? <img src={m.logoUrl} alt={m.storeName} style={{ width: 38, height: 38, borderRadius: "50%", objectFit: "cover", border: "1px solid var(--border)" }} /> : <div style={{ width: 38, height: 38, borderRadius: "50%", background: "var(--border)", display: "flex", alignItems: "center", justifyContent: "center" }}><Ic n="store" style={{ color: "var(--text-muted)", fontSize: 14 }} /></div>}
+          {/* ── PENDING TAB ── */}
+          {partnerTab === "pending" && (
+            <div>
+              {pending.length === 0 ? (
+                <div className="card" style={{ textAlign: "center", padding: "32px 16px" }}>
+                  <Ic n="inbox" size={28} style={{ color: "var(--muted)", opacity: .4, marginBottom: 8, display: "block" }} />
+                  <div style={{ fontSize: 13, fontWeight: 700, color: "var(--muted)" }}>{dataLoaded ? "No pending applications" : "Loading..."}</div>
+                </div>
+              ) : pending.map(app => {
+                const catMeta = getCatMeta(app.category || app.storeCategory);
+                return (
+                <div key={app.id} className="card" style={{ marginBottom: 12, borderLeft: "4px solid #F59E0B" }}>
+                  <div style={{ display: "flex", alignItems: "flex-start", gap: 12 }}>
+                    <div style={{ width: 44, height: 44, borderRadius: 12, background: `${catMeta.color}15`, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+                      <Ic n={catMeta.icon} style={{ color: catMeta.color, fontSize: 18 }} />
+                    </div>
                     <div style={{ flex: 1, minWidth: 0 }}>
-                      <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-                        <span style={{ fontWeight: 700, fontSize: 13 }}>{m.storeName || "Store"}</span>
-                        <span style={{ width: 7, height: 7, borderRadius: "50%", background: storeIsOpen ? (isBusy ? "#F59E0B" : "#22C55E") : "#DC2626", flexShrink: 0 }} title={storeIsOpen ? (isBusy ? "Busy" : "Open") : "Closed"} />
+                      <div style={{ fontWeight: 800, fontSize: 15 }}>{app.storeName || "Unnamed Store"}</div>
+                      <div style={{ fontSize: 12, color: "var(--muted)", marginTop: 2, display: "flex", flexWrap: "wrap", gap: 8 }}>
+                        <span><Ic n="user" size={10} style={{ marginRight: 3 }} />{app.contactName || "-"}</span>
+                        <span><Ic n="phone" size={10} style={{ marginRight: 3 }} />{app.contactPhone || "-"}</span>
                       </div>
-                      <div style={{ fontSize: 11, color: "var(--text-muted)", marginTop: 1 }}>
-                        {m.contactName || "-"} · {m.category || m.storeCategory || "sari"}
-                        {m.prepTimeMinutes && <span> · ~{m.prepTimeMinutes}min prep</span>}
-                      </div>
-                      <div style={{ fontSize: 10, color: "var(--text-muted)", marginTop: 2, display: "flex", gap: 8 }}>
-                        <span style={{ color: storeIsOpen ? (isBusy ? "#D97706" : "var(--brand)") : "var(--red)", fontWeight: 700 }}>
-                          {storeIsOpen ? (isBusy ? "Busy Mode" : "Open") : "Closed"}
+                      <div style={{ display: "flex", gap: 6, marginTop: 6, flexWrap: "wrap" }}>
+                        <span style={{ padding: "2px 8px", borderRadius: 20, fontSize: 10, fontWeight: 700, background: `${catMeta.color}15`, color: catMeta.color, border: `1px solid ${catMeta.color}30` }}>
+                          <Ic n={catMeta.icon} size={9} style={{ marginRight: 3 }} />{catMeta.label}
                         </span>
-                        {m.approvedAt && <span>Approved: {new Date(m.approvedAt).toLocaleDateString("en-PH")}</span>}
+                        {app.businessPermitNo && <span style={{ padding: "2px 8px", borderRadius: 20, fontSize: 10, fontWeight: 700, background: "#EFF6FF", color: "#2563EB", border: "1px solid #BFDBFE" }}>Permit: {app.businessPermitNo}</span>}
                       </div>
                     </div>
-                    <div style={{ display: "flex", flexDirection: "column", gap: 4, alignItems: "flex-end" }}>
-                      <button disabled={!m._merchantId} onClick={() => { onToggleFeatured?.(m._merchantId, m.featuredInApp !== true); toast.success(m.featuredInApp ? "Removed from featured" : "Marked as featured"); }} className="btn" style={{
-                        padding: "5px 10px", fontSize: 10, borderRadius: 20,
-                        background: m.featuredInApp ? "#FDE68A" : "var(--surface-alt)", color: m.featuredInApp ? "#92400E" : "var(--text-secondary)",
-                        border: `1px solid ${m.featuredInApp ? "#FCD34D" : "var(--border)"}`, opacity: m._merchantId ? 1 : 0.5
-                      }}><Ic n="star" style={{ marginRight: 3 }} />{m.featuredInApp ? "Featured" : "Set Featured"}</button>
+                    <div style={{ fontSize: 10, color: "var(--muted)", textAlign: "right", flexShrink: 0 }}>
+                      {fmtDateTime(app.createdAt)}
                     </div>
                   </div>
+
+                  {!!app.description && (
+                    <div style={{ marginTop: 10, fontSize: 12, color: "#475569", lineHeight: 1.5, padding: "8px 10px", background: "#F8FAFC", borderRadius: 8 }}>
+                      {app.description}
+                    </div>
+                  )}
+
+                  <details style={{ marginTop: 10, border: "1px solid var(--border)", borderRadius: 10, padding: "8px 10px", background: "#FAFAFA" }}>
+                    <summary style={{ fontSize: 12, fontWeight: 700, cursor: "pointer", display: "flex", alignItems: "center", gap: 6 }}>
+                      <Ic n="list" size={11} /> View all details
+                    </summary>
+                    <div style={{ marginTop: 8, fontSize: 11 }}>
+                      {extractAttachmentUrls(app).length > 0 && (
+                        <div style={{ marginBottom: 8 }}>
+                          <div style={{ fontWeight: 700, marginBottom: 4 }}>Attachments</div>
+                          {extractAttachmentUrls(app).map((item, idx) => (
+                            <div key={item.url + idx} style={{ marginBottom: 3 }}><a href={item.url} target="_blank" rel="noopener noreferrer" style={{ color: "#2563EB", textDecoration: "underline" }}>{item.label}</a></div>
+                          ))}
+                        </div>
+                      )}
+                      <div style={{ display: "grid", gridTemplateColumns: "minmax(100px,150px) 1fr", gap: "4px 10px" }}>
+                        {Object.entries(app || {}).map(([key, value]) => {
+                          if (knownMetaFields.has(key)) return null;
+                          let display = value;
+                          if (typeof value === "object") { try { display = JSON.stringify(value); } catch (_) { display = "[Object]"; } }
+                          return (<React.Fragment key={key}><div style={{ color: "var(--muted)", fontWeight: 600 }}>{key}</div><div style={{ wordBreak: "break-word" }}>{String(display ?? "\u2014")}</div></React.Fragment>);
+                        })}
+                      </div>
+                    </div>
+                  </details>
+
+                  <div style={{ display: "flex", gap: 8, marginTop: 12 }}>
+                    <button onClick={() => { onDecide(app, "approve", ""); toast.success(`${app.storeName || "Store"} approved!`); }} style={{
+                      padding: "9px 18px", borderRadius: 10, fontSize: 13, fontWeight: 700, border: "none", cursor: "pointer",
+                      background: "linear-gradient(135deg, #166534, #15803D)", color: "#fff", display: "flex", alignItems: "center", gap: 6,
+                    }}><Ic n="check" /> Approve</button>
+                    <button onClick={() => { setRejectingId(app.id); setRejectionMessage(""); }} style={{
+                      padding: "9px 18px", borderRadius: 10, fontSize: 13, fontWeight: 700, border: "1px solid #FECACA", cursor: "pointer",
+                      background: "#FEF2F2", color: "#991B1B", display: "flex", alignItems: "center", gap: 6,
+                    }}><Ic n="xmark" /> Reject</button>
+                  </div>
+
+                  {rejectingId === app.id && (
+                    <div style={{ marginTop: 10, border: "1px solid #FECACA", borderRadius: 10, padding: 12, background: "#FEF2F2" }}>
+                      <div style={{ fontSize: 12, fontWeight: 700, color: "#7F1D1D", marginBottom: 6 }}>Rejection reason</div>
+                      <textarea value={rejectionMessage} onChange={e => setRejectionMessage(e.target.value)} placeholder="Explain why this application is being rejected..." rows={3} style={{ width: "100%", padding: "10px 12px", border: "1px solid #FCA5A5", borderRadius: 8, fontSize: 13, fontFamily: "inherit", resize: "vertical" }} />
+                      <div style={{ display: "flex", gap: 8, marginTop: 8 }}>
+                        <button onClick={async () => { await onDecide(app, "reject", rejectionMessage); setRejectingId(""); toast.info("Application rejected."); }} style={{ padding: "8px 14px", borderRadius: 8, fontSize: 12, fontWeight: 700, background: "#DC2626", color: "#fff", border: "none", cursor: "pointer" }}>Confirm Reject</button>
+                        <button onClick={() => setRejectingId("")} style={{ padding: "8px 14px", borderRadius: 8, fontSize: 12, fontWeight: 700, background: "#F1F5F9", color: "#334155", border: "1px solid #E2E8F0", cursor: "pointer" }}>Cancel</button>
+                      </div>
+                    </div>
+                  )}
                 </div>
               );
-            })}
-          </div>
-
-          {rejected.length > 0 && (
-            <div className="card" style={{ marginBottom: 16 }}>
-              <details>
-                <summary style={{ fontSize: 14, fontWeight: 800, cursor: "pointer", display: "flex", alignItems: "center", gap: 8 }}>
-                  Rejected Applications
-                  <span style={{ background: "#FEE2E2", color: "#991B1B", borderRadius: 10, fontSize: 11, fontWeight: 800, padding: "2px 8px" }}>{rejected.length}</span>
-                </summary>
-                <div style={{ marginTop: 10 }}>
-                  {rejected.map(app => (
-                    <div key={app.id} style={{ border: "1px solid var(--border)", borderRadius: 10, padding: 10, marginBottom: 8, opacity: 0.7 }}>
-                      <div style={{ fontWeight: 700, fontSize: 13 }}>{app.storeName || "Unnamed store"}</div>
-                      <div style={{ fontSize: 11, color: "var(--text-muted)", marginTop: 2 }}>{app.contactName || "-"} · {app.contactPhone || "-"}</div>
-                      {app.rejectionMessage && <div style={{ fontSize: 11, color: "#991B1B", marginTop: 4, fontStyle: "italic" }}>Reason: {app.rejectionMessage}</div>}
-                      <div style={{ fontSize: 10, color: "var(--text-muted)", marginTop: 4 }}>Submitted: {fmtDateTime(app.createdAt)} {app.reviewedAt ? ` · Reviewed: ${fmtDateTime(app.reviewedAt)}` : ""}</div>
-                    </div>
-                  ))}
-                </div>
-              </details>
+              })}
             </div>
           )}
 
-          <div className="card" style={{ marginBottom: 16 }}>
-            <div style={{ fontSize: 14, fontWeight: 800, marginBottom: 12 }}>All Merchants ({mergedMerchants.length})</div>
-            {mergedMerchants.length === 0 ? <div style={{ fontSize: 12, color: "var(--text-muted)" }}>No merchants found.</div> :
-            mergedMerchants.map((m, idx) => {
-              const status = normalizedMerchantStatus(m);
-              const sty = status === "approved" ? { bg: "#DCFCE7", color: "#166534" } : status === "rejected" ? { bg: "#FEE2E2", color: "#991B1B" } : { bg: "#F1F5F9", color: "#475569" };
-              const storeIsOpen = m.storeOpen !== false;
-              return (
-                <div key={`all-${m.id}`} style={{ display: "flex", alignItems: "center", gap: 10, padding: "8px 0", borderTop: idx > 0 ? "1px solid var(--border-light)" : "none" }}>
-                  {m.logoUrl ? <img src={m.logoUrl} alt={m.storeName} style={{ width: 32, height: 32, borderRadius: "50%", objectFit: "cover" }} /> : <div style={{ width: 32, height: 32, borderRadius: "50%", background: "var(--border)" }} />}
-                  <div style={{ flex: 1 }}>
-                    <div style={{ display: "flex", alignItems: "center", gap: 5 }}>
-                      <span style={{ fontWeight: 700, fontSize: 13 }}>{m.storeName || "Store"}</span>
-                      {status === "approved" && <span style={{ width: 6, height: 6, borderRadius: "50%", background: storeIsOpen ? "#22C55E" : "#DC2626" }} />}
-                    </div>
-                    <div style={{ fontSize: 11, color: "var(--text-muted)" }}>{m.contactName || "-"} · {m.contactPhone || ""}</div>
-                  </div>
-                  <span className="status-badge" style={{ background: sty.bg, color: sty.color, textTransform: "capitalize" }}>{status}</span>
-                </div>
-              );
-            })}
-          </div>
+          {/* ── MERCHANTS TAB ── */}
+          {partnerTab === "merchants" && (
+            <div>
+              {/* Search */}
+              <div style={{ marginBottom: 12, display: "flex", alignItems: "center", gap: 8, background: "#fff", border: "1px solid var(--border)", borderRadius: 10, padding: "8px 12px" }}>
+                <Ic n="magnifying-glass" size={14} style={{ color: "var(--muted)" }} />
+                <input value={searchQ} onChange={e => setSearchQ(e.target.value)} placeholder="Search merchants..." style={{ flex: 1, border: "none", outline: "none", fontSize: 13, background: "transparent" }} />
+                {searchQ && <button onClick={() => setSearchQ("")} style={{ border: "none", background: "none", color: "var(--muted)", cursor: "pointer" }}><Ic n="xmark" size={12} /></button>}
+              </div>
 
+              {filteredMerchants.length === 0 ? (
+                <div className="card" style={{ textAlign: "center", padding: "32px 16px" }}>
+                  <Ic n="store" size={28} style={{ color: "var(--muted)", opacity: .4, marginBottom: 8, display: "block" }} />
+                  <div style={{ fontSize: 13, fontWeight: 700, color: "var(--muted)" }}>{searchQ ? "No merchants found" : "No approved merchants yet"}</div>
+                </div>
+              ) : filteredMerchants.map((m) => {
+                const storeIsOpen = m.storeOpen !== false;
+                const isBusy = m.busyMode === true;
+                const catMeta = getCatMeta(m.category || m.storeCategory);
+                const isExpanded = expandedMerchant === (m._merchantId || m.id);
+                return (
+                  <div key={m._merchantId || m.id} className="card" style={{ marginBottom: 10, borderLeft: `4px solid ${storeIsOpen ? (isBusy ? "#F59E0B" : "#22C55E") : "#DC2626"}`, cursor: "pointer" }}
+                    onClick={() => setExpandedMerchant(isExpanded ? null : (m._merchantId || m.id))}>
+                    <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+                      {m.logoUrl
+                        ? <img src={m.logoUrl} alt={m.storeName} style={{ width: 48, height: 48, borderRadius: 12, objectFit: "cover", border: "1px solid var(--border)", flexShrink: 0 }} />
+                        : <div style={{ width: 48, height: 48, borderRadius: 12, background: `${catMeta.color}10`, border: "1px solid var(--border)", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+                            <Ic n={catMeta.icon} style={{ color: catMeta.color, fontSize: 18 }} />
+                          </div>}
+                      <div style={{ flex: 1, minWidth: 0 }}>
+                        <div style={{ display: "flex", alignItems: "center", gap: 6, flexWrap: "wrap" }}>
+                          <span style={{ fontWeight: 800, fontSize: 14 }}>{m.storeName || "Store"}</span>
+                          <span style={{ width: 8, height: 8, borderRadius: "50%", background: storeIsOpen ? (isBusy ? "#F59E0B" : "#22C55E") : "#DC2626", flexShrink: 0 }} />
+                          {m.featuredInApp && <span style={{ background: "#FDE68A", color: "#92400E", padding: "2px 6px", borderRadius: 20, fontSize: 9, fontWeight: 800 }}><Ic n="star" size={8} style={{ marginRight: 2 }} />Featured</span>}
+                        </div>
+                        <div style={{ fontSize: 11, color: "var(--muted)", marginTop: 2, display: "flex", gap: 8, flexWrap: "wrap" }}>
+                          <span>{m.contactName || "-"}</span>
+                          <span style={{ color: catMeta.color }}>{catMeta.label}</span>
+                          {m.prepTimeMinutes && <span>~{m.prepTimeMinutes}min</span>}
+                        </div>
+                      </div>
+                      <div style={{ display: "flex", flexDirection: "column", gap: 4, alignItems: "flex-end" }}>
+                        <span style={{
+                          padding: "4px 10px", borderRadius: 20, fontSize: 10, fontWeight: 800,
+                          background: storeIsOpen ? (isBusy ? "#FEF3C7" : "#DCFCE7") : "#FEE2E2",
+                          color: storeIsOpen ? (isBusy ? "#92400E" : "#166534") : "#991B1B",
+                        }}>
+                          {storeIsOpen ? (isBusy ? "Busy" : "Open") : "Closed"}
+                        </span>
+                        <Ic n={isExpanded ? "chevron-up" : "chevron-down"} size={12} style={{ color: "var(--muted)" }} />
+                      </div>
+                    </div>
+
+                    {isExpanded && (
+                      <div onClick={e => e.stopPropagation()} style={{ marginTop: 14, paddingTop: 14, borderTop: "1px solid var(--border)" }}>
+                        {/* Detail Grid */}
+                        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8, marginBottom: 12 }}>
+                          {[
+                            { label: "Contact", value: m.contactName || "-", icon: "user" },
+                            { label: "Phone", value: m.contactPhone || "-", icon: "phone" },
+                            { label: "Category", value: catMeta.label, icon: catMeta.icon },
+                            { label: "Prep Time", value: m.prepTimeMinutes ? `${m.prepTimeMinutes} min` : "Default", icon: "clock" },
+                            { label: "Approved", value: m.approvedAt ? new Date(m.approvedAt).toLocaleDateString("en-PH") : "-", icon: "calendar-check" },
+                            { label: "UID", value: (m._merchantId || m.applicantUid || "-").substring(0, 12) + "...", icon: "fingerprint" },
+                          ].map(detail => (
+                            <div key={detail.label} style={{ padding: "8px 10px", background: "#F8FAFC", borderRadius: 8, fontSize: 11 }}>
+                              <div style={{ color: "var(--muted)", fontWeight: 700, marginBottom: 2, display: "flex", alignItems: "center", gap: 4 }}>
+                                <Ic n={detail.icon} size={10} />{detail.label}
+                              </div>
+                              <div style={{ fontWeight: 600, color: "#334155", wordBreak: "break-all" }}>{detail.value}</div>
+                            </div>
+                          ))}
+                        </div>
+
+                        {!!m.description && (
+                          <div style={{ padding: "10px 12px", background: "#F8FAFC", borderRadius: 8, fontSize: 12, color: "#475569", lineHeight: 1.5, marginBottom: 12 }}>
+                            {m.description}
+                          </div>
+                        )}
+
+                        {/* Actions */}
+                        <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+                          <button disabled={!m._merchantId} onClick={() => { onToggleFeatured?.(m._merchantId, m.featuredInApp !== true); toast.success(m.featuredInApp ? "Removed from featured" : "Marked as featured"); }} style={{
+                            padding: "8px 14px", borderRadius: 10, fontSize: 12, fontWeight: 700, cursor: "pointer", border: "1px solid",
+                            background: m.featuredInApp ? "#FDE68A" : "#fff", color: m.featuredInApp ? "#92400E" : "#334155",
+                            borderColor: m.featuredInApp ? "#FCD34D" : "#E2E8F0", display: "flex", alignItems: "center", gap: 5,
+                            opacity: m._merchantId ? 1 : 0.5
+                          }}>
+                            <Ic n="star" size={11} />{m.featuredInApp ? "Remove Featured" : "Set Featured"}
+                          </button>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          )}
+
+          {/* ── REJECTED TAB ── */}
+          {partnerTab === "rejected" && (
+            <div>
+              {rejected.length === 0 ? (
+                <div className="card" style={{ textAlign: "center", padding: "32px 16px" }}>
+                  <Ic n="circle-check" size={28} style={{ color: "#22C55E", opacity: .5, marginBottom: 8, display: "block" }} />
+                  <div style={{ fontSize: 13, fontWeight: 700, color: "var(--muted)" }}>No rejected applications</div>
+                </div>
+              ) : rejected.map(app => (
+                <div key={app.id} className="card" style={{ marginBottom: 10, borderLeft: "4px solid #EF4444", opacity: .85 }}>
+                  <div style={{ display: "flex", alignItems: "flex-start", gap: 10 }}>
+                    <div style={{ width: 36, height: 36, borderRadius: 10, background: "#FEE2E2", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+                      <Ic n="xmark" style={{ color: "#DC2626", fontSize: 14 }} />
+                    </div>
+                    <div style={{ flex: 1 }}>
+                      <div style={{ fontWeight: 700, fontSize: 14 }}>{app.storeName || "Unnamed store"}</div>
+                      <div style={{ fontSize: 11, color: "var(--muted)", marginTop: 2 }}>{app.contactName || "-"} · {app.contactPhone || "-"}</div>
+                      {app.rejectionMessage && <div style={{ fontSize: 12, color: "#991B1B", marginTop: 6, padding: "6px 10px", background: "#FEF2F2", borderRadius: 8, fontStyle: "italic" }}>"{app.rejectionMessage}"</div>}
+                      <div style={{ fontSize: 10, color: "var(--muted)", marginTop: 6, display: "flex", gap: 10, flexWrap: "wrap" }}>
+                        <span>Submitted: {fmtDateTime(app.createdAt)}</span>
+                        {app.reviewedAt && <span>Reviewed: {fmtDateTime(app.reviewedAt)}</span>}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+
+          {/* Footer Stats */}
           {dataLoaded && (
-            <div style={{ fontSize: 10, color: "var(--text-muted)", padding: "8px 0", display: "flex", flexWrap: "wrap", gap: 12 }}>
-              <span>Total applications: {applications.length}</span>
+            <div style={{ fontSize: 10, color: "var(--muted)", padding: "12px 0", display: "flex", flexWrap: "wrap", gap: 12, borderTop: "1px solid var(--border)", marginTop: 16 }}>
+              <span>Applications: {applications.length}</span>
               <span>Pending: {pending.length}</span>
+              <span>Approved: {approved.length}</span>
               <span>Rejected: {rejected.length}</span>
-              <span>Approved: {applications.filter(a => String(a.status || "").toLowerCase() === "approved").length}</span>
-              <span>Merchants in DB: {merchants.length}</span>
-              <span>Sources: {[...new Set(applications.map(a => a.sourcePath))].join(", ") || "none"}</span>
+              <span>Merchants DB: {merchants.length}</span>
             </div>
           )}
         </div>

@@ -1623,6 +1623,8 @@
       const [showPaymentPicker, setShowPaymentPicker] = useState(false);
       const [activeStoreProfile, setActiveStoreProfile] = useState(null);
       const [activeStoreCat, setActiveStoreCat] = useState("all");
+      const [storeSearchQ, setStoreSearchQ] = useState("");
+      const [storeCatFilter, setStoreCatFilter] = useState("all");
       const [notifications, setNotifications]  = useState([]);
       const [notifLastSeen, setNotifLastSeen]  = useState(() => {
         try { return parseInt(localStorage.getItem("bayango_notif_last_seen") || "0", 10); } catch { return 0; }
@@ -1833,18 +1835,20 @@
         });
       }, [activeCat, featuredMerchantId, products, searchQ]);
       const featuredStores = partnerStores.filter((store) => store.merchantFeatured);
+      const storeProfileOriginRef = useRef("shop");
       const openStoreProfile = useCallback((merchantId) => {
         if (!merchantId) return;
         const store = partnerStores.find((entry) => entry.merchantId === merchantId);
         if (!store) return;
+        storeProfileOriginRef.current = activePage === "stores" ? "stores" : "shop";
         setActiveStoreProfile(store);
         setActiveStoreCat("all");
-        setActivePage("merchant");
-      }, [partnerStores]);
+        if (activePage !== "stores") setActivePage("merchant");
+      }, [activePage, partnerStores]);
       const closeStoreProfile = useCallback(() => {
         setActiveStoreProfile(null);
         setActiveStoreCat("all");
-        setActivePage("shop");
+        setActivePage(storeProfileOriginRef.current || "shop");
       }, []);
       const storeListingCategories = useMemo(() => {
         const rawCustom = activeStoreProfile?.storeCustomCategories;
@@ -1902,7 +1906,7 @@
       }, [activeStoreProfile?.storeBanners]);
       useEffect(() => {
         if (activePage === "merchant" && !activeStoreProfile) {
-          setActivePage("shop");
+          setActivePage(storeProfileOriginRef.current || "shop");
         }
       }, [activePage, activeStoreProfile]);
       useEffect(() => {
@@ -1911,6 +1915,45 @@
           setActiveStoreCat("all");
         }
       }, [activeStoreCat, activeStoreCategoryTabs]);
+
+      // Stores page: store category counts and filtered list
+      const STORE_CATEGORIES = useMemo(() => {
+        const counts = {};
+        partnerStores.forEach((store) => {
+          const cat = store.storeCategory || "sari";
+          counts[cat] = (counts[cat] || 0) + 1;
+        });
+        const cats = [{ id: "all", label: "All", icon: "layer-group", color: "#334155", count: partnerStores.length }];
+        CATEGORIES.forEach((cat) => {
+          if (counts[cat.id]) cats.push({ ...cat, count: counts[cat.id] });
+        });
+        return cats;
+      }, [partnerStores]);
+
+      const filteredStores = useMemo(() => {
+        let list = partnerStores;
+        if (storeCatFilter !== "all") {
+          list = list.filter((s) => (s.storeCategory || "sari") === storeCatFilter);
+        }
+        if (storeSearchQ.trim()) {
+          const q = storeSearchQ.trim().toLowerCase();
+          list = list.filter((s) =>
+            String(s.storeName || "").toLowerCase().includes(q) ||
+            String(s.storeDescription || "").toLowerCase().includes(q)
+          );
+        }
+        return list;
+      }, [partnerStores, storeCatFilter, storeSearchQ]);
+
+      const storeProductCounts = useMemo(() => {
+        const counts = {};
+        products.forEach((p) => {
+          if (p.source === "partner" && p.merchantId && p.active !== false) {
+            counts[p.merchantId] = (counts[p.merchantId] || 0) + 1;
+          }
+        });
+        return counts;
+      }, [products]);
 
       useEffect(() => {
         if (!_fbDb) return;
@@ -2391,67 +2434,60 @@
           {/* ── Batch Timer ── */}
           <BatchTimerBanner />
 
-          {featuredStores.length > 0 && (
+          {/* Partner Stores Section */}
+          {partnerStores.length > 0 && (
             <div style={{ padding:"16px 20px 0" }}>
-              <div style={{ fontSize:13, fontWeight:800, color:"#166534", marginBottom:8, display:"flex", alignItems:"center", gap:6 }}>
-                <Ic n="star" size={12} /> Must Try in Binangonan
+              <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:10 }}>
+                <div style={{ fontSize:14, fontWeight:800, color:"#111827", display:"flex", alignItems:"center", gap:6 }}>
+                  <Ic n="store" size={13} style={{ color:"#166534" }} /> Partner Stores
+                </div>
+                <button onClick={() => setActivePage("stores")} style={{
+                  fontSize:11, fontWeight:700, color:"#166534", background:"#ECFDF5",
+                  padding:"5px 10px", borderRadius:20, border:"1px solid #BBF7D0",
+                  display:"flex", alignItems:"center", gap:4,
+                }}>
+                  View All <Ic n="arrow-right" size={10} />
+                </button>
               </div>
-              <div style={{ display:"flex", gap:10, overflowX:"auto", paddingBottom:2 }}>
-                {featuredStores.map((store) => (
-                  (() => {
-                    const bannerList = Array.isArray(store.storeBanners)
-                      ? store.storeBanners
-                      : store.storeBanners
-                        ? Object.values(store.storeBanners)
-                        : [];
-                    const coverImage = bannerList.find((b) => b && b.active !== false && String(b.imageUrl || "").startsWith("http"))?.imageUrl || "";
-                    return (
-                  <button key={store.merchantId} onClick={() => openStoreProfile(store.merchantId)} style={{
-                    minWidth:200,
-                    height:132,
-                    textAlign:"left",
-                    border:"1px solid #DCFCE7",
-                    borderRadius:14,
-                    padding:0,
-                    position:"relative",
-                    overflow:"hidden",
-                    background:"#E2E8F0"
-                  }}>
-                    {coverImage
-                      ? <img
-                          src={coverImage}
-                          alt={store.storeName}
-                          style={{ position:"absolute", inset:0, width:"100%", height:"100%", objectFit:"cover" }}
-                        />
-                      : <div style={{ position:"absolute", inset:0, background:"linear-gradient(145deg,#166534,#22C55E)" }} />}
-                    <div style={{
-                      position:"absolute",
-                      left:0,
-                      right:0,
-                      bottom:0,
-                      padding:"10px",
-                      background:"linear-gradient(180deg, rgba(15,23,42,0) 0%, rgba(15,23,42,.88) 66%)",
-                      color:"#fff"
+              <div style={{ display:"flex", gap:10, overflowX:"auto", paddingBottom:4, scrollbarWidth:"none" }}>
+                {partnerStores.slice(0, 8).map((store) => {
+                  const bannerList = Array.isArray(store.storeBanners) ? store.storeBanners : store.storeBanners ? Object.values(store.storeBanners) : [];
+                  const coverImage = bannerList.find((b) => b && b.active !== false && String(b.imageUrl || "").startsWith("http"))?.imageUrl || "";
+                  const catMeta = CATEGORIES.find(c => c.id === (store.storeCategory || "sari")) || {};
+                  return (
+                    <button key={store.merchantId} onClick={() => openStoreProfile(store.merchantId)} style={{
+                      minWidth:160, height:140, textAlign:"left", border:"none", borderRadius:14,
+                      padding:0, position:"relative", overflow:"hidden", flexShrink:0,
+                      background: coverImage ? "#E2E8F0" : `linear-gradient(145deg, ${catMeta.color || "#166534"}25, ${catMeta.color || "#166534"}08)`
                     }}>
-                      <div style={{ display:"flex", alignItems:"center", gap:8 }}>
-                        {store.merchantLogo
-                          ? <img src={store.merchantLogo} alt={store.storeName} style={{ width:30, height:30, borderRadius:"50%", objectFit:"cover", border:"1px solid rgba(255,255,255,.45)", flexShrink:0 }} />
-                          : <div style={{ width:30, height:30, borderRadius:"50%", background:"rgba(255,255,255,.22)", display:"flex", alignItems:"center", justifyContent:"center", color:"#fff", flexShrink:0 }}><Ic n="store" size={12} /></div>}
-                        <div style={{ minWidth:0 }}>
-                          <div style={{ fontSize:12, fontWeight:800, whiteSpace:"nowrap", overflow:"hidden", textOverflow:"ellipsis" }}>{store.storeName}</div>
-                          <div style={{ fontSize:10, opacity:.92 }}>{store.storeOpen ? "Open now" : "Closed"}</div>
+                      {coverImage
+                        ? <img src={coverImage} alt={store.storeName} style={{ position:"absolute", inset:0, width:"100%", height:"100%", objectFit:"cover" }} />
+                        : <div style={{ position:"absolute", inset:0, display:"flex", alignItems:"center", justifyContent:"center", opacity:.15, fontSize:40, color: catMeta.color || "#166534" }}><Ic n={catMeta.icon || "store"} /></div>}
+                      {store.merchantFeatured && (
+                        <span style={{ position:"absolute", top:6, right:6, background:"#FDE68A", color:"#92400E", padding:"2px 7px", borderRadius:20, fontSize:8, fontWeight:800, display:"flex", alignItems:"center", gap:3 }}>
+                          <Ic n="star" size={7} /> Featured
+                        </span>
+                      )}
+                      <div style={{
+                        position:"absolute", left:0, right:0, bottom:0, padding:"10px",
+                        background:"linear-gradient(180deg, rgba(15,23,42,0) 0%, rgba(15,23,42,.88) 60%)", color:"#fff"
+                      }}>
+                        <div style={{ display:"flex", alignItems:"center", gap:6 }}>
+                          {store.merchantLogo
+                            ? <img src={store.merchantLogo} alt="" style={{ width:26, height:26, borderRadius:"50%", objectFit:"cover", border:"1px solid rgba(255,255,255,.4)", flexShrink:0 }} />
+                            : <div style={{ width:26, height:26, borderRadius:"50%", background:"rgba(255,255,255,.2)", display:"flex", alignItems:"center", justifyContent:"center", flexShrink:0 }}><Ic n="store" size={10} /></div>}
+                          <div style={{ minWidth:0 }}>
+                            <div style={{ fontSize:12, fontWeight:800, whiteSpace:"nowrap", overflow:"hidden", textOverflow:"ellipsis" }}>{store.storeName}</div>
+                            <div style={{ fontSize:9, opacity:.88, display:"flex", alignItems:"center", gap:4 }}>
+                              <span style={{ width:5, height:5, borderRadius:"50%", background: store.storeOpen ? "#86EFAC" : "#FCA5A5" }} />
+                              {store.storeOpen ? "Open" : "Closed"}
+                            </div>
+                          </div>
                         </div>
                       </div>
-                      {!!store.storeDescription && (
-                        <div style={{ marginTop:6, fontSize:10, lineHeight:1.35, display:"-webkit-box", WebkitLineClamp:2, WebkitBoxOrient:"vertical", overflow:"hidden", opacity:.92 }}>
-                          {store.storeDescription}
-                        </div>
-                      )}
-                    </div>
-                  </button>
-                    );
-                  })()
-                ))}
+                    </button>
+                  );
+                })}
               </div>
             </div>
           )}
@@ -3074,59 +3110,305 @@
 
           </> /* end shop/checkout wrapper */}
 
-          {/* ── MERCHANT PAGE ── */}
-          {activePage === "merchant" && activeStoreProfile && (
+          {/* ══════════════════ STORES PAGE ══════════════════ */}
+          {activePage === "stores" && !activeStoreProfile && (
             <>
               <div style={{ padding:"16px 20px 0" }}>
-                <button onClick={closeStoreProfile} style={{
-                  display:"inline-flex",
-                  alignItems:"center",
-                  gap:8,
-                  fontSize:13,
-                  fontWeight:800,
-                  color:"#166534",
-                  background:"#ECFDF3",
-                  border:"1px solid #BBF7D0",
-                  padding:"9px 12px",
-                  borderRadius:12
+                <h1 style={{ fontSize:22, fontWeight:900, color:"#111827", marginBottom:4 }}>Partner Stores</h1>
+                <p style={{ fontSize:13, color:"#64748B", marginBottom:14 }}>Browse local shops in Binangonan</p>
+
+                {/* Search */}
+                <div style={{
+                  display:"flex", alignItems:"center", gap:10,
+                  background:"#fff", borderRadius:14, padding:"10px 14px",
+                  border:"1.5px solid #E2E8F0", marginBottom:12
                 }}>
-                  <Ic n="arrow-left" /> Back to Shop
-                </button>
+                  <Ic n="magnifying-glass" size={16} style={{ color:"#94A3B8" }} />
+                  <input
+                    placeholder="Search stores..."
+                    value={storeSearchQ}
+                    onChange={e => setStoreSearchQ(e.target.value)}
+                    style={{ flex:1, border:"none", outline:"none", fontSize:14, fontWeight:500, background:"transparent", color:"#111" }}
+                  />
+                  {storeSearchQ && <button onClick={() => setStoreSearchQ("")} style={{ color:"#94A3B8", fontSize:14 }}><Ic n="xmark" /></button>}
+                </div>
+
+                {/* Category Filter */}
+                <div style={{ display:"flex", gap:8, overflowX:"auto", paddingBottom:12, scrollbarWidth:"none" }}>
+                  {STORE_CATEGORIES.map(cat => (
+                    <button key={cat.id} onClick={() => setStoreCatFilter(cat.id)} style={{
+                      padding:"8px 14px", borderRadius:999, whiteSpace:"nowrap",
+                      fontSize:12, fontWeight:700, display:"flex", alignItems:"center", gap:6,
+                      background: storeCatFilter===cat.id ? (cat.color || "#166534") : "#fff",
+                      color: storeCatFilter===cat.id ? "#fff" : "#555",
+                      border:"1px solid",
+                      borderColor: storeCatFilter===cat.id ? (cat.color || "#166534") : "#E2E8F0",
+                      boxShadow: storeCatFilter===cat.id ? `0 3px 10px ${cat.color || "#166534"}30` : "0 1px 2px rgba(0,0,0,.04)",
+                    }}>
+                      <Ic n={cat.icon} size={12} />{cat.label}
+                      <span style={{
+                        background: storeCatFilter===cat.id ? "rgba(255,255,255,.25)" : "#F1F5F9",
+                        padding:"2px 6px", borderRadius:20, fontSize:10, fontWeight:800,
+                      }}>{cat.count}</span>
+                    </button>
+                  ))}
+                </div>
               </div>
-              <div style={{ padding:"12px 20px 10px" }}>
-                <div style={{ display:"flex", alignItems:"center", gap:10, minWidth:0 }}>
-                  {activeStoreProfile.merchantLogo ? <img src={activeStoreProfile.merchantLogo} alt={activeStoreProfile.storeName} style={{ width:46, height:46, borderRadius:"50%", objectFit:"cover" }} /> : null}
-                  <div style={{ minWidth:0 }}>
-                    <div style={{ fontSize:18, fontWeight:900, color:"#111827", whiteSpace:"nowrap", textOverflow:"ellipsis", overflow:"hidden" }}>{activeStoreProfile.storeName}</div>
-                    <div style={{ fontSize:11, color:"#64748B" }}>{activeStoreProfile.storeOpen ? "Open" : "Closed"} • {storeListings.length} listings</div>
+
+              {/* Featured Stores Horizontal Scroll */}
+              {featuredStores.length > 0 && storeCatFilter === "all" && !storeSearchQ && (
+                <div style={{ padding:"0 20px 12px" }}>
+                  <div style={{ fontSize:13, fontWeight:800, color:"#166534", marginBottom:8, display:"flex", alignItems:"center", gap:6 }}>
+                    <Ic n="star" size={12} /> Featured Stores
+                  </div>
+                  <div style={{ display:"flex", gap:10, overflowX:"auto", paddingBottom:4, scrollbarWidth:"none" }}>
+                    {featuredStores.map((store) => {
+                      const bannerList = Array.isArray(store.storeBanners) ? store.storeBanners : store.storeBanners ? Object.values(store.storeBanners) : [];
+                      const coverImage = bannerList.find((b) => b && b.active !== false && String(b.imageUrl || "").startsWith("http"))?.imageUrl || "";
+                      const prodCount = storeProductCounts[store.merchantId] || 0;
+                      return (
+                        <button key={store.merchantId} onClick={() => openStoreProfile(store.merchantId)} style={{
+                          minWidth:240, height:148, textAlign:"left", border:"none", borderRadius:16,
+                          padding:0, position:"relative", overflow:"hidden", background:"#E2E8F0", flexShrink:0
+                        }}>
+                          {coverImage
+                            ? <img src={coverImage} alt={store.storeName} style={{ position:"absolute", inset:0, width:"100%", height:"100%", objectFit:"cover" }} />
+                            : <div style={{ position:"absolute", inset:0, background:"linear-gradient(145deg,#166534,#22C55E)" }} />}
+                          <div style={{ position:"absolute", top:10, left:10 }}>
+                            <span style={{ background:"#FDE68A", color:"#92400E", padding:"3px 10px", borderRadius:20, fontSize:10, fontWeight:800, display:"inline-flex", alignItems:"center", gap:4 }}>
+                              <Ic n="star" size={9} /> Featured
+                            </span>
+                          </div>
+                          <div style={{
+                            position:"absolute", left:0, right:0, bottom:0, padding:"14px 12px",
+                            background:"linear-gradient(180deg, rgba(15,23,42,0) 0%, rgba(15,23,42,.9) 60%)", color:"#fff"
+                          }}>
+                            <div style={{ display:"flex", alignItems:"center", gap:8 }}>
+                              {store.merchantLogo
+                                ? <img src={store.merchantLogo} alt="" style={{ width:32, height:32, borderRadius:"50%", objectFit:"cover", border:"2px solid rgba(255,255,255,.4)", flexShrink:0 }} />
+                                : <div style={{ width:32, height:32, borderRadius:"50%", background:"rgba(255,255,255,.22)", display:"flex", alignItems:"center", justifyContent:"center", flexShrink:0 }}><Ic n="store" size={13} /></div>}
+                              <div style={{ minWidth:0 }}>
+                                <div style={{ fontSize:14, fontWeight:800, whiteSpace:"nowrap", overflow:"hidden", textOverflow:"ellipsis" }}>{store.storeName}</div>
+                                <div style={{ fontSize:10, opacity:.92, display:"flex", alignItems:"center", gap:6 }}>
+                                  <span style={{ display:"flex", alignItems:"center", gap:3 }}>
+                                    <span style={{ width:6, height:6, borderRadius:"50%", background: store.storeOpen ? "#86EFAC" : "#FCA5A5" }} />
+                                    {store.storeOpen ? "Open" : "Closed"}
+                                  </span>
+                                  <span>{prodCount} items</span>
+                                </div>
+                              </div>
+                            </div>
+                          </div>
+                        </button>
+                      );
+                    })}
                   </div>
                 </div>
-                {!!activeStoreProfile.storeDescription && (
-                  <div style={{ marginTop:10, fontSize:12, color:"#475569", lineHeight:1.45 }}>{activeStoreProfile.storeDescription}</div>
-                )}
-                {activeStoreBanners.length > 0 && (
-                  <div style={{ marginTop:12, display:"grid", gap:8 }}>
-                    {activeStoreBanners.map((banner, idx) => (
-                      <img key={banner.id || `${idx}`} src={banner.imageUrl} alt={banner.title || "Store banner"} style={{ width:"100%", height:108, objectFit:"cover", borderRadius:12, border:"1px solid #E5E7EB" }} />
-                    ))}
+              )}
+
+              {/* Store Grid */}
+              <div style={{ padding:"4px 20px 100px" }}>
+                <div style={{ fontSize:14, fontWeight:800, color:"#111827", marginBottom:10, display:"flex", justifyContent:"space-between", alignItems:"center" }}>
+                  <span>{storeCatFilter === "all" ? "All Stores" : STORE_CATEGORIES.find(c => c.id === storeCatFilter)?.label || "Stores"}</span>
+                  <span style={{ fontSize:12, color:"#94A3B8", fontWeight:500 }}>{filteredStores.length} store{filteredStores.length !== 1 ? "s" : ""}</span>
+                </div>
+
+                {filteredStores.length === 0 ? (
+                  <div style={{ textAlign:"center", padding:"48px 20px", color:"#94A3B8" }}>
+                    <Ic n="store-slash" size={40} style={{ color:"#CBD5E1", marginBottom:10, display:"block" }} />
+                    <div style={{ fontSize:14, fontWeight:700 }}>{storeSearchQ ? "No stores found" : "No partner stores yet"}</div>
+                    <div style={{ fontSize:12, marginTop:4 }}>{storeSearchQ ? "Try a different search" : "Check back soon for new shops!"}</div>
+                  </div>
+                ) : (
+                  <div style={{ display:"grid", gridTemplateColumns:"1fr", gap:12 }}>
+                    {filteredStores.map((store) => {
+                      const bannerList = Array.isArray(store.storeBanners) ? store.storeBanners : store.storeBanners ? Object.values(store.storeBanners) : [];
+                      const coverImage = bannerList.find((b) => b && b.active !== false && String(b.imageUrl || "").startsWith("http"))?.imageUrl || "";
+                      const catMeta = CATEGORIES.find(c => c.id === (store.storeCategory || "sari")) || {};
+                      const prodCount = storeProductCounts[store.merchantId] || 0;
+                      return (
+                        <button key={store.merchantId} onClick={() => openStoreProfile(store.merchantId)} style={{
+                          background:"#fff", border:"1px solid #E5E7EB", borderRadius:16, padding:0,
+                          textAlign:"left", overflow:"hidden", transition:"box-shadow .2s, transform .15s"
+                        }}
+                          onMouseEnter={e => { e.currentTarget.style.boxShadow = "0 4px 16px rgba(0,0,0,.08)"; e.currentTarget.style.transform = "translateY(-2px)"; }}
+                          onMouseLeave={e => { e.currentTarget.style.boxShadow = "none"; e.currentTarget.style.transform = "none"; }}
+                        >
+                          {/* Banner / Cover */}
+                          <div style={{ height:100, background: coverImage ? "none" : `linear-gradient(135deg, ${catMeta.color || "#166534"}22, ${catMeta.color || "#166534"}08)`, position:"relative", overflow:"hidden" }}>
+                            {coverImage && <img src={coverImage} alt="" style={{ width:"100%", height:"100%", objectFit:"cover" }} />}
+                            {!coverImage && <div style={{ position:"absolute", inset:0, display:"flex", alignItems:"center", justifyContent:"center", color: catMeta.color || "#94A3B8", opacity:.3, fontSize:40 }}><Ic n={catMeta.icon || "store"} /></div>}
+                            {store.merchantFeatured && (
+                              <span style={{ position:"absolute", top:8, right:8, background:"#FDE68A", color:"#92400E", padding:"3px 8px", borderRadius:20, fontSize:9, fontWeight:800, display:"flex", alignItems:"center", gap:3 }}>
+                                <Ic n="star" size={8} /> Featured
+                              </span>
+                            )}
+                            {/* Open/Closed Badge */}
+                            <span style={{
+                              position:"absolute", bottom:8, left:8, padding:"4px 10px", borderRadius:20,
+                              fontSize:10, fontWeight:800, backdropFilter:"blur(8px)",
+                              background: store.storeOpen ? "rgba(22,101,52,.85)" : "rgba(220,38,38,.85)",
+                              color:"#fff", display:"flex", alignItems:"center", gap:4,
+                            }}>
+                              <span style={{ width:6, height:6, borderRadius:"50%", background: store.storeOpen ? "#86EFAC" : "#FCA5A5" }} />
+                              {store.storeOpen ? "Open" : "Closed"}
+                            </span>
+                          </div>
+
+                          {/* Store Info */}
+                          <div style={{ padding:"12px 14px" }}>
+                            <div style={{ display:"flex", alignItems:"center", gap:10 }}>
+                              {store.merchantLogo
+                                ? <img src={store.merchantLogo} alt="" style={{ width:40, height:40, borderRadius:"50%", objectFit:"cover", border:"2px solid #E5E7EB", flexShrink:0, marginTop:-28, background:"#fff" }} />
+                                : <div style={{ width:40, height:40, borderRadius:"50%", background:"#F1F5F9", border:"2px solid #E5E7EB", display:"flex", alignItems:"center", justifyContent:"center", flexShrink:0, marginTop:-28 }}>
+                                    <Ic n="store" size={16} style={{ color:"#94A3B8" }} />
+                                  </div>}
+                              <div style={{ minWidth:0, flex:1 }}>
+                                <div style={{ fontSize:15, fontWeight:800, color:"#111827", whiteSpace:"nowrap", overflow:"hidden", textOverflow:"ellipsis" }}>{store.storeName}</div>
+                                <div style={{ fontSize:11, color:"#64748B", display:"flex", alignItems:"center", gap:8, marginTop:2 }}>
+                                  <span style={{ display:"flex", alignItems:"center", gap:4 }}>
+                                    <Ic n={catMeta.icon || "tag"} size={10} style={{ color: catMeta.color || "#94A3B8" }} />
+                                    {catMeta.label || "Store"}
+                                  </span>
+                                  <span>{prodCount} items</span>
+                                </div>
+                              </div>
+                              <Ic n="chevron-right" size={14} style={{ color:"#CBD5E1", flexShrink:0 }} />
+                            </div>
+                            {!!store.storeDescription && (
+                              <div style={{ marginTop:8, fontSize:12, color:"#64748B", lineHeight:1.45, display:"-webkit-box", WebkitLineClamp:2, WebkitBoxOrient:"vertical", overflow:"hidden" }}>
+                                {store.storeDescription}
+                              </div>
+                            )}
+                          </div>
+                        </button>
+                      );
+                    })}
                   </div>
                 )}
+
+                {/* Apply CTA */}
+                <div style={{ marginTop:20, background:"linear-gradient(135deg,#166534,#15803D)", borderRadius:16, padding:"20px 18px", color:"#fff", textAlign:"center" }}>
+                  <Ic n="handshake" size={24} style={{ marginBottom:8, opacity:.8 }} />
+                  <div style={{ fontSize:15, fontWeight:800, marginBottom:4 }}>Own a store in Binangonan?</div>
+                  <div style={{ fontSize:12, opacity:.85, marginBottom:12, lineHeight:1.4 }}>Join BayanGo's partner network and reach more customers!</div>
+                  <a href="/user/partner-apply.html" style={{
+                    display:"inline-block", background:"#fff", color:"#166534",
+                    padding:"10px 20px", borderRadius:12, fontWeight:800, fontSize:13, textDecoration:"none"
+                  }}>Apply Now</a>
+                </div>
               </div>
-              <div style={{ padding:`0 20px ${totalItemCount > 0 ? "138px" : "16px"}` }}>
-                <div style={{ display:"flex", gap:8, overflowX:"auto", padding:"0 0 10px", scrollbarWidth:"none" }}>
+            </>
+          )}
+
+          {/* ── MERCHANT PAGE (Store Profile) ── */}
+          {(activePage === "merchant" || activePage === "stores") && activeStoreProfile && (() => {
+            const storeCatMeta = CATEGORIES.find(c => c.id === (activeStoreProfile.storeCategory || "sari")) || {};
+            const storeProdCount = storeProductCounts[activeStoreProfile.merchantId] || 0;
+            return (
+            <>
+              {/* Hero Banner */}
+              <div style={{ position:"relative", height:160, overflow:"hidden" }}>
+                {activeStoreBanners.length > 0
+                  ? <img src={activeStoreBanners[0].imageUrl} alt="" style={{ width:"100%", height:"100%", objectFit:"cover" }} />
+                  : <div style={{ width:"100%", height:"100%", background:`linear-gradient(135deg, ${storeCatMeta.color || "#166534"}30, ${storeCatMeta.color || "#166534"}08)` }}>
+                      <div style={{ position:"absolute", inset:0, display:"flex", alignItems:"center", justifyContent:"center", opacity:.15, fontSize:60, color: storeCatMeta.color || "#166534" }}>
+                        <Ic n={storeCatMeta.icon || "store"} />
+                      </div>
+                    </div>}
+                <div style={{ position:"absolute", inset:0, background:"linear-gradient(180deg, rgba(0,0,0,.05) 0%, rgba(0,0,0,.45) 100%)" }} />
+                <button onClick={closeStoreProfile} style={{
+                  position:"absolute", top:12, left:12,
+                  width:36, height:36, borderRadius:"50%",
+                  background:"rgba(255,255,255,.9)", backdropFilter:"blur(8px)",
+                  border:"none", display:"flex", alignItems:"center", justifyContent:"center",
+                  color:"#334155", fontSize:14, cursor:"pointer",
+                }}>
+                  <Ic n="arrow-left" />
+                </button>
+                {activeStoreProfile.merchantFeatured && (
+                  <span style={{ position:"absolute", top:12, right:12, background:"#FDE68A", color:"#92400E", padding:"4px 10px", borderRadius:20, fontSize:10, fontWeight:800, display:"flex", alignItems:"center", gap:4 }}>
+                    <Ic n="star" size={9} /> Featured
+                  </span>
+                )}
+              </div>
+
+              {/* Store Header Card */}
+              <div style={{ padding:"0 20px", marginTop:-32, position:"relative", zIndex:2 }}>
+                <div style={{ background:"#fff", borderRadius:16, padding:"16px", border:"1px solid #E5E7EB", boxShadow:"0 2px 12px rgba(0,0,0,.06)" }}>
+                  <div style={{ display:"flex", alignItems:"flex-start", gap:12 }}>
+                    {activeStoreProfile.merchantLogo
+                      ? <img src={activeStoreProfile.merchantLogo} alt={activeStoreProfile.storeName} style={{ width:56, height:56, borderRadius:14, objectFit:"cover", border:"2px solid #E5E7EB", flexShrink:0 }} />
+                      : <div style={{ width:56, height:56, borderRadius:14, background:"#F1F5F9", border:"2px solid #E5E7EB", display:"flex", alignItems:"center", justifyContent:"center", flexShrink:0 }}>
+                          <Ic n="store" size={22} style={{ color:"#94A3B8" }} />
+                        </div>}
+                    <div style={{ flex:1, minWidth:0 }}>
+                      <div style={{ fontSize:19, fontWeight:900, color:"#111827" }}>{activeStoreProfile.storeName}</div>
+                      <div style={{ display:"flex", flexWrap:"wrap", gap:6, marginTop:6 }}>
+                        <span style={{
+                          display:"inline-flex", alignItems:"center", gap:4,
+                          padding:"3px 10px", borderRadius:20, fontSize:10, fontWeight:800,
+                          background: activeStoreProfile.storeOpen ? "#ECFDF5" : "#FEF2F2",
+                          color: activeStoreProfile.storeOpen ? "#166534" : "#991B1B",
+                          border: `1px solid ${activeStoreProfile.storeOpen ? "#BBF7D0" : "#FECACA"}`,
+                        }}>
+                          <span style={{ width:6, height:6, borderRadius:"50%", background: activeStoreProfile.storeOpen ? "#22C55E" : "#DC2626" }} />
+                          {activeStoreProfile.storeOpen ? "Open Now" : "Closed"}
+                        </span>
+                        <span style={{ display:"inline-flex", alignItems:"center", gap:4, padding:"3px 10px", borderRadius:20, fontSize:10, fontWeight:700, background:"#F1F5F9", color:"#475569" }}>
+                          <Ic n={storeCatMeta.icon || "tag"} size={9} style={{ color: storeCatMeta.color }} />
+                          {storeCatMeta.label || "Store"}
+                        </span>
+                        <span style={{ display:"inline-flex", alignItems:"center", gap:4, padding:"3px 10px", borderRadius:20, fontSize:10, fontWeight:700, background:"#F1F5F9", color:"#475569" }}>
+                          <Ic n="box-open" size={9} />
+                          {storeProdCount} items
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+                  {!!activeStoreProfile.storeDescription && (
+                    <div style={{ marginTop:12, fontSize:13, color:"#475569", lineHeight:1.55, borderTop:"1px solid #F1F5F9", paddingTop:12 }}>
+                      {activeStoreProfile.storeDescription}
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              {/* Promo Banners */}
+              {activeStoreBanners.length > 1 && (
+                <div style={{ padding:"12px 20px 0" }}>
+                  <div style={{ display:"flex", gap:8, overflowX:"auto", scrollbarWidth:"none" }}>
+                    {activeStoreBanners.slice(1).map((banner, idx) => (
+                      <img key={banner.id || `b${idx}`} src={banner.imageUrl} alt={banner.title || "Promo"} style={{
+                        height:90, minWidth:200, borderRadius:12, objectFit:"cover", border:"1px solid #E5E7EB", flexShrink:0
+                      }} />
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Category Tabs + Products */}
+              <div style={{ padding:`14px 20px ${totalItemCount > 0 ? "138px" : "16px"}` }}>
+                <div style={{ display:"flex", gap:8, overflowX:"auto", padding:"0 0 12px", scrollbarWidth:"none" }}>
                   {activeStoreCategoryTabs.map((cat) => (
                     <button key={cat.id} onClick={() => setActiveStoreCat(cat.id)} style={{
                       padding:"8px 14px", borderRadius:999, whiteSpace:"nowrap", fontSize:12, fontWeight:700,
-                      border:`1.5px solid ${activeStoreCat===cat.id ? cat.color : "#E2E8F0"}`,
-                      background:activeStoreCat===cat.id ? cat.color : "#fff",
+                      border:`1.5px solid ${activeStoreCat===cat.id ? (cat.color || "#166534") : "#E2E8F0"}`,
+                      background:activeStoreCat===cat.id ? (cat.color || "#166534") : "#fff",
                       color:activeStoreCat===cat.id ? "#fff" : "#334155",
+                      boxShadow: activeStoreCat===cat.id ? `0 3px 10px ${cat.color || "#166534"}25` : "none",
                     }}>
                       <Ic n={cat.icon || "tag"} size={11} style={{ marginRight:6 }} />
                       {cat.label} ({cat.count})
                     </button>
                   ))}
                 </div>
-                <div style={{ fontSize:14, fontWeight:800, color:"#111827", marginBottom:10 }}>Store Listings</div>
+
+                <div style={{ fontSize:14, fontWeight:800, color:"#111827", marginBottom:10, display:"flex", justifyContent:"space-between", alignItems:"center" }}>
+                  <span>Menu</span>
+                  <span style={{ fontSize:12, color:"#94A3B8", fontWeight:500 }}>{storeListings.length} items</span>
+                </div>
+
                 <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:12 }}>
                   {storeListings.map((p, i) => (
                     <ProductCard
@@ -3144,10 +3426,17 @@
                     />
                   ))}
                 </div>
-                {storeListings.length === 0 && <div style={{ fontSize:12, color:"#94A3B8" }}>No active listings for this store.</div>}
+                {storeListings.length === 0 && (
+                  <div style={{ textAlign:"center", padding:"40px 0", color:"#94A3B8" }}>
+                    <Ic n="box-open" size={32} style={{ color:"#CBD5E1", marginBottom:8, display:"block" }} />
+                    <div style={{ fontSize:13, fontWeight:700 }}>No listings yet</div>
+                    <div style={{ fontSize:11, marginTop:3 }}>This store hasn't added any products yet.</div>
+                  </div>
+                )}
               </div>
             </>
-          )}
+            );
+          })()}
 
           {/* ── ORDERS PAGE ── */}
           {activePage === "orders" && (
@@ -3513,6 +3802,7 @@
           }}>
             {[
               { key:"shop",    icon:"cart-shopping", label:"Tindahan" },
+              { key:"stores",  icon:"store",         label:"Stores",  badge: partnerStores.length },
               { key:"orders",  icon:"box",           label:"Orders",  badge: activeOrders.length },
               { key:"notifications", icon:"bell",    label:"Notifs",  badge: unreadNotifCount },
             ].map(t => (
