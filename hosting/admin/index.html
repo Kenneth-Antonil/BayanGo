@@ -1145,6 +1145,15 @@
         if (merchant?.deletedAt) return "deleted";
         return "active";
       };
+      const getStoreStatusMeta = (merchant) => {
+        const enforcementStatus = normalizedEnforcementStatus(merchant);
+        if (enforcementStatus === "suspended") return { label: "Suspended", dot: "#D97706", bg: "#FEF3C7", color: "#92400E" };
+        if (enforcementStatus === "revoked") return { label: "Revoked", dot: "#DC2626", bg: "#FEE2E2", color: "#991B1B" };
+        if (enforcementStatus === "deleted") return { label: "Deleted", dot: "#7F1D1D", bg: "#FEE2E2", color: "#7F1D1D" };
+        if (merchant?.storeOpen === false) return { label: "Closed", dot: "#DC2626", bg: "#FEE2E2", color: "#991B1B" };
+        if (merchant?.busyMode === true) return { label: "Busy", dot: "#F59E0B", bg: "#FEF3C7", color: "#92400E" };
+        return { label: "Open", dot: "#22C55E", bg: "#DCFCE7", color: "#166534" };
+      };
 
       const mergedMerchants = useMemo(() => {
         const byKey = new Map();
@@ -1437,9 +1446,8 @@
                 const merchantRowId = `${merchantBaseId}-${idx}`;
                 const isExpanded = expandedMerchant === merchantRowId;
                 const attachments = extractAttachmentUrls(m);
-                const storeIsOpen = m.storeOpen !== false;
-                const isBusy = m.busyMode === true;
                 const enforcementStatus = normalizedEnforcementStatus(m);
+                const storeStatusMeta = getStoreStatusMeta(m);
                 const isRestricted = enforcementStatus !== "active";
                 const enforcementReason = String(m?.moderation?.reason || "").trim();
                 
@@ -1458,7 +1466,16 @@
                         <div style={{ flex: 1, minWidth: 0 }}>
                           <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
                             <div style={{ fontWeight: 800, fontSize: 15 }}>{m.storeName || "Unnamed"}</div>
-                            <span style={{ width: 8, height: 8, borderRadius: "50%", background: storeIsOpen ? (isBusy ? "#F59E0B" : "#22C55E") : "#DC2626", flexShrink: 0 }} />
+                            <span style={{ width: 8, height: 8, borderRadius: "50%", background: storeStatusMeta.dot, flexShrink: 0 }} />
+                            <span style={{
+                              padding: "2px 6px",
+                              borderRadius: 999,
+                              fontSize: 9,
+                              fontWeight: 800,
+                              background: storeStatusMeta.bg,
+                              color: storeStatusMeta.color,
+                              textTransform: "uppercase",
+                            }}>Store: {storeStatusMeta.label}</span>
                             {isRestricted && (
                               <span style={{
                                 padding: "2px 6px", borderRadius: 999, fontSize: 9, fontWeight: 800,
