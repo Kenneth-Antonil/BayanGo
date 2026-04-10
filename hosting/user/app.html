@@ -1575,7 +1575,10 @@
 
     function UserApp({ products, orders, onOrder, user, onLogout, gcashSettings, onOpenLegal }) {
       const [activeCat,      setActiveCat]      = useState("all");
-      const [cart,           setCart]           = useState({});
+      const bagStorageKey = useCallback((key) => `bayango_bag_${key}_${user?.uid || "anon"}`, [user?.uid]);
+      const [cart,           setCart]           = useState(() => {
+        try { const v = localStorage.getItem(`bayango_bag_cart_${user?.uid || "anon"}`); return v ? JSON.parse(v) : {}; } catch { return {}; }
+      });
       const [showCart,       setShowCart]       = useState(false);
       const [showTracker,    setShowTracker]    = useState(null);
       const [showRiderMap,   setShowRiderMap]   = useState(null);
@@ -1623,7 +1626,9 @@
       };
       const [activePage,     setActivePage]     = useState(getInitialPage);
       const [activeService,  setActiveService]  = useState("pabili");
-      const [customItems,    setCustomItems]    = useState([]);
+      const [customItems,    setCustomItems]    = useState(() => {
+        try { const v = localStorage.getItem(`bayango_bag_custom_${user?.uid || "anon"}`); return v ? JSON.parse(v) : []; } catch { return []; }
+      });
       const [showCustomList, setShowCustomList] = useState(false);
       const [newItemName,    setNewItemName]    = useState("");
       const [newItemQty,     setNewItemQty]     = useState("");
@@ -1634,7 +1639,9 @@
       const [appliedVoucher, setAppliedVoucher] = useState(null);
       const [voucherMsg,     setVoucherMsg]     = useState("");
       const [showVoucherList,setShowVoucherList]= useState(false);
-      const [cartWeightUnit, setCartWeightUnit] = useState({});
+      const [cartWeightUnit, setCartWeightUnit] = useState(() => {
+        try { const v = localStorage.getItem(`bayango_bag_weight_${user?.uid || "anon"}`); return v ? JSON.parse(v) : {}; } catch { return {}; }
+      });
       const [paymentMethod,  setPaymentMethod]  = useState("COD");
       const [showAddressEditor, setShowAddressEditor] = useState(false);
       const [showPaymentPicker, setShowPaymentPicker] = useState(false);
@@ -1659,6 +1666,17 @@
         window.addEventListener("scroll", onScroll, { passive:true });
         return () => window.removeEventListener("scroll", onScroll);
       }, []);
+
+      // Persist bag data to localStorage
+      useEffect(() => {
+        try { localStorage.setItem(bagStorageKey("cart"), JSON.stringify(cart)); } catch {}
+      }, [cart, bagStorageKey]);
+      useEffect(() => {
+        try { localStorage.setItem(bagStorageKey("weight"), JSON.stringify(cartWeightUnit)); } catch {}
+      }, [cartWeightUnit, bagStorageKey]);
+      useEffect(() => {
+        try { localStorage.setItem(bagStorageKey("custom"), JSON.stringify(customItems)); } catch {}
+      }, [customItems, bagStorageKey]);
 
       useEffect(() => {
         if (!user?.uid) {
