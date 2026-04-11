@@ -917,3 +917,81 @@ exports.onNewSupportMessage = onValueCreated(
     }
   }
 );
+
+// ─────────────────────────────────────────────────────────────────────────────
+// HTTPS: ADMIN — DELETE SAMPLE / TEST ORDERS
+// One-time cleanup endpoint. Removes orders whose customer.name matches
+// known test names: Kenneth Antonil, Shiela Gallos, Shiela, Sample.
+// ─────────────────────────────────────────────────────────────────────────────
+exports.deleteSampleOrders = onRequest(
+  { region: "us-central1", cors: ADMIN_ALLOWED_ORIGINS },
+  async (req, res) => {
+    setCors(res, req.get("origin") || "");
+    if (req.method === "OPTIONS") {
+      res.status(204).send("");
+      return;
+    }
+    if (req.method !== "POST") {
+      res.status(405).json({ ok: false, error: "Method Not Allowed" });
+      return;
+    }
+
+    let caller;
+    try {
+      caller = await verifyAdminRequest(req);
+    } catch (err) {
+      console.warn("deleteSampleOrders auth failed:", err?.message || err);
+      res.status(401).json({ ok: false, error: "Unauthorized" });
+      return;
+    }
+    if (!caller) {
+      res.status(401).json({ ok: false, error: "Unauthorized" });
+      return;
+    }
+
+    const SAMPLE_NAMES = [
+      "kenneth antonil",
+      "shiela gallos",
+      "shiela",
+      "sample",
+    ];
+
+    const db = getDatabase();
+    const ordersSnap = await db.ref("orders").get();
+    if (!ordersSnap.exists()) {
+      res.status(200).json({ ok: true, deleted: 0, message: "No orders in database." });
+      return;
+    }
+
+    const allOrders = ordersSnap.val();
+    const deletedList = [];
+    const updates = {};
+
+    for (const [orderId, order] of Object.entries(allOrders)) {
+      const name = String(order?.customer?.name || "").trim().toLowerCase();
+      if (SAMPLE_NAMES.includes(name)) {
+        updates[orderId] = null;
+        deletedList.push({
+          orderId,
+          customerName: order?.customer?.name || "(no name)",
+          status: order?.status || "(no status)",
+        });
+      }
+    }
+
+    if (deletedList.length === 0) {
+      res.status(200).json({ ok: true, deleted: 0, message: "No sample orders found." });
+      return;
+    }
+
+    await db.ref("orders").update(updates);
+    console.log(`[deleteSampleOrders] Admin ${caller.email || caller.uid} deleted ${deletedList.length} sample orders.`);
+
+    res.status(200).json({
+      ok: true,
+      deleted: deletedList.length,
+      orders: deletedList,
+      requestedBy: caller.email || caller.uid,
+    });
+  }
+);
