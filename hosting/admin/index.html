@@ -350,6 +350,17 @@
       return json;
     }
 
+    async function createRefundViaFunction(uid, orderId, amount, reason) {
+      if (!_auth?.currentUser) throw new Error("Admin auth session expired.");
+      const idToken = await _auth.currentUser.getIdToken();
+      const res = await fetch(`https://us-central1-${FIREBASE_CONFIG.projectId}.cloudfunctions.net/createRefund`, {
+        method: "POST", headers: { "Content-Type": "application/json", Authorization: `Bearer ${idToken}` }, body: JSON.stringify({ uid, orderId, amount, reason }),
+      });
+      const json = await res.json().catch(() => ({}));
+      if (!res.ok || !json?.ok) throw new Error(json?.error || `Refund HTTP ${res.status}`);
+      return json;
+    }
+
     async function uploadGcashQrViaFunction(file) {
       if (!_auth?.currentUser) throw new Error("Admin auth session expired.");
       const idToken = await _auth.currentUser.getIdToken();
@@ -373,6 +384,7 @@
       const [products, setProducts] = useState([]);
       const [orders, setOrders] = useState([]);
       const [vouchers, setVouchers] = useState([]);
+      const [refunds, setRefunds] = useState([]);
       const [partnerApplications, setPartnerApplications] = useState([]);
       const [partnerMerchants, setPartnerMerchants] = useState([]);
       const [appUsageStats, setAppUsageStats] = useState({ activeUsers: 0, downloadedUsers: 0 });
@@ -384,7 +396,7 @@
       const [partnerDataLoaded, setPartnerDataLoaded] = useState(false);
 
       useEffect(() => {
-        let unsubOrders, unsubProducts, unsubVouchers, unsubMarket, unsubAppUsage, unsubAuth, unsubPartnerApplications, unsubPartnerMerchants;
+        let unsubOrders, unsubProducts, unsubVouchers, unsubRefunds, unsubMarket, unsubAppUsage, unsubAuth, unsubPartnerApplications, unsubPartnerMerchants;
         (async () => {
           const { db, fns, auth, authFns } = await initFirebase();
           unsubAuth = authFns.onAuthStateChanged(auth, (currentUser) => {
@@ -392,7 +404,7 @@
             setReady(true);
             setAuthzError("");
             if (currentUser) enableAdminPush(currentUser);
-            unsubOrders?.(); unsubProducts?.(); unsubVouchers?.(); unsubAppUsage?.(); unsubPartnerApplications?.(); unsubPartnerMerchants?.(); unsubMarket?.();
+            unsubOrders?.(); unsubProducts?.(); unsubVouchers?.(); unsubRefunds?.(); unsubAppUsage?.(); unsubPartnerApplications?.(); unsubPartnerMerchants?.(); unsubMarket?.();
             setPartnerDataLoaded(false);
             if (!currentUser) {
               setOrders([]); setVouchers([]); setPartnerApplications([]); setPartnerMerchants([]);
@@ -457,6 +469,15 @@
               setVouchers(list);
             }, err => console.error("Vouchers error:", err));
             unsubVouchers = () => fns.off(vouchersRef);
+
+            const refundsRef = fns.ref(db, "refunds");
+            fns.onValue(refundsRef, snap => {
+              const list = [];
+              snap.forEach(c => { const v = c.val() || {}; list.push({ id: c.key, ...v }); });
+              list.sort((a, b) => Number(b.createdAt || 0) - Number(a.createdAt || 0));
+              setRefunds(list);
+            }, err => console.error("Refunds error:", err));
+            unsubRefunds = () => fns.off(refundsRef);
 
             const usageRef = fns.ref(db, "app_usage");
             fns.onValue(usageRef, snap => {
@@ -544,7 +565,7 @@
             unsubPartnerMerchants = () => fns.off(partnerMerchantsRef);
           });
         })();
-        return () => { unsubOrders?.(); unsubProducts?.(); unsubVouchers?.(); unsubMarket?.(); unsubAppUsage?.(); unsubPartnerApplications?.(); unsubPartnerMerchants?.(); unsubAuth?.(); };
+        return () => { unsubOrders?.(); unsubProducts?.(); unsubVouchers?.(); unsubRefunds?.(); unsubMarket?.(); unsubAppUsage?.(); unsubPartnerApplications?.(); unsubPartnerMerchants?.(); unsubAuth?.(); };
       }, []);
 
       const addOrder = useCallback(async (order) => { const { db, fns } = await initFirebase(); await fns.push(fns.ref(db, "orders"), { ...order, status: "pending", createdAt: Date.now() }); }, []);
@@ -568,6 +589,7 @@
       const addVoucher = useCallback(async (data) => { const { db, fns } = await initFirebase(); await fns.push(fns.ref(db, "vouchers"), { ...data, createdAt: Date.now() }); }, []);
       const updateVoucher = useCallback(async (voucherId, data) => { if (!voucherId) throw new Error("Invalid voucher ID"); const { db, fns } = await initFirebase(); await fns.update(fns.ref(db, "vouchers/" + voucherId), data); }, []);
       const deleteVoucher = useCallback(async (voucherId) => { if (!voucherId) throw new Error("Invalid voucher ID"); const { db, fns } = await initFirebase(); await fns.remove(fns.ref(db, "vouchers/" + voucherId)); }, []);
+      const submitRefund = useCallback(async (uid, orderId, amount, reason) => { return await createRefundViaFunction(uid, orderId, amount, reason); }, []);
 
       const decidePartnerApplication = useCallback(async (application, decision, reviewMessage = "") => {
         const { db, fns } = await initFirebase();
@@ -660,6 +682,7 @@
             products={products} onAddProduct={addProduct} onUpdateProduct={updateProduct} onDeleteProduct={deleteProduct}
             marketPricing={marketPricing} onUpdateMarketPricing={updateMarketPricing}
             vouchers={vouchers} onAddVoucher={addVoucher} onUpdateVoucher={updateVoucher} onDeleteVoucher={deleteVoucher}
+            refunds={refunds} onCreateRefund={submitRefund}
             appUsageStats={appUsageStats} appUsageMap={appUsageMap}
             partnerApplications={partnerApplications} partnerMerchants={partnerMerchants}
             onDecidePartnerApplication={decidePartnerApplication} onToggleFeaturedPartnerMerchant={toggleFeaturedPartnerMerchant} onModeratePartnerMerchant={moderatePartnerMerchant}
@@ -680,6 +703,7 @@
         { key: "data",      label: "Analytics",   icon: "chart-column" },
         { key: "partners",  label: "Partners",    icon: "handshake", badge: pendingPartners },
         { key: "vouchers",  label: "Vouchers",    icon: "ticket" },
+        { key: "refunds",   label: "Refunds",     icon: "money-bill-transfer" },
         { key: "settings",  label: "Settings",    icon: "gear" },
       ];
       return (
@@ -1908,10 +1932,158 @@
       );
     }
 
+    /* ══════════════════ REFUNDS PANEL ══════════════════ */
+    function RefundsPanel({ refunds, orders, onCreateRefund }) {
+      const [selectedOrderId, setSelectedOrderId] = useState("");
+      const [amount, setAmount] = useState("");
+      const [reason, setReason] = useState("");
+      const [saving, setSaving] = useState(false);
+      const [searchQ, setSearchQ] = useState("");
+      const [orderSearchQ, setOrderSearchQ] = useState("");
+      const [showOrderPicker, setShowOrderPicker] = useState(false);
+
+      const refundedOrderIds = new Set(refunds.map(r => r.orderId));
+      const eligibleOrders = orders.filter(o => !refundedOrderIds.has(o.id));
+      const filteredPickerOrders = eligibleOrders.filter(o => {
+        if (!orderSearchQ) return true;
+        const q = orderSearchQ.toLowerCase();
+        return o.customer?.name?.toLowerCase().includes(q) || o.customer?.phone?.includes(q) || o.id?.toLowerCase().includes(q);
+      }).slice(0, 20);
+
+      const selectedOrder = orders.find(o => o.id === selectedOrderId);
+
+      const selectOrder = (order) => {
+        setSelectedOrderId(order.id);
+        setAmount(String(Number(order.total || 0)));
+        setShowOrderPicker(false);
+        setOrderSearchQ("");
+      };
+
+      const handleCreate = async () => {
+        if (!selectedOrderId) return toast.error("Pumili muna ng order.");
+        if (!amount || Number(amount) <= 0) return toast.error("Lagyan ng valid amount.");
+        if (!reason.trim()) return toast.error("Lagyan ng reason.");
+        if (!selectedOrder) return toast.error("Order not found.");
+        setSaving(true);
+        try {
+          const uid = selectedOrder.uid || selectedOrder.userId;
+          await onCreateRefund(uid, selectedOrderId, Number(amount), reason.trim());
+          setSelectedOrderId(""); setAmount(""); setReason("");
+          toast.success("Refund created! User notified.");
+        } catch (e) {
+          const msg = e.message || "Failed";
+          if (msg.includes("refund_already_exists")) toast.error("May refund na ang order na ito.");
+          else if (msg.includes("refund_exceeds_order_total")) toast.error("Refund amount exceeds order total.");
+          else toast.error("Failed: " + msg);
+        }
+        finally { setSaving(false); }
+      };
+
+      const filteredRefunds = refunds.filter(r => {
+        if (!searchQ) return true;
+        const q = searchQ.toLowerCase();
+        const matchedOrder = orders.find(o => o.id === r.orderId);
+        return r.orderId?.toLowerCase().includes(q) || r.reason?.toLowerCase().includes(q) || matchedOrder?.customer?.name?.toLowerCase().includes(q);
+      });
+
+      const REFUND_STATUS_STYLE = {
+        completed: { bg: "#DCFCE7", color: "#166534", label: "Completed" },
+        pending:   { bg: "#FEF3C7", color: "#92400E", label: "Pending" },
+        rejected:  { bg: "#FEE2E2", color: "#B91C1C", label: "Rejected" },
+      };
+
+      return (
+        React.createElement("div", { style: { padding: "20px 24px" } },
+          React.createElement("h2", { style: { fontSize: 18, fontWeight: 800, marginBottom: 16 } }, "Refunds"),
+
+          /* Create Refund Card */
+          React.createElement("div", { className: "card", style: { marginBottom: 16 } },
+            React.createElement("div", { style: { fontSize: 14, fontWeight: 700, marginBottom: 10 } },
+              React.createElement(Ic, { n: "money-bill-transfer", style: { marginRight: 6, color: "var(--brand)" } }),
+              "Issue Refund"
+            ),
+
+            /* Order Picker */
+            React.createElement("div", { style: { marginBottom: 8, position: "relative" } },
+              selectedOrder
+                ? React.createElement("div", { style: { display: "flex", alignItems: "center", gap: 8, padding: "10px 12px", borderRadius: 10, background: "#F0FDF4", border: "1px solid #BBF7D0" } },
+                    React.createElement("div", { style: { flex: 1 } },
+                      React.createElement("div", { style: { fontSize: 13, fontWeight: 700 } }, selectedOrder.customer?.name || "Customer"),
+                      React.createElement("div", { style: { fontSize: 11, color: "#64748B" } }, "Order #", selectedOrder.id?.slice(-6), " \u00b7 ", fmt(selectedOrder.total || 0))
+                    ),
+                    React.createElement("button", { onClick: () => { setSelectedOrderId(""); setAmount(""); }, style: { padding: "4px 10px", borderRadius: 8, fontSize: 11, fontWeight: 700, background: "#FEE2E2", color: "#B91C1C", cursor: "pointer" } }, "Change")
+                  )
+                : React.createElement("div", null,
+                    React.createElement("button", { onClick: () => setShowOrderPicker(!showOrderPicker), className: "input", style: { width: "100%", textAlign: "left", cursor: "pointer", color: "#94A3B8" } }, "Select an order to refund..."),
+                    showOrderPicker && React.createElement("div", { style: { position: "absolute", top: "100%", left: 0, right: 0, zIndex: 50, background: "var(--card)", border: "1px solid var(--border)", borderRadius: 12, boxShadow: "0 8px 24px rgba(0,0,0,.15)", maxHeight: 260, overflow: "hidden", display: "flex", flexDirection: "column" } },
+                      React.createElement("input", { autoFocus: true, value: orderSearchQ, onChange: e => setOrderSearchQ(e.target.value), placeholder: "Search by name, phone, or order ID...", className: "input", style: { margin: 8, width: "calc(100% - 16px)" } }),
+                      React.createElement("div", { style: { overflowY: "auto", flex: 1 } },
+                        filteredPickerOrders.length === 0
+                          ? React.createElement("div", { style: { padding: 16, textAlign: "center", fontSize: 12, color: "#94A3B8" } }, "No orders found.")
+                          : filteredPickerOrders.map(o =>
+                              React.createElement("button", { key: o.id, onClick: () => selectOrder(o), style: { width: "100%", display: "flex", alignItems: "center", gap: 8, padding: "10px 12px", textAlign: "left", cursor: "pointer", borderBottom: "1px solid var(--border)", background: "transparent" } },
+                                React.createElement("div", { style: { flex: 1, minWidth: 0 } },
+                                  React.createElement("div", { style: { fontSize: 13, fontWeight: 700, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" } }, o.customer?.name || "Customer"),
+                                  React.createElement("div", { style: { fontSize: 11, color: "#64748B" } }, "#", o.id?.slice(-6), " \u00b7 ", fmt(o.total || 0), " \u00b7 ", new Date(o.createdAt || 0).toLocaleDateString("en-PH"))
+                                ),
+                                React.createElement("span", { className: "status-badge", style: { background: (STATUS_INFO[o.status]?.bg || "#F3F4F6"), color: (STATUS_INFO[o.status]?.color || "#6B7280"), fontSize: 10 } }, STATUS_INFO[o.status]?.label || o.status)
+                              )
+                            )
+                      )
+                    )
+                  )
+            ),
+
+            React.createElement("div", { style: { display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 } },
+              React.createElement("input", { type: "number", min: "0", step: "any", value: amount, onChange: e => setAmount(e.target.value), placeholder: "Refund amount", className: "input" }),
+              React.createElement("input", { value: reason, onChange: e => setReason(e.target.value), placeholder: "Reason (e.g. out of stock)", className: "input" })
+            ),
+            React.createElement("button", { onClick: handleCreate, disabled: saving, className: "btn btn-brand", style: { width: "100%", marginTop: 10, padding: 12 } }, saving ? "Processing..." : "Issue Refund")
+          ),
+
+          /* Search Bar */
+          React.createElement("input", { value: searchQ, onChange: e => setSearchQ(e.target.value), placeholder: "Search refunds...", className: "input", style: { marginBottom: 12 } }),
+
+          /* Refund Summary */
+          React.createElement("div", { style: { display: "flex", gap: 10, marginBottom: 14, flexWrap: "wrap" } },
+            React.createElement("div", { style: { padding: "8px 14px", borderRadius: 10, background: "#F0FDF4", fontSize: 12, fontWeight: 700, color: "#166534" } }, "Total: ", refunds.length),
+            React.createElement("div", { style: { padding: "8px 14px", borderRadius: 10, background: "#DCFCE7", fontSize: 12, fontWeight: 700, color: "#166534" } }, "Amount: ", fmt(refunds.reduce((sum, r) => sum + Number(r.amount || 0), 0)))
+          ),
+
+          /* Refund List */
+          React.createElement("div", { style: { display: "grid", gap: 10 } },
+            filteredRefunds.length === 0 && React.createElement("div", { style: { fontSize: 13, color: "var(--text-muted)", textAlign: "center", padding: 30 } }, searchQ ? "No matching refunds." : "No refunds yet."),
+            filteredRefunds.map(r => {
+              const matchedOrder = orders.find(o => o.id === r.orderId);
+              const st = REFUND_STATUS_STYLE[r.status] || REFUND_STATUS_STYLE.completed;
+              return React.createElement("div", { key: r.id, className: "card" },
+                React.createElement("div", { style: { display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 10 } },
+                  React.createElement("div", { style: { flex: 1, minWidth: 0 } },
+                    React.createElement("div", { style: { fontSize: 15, fontWeight: 800, color: "#166534" } }, fmt(r.amount)),
+                    React.createElement("div", { style: { fontSize: 13, fontWeight: 700, marginTop: 4 } }, matchedOrder?.customer?.name || "Customer"),
+                    React.createElement("div", { style: { fontSize: 12, color: "var(--text-secondary)", marginTop: 2 } }, "Order #", String(r.orderId || "").slice(-6)),
+                    React.createElement("div", { style: { fontSize: 12, color: "var(--text-muted)", marginTop: 4 } },
+                      React.createElement(Ic, { n: "message-lines", style: { marginRight: 4 } }),
+                      r.reason
+                    ),
+                    React.createElement("div", { style: { fontSize: 11, color: "var(--text-muted)", marginTop: 4 } },
+                      new Date(r.createdAt || 0).toLocaleString("en-PH", { month: "short", day: "numeric", year: "numeric", hour: "2-digit", minute: "2-digit" }),
+                      r.createdBy ? (" \u00b7 by " + r.createdBy) : ""
+                    )
+                  ),
+                  React.createElement("span", { className: "status-badge", style: { background: st.bg, color: st.color } }, st.label)
+                )
+              );
+            })
+          )
+        )
+      );
+    }
+
     /* ══════════════════ ADMIN DASHBOARD (Main Shell) ══════════════════ */
-    function AdminDashboard({ user, onLogout, orders, onUpdateStatus, onBroadcast, products, onAddProduct, onUpdateProduct, onDeleteProduct, marketPricing, onUpdateMarketPricing, vouchers, onAddVoucher, onUpdateVoucher, onDeleteVoucher, appUsageStats, appUsageMap, partnerApplications, partnerMerchants, onDecidePartnerApplication, onToggleFeaturedPartnerMerchant, onModeratePartnerMerchant, authzError, partnerDataLoaded }) {
+    function AdminDashboard({ user, onLogout, orders, onUpdateStatus, onBroadcast, products, onAddProduct, onUpdateProduct, onDeleteProduct, marketPricing, onUpdateMarketPricing, vouchers, onAddVoucher, onUpdateVoucher, onDeleteVoucher, refunds, onCreateRefund, appUsageStats, appUsageMap, partnerApplications, partnerMerchants, onDecidePartnerApplication, onToggleFeaturedPartnerMerchant, onModeratePartnerMerchant, authzError, partnerDataLoaded }) {
       const getInitialTab = () => {
-        const validTabs = new Set(["dashboard", "orders", "grocery", "products", "data", "partners", "vouchers", "settings"]);
+        const validTabs = new Set(["dashboard", "orders", "grocery", "products", "data", "partners", "vouchers", "refunds", "settings"]);
         try { const hash = (window.location.hash || "").replace("#", "").toLowerCase(); if (validTabs.has(hash)) return hash; } catch {}
         return "dashboard";
       };
@@ -2156,6 +2328,7 @@
             {tab === "products" && <ProductsPanel products={products} onAdd={onAddProduct} onUpdate={onUpdateProduct} onDelete={onDeleteProduct} marketPricing={marketPricing} onUpdateMarketPricing={onUpdateMarketPricing} />}
             {tab === "data" && <DataTab orders={orders} />}
             {tab === "vouchers" && <VouchersPanel vouchers={vouchers} onAdd={onAddVoucher} onUpdate={onUpdateVoucher} onDelete={onDeleteVoucher} />}
+            {tab === "refunds" && <RefundsPanel refunds={refunds} orders={orders} onCreateRefund={onCreateRefund} />}
 
             {tab === "settings" && (
               <div style={{ padding: "20px 24px" }}>

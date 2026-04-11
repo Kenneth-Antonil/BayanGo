@@ -738,6 +738,7 @@
     function App() {
       const [products,      setProducts]      = useState([]);
       const [orders,        setOrders]        = useState([]);
+      const [refunds,       setRefunds]       = useState([]);
       const [user,        setUser]        = useState(null);
       const [loading,     setLoading]     = useState(true);
       const [isStandalone, setIsStandalone] = useState(isStandaloneMode());
@@ -990,6 +991,14 @@
                 });
               });
 
+              const refundsQueryRef = _fbDb.ref("refunds").orderByChild("uid").equalTo(currentUser.uid);
+              refundsQueryRef.on("value", snap => {
+                const list = [];
+                snap.forEach(c => list.push({ id: c.key, ...c.val() }));
+                list.sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
+                setRefunds(list);
+              }, err => console.error("Refunds listener error:", err.code));
+
               activityIntervalId = setInterval(() => {
                 if (document.visibilityState === "visible") {
                   trackUserAppUsage(currentUser).catch(err => console.error("Usage interval sync error:", err));
@@ -1001,11 +1010,13 @@
               _fbDb.ref("settings/marketPricing").off();
               _fbDb.ref("merchant_listings").off();
               _fbDb.ref("partner_merchants").off();
+              _fbDb.ref("refunds").off();
               baseProductsRaw = [];
               partnerListingsRaw = [];
               partnerMerchantsById = {};
               setProducts([]);
               setOrders([]);
+              setRefunds([]);
               setPushError("");
               setPushBusy(false);
             }
@@ -1024,6 +1035,7 @@
             _fbDb.ref("settings/marketPricing").off();
             _fbDb.ref("merchant_listings").off();
             _fbDb.ref("partner_merchants").off();
+            _fbDb.ref("refunds").off();
           }
           if (activityIntervalId) clearInterval(activityIntervalId);
           if (visibilityHandler) document.removeEventListener("visibilitychange", visibilityHandler);
@@ -3478,6 +3490,7 @@
             <OrdersErrorBoundary>
               <OrdersPage
                 orders={myOrders}
+                refunds={refunds}
                 onTrack={setShowTracker}
                 onTrackRider={setShowRiderMap}
                 canCancelOrder={canCancelOrder}
@@ -4099,6 +4112,7 @@
         support_message_admin: "headset",
         support_ticket_new: "ticket",
         support_message_user: "comment",
+        refund: "money-bill-transfer",
       };
 
       const NOTIF_COLOR = {
@@ -4117,6 +4131,7 @@
         batch_reminder_pm_warning: "#EF4444",
         batch_reminder_preorder: "#6366F1",
         broadcast: "#A855F7",
+        refund: "#22C55E",
         support_message_admin: "#14B8A6",
         support_ticket_new: "#14B8A6",
         support_message_user: "#14B8A6",
@@ -4766,15 +4781,22 @@
       }
     }
 
-    function OrdersPage({ orders, onTrack, onTrackRider, canCancelOrder, cancelCountdownText, onCancelOrder, gcashSettings, onRateOrder, onViewRiderProfile, ratedOrderIds }) {
+    function OrdersPage({ orders, refunds, onTrack, onTrackRider, canCancelOrder, cancelCountdownText, onCancelOrder, gcashSettings, onRateOrder, onViewRiderProfile, ratedOrderIds }) {
       const active    = orders.filter(o => o.status !== "delivered" && o.status !== "cancelled");
       const completed = orders.filter(o => o.status === "delivered" || o.status === "cancelled");
       const [ordersView,  setOrdersView]  = useState("active");
 
       const ST_COLOR = ORDER_STATUS_COLORS;
 
+      const refundsByOrderId = useMemo(() => {
+        const map = {};
+        (refunds || []).forEach(r => { map[r.orderId] = r; });
+        return map;
+      }, [refunds]);
+
       const OrderCard = ({ o }) => {
         const st = ST_COLOR[o.status] || ST_COLOR.pending;
+        const orderRefund = refundsByOrderId[o.id];
         const ts = o.createdAt ? (o.createdAt.toDate ? o.createdAt.toDate() : new Date(o.createdAt)) : new Date();
         const orderStatuses = getOrderStatuses(o);
         const idx = orderStatuses.findIndex(s => s.key === o.status);
@@ -4831,6 +4853,17 @@
                 <div style={{ fontSize:12, color:"#888" }}>{o.customer?.address}</div>
                 <div style={{ fontSize:14, fontWeight:800, color:"#166534" }}>~{fmt(o.total)}</div>
               </div>
+
+              {/* Refund badge */}
+              {orderRefund && (
+                <div style={{ marginTop:10, padding:"10px 14px", borderRadius:12, background:"#F0FDF4", border:"1px solid #BBF7D0", display:"flex", alignItems:"center", gap:8 }}>
+                  <Ic n="money-bill-transfer" style={{ color:"#22C55E", fontSize:16 }} />
+                  <div style={{ flex:1 }}>
+                    <div style={{ fontSize:12, fontWeight:800, color:"#166534" }}>Refund: {fmt(orderRefund.amount)}</div>
+                    <div style={{ fontSize:11, color:"#64748B", marginTop:1 }}>{orderRefund.reason}</div>
+                  </div>
+                </div>
+              )}
             </button>
 
             {/* GCash payment banner for island buying orders */}
