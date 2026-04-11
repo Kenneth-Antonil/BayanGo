@@ -1937,6 +1937,18 @@
       const [selectedOrderId, setSelectedOrderId] = useState("");
       const [amount, setAmount] = useState("");
       const [reason, setReason] = useState("");
+      const [customReason, setCustomReason] = useState("");
+      const REFUND_REASONS = [
+        "Out of stock / Walang available",
+        "Wrong item delivered / Mali ang item",
+        "Damaged or spoiled item / Sira o panis",
+        "Overcharged / Sobra ang singil",
+        "Order cancelled / Na-cancel ang order",
+        "Partial order only / Hindi kumpleto",
+        "Late delivery / Natagalan ang delivery",
+        "Customer request / Hiling ng customer",
+        "Duplicate order / Doble ang order",
+      ];
       const [saving, setSaving] = useState(false);
       const [searchQ, setSearchQ] = useState("");
       const [orderSearchQ, setOrderSearchQ] = useState("");
@@ -1959,16 +1971,18 @@
         setOrderSearchQ("");
       };
 
+      const effectiveReason = reason === "__custom__" ? customReason.trim() : reason;
+
       const handleCreate = async () => {
         if (!selectedOrderId) return toast.error("Pumili muna ng order.");
         if (!amount || Number(amount) <= 0) return toast.error("Lagyan ng valid amount.");
-        if (!reason.trim()) return toast.error("Lagyan ng reason.");
+        if (!effectiveReason) return toast.error("Lagyan ng reason.");
         if (!selectedOrder) return toast.error("Order not found.");
         setSaving(true);
         try {
           const uid = selectedOrder.uid || selectedOrder.userId;
-          await onCreateRefund(uid, selectedOrderId, Number(amount), reason.trim());
-          setSelectedOrderId(""); setAmount(""); setReason("");
+          await onCreateRefund(uid, selectedOrderId, Number(amount), effectiveReason);
+          setSelectedOrderId(""); setAmount(""); setReason(""); setCustomReason("");
           toast.success("Refund created! User notified.");
         } catch (e) {
           const msg = e.message || "Failed";
@@ -2036,8 +2050,13 @@
 
             React.createElement("div", { style: { display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 } },
               React.createElement("input", { type: "number", min: "0", step: "any", value: amount, onChange: e => setAmount(e.target.value), placeholder: "Refund amount", className: "input" }),
-              React.createElement("input", { value: reason, onChange: e => setReason(e.target.value), placeholder: "Reason (e.g. out of stock)", className: "input" })
+              React.createElement("select", { value: reason, onChange: e => { setReason(e.target.value); if (e.target.value !== "__custom__") setCustomReason(""); }, className: "input", style: { color: reason ? "var(--text-primary)" : "#94A3B8" } },
+                React.createElement("option", { value: "", disabled: true }, "Select reason..."),
+                REFUND_REASONS.map(r => React.createElement("option", { key: r, value: r }, r)),
+                React.createElement("option", { value: "__custom__" }, "Iba pa / Custom reason...")
+              )
             ),
+            reason === "__custom__" && React.createElement("input", { value: customReason, onChange: e => setCustomReason(e.target.value), placeholder: "Type custom reason...", className: "input", style: { marginTop: 8 }, autoFocus: true }),
             React.createElement("button", { onClick: handleCreate, disabled: saving, className: "btn btn-brand", style: { width: "100%", marginTop: 10, padding: 12 } }, saving ? "Processing..." : "Issue Refund")
           ),
 
