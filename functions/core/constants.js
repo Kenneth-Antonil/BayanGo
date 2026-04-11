@@ -26,6 +26,12 @@ const MERCHANT_STATUS_LABELS = {
   ready:     "Ready na ang order mo mula sa merchant",
 };
 
+const REFUND_STATUS_LABELS = {
+  completed: "Refund processed",
+  pending:   "Pending refund",
+  rejected:  "Refund rejected",
+};
+
 const ADMIN_ALLOWED_ORIGINS = [
   "https://bayango.store",
   "https://www.bayango.store",
@@ -42,5 +48,6 @@ module.exports = {
   MERCHANT_APP_URL,
   ORDER_STATUS_LABELS,
   MERCHANT_STATUS_LABELS,
+  REFUND_STATUS_LABELS,
   ADMIN_ALLOWED_ORIGINS,
 };

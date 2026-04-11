@@ -995,3 +995,118 @@ exports.deleteSampleOrders = onRequest(
     });
   }
 );
+
+// ─────────────────────────────────────────────────────────────────────────────
+// HTTPS: ADMIN — CREATE REFUND
+// Creates a refund record and notifies the customer via push notification.
+// ─────────────────────────────────────────────────────────────────────────────
+exports.createRefund = onRequest(
+  { region: "us-central1", cors: ADMIN_ALLOWED_ORIGINS },
+  async (req, res) => {
+    setCors(res, req.get("origin") || "");
+    if (req.method === "OPTIONS") {
+      res.status(204).send("");
+      return;
+    }
+    if (req.method !== "POST") {
+      res.status(405).json({ ok: false, error: "Method Not Allowed" });
+      return;
+    }
+
+    let caller;
+    try {
+      caller = await verifyAdminRequest(req);
+    } catch (err) {
+      console.warn("createRefund auth failed:", err?.message || err);
+      res.status(401).json({ ok: false, error: "Unauthorized" });
+      return;
+    }
+    if (!caller) {
+      res.status(401).json({ ok: false, error: "Unauthorized" });
+      return;
+    }
+
+    const uid = String(req.body?.uid || "").trim();
+    const orderId = String(req.body?.orderId || "").trim();
+    const amount = Number(req.body?.amount || 0);
+    const reason = String(req.body?.reason || "").trim();
+
+    if (!uid || !orderId || !Number.isFinite(amount) || amount <= 0 || !reason) {
+      res.status(400).json({ ok: false, error: "uid, orderId, amount, and reason are required" });
+      return;
+    }
+
+    const db = getDatabase();
+
+    // Verify order exists and belongs to the user
+    const orderSnap = await db.ref(`orders/${orderId}`).get();
+    if (!orderSnap.exists()) {
+      res.status(404).json({ ok: false, error: "order_not_found" });
+      return;
+    }
+    const order = orderSnap.val() || {};
+    if ((order.uid || order.userId) !== uid) {
+      res.status(400).json({ ok: false, error: "order_uid_mismatch" });
+      return;
+    }
+
+    // Prevent refund amount exceeding order total
+    const orderTotal = Number(order.total || 0);
+    if (orderTotal > 0 && amount > orderTotal) {
+      res.status(400).json({ ok: false, error: "refund_exceeds_order_total" });
+      return;
+    }
+
+    // Check for duplicate refund on same order
+    const existingSnap = await db.ref("refunds").orderByChild("orderId").equalTo(orderId).get();
+    if (existingSnap.exists()) {
+      res.status(409).json({ ok: false, error: "refund_already_exists", message: "A refund already exists for this order." });
+      return;
+    }
+
+    // Create refund record
+    const refundData = {
+      uid,
+      orderId,
+      amount,
+      reason,
+      status: "completed",
+      createdAt: Date.now(),
+      createdBy: caller.email || caller.uid,
+    };
+    const refundRef = await db.ref("refunds").push(refundData);
+
+    // Mark the order as refunded
+    await db.ref(`orders/${orderId}`).update({
+      refunded: true,
+      refundId: refundRef.key,
+      refundAmount: amount,
+    });
+
+    // Send push notification to user
+    const tokens = await getUserTokens(uid, { excludeRole: "rider" });
+    const notifPayload = {
+      title: "Refund Received!",
+      body: `You received a ₱${Number(amount).toLocaleString("en-PH")} refund for Order #${orderId.slice(-6)}. Reason: ${reason}`,
+      type: "refund",
+      link: `${USER_APP_URL}#orders`,
+    };
+
+    if (tokens.length) {
+      await sendBatchNotification(tokens, notifPayload);
+    } else {
+      await db.ref(`user_notifications/${uid}`).push({
+        ...notifPayload,
+        createdAt: Date.now(),
+      });
+    }
+
+    console.log(`[createRefund] Admin ${caller.email || caller.uid} refunded ₱${amount} for order ${orderId} to uid=${uid}`);
+
+    res.status(200).json({
+      ok: true,
+      refundId: refundRef.key,
+      requestedBy: caller.email || caller.uid,
+    });
+  }
+);
