@@ -1347,7 +1347,7 @@
 
       return (
         <>
-          <UserApp products={products} orders={orders} onOrder={addOrder} user={user} onLogout={handleLogout} gcashSettings={gcashSettings} onOpenLegal={setOpenLegalDoc} />
+          <UserApp products={products} orders={orders} refunds={refunds} onOrder={addOrder} user={user} onLogout={handleLogout} gcashSettings={gcashSettings} onOpenLegal={setOpenLegalDoc} />
           {syncError && (
             <div className="pop" style={{
               position:"fixed", top:"calc(env(safe-area-inset-top,0px) + 16px)", left:20, right:20, zIndex:9999,
@@ -1585,7 +1585,7 @@
       );
     }
 
-    function UserApp({ products, orders, onOrder, user, onLogout, gcashSettings, onOpenLegal }) {
+    function UserApp({ products, orders, refunds, onOrder, user, onLogout, gcashSettings, onOpenLegal }) {
       const [activeCat,      setActiveCat]      = useState("all");
       const bagStorageKey = useCallback((key) => `bayango_bag_${key}_${user?.uid || "anon"}`, [user?.uid]);
       const [cart,           setCart]           = useState(() => {
