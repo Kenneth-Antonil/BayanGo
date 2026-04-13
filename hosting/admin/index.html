@@ -464,7 +464,7 @@
             const vouchersRef = fns.ref(db, "vouchers");
             fns.onValue(vouchersRef, snap => {
               const list = [];
-              snap.forEach(c => { const v = c.val() || {}; list.push({ id: c.key, code: String(v.code || "").toUpperCase(), type: v.type || "fixed", value: Number(v.value || 0), minOrder: Number(v.minOrder || 0), active: v.active !== false, expiresAt: Number(v.expiresAt || 0), createdAt: Number(v.createdAt || 0) }); });
+              snap.forEach(c => { const v = c.val() || {}; list.push({ id: c.key, code: String(v.code || "").toUpperCase(), type: v.type || "fixed", value: Number(v.value || 0), minOrder: Number(v.minOrder || 0), active: v.active !== false, expiresAt: Number(v.expiresAt || 0), createdAt: Number(v.createdAt || 0), assignedUserUid: v.assignedUserUid || "", assignedUserName: v.assignedUserName || "", customReason: v.customReason || "" }); });
               list.sort((a, b) => Number(b.createdAt || 0) - Number(a.createdAt || 0));
               setVouchers(list);
             }, err => console.error("Vouchers error:", err));
@@ -1914,12 +1914,24 @@
             {vouchers.length === 0 && <div style={{ fontSize: 13, color: "var(--text-muted)", textAlign: "center", padding: 30 }}>No vouchers yet.</div>}
             {vouchers.map(v => (
               <div key={v.id} className="card" style={{ display: "flex", justifyContent: "space-between", gap: 12, alignItems: "center" }}>
-                <div>
-                  <div style={{ fontSize: 15, fontWeight: 800 }}>{v.code}</div>
+                <div style={{ minWidth: 0, flex: 1 }}>
+                  <div style={{ display: "flex", alignItems: "center", gap: 6, flexWrap: "wrap" }}>
+                    <div style={{ fontSize: 15, fontWeight: 800 }}>{v.code}</div>
+                    {v.assignedUserUid && (
+                      <span style={{ fontSize: 9, fontWeight: 800, padding: "2px 6px", borderRadius: 999, background: "#EDE9FE", color: "#6D28D9", textTransform: "uppercase", letterSpacing: 0.3 }}>
+                        <Ic n="user" style={{ marginRight: 3 }} />Personal
+                      </span>
+                    )}
+                  </div>
                   <div style={{ fontSize: 12, color: "var(--text-secondary)", marginTop: 3 }}>
                     {v.type === "percent" ? `${v.value}% off` : v.type === "free_shipping" ? "Free shipping" : `${fmt(v.value)} off`} · Min {fmt(v.minOrder || 0)}
                   </div>
                   <div style={{ fontSize: 11, color: "var(--text-muted)", marginTop: 2 }}>{v.expiresAt ? `Expires: ${new Date(v.expiresAt).toLocaleDateString("en-PH")}` : "No expiry"}</div>
+                  {v.assignedUserUid && (
+                    <div style={{ fontSize: 11, color: "#6D28D9", marginTop: 3, fontWeight: 700, wordBreak: "break-all" }}>
+                      Assigned to: {v.assignedUserName || "Unnamed"} <span style={{ color: "var(--text-muted)", fontWeight: 500 }}>({v.assignedUserUid})</span>
+                    </div>
+                  )}
                 </div>
                 <div style={{ display: "flex", flexDirection: "column", gap: 6, alignItems: "flex-end" }}>
                   <button onClick={() => { onUpdate(v.id, { active: !v.active }); toast.info(v.active ? "Voucher deactivated" : "Voucher activated"); }} className="status-badge" style={{ background: v.active ? "#DCFCE7" : "#F3F4F6", color: v.active ? "#166534" : "#6B7280", cursor: "pointer", border: "none" }}>{v.active ? "Active" : "Inactive"}</button>
