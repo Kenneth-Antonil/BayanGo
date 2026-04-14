@@ -1990,21 +1990,142 @@
                   <button onClick={() => setShowCheckout(false)} style={{ width:36, height:36, borderRadius:10, background:"#F3F4F6", fontSize:18, display:"flex", alignItems:"center", justifyContent:"center" }}><Ic n="xmark" /></button>
                 </div>
 
-                <label style={{ fontSize:12, fontWeight:700, color:"#666", display:"block", marginBottom:8 }}><Ic n="location-dot" style={{marginRight:5}} />Delivery Fee (Auto)</label>
-                <div style={{ marginBottom:20, border:"1px solid #E5E7EB", borderRadius:12, background:"#F8FAFC", padding:"12px 14px" }}>
-                  <div style={{ fontSize:13, fontWeight:800, color:"#166534" }}>{fmt(deliveryFee)}</div>
-                  <div style={{ fontSize:11, color:"#6B7280", marginTop:4 }}>{deliveryMetaLabel}</div>
-                  <div style={{ fontSize:11, color:"#94A3B8", marginTop:4 }}>
-                    Rule: {fmt(BASE_DELIVERY_FEE)} first 2km, +₱{KM_RATE_2_TO_10}/km up to 10km, then +₱{KM_RATE_BEYOND_10}/km.
+                {/* ══ ORDER DETAILS (TOP) ══ */}
+                <div style={{ background:"#F9FAFB", borderRadius:16, padding:"16px", marginBottom:18, border:"1px solid #E5E7EB" }}>
+                  <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:12 }}>
+                    <span style={{ fontSize:13, fontWeight:800, color:"#111" }}><Ic n="bag-shopping" style={{marginRight:6,color:"#166534"}} />Order Details</span>
+                    <span style={{ fontSize:11, fontWeight:700, color:"#6B7280" }}>{totalItemCount} item{totalItemCount>1?"s":""}</span>
                   </div>
+
+                  {cartItems.length === 0 && customItems.length === 0 && (
+                    <div style={{ padding:"16px 0", textAlign:"center", color:"#9CA3AF", fontSize:12 }}>Walang laman ang iyong basket.</div>
+                  )}
+
+                  {cartItems.map(i => (
+                    <div key={i.id} style={{ display:"flex", alignItems:"center", gap:10, padding:"10px 0", borderBottom:"1px solid #F0F0F0" }}>
+                      <div style={{ width:42, height:42, borderRadius:10, overflow:"hidden", background:"#F0FDF4", display:"flex", alignItems:"center", justifyContent:"center", flexShrink:0 }}>
+                        {i.img && i.img.startsWith("http")
+                          ? <img src={i.img} alt={i.name} style={{width:"100%",height:"100%",objectFit:"cover"}} />
+                          : <Ic n={CATEGORIES.find(c=>c.id===i.cat)?.icon||"cube"} size={18} style={{color:CATEGORIES.find(c=>c.id===i.cat)?.color||"#999"}} />}
+                      </div>
+                      <div style={{ flex:1, minWidth:0 }}>
+                        <div style={{ fontSize:13, fontWeight:700, color:"#111", overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>{i.name}</div>
+                        <div style={{ fontSize:11, color:"#94A3B8" }}>
+                          {i.unit === "kg"
+                            ? `${fmt(i.price * i.weightUnit)} / ${i.weightUnit === 0.25 ? "¼kg" : i.weightUnit === 0.5 ? "½kg" : "1kg"}`
+                            : `${fmt(i.price)} / ${i.unit}`}
+                        </div>
+                      </div>
+                      <div style={{ display:"flex", alignItems:"center", gap:6, flexShrink:0 }}>
+                        <button onClick={() => rem(i.id)} style={{ width:26, height:26, borderRadius:7, background:"#F3F4F6", fontSize:14, fontWeight:700, color:"#555", display:"flex", alignItems:"center", justifyContent:"center" }}>−</button>
+                        <span style={{ fontSize:13, fontWeight:800, minWidth:18, textAlign:"center" }}>{i.qty}</span>
+                        <button onClick={() => add(i.id)} style={{ width:26, height:26, borderRadius:7, background:"#22C55E", fontSize:14, fontWeight:700, color:"#fff", display:"flex", alignItems:"center", justifyContent:"center" }}>+</button>
+                      </div>
+                      <div style={{ fontSize:13, fontWeight:800, color:"#166534", minWidth:56, textAlign:"right", flexShrink:0 }}>{fmt(i.price * i.weightUnit * i.qty)}</div>
+                    </div>
+                  ))}
+
+                  {customItems.length > 0 && (
+                    <>
+                      <div style={{ fontSize:11, fontWeight:700, color:"#888", padding:"10px 0 4px", marginTop:2, borderTop:"1px dashed #E5E7EB", display:"flex", alignItems:"center", justifyContent:"space-between" }}>
+                        <span><Ic n="list-check" style={{marginRight:4}} />Custom Items (Estimated)</span>
+                        <button type="button" onClick={() => setShowCustomList(true)} style={{ fontSize:10, color:"#166534", fontWeight:700, textDecoration:"underline", background:"transparent", border:"none", padding:0, cursor:"pointer" }}>I-edit</button>
+                      </div>
+                      {customItems.map(i => (
+                        <div key={i.id} style={{ display:"flex", alignItems:"center", gap:10, padding:"8px 0", borderBottom:"1px solid #F0F0F0" }}>
+                          <div style={{ width:42, height:42, borderRadius:10, display:"flex", alignItems:"center", justifyContent:"center", background:"#F0FDF4", flexShrink:0 }}><Ic n="pen-to-square" size={18} style={{color:"#22C55E"}} /></div>
+                          <div style={{ flex:1, minWidth:0 }}>
+                            <div style={{ fontSize:13, fontWeight:700, color:"#111", overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>{i.name}</div>
+                            <div style={{ fontSize:11, color:"#94A3B8", fontStyle:"italic" }}>{i.unit} • estimated</div>
+                          </div>
+                          <div style={{ fontSize:13, fontWeight:800, color:"#166534", minWidth:56, textAlign:"right", flexShrink:0, fontStyle:"italic" }}>~{fmt(i.estPrice)}</div>
+                        </div>
+                      ))}
+                    </>
+                  )}
+
+                  <div style={{ borderTop:"1px solid #E5E7EB", marginTop:10, paddingTop:10, fontSize:12, color:"#6B7280" }}>
+                    <div style={{ display:"flex", justifyContent:"space-between", marginBottom:4 }}>
+                      <span>Delivery ({deliveryMetaLabel})</span><span style={{ fontWeight:600 }}>{fmt(deliveryFee)}</span>
+                    </div>
+                    <div style={{ display:"flex", justifyContent:"space-between", marginBottom: smallOrderFee > 0 ? 4 : 0 }}>
+                      <span>Service Fee</span><span style={{ fontWeight:600 }}>{fmt(serviceFee)}</span>
+                    </div>
+                    {smallOrderFee > 0 && (
+                      <div style={{ display:"flex", justifyContent:"space-between" }}>
+                        <span style={{ color:"#D97706" }}><Ic n="triangle-exclamation" style={{marginRight:4}} />Small Order Fee (5%)</span><span style={{ fontWeight:600, color:"#D97706" }}>{fmt(smallOrderFee)}</span>
+                      </div>
+                    )}
+                    {freeShipDiscount > 0 && (
+                      <div style={{ display:"flex", justifyContent:"space-between", marginTop:4 }}>
+                        <span style={{ color:"#166534" }}><Ic n="gift" style={{marginRight:4}} />FREE DELIVERY SA FIRST ORDER</span>
+                        <span style={{ fontWeight:600, color:"#166534" }}>-{fmt(freeShipDiscount)}</span>
+                      </div>
+                    )}
+                    {appliedVoucher && voucherDiscount > 0 && (
+                      <div style={{ display:"flex", justifyContent:"space-between", marginTop:4 }}>
+                        <span style={{ color:"#166534" }}><Ic n="ticket" style={{marginRight:4}} />Voucher ({appliedVoucher.code})</span>
+                        <span style={{ fontWeight:600, color:"#166534" }}>-{fmt(voucherDiscount)}</span>
+                      </div>
+                    )}
+                  </div>
+                  <div style={{ marginTop:10, paddingTop:10, borderTop:"2px dashed #D1D5DB", display:"flex", justifyContent:"space-between", fontSize:17, fontWeight:800, color:"#111" }}>
+                    <span>~Total</span><span>~{fmt(total)}</span>
+                  </div>
+                  {customItems.length > 0 && (
+                    <div style={{ marginTop:8, fontSize:11, color:"#92400E", background:"#FEF9C3", borderRadius:8, padding:"6px 10px" }}>
+                      <Ic n="triangle-exclamation" style={{marginRight:4}} />Total is approximate because there are custom items. Final payment depends on actual prices.
+                    </div>
+                  )}
                 </div>
 
+                {/* ── Delivery Batch Banner (Checkout) ── */}
+                {(() => {
+                  const b = getDeliveryBatch();
+                  const isAM = b.batch === "AM";
+                  const secs = b.secsToDeadline;
+                  const hh = Math.floor(secs / 3600);
+                  const mm = Math.floor((secs % 3600) / 60);
+                  const ss = secs % 60;
+                  const pad2 = n => String(n).padStart(2, "0");
+                  const isUrgent = secs < 30 * 60;
+                  const accent = isUrgent ? "#EF4444" : (isAM ? "#1E40AF" : "#92400E");
+                  const bg     = isUrgent ? "#FEF2F2"  : (isAM ? "#EFF6FF"  : "#FFFBEB");
+                  const bd     = isUrgent ? "#FCA5A5"  : (isAM ? "#BFDBFE"  : "#FDE68A");
+                  return (
+                    <div style={{ borderRadius:12, padding:"12px 14px", marginBottom:16, background:bg, border:`1.5px solid ${bd}`, display:"flex", gap:10, alignItems:"center" }}>
+                      <div style={{ width:38, height:38, borderRadius:10, flexShrink:0, background: isUrgent ? "#EF4444" : (isAM ? "#1D4ED8" : "#F59E0B"), display:"flex", alignItems:"center", justifyContent:"center", color:"#fff", fontSize:17 }}>
+                        <Ic n={isUrgent ? "fire" : (isAM ? "sun" : "cloud-sun")} />
+                      </div>
+                      <div style={{ flex:1 }}>
+                        <div style={{ fontSize:13, fontWeight:800, color:accent }}>
+                          {b.batch} Batch &nbsp;·&nbsp; Delivery: {b.deliveryLabel}
+                        </div>
+                        <div style={{ fontSize:11, color:"#6B7280", marginTop:2 }}>
+                          Cut-off: <strong style={{color:accent}}>{b.cutoffLabel}</strong>
+                          &nbsp;—&nbsp;
+                          {isUrgent ? <span style={{color:"#EF4444",fontWeight:700}}>⚠ Malapit nang magsara!</span> : "Order na habang maaga!"}
+                        </div>
+                      </div>
+                      <div style={{ textAlign:"center", flexShrink:0 }}>
+                        <div style={{ fontSize:9, fontWeight:700, color:"#9CA3AF", marginBottom:1 }}>TIME LEFT</div>
+                        <div style={{ fontSize: hh > 0 ? 14 : 16, fontWeight:800, color:accent, fontVariantNumeric:"tabular-nums" }}>
+                          {hh > 0 ? `${pad2(hh)}:${pad2(mm)}:${pad2(ss)}` : `${pad2(mm)}:${pad2(ss)}`}
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })()}
+
+                {/* ══ CONTACT DETAILS ══ */}
+                <div style={{ fontSize:11, fontWeight:800, color:"#6B7280", textTransform:"uppercase", letterSpacing:".08em", marginBottom:10, display:"flex", alignItems:"center", gap:6 }}>
+                  <Ic n="user" style={{color:"#166534"}} />Contact Details
+                </div>
                 {[
                   { lbl:"Pangalan", val:name, set:setName, ph:"Juan Dela Cruz" },
                   { lbl:"Phone",    val:phone, set:setPhone, ph:"09XX XXX XXXX" },
-                  { lbl:"Address",  val:addr,  set:setAddr,  ph:"House/Lot, Street, Barangay" },
                 ].map(({ lbl, val, set, ph }) => (
-                  <div key={lbl} style={{ marginBottom:14 }}>
+                  <div key={lbl} style={{ marginBottom:12 }}>
                     <label style={{ fontSize:12, fontWeight:700, color:"#666", display:"block", marginBottom:6 }}>{lbl}</label>
                     <input value={val} onChange={e => set(e.target.value)} placeholder={ph}
                       style={{ width:"100%", padding:"13px 16px", borderRadius:12, fontSize:14, border:"1.5px solid #E5E7EB", outline:"none", transition:"border .2s" }}
@@ -2013,48 +2134,46 @@
                   </div>
                 ))}
 
-                {/* Pin Location Button */}
+                {/* ══ DELIVERY ADDRESS (with live map thumbnail) ══ */}
+                <div style={{ marginTop:6, marginBottom:16, fontSize:11, fontWeight:800, color:"#6B7280", textTransform:"uppercase", letterSpacing:".08em", display:"flex", alignItems:"center", gap:6 }}>
+                  <Ic n="location-dot" style={{color:"#166534"}} />Delivery Address
+                </div>
                 <div style={{ marginBottom:18 }}>
-                  <label style={{ fontSize:12, fontWeight:700, color:"#666", display:"block", marginBottom:8 }}>
-                    <Ic n="map-pin" style={{marginRight:5}} />Exact Location (for the rider)
-                  </label>
-                  <button onClick={() => setShowLocPicker(true)} style={{
-                    width:"100%", padding:"14px 16px", borderRadius:14,
-                    background: customerLat ? "#F0FDF4" : "#FFF7ED",
-                    border: customerLat ? "2px solid #BBF7D0" : "2px dashed #FED7AA",
-                    display:"flex", alignItems:"center", gap:12, textAlign:"left",
-                  }}>
-                    <div style={{
-                      width:42, height:42, borderRadius:12, flexShrink:0,
-                      background: customerLat ? "#22C55E" : "#F59E0B",
-                      display:"flex", alignItems:"center", justifyContent:"center",
-                      color:"#fff", fontSize:18,
-                    }}>
-                      <Ic n={customerLat ? "location-dot" : "map-pin"} />
-                    </div>
-                    <div style={{ flex:1 }}>
-                      {customerLat ? (
-                        <>
-                          <div style={{ fontSize:14, fontWeight:700, color:"#166534" }}>
-                            <Ic n="circle-check" style={{marginRight:4}} />Naka-pin na ang location!
-                          </div>
-                          <div style={{ fontSize:11, color:"#888", marginTop:2 }}>
-                            {customerLat.toFixed(5)}, {customerLng.toFixed(5)} — Tap to change
-                          </div>
-                        </>
-                      ) : (
-                        <>
-                          <div style={{ fontSize:14, fontWeight:700, color:"#92400E" }}>
-                            Pin your exact location
-                          </div>
-                          <div style={{ fontSize:11, color:"#888", marginTop:2 }}>
-                            So the rider knows exactly where you are
-                          </div>
-                        </>
-                      )}
-                    </div>
-                    <Ic n="chevron-right" style={{ color:"#aaa", fontSize:14 }} />
-                  </button>
+                  <div
+                    onClick={() => setShowLocPicker(true)}
+                    style={{
+                      width:"100%", height:160, borderRadius:14, overflow:"hidden",
+                      border: hasPinnedLocation ? "2px solid #BBF7D0" : "2px dashed #FCD34D",
+                      background: hasPinnedLocation ? "#F0FDF4" : "#FFFBEB",
+                      position:"relative", cursor:"pointer", marginBottom:10,
+                      boxShadow: hasPinnedLocation ? "0 2px 10px rgba(22,101,52,.08)" : "none",
+                    }}
+                  >
+                    {hasPinnedLocation ? (
+                      <>
+                        <MiniMapThumbnail lat={Number(customerLat)} lng={Number(customerLng)} height={160} />
+                        <div style={{ position:"absolute", top:10, left:10, background:"rgba(255,255,255,.96)", borderRadius:999, padding:"5px 10px", fontSize:11, fontWeight:800, color:"#166534", boxShadow:"0 2px 8px rgba(0,0,0,.12)", display:"flex", alignItems:"center", gap:5 }}>
+                          <Ic n="circle-check" />Naka-pin na
+                        </div>
+                        <div style={{ position:"absolute", bottom:10, right:10, background:"rgba(255,255,255,.96)", borderRadius:10, padding:"6px 11px", fontSize:11, fontWeight:700, color:"#166534", boxShadow:"0 2px 8px rgba(0,0,0,.12)", display:"flex", alignItems:"center", gap:5 }}>
+                          <Ic n="pen-to-square" />I-edit ang pin
+                        </div>
+                      </>
+                    ) : (
+                      <div style={{ display:"flex", flexDirection:"column", alignItems:"center", justifyContent:"center", height:"100%", gap:6, padding:"0 16px", textAlign:"center" }}>
+                        <div style={{ width:46, height:46, borderRadius:14, background:"#F59E0B", display:"flex", alignItems:"center", justifyContent:"center", color:"#fff", fontSize:20, boxShadow:"0 4px 12px rgba(245,158,11,.35)" }}>
+                          <Ic n="map-pin" />
+                        </div>
+                        <div style={{ fontSize:14, fontWeight:800, color:"#92400E" }}>Tap to pin your exact location</div>
+                        <div style={{ fontSize:11, color:"#B45309" }}>Para alam ng rider kung saan ka eksakto</div>
+                      </div>
+                    )}
+                  </div>
+
+                  <input value={addr} onChange={e => setAddr(e.target.value)} placeholder="House/Lot, Street, Barangay"
+                    style={{ width:"100%", padding:"13px 16px", borderRadius:12, fontSize:14, border:"1.5px solid #E5E7EB", outline:"none", transition:"border .2s" }}
+                    onFocus={e => e.target.style.borderColor="#22C55E"}
+                    onBlur={e  => e.target.style.borderColor="#E5E7EB"} />
                 </div>
 
                 {/* Location Picker Modal */}
@@ -2066,9 +2185,78 @@
                   />
                 )}
 
+                {/* ══ URI NG LOKASYON (DROPDOWN) ══ */}
+                <div style={{ marginBottom:16 }}>
+                  <label style={{ fontSize:12, fontWeight:700, color:"#666", display:"block", marginBottom:8 }}>
+                    <Ic n="map" style={{marginRight:5,color:"#166534"}} />Uri ng Lokasyon
+                  </label>
+                  <div style={{ position:"relative" }}>
+                    <select
+                      value={locationType}
+                      onChange={e => setLocationType(e.target.value)}
+                      style={{
+                        width:"100%", padding:"13px 40px 13px 16px", borderRadius:12,
+                        border:"1.5px solid #E5E7EB", background:"#fff", fontSize:14, fontWeight:700,
+                        color:"#111827", outline:"none", appearance:"none",
+                        WebkitAppearance:"none", MozAppearance:"none", cursor:"pointer"
+                      }}
+                    >
+                      <option value="Mainland">Mainland — Binangonan mainland</option>
+                      <option value="Island">Island — Isla / Kabilang dagat</option>
+                    </select>
+                    <div style={{ position:"absolute", right:14, top:"50%", transform:"translateY(-50%)", pointerEvents:"none", color:"#6B7280", fontSize:12 }}>
+                      <Ic n="chevron-down" />
+                    </div>
+                  </div>
+                  {locationType === "Island" && (
+                    <div style={{ marginTop:8, fontSize:11, color:"#B45309", background:"#FEF3C7", borderRadius:8, padding:"6px 10px" }}>
+                      <Ic n="triangle-exclamation" style={{marginRight:4}} />Island orders ay uunahin para mahabol ang huling biyahe sa port.
+                    </div>
+                  )}
+                </div>
+
+                {/* ══ PAYMENT METHOD ══ */}
+                <div style={{ marginBottom:14 }}>
+                  <label style={{ fontSize:12, fontWeight:700, color:"#666", display:"block", marginBottom:8 }}>
+                    <Ic n="wallet" style={{marginRight:5,color:"#166534"}} />Paraan ng Bayad
+                  </label>
+                  <div style={{ display:"grid", gridTemplateColumns: locationType === "Island" ? "1fr" : "1fr 1fr", gap:8 }}>
+                    {(locationType === "Island"
+                      ? [{ val:"QRPH", icon:"qrcode", label:"QR PH", desc:"QR PH only for Island orders" }]
+                      : [
+                          { val:"COD",  icon:"money-bill-wave", label:"Cash on Delivery", desc:"Pay when the order arrives" },
+                          { val:"QRPH", icon:"qrcode",          label:"QR PH",           desc:"Scan QR PH at magbayad" },
+                        ]
+                    ).map(opt => (
+                      <button key={opt.val} type="button"
+                        onClick={() => setPaymentMethod(opt.val)}
+                        style={{
+                          padding:"12px 10px", borderRadius:14, textAlign:"center",
+                          border: paymentMethod === opt.val ? "2px solid #166534" : "1.5px solid #E5E7EB",
+                          background: paymentMethod === opt.val ? "#F0FDF4" : "#FAFAFA",
+                          transition:"all .18s",
+                        }}>
+                        <Ic n={opt.icon} size={18} style={{ color: paymentMethod === opt.val ? "#166534" : "#9CA3AF", marginBottom:4, display:"block" }} />
+                        <div style={{ fontSize:13, fontWeight:800, color: paymentMethod === opt.val ? "#166534" : "#374151" }}>{opt.label}</div>
+                        <div style={{ fontSize:10, color:"#9CA3AF", marginTop:2 }}>{opt.desc}</div>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                <div style={{ background:"#FEF3C7", borderRadius:12, padding:"12px 14px", marginBottom:18, display:"flex", gap:10 }}>
+                  <Ic n="credit-card" size={18} style={{ color:"#92400E", marginTop:1 }} />
+                  <div style={{ fontSize:12, color:"#92400E", lineHeight:1.5 }}>
+                    {locationType === "Island"
+                      ? <><strong>QR PH only</strong> — Para sa Island orders, QR PH lang ang available na payment method.</>
+                      : <><strong>COD or QR PH</strong> — Choose Cash on Delivery or QR PH for your order.</>}
+                  </div>
+                </div>
+
+                {/* ══ VOUCHER ══ */}
                 <div style={{ marginBottom:16 }}>
                   <label style={{ fontSize:12, fontWeight:700, color:"#666", display:"block", marginBottom:6 }}>
-                    <Ic n="ticket" style={{marginRight:5}} />Voucher Code
+                    <Ic n="ticket" style={{marginRight:5,color:"#166534"}} />Voucher Code
                   </label>
                   <div style={{ display:"flex", gap:8 }}>
                     <input value={voucherCode} onChange={e => setVoucherCode(e.target.value.toUpperCase())} placeholder="Hal. BAYAN20"
@@ -2159,171 +2347,6 @@
                         : `Add ${fmt(firstOrderFreeShippingGap)} more para ma-unlock ang FREE shipping sa first order (min. ₱500).`}
                     </div>
                   )}
-                </div>
-
-                <div style={{ background:"#F9FAFB", borderRadius:14, padding:"14px 16px", marginBottom:16, border:"1px solid #E5E7EB" }}>
-                  {cartItems.map(i => (
-                    <div key={i.id} style={{ display:"flex", justifyContent:"space-between", padding:"5px 0", fontSize:13, color:"#555" }}>
-                      <span>
-                        {i.name}
-                        
-                        {i.unit === "kg"
-                          ? ` ×${i.qty} (${i.weightUnit === 0.25 ? "¼kg" : i.weightUnit === 0.5 ? "½kg" : "1kg"} bawat isa)`
-                          : ` ×${i.qty}`}
-                      </span>
-                      <span style={{ fontWeight:600 }}>{fmt(i.price * i.weightUnit * i.qty)}</span>
-                    </div>
-                  ))}
-                  {customItems.length > 0 && (
-                    <>
-                      <div style={{ fontSize:11, fontWeight:700, color:"#888", padding:"6px 0 2px", marginTop:4, borderTop:"1px dashed #E5E7EB" }}><Ic n="list-check" style={{marginRight:4}} />Custom Items (Estimated)</div>
-                      {customItems.map(i => (
-                        <div key={i.id} style={{ display:"flex", justifyContent:"space-between", padding:"4px 0", fontSize:13, color:"#555" }}>
-                          <span><Ic n="pen-to-square" style={{marginRight:4}} />{i.name} ({i.unit})</span>
-                          <span style={{ fontWeight:600, fontStyle:"italic" }}>~{fmt(i.estPrice)}</span>
-                        </div>
-                      ))}
-                    </>
-                  )}
-                  <div style={{ borderTop:"1px solid #E5E7EB", marginTop:8, paddingTop:8, fontSize:13, color:"#888" }}>
-                    <div style={{ display:"flex", justifyContent:"space-between", marginBottom:4 }}>
-                      <span>Delivery ({deliveryMetaLabel})</span><span style={{ fontWeight:600 }}>{fmt(deliveryFee)}</span>
-                    </div>
-                    <div style={{ display:"flex", justifyContent:"space-between", marginBottom: smallOrderFee > 0 ? 4 : 0 }}>
-                      <span>Service Fee</span><span style={{ fontWeight:600 }}>{fmt(serviceFee)}</span>
-                    </div>
-                    {smallOrderFee > 0 && (
-                      <div style={{ display:"flex", justifyContent:"space-between" }}>
-                        <span style={{ color:"#D97706" }}><Ic n="triangle-exclamation" style={{marginRight:4}} />Small Order Fee (5%)</span><span style={{ fontWeight:600, color:"#D97706" }}>{fmt(smallOrderFee)}</span>
-                      </div>
-                    )}
-                    {freeShipDiscount > 0 && (
-                      <div style={{ display:"flex", justifyContent:"space-between", marginTop:4 }}>
-                        <span style={{ color:"#166534" }}><Ic n="gift" style={{marginRight:4}} />FREE DELIVERY SA FIRST ORDER</span>
-                        <span style={{ fontWeight:600, color:"#166534" }}>-{fmt(freeShipDiscount)}</span>
-                      </div>
-                    )}
-                    {appliedVoucher && voucherDiscount > 0 && (
-                      <div style={{ display:"flex", justifyContent:"space-between", marginTop:4 }}>
-                        <span style={{ color:"#166534" }}><Ic n="ticket" style={{marginRight:4}} />Voucher ({appliedVoucher.code})</span>
-                        <span style={{ fontWeight:600, color:"#166534" }}>-{fmt(voucherDiscount)}</span>
-                      </div>
-                    )}
-                  </div>
-                  <div style={{ marginTop:10, paddingTop:10, borderTop:"2px dashed #D1D5DB", display:"flex", justifyContent:"space-between", fontSize:17, fontWeight:800, color:"#111" }}>
-                    <span>~Total</span><span>~{fmt(total)}</span>
-                  </div>
-                  {customItems.length > 0 && (
-                    <div style={{ marginTop:8, fontSize:11, color:"#92400E", background:"#FEF9C3", borderRadius:8, padding:"6px 10px" }}>
-                      <Ic n="triangle-exclamation" style={{marginRight:4}} />Total is approximate because there are custom items. Final payment depends on actual prices.
-                    </div>
-                  )}
-                </div>
-
-                {/* ── Delivery Batch Banner (Checkout) ── */}
-                {(() => {
-                  const b = getDeliveryBatch();
-                  const isAM = b.batch === "AM";
-                  const secs = b.secsToDeadline;
-                  const hh = Math.floor(secs / 3600);
-                  const mm = Math.floor((secs % 3600) / 60);
-                  const ss = secs % 60;
-                  const pad2 = n => String(n).padStart(2, "0");
-                  const isUrgent = secs < 30 * 60;
-                  const accent = isUrgent ? "#EF4444" : (isAM ? "#1E40AF" : "#92400E");
-                  const bg     = isUrgent ? "#FEF2F2"  : (isAM ? "#EFF6FF"  : "#FFFBEB");
-                  const bd     = isUrgent ? "#FCA5A5"  : (isAM ? "#BFDBFE"  : "#FDE68A");
-                  return (
-                    <div style={{ borderRadius:12, padding:"12px 14px", marginBottom:14, background:bg, border:`1.5px solid ${bd}`, display:"flex", gap:10, alignItems:"center" }}>
-                      <div style={{ width:38, height:38, borderRadius:10, flexShrink:0, background: isUrgent ? "#EF4444" : (isAM ? "#1D4ED8" : "#F59E0B"), display:"flex", alignItems:"center", justifyContent:"center", color:"#fff", fontSize:17 }}>
-                        <Ic n={isUrgent ? "fire" : (isAM ? "sun" : "cloud-sun")} />
-                      </div>
-                      <div style={{ flex:1 }}>
-                        <div style={{ fontSize:13, fontWeight:800, color:accent }}>
-                          {b.batch} Batch &nbsp;·&nbsp; Delivery: {b.deliveryLabel}
-                        </div>
-                        <div style={{ fontSize:11, color:"#6B7280", marginTop:2 }}>
-                          Cut-off: <strong style={{color:accent}}>{b.cutoffLabel}</strong>
-                          &nbsp;—&nbsp;
-                          {isUrgent ? <span style={{color:"#EF4444",fontWeight:700}}>⚠ Malapit nang magsara!</span> : "Order na habang maaga!"}
-                        </div>
-                      </div>
-                      <div style={{ textAlign:"center", flexShrink:0 }}>
-                        <div style={{ fontSize:9, fontWeight:700, color:"#9CA3AF", marginBottom:1 }}>TIME LEFT</div>
-                        <div style={{ fontSize: hh > 0 ? 14 : 16, fontWeight:800, color:accent, fontVariantNumeric:"tabular-nums" }}>
-                          {hh > 0 ? `${pad2(hh)}:${pad2(mm)}:${pad2(ss)}` : `${pad2(mm)}:${pad2(ss)}`}
-                        </div>
-                      </div>
-                    </div>
-                  );
-                })()}
-
-                {/* ── Location Type Selector ── */}
-                <div style={{ marginBottom:16 }}>
-                  <label style={{ fontSize:12, fontWeight:700, color:"#666", display:"block", marginBottom:8 }}>
-                    <Ic n="map" style={{marginRight:5}} />Uri ng Lokasyon
-                  </label>
-                  <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:8 }}>
-                    {[
-                      { val:"Mainland", icon:"house", label:"Mainland",   desc:"Binangonan mainland" },
-                      { val:"Island",   icon:"water", label:"Island",     desc:"Isla / Kabilang dagat" },
-                    ].map(opt => (
-                      <button key={opt.val} type="button"
-                        onClick={() => setLocationType(opt.val)}
-                        style={{
-                          padding:"12px 10px", borderRadius:14, textAlign:"center",
-                          border: locationType === opt.val ? "2px solid #166534" : "1.5px solid #E5E7EB",
-                          background: locationType === opt.val ? "#F0FDF4" : "#FAFAFA",
-                          transition:"all .18s",
-                        }}>
-                        <Ic n={opt.icon} size={18} style={{ color: locationType === opt.val ? "#166534" : "#9CA3AF", marginBottom:4, display:"block" }} />
-                        <div style={{ fontSize:13, fontWeight:800, color: locationType === opt.val ? "#166534" : "#374151" }}>{opt.label}</div>
-                        <div style={{ fontSize:10, color:"#9CA3AF", marginTop:2 }}>{opt.desc}</div>
-                      </button>
-                    ))}
-                  </div>
-                  {locationType === "Island" && (
-                    <div style={{ marginTop:8, fontSize:11, color:"#B45309", background:"#FEF3C7", borderRadius:8, padding:"6px 10px" }}>
-                      <Ic n="triangle-exclamation" style={{marginRight:4}} />Island orders ay uunahin para mahabol ang huling biyahe sa port.
-                    </div>
-                  )}
-                </div>
-
-                <div style={{ marginBottom:14 }}>
-                  <label style={{ fontSize:12, fontWeight:700, color:"#666", display:"block", marginBottom:8 }}>
-                    <Ic n="wallet" style={{marginRight:5}} />Paraan ng Bayad
-                  </label>
-                  <div style={{ display:"grid", gridTemplateColumns: locationType === "Island" ? "1fr" : "1fr 1fr", gap:8 }}>
-                    {(locationType === "Island"
-                      ? [{ val:"QRPH", icon:"qrcode", label:"QR PH", desc:"QR PH only for Island orders" }]
-                      : [
-                          { val:"COD",  icon:"money-bill-wave", label:"Cash on Delivery", desc:"Pay when the order arrives" },
-                          { val:"QRPH", icon:"qrcode",          label:"QR PH",           desc:"Scan QR PH at magbayad" },
-                        ]
-                    ).map(opt => (
-                      <button key={opt.val} type="button"
-                        onClick={() => setPaymentMethod(opt.val)}
-                        style={{
-                          padding:"12px 10px", borderRadius:14, textAlign:"center",
-                          border: paymentMethod === opt.val ? "2px solid #166534" : "1.5px solid #E5E7EB",
-                          background: paymentMethod === opt.val ? "#F0FDF4" : "#FAFAFA",
-                          transition:"all .18s",
-                        }}>
-                        <Ic n={opt.icon} size={18} style={{ color: paymentMethod === opt.val ? "#166534" : "#9CA3AF", marginBottom:4, display:"block" }} />
-                        <div style={{ fontSize:13, fontWeight:800, color: paymentMethod === opt.val ? "#166534" : "#374151" }}>{opt.label}</div>
-                        <div style={{ fontSize:10, color:"#9CA3AF", marginTop:2 }}>{opt.desc}</div>
-                      </button>
-                    ))}
-                  </div>
-                </div>
-
-                <div style={{ background:"#FEF3C7", borderRadius:12, padding:"12px 14px", marginBottom:18, display:"flex", gap:10 }}>
-                  <Ic n="credit-card" size={18} style={{ color:"#92400E", marginTop:1 }} />
-                  <div style={{ fontSize:12, color:"#92400E", lineHeight:1.5 }}>
-                    {locationType === "Island"
-                      ? <><strong>QR PH only</strong> — Para sa Island orders, QR PH lang ang available na payment method.</>
-                      : <><strong>COD or QR PH</strong> — Choose Cash on Delivery or QR PH for your order.</>}
-                  </div>
                 </div>
 
                 <button onClick={placeOrder} disabled={!name||!phone||!addr||!hasPinnedLocation} style={{
@@ -2778,18 +2801,24 @@
                   ))}
                   {editMode && (
                     <div style={{ paddingTop:10 }}>
-                      <div style={{ fontSize:10, color:"#aaa", fontWeight:600, textTransform:"uppercase", letterSpacing:".06em", marginBottom:8 }}>Location</div>
-                      <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:8 }}>
-                        {["Mainland", "Island"].map(loc => (
-                          <button key={loc} type="button" onClick={() => setLocalLocationType(loc)} style={{
-                            border: localLocationType === loc ? "2px solid #166534" : "1px solid #D1D5DB",
-                            background: localLocationType === loc ? "#F0FDF4" : "#fff",
-                            borderRadius:10, padding:"10px 12px", fontSize:13, fontWeight:700,
-                            color: localLocationType === loc ? "#166534" : "#4B5563",
-                          }}>
-                            {loc}
-                          </button>
-                        ))}
+                      <div style={{ fontSize:10, color:"#aaa", fontWeight:600, textTransform:"uppercase", letterSpacing:".06em", marginBottom:8 }}>Uri ng Lokasyon</div>
+                      <div style={{ position:"relative" }}>
+                        <select
+                          value={localLocationType}
+                          onChange={e => setLocalLocationType(e.target.value)}
+                          style={{
+                            width:"100%", padding:"10px 36px 10px 12px", borderRadius:10,
+                            border:"1px solid #D1FAE5", background:"#F0FDF4", fontSize:13, fontWeight:700,
+                            color:"#166534", outline:"none", appearance:"none",
+                            WebkitAppearance:"none", MozAppearance:"none", cursor:"pointer",
+                          }}
+                        >
+                          <option value="Mainland">Mainland — Binangonan mainland</option>
+                          <option value="Island">Island — Isla / Kabilang dagat</option>
+                        </select>
+                        <div style={{ position:"absolute", right:12, top:"50%", transform:"translateY(-50%)", pointerEvents:"none", color:"#166534", fontSize:11 }}>
+                          <Ic n="chevron-down" />
+                        </div>
                       </div>
                     </div>
                   )}
@@ -2868,6 +2897,52 @@
     }
 
     /* ══════════════════ ORDERS PAGE ══════════════════ */
+    /* ══════════════════ MINI MAP THUMBNAIL ══════════════════ */
+    function MiniMapThumbnail({ lat, lng, height = 150 }) {
+      const mapRef = useRef(null);
+      const mapInstanceRef = useRef(null);
+
+      useEffect(() => {
+        if (!mapRef.current || mapInstanceRef.current) return;
+        if (lat == null || lng == null) return;
+        if (typeof L === "undefined" || !L?.map) return;
+
+        const map = L.map(mapRef.current, {
+          center: [lat, lng],
+          zoom: 16,
+          zoomControl: false,
+          attributionControl: false,
+          dragging: false,
+          doubleClickZoom: false,
+          scrollWheelZoom: false,
+          touchZoom: false,
+          boxZoom: false,
+          keyboard: false,
+          tap: false,
+        });
+        L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", { maxZoom: 19 }).addTo(map);
+        const pinIcon = L.divIcon({
+          html: '<div style="display:flex;flex-direction:column;align-items:center;"><div style="width:32px;height:32px;border-radius:50%;background:linear-gradient(135deg,#166534,#22C55E);display:flex;align-items:center;justify-content:center;color:#fff;font-size:14px;box-shadow:0 4px 14px rgba(22,101,52,.45);border:3px solid #fff;"><i class="fa-solid fa-house"></i></div><div style="width:3px;height:8px;background:#166534;margin-top:-2px;border-radius:0 0 2px 2px;"></div></div>',
+          className: '',
+          iconSize: [32, 42],
+          iconAnchor: [16, 42],
+        });
+        L.marker([lat, lng], { icon: pinIcon }).addTo(map);
+        mapInstanceRef.current = map;
+        setTimeout(() => map.invalidateSize(), 60);
+        setTimeout(() => map.invalidateSize(), 260);
+
+        return () => {
+          map.remove();
+          mapInstanceRef.current = null;
+        };
+      }, [lat, lng]);
+
+      return (
+        <div ref={mapRef} style={{ width:"100%", height, background:"#E5E7EB", pointerEvents:"none" }} />
+      );
+    }
+
     /* ══════════════════ LOCATION PICKER ══════════════════ */
     function LocationPicker({ lat, lng, onPick, onClose }) {
       const mapRef = useRef(null);
