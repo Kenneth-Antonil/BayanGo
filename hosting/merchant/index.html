@@ -158,6 +158,21 @@
     @media(min-width:640px){.stat-grid{grid-template-columns:repeat(4,1fr)} .card{padding:20px} #root{padding:0 16px 90px}}
     @media(min-width:900px){#root{max-width:960px;padding:0 20px 90px} .header{margin:0 -20px 0;padding:22px 22px 14px} .nav{margin:0 -20px 18px;padding:10px 22px 12px}}
     @media(max-width:480px){.grid-2{grid-template-columns:1fr} .listing-row{flex-direction:column;align-items:flex-start;gap:10px} .listing-row>div:last-child{align-self:flex-end}}
+    /* Toast notifications */
+    .toast-host{position:fixed;top:14px;left:50%;transform:translateX(-50%);z-index:400;display:flex;flex-direction:column;gap:8px;max-width:92%;width:360px;pointer-events:none}
+    .toast{pointer-events:auto;padding:12px 14px;border-radius:12px;font-size:13px;font-weight:600;line-height:1.4;box-shadow:0 10px 30px rgba(15,23,42,.18);display:flex;align-items:flex-start;gap:10px;animation:toastIn .25s ease-out}
+    .toast.info{background:#eff6ff;color:#1e40af;border:1px solid #bfdbfe}
+    .toast.ok{background:#f0fdf4;color:#166534;border:1px solid #bbf7d0}
+    .toast.err{background:#fef2f2;color:#991b1b;border:1px solid #fecaca}
+    .toast.warn{background:#fffbeb;color:#92400e;border:1px solid #fde68a}
+    .toast i.icon{flex-shrink:0;margin-top:1px}
+    .toast .close{margin-left:auto;background:none;border:0;padding:0 0 0 8px;font-size:14px;color:inherit;opacity:.6;cursor:pointer}
+    .toast .close:hover{opacity:1}
+    @keyframes toastIn{from{opacity:0;transform:translateY(-8px)}to{opacity:1;transform:translateY(0)}}
+    /* Loading / blocked screens */
+    .center-screen{min-height:80vh;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;padding:32px 20px}
+    .spinner{width:42px;height:42px;border:4px solid #e2e8f0;border-top-color:var(--brand);border-radius:50%;animation:spin 1s linear infinite}
+    @keyframes spin{to{transform:rotate(360deg)}}
   </style>
 </head>
 <body>
@@ -202,6 +217,29 @@ const CAMPAIGN_TYPES=[
 ];
 const fmt=n=>"₱"+Number(n||0).toLocaleString("en-PH",{minimumFractionDigits:0});
 const ago=ts=>{if(!ts)return"";const d=Date.now()-ts;if(d<60000)return"just now";if(d<3600000)return Math.floor(d/60000)+"m ago";if(d<86400000)return Math.floor(d/3600000)+"h ago";return new Date(ts).toLocaleDateString("en-PH",{month:"short",day:"numeric"});};
+// Normalised approval check — mirrors the admin dashboard logic so the
+// merchant dashboard unlocks no matter which approval format was written
+// (boolean true, number 1, string "true"/"approved", or status === "approved").
+const isMerchantApproved=(m)=>{
+  if(!m||typeof m!=="object")return false;
+  if(m.approved===true||m.approved===1)return true;
+  const a=String(m.approved||"").trim().toLowerCase();
+  const s=String(m.status||"").trim().toLowerCase();
+  return a==="true"||a==="approved"||s==="approved";
+};
+// Parse a human-readable time like "07:00 AM" or "7:30 pm" into 24h HH:MM.
+const parseTimeString=(str)=>{
+  if(!str||typeof str!=="string")return"";
+  const match=str.match(/(\d{1,2})(?::(\d{2}))?\s*(AM|PM|am|pm)?/);
+  if(!match)return"";
+  let h=parseInt(match[1],10);
+  const m=parseInt(match[2]||"0",10);
+  const ampm=(match[3]||"").toUpperCase();
+  if(ampm==="PM"&&h<12)h+=12;
+  if(ampm==="AM"&&h===12)h=0;
+  if(!Number.isFinite(h)||h<0||h>23)return"";
+  return `${String(h).padStart(2,"0")}:${String(m).padStart(2,"0")}`;
+};
 const dayKey=ts=>new Date(ts).toISOString().slice(0,10);
 const startOfDay=d=>{const t=new Date(d);t.setHours(0,0,0,0);return t.getTime();};
 const startOfWeek=d=>{const t=new Date(d);t.setDate(t.getDate()-t.getDay());t.setHours(0,0,0,0);return t.getTime();};
@@ -223,12 +261,25 @@ function getStatusBadge(s){
 
 function App(){
   const [user,setUser]=React.useState(null);
+  const [authReady,setAuthReady]=React.useState(false);
   const [merchant,setMerchant]=React.useState(null);
+  const [merchantLoaded,setMerchantLoaded]=React.useState(false);
   const [listings,setListings]=React.useState([]);
   const [orders,setOrders]=React.useState([]);
   const [ratings,setRatings]=React.useState([]);
   const [riderLocs,setRiderLocs]=React.useState({});
   const [activeSection,setActiveSection]=React.useState("dashboard");
+
+  // Toast notifications (replaces alert())
+  const [toasts,setToasts]=React.useState([]);
+  const toast=React.useCallback((message,type="info")=>{
+    const id=Date.now()+Math.random();
+    setToasts(prev=>[...prev,{id,message,type}]);
+    setTimeout(()=>setToasts(prev=>prev.filter(t=>t.id!==id)),4500);
+  },[]);
+  const dismissToast=React.useCallback((id)=>{
+    setToasts(prev=>prev.filter(t=>t.id!==id));
+  },[]);
 
   // Order management
   const [orderTab,setOrderTab]=React.useState("active");
@@ -250,31 +301,52 @@ function App(){
   const [savingProfile,setSavingProfile]=React.useState(false);
   const [logoFile,setLogoFile]=React.useState(null);
 
-  // Sync profile form from merchant data
+  // Sync profile form from merchant data. When the admin approves from a
+  // partner_application, only `operatingHours` is written, so we also parse
+  // the string form ("07:00 AM — 09:00 PM") into 24-hour openTime / closeTime.
   React.useEffect(()=>{
     if(!merchant)return;
+    let openT=merchant.openTime||"";
+    let closeT=merchant.closeTime||"";
+    if((!openT||!closeT)&&merchant.operatingHours){
+      const parts=String(merchant.operatingHours).split(/[—–\-]/).map(s=>s.trim()).filter(Boolean);
+      if(parts.length>=2){
+        if(!openT) openT=parseTimeString(parts[0]);
+        if(!closeT) closeT=parseTimeString(parts[1]);
+      }
+    }
     setProfileForm(prev=>({
       storeName:merchant.storeName||prev.storeName||"",
       description:merchant.description||prev.description||"",
       address:merchant.address||merchant.businessAddress||prev.address||"",
       phone:merchant.contactPhone||merchant.phone||prev.phone||"",
-      openTime:merchant.openTime||prev.openTime||"07:00",
-      closeTime:merchant.closeTime||prev.closeTime||"21:00",
+      openTime:openT||prev.openTime||"07:00",
+      closeTime:closeT||prev.closeTime||"21:00",
     }));
-  },[merchant?.storeName,merchant?.description,merchant?.address,merchant?.contactPhone]);
+  },[merchant?.storeName,merchant?.description,merchant?.address,merchant?.businessAddress,merchant?.contactPhone,merchant?.phone,merchant?.operatingHours,merchant?.openTime,merchant?.closeTime]);
 
   const saveStoreProfile=async()=>{
     if(!user||savingProfile)return;
+    const storeName=profileForm.storeName.trim();
+    if(!storeName){toast("Store name is required.","err");return;}
+    const phone=profileForm.phone.replace(/\D/g,"");
+    if(phone && !/^09\d{9}$/.test(phone)){
+      toast("Enter a valid PH mobile number (09XXXXXXXXX).","err");
+      return;
+    }
     setSavingProfile(true);
     try{
+      // Format operating hours back to human-readable using the 24h values.
+      const toLabel=(t)=>{const [h,m]=(t||"").split(":").map(n=>parseInt(n,10));if(!Number.isFinite(h))return t||"";const hr=h>12?h-12:(h===0?12:h);const ap=h>=12?"PM":"AM";return `${String(hr).padStart(2,"0")}:${String(m||0).padStart(2,"0")} ${ap}`;};
       const updates={
-        storeName:profileForm.storeName.trim(),
+        storeName,
         description:profileForm.description.trim(),
         address:profileForm.address.trim(),
-        contactPhone:profileForm.phone.trim(),
+        businessAddress:profileForm.address.trim(),
+        contactPhone:phone,
         openTime:profileForm.openTime,
         closeTime:profileForm.closeTime,
-        operatingHours:`${profileForm.openTime} - ${profileForm.closeTime}`,
+        operatingHours:`${toLabel(profileForm.openTime)} — ${toLabel(profileForm.closeTime)}`,
         updatedAt:Date.now()
       };
       if(logoFile){
@@ -292,10 +364,10 @@ function App(){
       // Also update storeName on all listings
       const snap=await db.ref("merchant_listings/"+user.uid).once("value");
       const nameUpdates={};
-      snap.forEach(c=>{nameUpdates[`${c.key}/storeName`]=updates.storeName;});
+      snap.forEach(c=>{nameUpdates[`${c.key}/storeName`]=storeName;});
       if(Object.keys(nameUpdates).length)await db.ref("merchant_listings/"+user.uid).update(nameUpdates);
-      alert("Store profile updated!");
-    }catch(e){alert("Error: "+(e?.message||"Unknown"));}
+      toast("Store profile updated!","ok");
+    }catch(e){toast("Could not save profile: "+(e?.message||"Unknown error"),"err");}
     finally{setSavingProfile(false);}
   };
 
@@ -321,16 +393,21 @@ function App(){
   const peakChartInstance=React.useRef(null);
 
   // Auth listener
-  React.useEffect(()=>auth.onAuthStateChanged(setUser),[]);
+  React.useEffect(()=>auth.onAuthStateChanged(u=>{setUser(u);setAuthReady(true);}),[]);
 
   // Main data listeners
   React.useEffect(()=>{
-    if(!user){setMerchant(null);setListings([]);setOrders([]);setRatings([]);return;}
+    if(!user){setMerchant(null);setMerchantLoaded(false);setListings([]);setOrders([]);setRatings([]);return;}
     const uid=user.uid;
+    setMerchantLoaded(false);
     const refs=[];
 
     const merchantRef=db.ref("partner_merchants/"+uid);
-    merchantRef.on("value",s=>setMerchant(s.val()));
+    merchantRef.on("value",s=>{setMerchant(s.val());setMerchantLoaded(true);},err=>{
+      console.error("merchant read error",err);
+      setMerchantLoaded(true);
+      toast("Could not load your merchant profile. Check your connection and try again.","err");
+    });
     refs.push(()=>merchantRef.off("value"));
 
     const listRef=db.ref("merchant_listings/"+uid);
@@ -389,7 +466,7 @@ function App(){
   const moderationLabel=moderationAction==="suspended"?"Suspended":moderationAction==="revoked"?"Access Revoked":moderationAction==="deleted"?"Store Deleted":"Active";
   const ensureMerchantAccess=()=>{
     if(!isAccessRestricted)return true;
-    alert(`Account restricted: ${moderationLabel}.${moderationReason?`\nReason: ${moderationReason}`:" Please check your email for details."}`);
+    toast(`Account restricted: ${moderationLabel}.${moderationReason?` Reason: ${moderationReason}`:" Check your email for details."}`,"err");
     return false;
   };
 
@@ -513,8 +590,11 @@ function App(){
   const setStoreOpen=async(v)=>{
     if(!user||updatingStoreStatus||!ensureMerchantAccess())return;
     setUpdatingStoreStatus(true);
-    try{await db.ref("partner_merchants/"+user.uid).update({storeOpen:v,storeStatusUpdatedAt:Date.now()});}
-    catch(e){alert("Error: "+(e?.message||"Unknown"));}
+    try{
+      await db.ref("partner_merchants/"+user.uid).update({storeOpen:v,storeStatusUpdatedAt:Date.now()});
+      toast(v?"Store is now open — receiving orders.":"Store closed. Customers won't see your store.","ok");
+    }
+    catch(e){toast("Could not update store status: "+(e?.message||"Unknown"),"err");}
     finally{setUpdatingStoreStatus(false);}
   };
 
@@ -530,6 +610,8 @@ function App(){
 
   const uploadLogo=async(file)=>{
     if(!user||!file||!ensureMerchantAccess())return;
+    if(file.size>5*1024*1024){toast("Logo image must be under 5MB.","err");return;}
+    if(!/^image\//.test(file.type)){toast("Logo must be an image file.","err");return;}
     try{
       const ref=storage.ref(`merchant_logos/${user.uid}_${Date.now()}_${file.name}`);
       await ref.put(file);
@@ -539,19 +621,41 @@ function App(){
       const updates={};
       snap.forEach(c=>{updates[`${c.key}/merchantLogo`]=logoUrl;});
       if(Object.keys(updates).length)await db.ref("merchant_listings/"+user.uid).update(updates);
-    }catch(e){alert("Upload error: "+(e?.message||"Unknown"));}
+      toast("Logo updated.","ok");
+    }catch(e){toast("Upload failed: "+(e?.message||"Unknown"),"err");}
   };
 
   // ─── Order Actions ─────────────────────────────────────────
   const updateOrder=async(id,status,merchantStatus)=>{
-    const updates={status,merchantStatus,merchantUpdatedAt:Date.now()};
-    if(status==='delivered')updates.completedAt=Date.now();
-    await db.ref("orders/"+id).update(updates);
+    if(!ensureMerchantAccess())return;
+    try{
+      const updates={status,merchantStatus,merchantUpdatedAt:Date.now()};
+      if(status==='delivered')updates.completedAt=Date.now();
+      if(status==='cancelled'&&merchantStatus==='rejected'){
+        updates.cancellationReason="Rejected by merchant";
+      }
+      await db.ref("orders/"+id).update(updates);
+      const labels={accepted:"Order accepted.",preparing:"Marked as preparing.",ready:"Marked ready — riders can now accept it.",rejected:"Order rejected."};
+      if(labels[merchantStatus])toast(labels[merchantStatus],"ok");
+    }catch(e){
+      toast("Could not update the order: "+(e?.message||"Unknown"),"err");
+    }
   };
 
   // ─── Listing Actions ───────────────────────────────────────
   const saveListing=async()=>{
-    if(!user||!form.name||savingListing)return;
+    if(!user||savingListing)return;
+    if(!ensureMerchantAccess())return;
+    const name=String(form.name||"").trim();
+    if(!name){toast("Item name is required.","err");return;}
+    const price=Number(form.price||0);
+    if(!Number.isFinite(price)||price<=0){toast("Enter a valid price.","err");return;}
+    const stock=Number(form.stock||0);
+    if(!Number.isFinite(stock)||stock<0){toast("Stock must be zero or more.","err");return;}
+    if(listingImageFile){
+      if(listingImageFile.size>5*1024*1024){toast("Listing image must be under 5MB.","err");return;}
+      if(!/^image\//.test(listingImageFile.type)){toast("Listing image must be a valid image file.","err");return;}
+    }
     setSavingListing(true);
     try{
       let img=form.img||"";
@@ -560,15 +664,17 @@ function App(){
         await ref.put(listingImageFile);
         img=await ref.getDownloadURL();
       }
-      const payload={name:form.name,cat:ensureValidCategory(form.cat),img,price:Number(form.price||0),unit:form.unit||"pc",stock:Number(form.stock||0),basePrice:Number(form.price||0),autoPriceEnabled:false,merchantId:user.uid,merchantLogo:merchant?.logoUrl||"",storeName:merchant?.storeName||"",active:true,approved:true,menuTime:form.menuTime||"all",description:form.description||"",updatedAt:Date.now()};
+      const payload={name,cat:ensureValidCategory(form.cat),img,price,unit:form.unit||"pc",stock,basePrice:price,autoPriceEnabled:false,merchantId:user.uid,merchantLogo:merchant?.logoUrl||"",storeName:merchant?.storeName||"",active:true,approved:true,menuTime:form.menuTime||"all",description:(form.description||"").trim(),updatedAt:Date.now()};
       if(editingId){
         await db.ref("merchant_listings/"+user.uid+"/"+editingId).update(payload);
+        toast("Listing updated.","ok");
       }else{
         await db.ref("merchant_listings/"+user.uid).push({...payload,createdAt:Date.now(),soldOut:false});
+        toast("Listing added to your menu.","ok");
       }
       setForm({name:"",cat:DEFAULT_LISTING_CATEGORY,price:"",unit:"pc",stock:"",img:"",menuTime:"all",description:""});
       setListingImageFile(null);setEditingId(null);
-    }catch(e){alert("Save error: "+(e?.message||"Unknown"));}
+    }catch(e){toast("Save failed: "+(e?.message||"Unknown"),"err");}
     finally{setSavingListing(false);}
   };
 
@@ -579,44 +685,65 @@ function App(){
   };
 
   const deleteListing=async(id)=>{
+    if(!ensureMerchantAccess())return;
     if(!window.confirm("Delete this listing?"))return;
-    await db.ref("merchant_listings/"+user.uid+"/"+id).remove();
-    if(editingId===id){setEditingId(null);setForm({name:"",cat:DEFAULT_LISTING_CATEGORY,price:"",unit:"pc",stock:"",img:"",menuTime:"all",description:""});setListingImageFile(null);}
+    try{
+      await db.ref("merchant_listings/"+user.uid+"/"+id).remove();
+      if(editingId===id){setEditingId(null);setForm({name:"",cat:DEFAULT_LISTING_CATEGORY,price:"",unit:"pc",stock:"",img:"",menuTime:"all",description:""});setListingImageFile(null);}
+      toast("Listing removed.","ok");
+    }catch(e){toast("Could not delete listing: "+(e?.message||"Unknown"),"err");}
   };
 
   const addCustomCategory=async()=>{
     if(!user) return;
+    if(!ensureMerchantAccess())return;
     const rawName=newCustomCategory.trim();
-    if(!rawName) return;
+    if(!rawName){toast("Enter a category name.","err");return;}
     const id=rawName.toLowerCase().replace(/[^a-z0-9]+/g,"_").replace(/^_+|_+$/g,"");
-    if(!id) return alert("Invalid category name.");
+    if(!id){toast("Invalid category name.","err");return;}
     if(CATEGORIES.some(c=>c.id===id)||merchantCustomCategories.some(c=>c.toLowerCase()===rawName.toLowerCase())){
-      return alert("Category already exists.");
+      toast("Category already exists.","warn");
+      return;
     }
-    const next=[...merchantCustomCategories,rawName];
-    await db.ref("partner_merchants/"+user.uid).update({customCategories:next,updatedAt:Date.now()});
-    setNewCustomCategory("");
+    try{
+      const next=[...merchantCustomCategories,rawName];
+      await db.ref("partner_merchants/"+user.uid).update({customCategories:next,updatedAt:Date.now()});
+      setNewCustomCategory("");
+      toast("Custom category added.","ok");
+    }catch(e){toast("Could not add category: "+(e?.message||"Unknown"),"err");}
   };
   const removeCustomCategory=async(name)=>{
-    if(!user||!name) return;
+    if(!user||!name)return;
+    if(!ensureMerchantAccess())return;
     const targetId=name.toLowerCase().replace(/[^a-z0-9]+/g,"_").replace(/^_+|_+$/g,"");
     const inUse=listings.some(l=>String(l.cat||"")===targetId);
     if(inUse){
-      alert("This category is used by active listings. Reassign those listings first.");
+      toast("This category is used by active listings. Reassign those listings first.","warn");
       return;
     }
-    const next=merchantCustomCategories.filter(c=>c.toLowerCase()!==name.toLowerCase());
-    await db.ref("partner_merchants/"+user.uid).update({customCategories:next,updatedAt:Date.now()});
+    try{
+      const next=merchantCustomCategories.filter(c=>c.toLowerCase()!==name.toLowerCase());
+      await db.ref("partner_merchants/"+user.uid).update({customCategories:next.length?next:null,updatedAt:Date.now()});
+      toast("Category removed.","ok");
+    }catch(e){toast("Could not remove category: "+(e?.message||"Unknown"),"err");}
   };
 
   const toggleSoldOut=async(id,current)=>{
-    await db.ref("merchant_listings/"+user.uid+"/"+id).update({soldOut:!current,updatedAt:Date.now()});
+    if(!ensureMerchantAccess())return;
+    try{
+      await db.ref("merchant_listings/"+user.uid+"/"+id).update({soldOut:!current,updatedAt:Date.now()});
+    }catch(e){toast("Could not update stock: "+(e?.message||"Unknown"),"err");}
   };
 
   // ─── Banner Actions ────────────────────────────────────────
   const saveBanner=async()=>{
     if(!user||savingBanner)return;
-    if(!bannerForm.title.trim())return alert("Enter a banner title.");
+    if(!ensureMerchantAccess())return;
+    if(!bannerForm.title.trim()){toast("Enter a banner title.","err");return;}
+    if(bannerImageFile){
+      if(bannerImageFile.size>5*1024*1024){toast("Banner image must be under 5MB.","err");return;}
+      if(!/^image\//.test(bannerImageFile.type)){toast("Banner must be an image file.","err");return;}
+    }
     setSavingBanner(true);
     try{
       let imageUrl=bannerForm.imageUrl.trim();
@@ -625,38 +752,71 @@ function App(){
         await ref.put(bannerImageFile);
         imageUrl=await ref.getDownloadURL();
       }
-      if(!imageUrl)throw new Error("Upload a banner image.");
+      if(!imageUrl){toast("Upload a banner image.","err");setSavingBanner(false);return;}
       const id="bnr_"+Date.now();
       await db.ref(`partner_merchants/${user.uid}/promoBanners/${id}`).set({id,title:bannerForm.title.trim(),imageUrl,linkUrl:bannerForm.linkUrl.trim(),active:bannerForm.active!==false,createdAt:Date.now(),updatedAt:Date.now()});
       setBannerForm({title:"",imageUrl:"",linkUrl:"",active:true});setBannerImageFile(null);
-    }catch(e){alert("Error: "+(e?.message||"Unknown"));}
+      toast("Banner saved.","ok");
+    }catch(e){toast("Could not save banner: "+(e?.message||"Unknown"),"err");}
     finally{setSavingBanner(false);}
   };
 
-  const toggleBanner=async(id,next)=>{await db.ref(`partner_merchants/${user.uid}/promoBanners/${id}`).update({active:next,updatedAt:Date.now()});};
-  const removeBanner=async(id)=>{if(!window.confirm("Delete this banner?"))return;await db.ref(`partner_merchants/${user.uid}/promoBanners/${id}`).remove();};
+  const toggleBanner=async(id,next)=>{
+    if(!ensureMerchantAccess())return;
+    try{await db.ref(`partner_merchants/${user.uid}/promoBanners/${id}`).update({active:next,updatedAt:Date.now()});}
+    catch(e){toast("Could not update banner: "+(e?.message||"Unknown"),"err");}
+  };
+  const removeBanner=async(id)=>{
+    if(!ensureMerchantAccess())return;
+    if(!window.confirm("Delete this banner?"))return;
+    try{await db.ref(`partner_merchants/${user.uid}/promoBanners/${id}`).remove();toast("Banner deleted.","ok");}
+    catch(e){toast("Could not delete banner: "+(e?.message||"Unknown"),"err");}
+  };
 
   // ─── Campaign Actions ──────────────────────────────────────
   const saveCampaign=async()=>{
     if(!user||savingCampaign)return;
-    if(!campaignForm.title.trim())return alert("Enter a campaign title.");
+    if(!ensureMerchantAccess())return;
+    if(!campaignForm.title.trim()){toast("Enter a campaign title.","err");return;}
+    const start=campaignForm.startDate?new Date(campaignForm.startDate).getTime():Date.now();
+    const end=campaignForm.endDate?new Date(campaignForm.endDate).getTime():null;
+    if(end!==null && end<=start){toast("Campaign end date must be after the start date.","err");return;}
+    const value=Number(campaignForm.value||0);
+    if(["percent_off","flat_off"].includes(campaignForm.type) && (!Number.isFinite(value)||value<=0)){
+      toast("Discount value must be greater than zero.","err");
+      return;
+    }
+    if(campaignForm.type==="percent_off" && value>100){
+      toast("Percent discount cannot exceed 100%.","err");
+      return;
+    }
     setSavingCampaign(true);
     try{
       const id="camp_"+Date.now();
       await db.ref(`partner_merchants/${user.uid}/campaigns/${id}`).set({
         id,type:campaignForm.type,title:campaignForm.title.trim(),
-        value:Number(campaignForm.value||0),minOrder:Number(campaignForm.minOrder||0),
-        startDate:campaignForm.startDate?new Date(campaignForm.startDate).getTime():Date.now(),
-        endDate:campaignForm.endDate?new Date(campaignForm.endDate).getTime():null,
+        value,minOrder:Number(campaignForm.minOrder||0),
+        startDate:start,
+        endDate:end,
         active:true,createdAt:Date.now()
       });
       setCampaignForm({type:"percent_off",title:"",value:"",minOrder:"",startDate:"",endDate:""});
-    }catch(e){alert("Error: "+(e?.message||"Unknown"));}
+      toast("Campaign created.","ok");
+    }catch(e){toast("Could not create campaign: "+(e?.message||"Unknown"),"err");}
     finally{setSavingCampaign(false);}
   };
 
-  const toggleCampaign=async(id,next)=>{await db.ref(`partner_merchants/${user.uid}/campaigns/${id}`).update({active:next});};
-  const removeCampaign=async(id)=>{if(!window.confirm("Delete this campaign?"))return;await db.ref(`partner_merchants/${user.uid}/campaigns/${id}`).remove();};
+  const toggleCampaign=async(id,next)=>{
+    if(!ensureMerchantAccess())return;
+    try{await db.ref(`partner_merchants/${user.uid}/campaigns/${id}`).update({active:next});}
+    catch(e){toast("Could not update campaign: "+(e?.message||"Unknown"),"err");}
+  };
+  const removeCampaign=async(id)=>{
+    if(!ensureMerchantAccess())return;
+    if(!window.confirm("Delete this campaign?"))return;
+    try{await db.ref(`partner_merchants/${user.uid}/campaigns/${id}`).remove();toast("Campaign deleted.","ok");}
+    catch(e){toast("Could not delete campaign: "+(e?.message||"Unknown"),"err");}
+  };
 
 
   // ─── Charts ────────────────────────────────────────────────
@@ -685,23 +845,86 @@ function App(){
   },[activeSection,financials.hourMap]);
 
   // ═══════════════════════════════════════════════════════════
-  //  LOGIN
+  //  TOAST HOST
   // ═══════════════════════════════════════════════════════════
-  if(!user) return (
-    <div className="login-screen">
-      <div className="logo-big"><i className="fas fa-store"></i></div>
-      <h1>BayanGo Merchant</h1>
-      <p className="muted" style={{marginBottom:20}}>Sign in to manage your store, orders, and analytics.</p>
-      <button className="btn-primary" style={{padding:"12px 32px",fontSize:15}} onClick={signIn}><i className="fab fa-google" style={{marginRight:8}}></i>Sign in with Google</button>
+  const Toaster=()=>(
+    <div className="toast-host" role="status" aria-live="polite">
+      {toasts.map(t=>{
+        const icon=t.type==="err"?"triangle-exclamation":t.type==="ok"?"circle-check":t.type==="warn"?"circle-exclamation":"circle-info";
+        return (
+          <div key={t.id} className={`toast ${t.type==="err"?"err":t.type==="ok"?"ok":t.type==="warn"?"warn":"info"}`}>
+            <i className={`fas fa-${icon} icon`}></i>
+            <span>{t.message}</span>
+            <button className="close" onClick={()=>dismissToast(t.id)} aria-label="Dismiss"><i className="fas fa-xmark"></i></button>
+          </div>
+        );
+      })}
     </div>
   );
 
-  if(!merchant?.approved) return (
-    <div style={{padding:24,textAlign:"center",marginTop:60}}>
-      <div style={{fontSize:48,marginBottom:16,opacity:.3}}><i className="fas fa-hourglass-half"></i></div>
-      <h2>Waiting for Approval</h2>
-      <p className="muted" style={{marginTop:8}}>Your merchant account is pending admin approval. You'll get access once approved.</p>
-    </div>
+  // ═══════════════════════════════════════════════════════════
+  //  LOGIN / LOADING / APPROVAL GATES
+  // ═══════════════════════════════════════════════════════════
+  if(!authReady) return (
+    <>
+      <Toaster/>
+      <div className="center-screen"><div className="spinner"></div><p className="muted" style={{marginTop:14}}>Loading…</p></div>
+    </>
+  );
+
+  if(!user) return (
+    <>
+      <Toaster/>
+      <div className="login-screen">
+        <div className="logo-big"><i className="fas fa-store"></i></div>
+        <h1>BayanGo Merchant</h1>
+        <p className="muted" style={{marginBottom:20}}>Sign in to manage your store, orders, and analytics.</p>
+        <button className="btn-primary" style={{padding:"12px 32px",fontSize:15}} onClick={signIn}><i className="fab fa-google" style={{marginRight:8}}></i>Sign in with Google</button>
+      </div>
+    </>
+  );
+
+  if(!merchantLoaded) return (
+    <>
+      <Toaster/>
+      <div className="center-screen"><div className="spinner"></div><p className="muted" style={{marginTop:14}}>Loading your store…</p></div>
+    </>
+  );
+
+  if(!isMerchantApproved(merchant)) {
+    const hasApplication=!!merchant;
+    return (
+      <>
+        <Toaster/>
+        <div style={{padding:24,textAlign:"center",marginTop:60}}>
+          <div style={{fontSize:48,marginBottom:16,opacity:.3}}><i className={`fas fa-${hasApplication?"hourglass-half":"store-slash"}`}></i></div>
+          <h2>{hasApplication?"Waiting for Approval":"No Merchant Account"}</h2>
+          <p className="muted" style={{marginTop:8,maxWidth:360,marginLeft:"auto",marginRight:"auto",lineHeight:1.5}}>
+            {hasApplication
+              ? "Your merchant account is pending admin approval. You'll get access once it's approved."
+              : <>You don't have a merchant account yet. <a href="./application.html" style={{color:"var(--brand)",fontWeight:700}}>Submit a partner application</a> to get started.</>}
+          </p>
+          <button className="btn-muted" style={{marginTop:18}} onClick={()=>auth.signOut()}><i className="fas fa-sign-out-alt" style={{marginRight:6}}></i>Sign out</button>
+        </div>
+      </>
+    );
+  }
+
+  // Hard block for revoked / deleted stores — suspended still sees a banner.
+  if(moderationAction==="deleted"||moderationAction==="revoked") return (
+    <>
+      <Toaster/>
+      <div style={{padding:24,textAlign:"center",marginTop:60,maxWidth:480,marginLeft:"auto",marginRight:"auto"}}>
+        <div style={{fontSize:48,marginBottom:16,color:"#dc2626",opacity:.85}}><i className="fas fa-ban"></i></div>
+        <h2>Access {moderationAction==="deleted"?"Removed":"Revoked"}</h2>
+        <p className="muted" style={{marginTop:10,lineHeight:1.55}}>
+          Your merchant access has been {moderationAction==="deleted"?"removed":"revoked"} by BayanGo Admin.
+          {moderationReason?<> <br/><strong>Reason:</strong> {moderationReason}</>:null}
+        </p>
+        <p className="muted" style={{marginTop:10,fontSize:12}}>Check your email for the full compliance notice, or contact support if you think this is a mistake.</p>
+        <button className="btn-muted" style={{marginTop:18}} onClick={()=>auth.signOut()}><i className="fas fa-sign-out-alt" style={{marginRight:6}}></i>Sign out</button>
+      </div>
+    </>
   );
 
   // ═══════════════════════════════════════════════════════════
@@ -773,6 +996,7 @@ function App(){
   // ═══════════════════════════════════════════════════════════
   return (
   <div>
+    <Toaster/>
     {/* HEADER */}
     <div className="header">
       <div className="header-row">
@@ -1343,10 +1567,11 @@ function App(){
         <h3><i className="fas fa-store" style={{marginRight:6}}></i>Store Information</h3>
         <div style={{padding:"12px",background:"#f8fafc",borderRadius:12,border:"1px solid var(--line)"}}>
           <div style={{fontWeight:700}}>{merchant.storeName||"Your Store"}</div>
-          <div className="muted" style={{fontSize:12,marginTop:2}}>{merchant.address||"No address set"}</div>
-          {(merchant.category || merchant.storeCategory) && <div className="muted" style={{fontSize:12,marginTop:2}}>Category: {merchant.category || merchant.storeCategory}</div>}
-          {merchant.phone && <div className="muted" style={{fontSize:12,marginTop:2}}>Phone: {merchant.phone}</div>}
+          <div className="muted" style={{fontSize:12,marginTop:2}}>{merchant.address||merchant.businessAddress||"No address set"}</div>
+          {(merchant.category||merchant.storeCategory) && <div className="muted" style={{fontSize:12,marginTop:2}}>Category: {CAT_MAP[merchant.category]?.label||merchant.category||merchant.storeCategory}</div>}
+          {(merchant.contactPhone||merchant.phone) && <div className="muted" style={{fontSize:12,marginTop:2}}>Phone: {merchant.contactPhone||merchant.phone}</div>}
           {merchant.operatingHours && <div className="muted" style={{fontSize:12,marginTop:2}}>Hours: {merchant.operatingHours}</div>}
+          {merchant.operatingDays && <div className="muted" style={{fontSize:12,marginTop:2}}>Days: {merchant.operatingDays}</div>}
         </div>
       </div>
 

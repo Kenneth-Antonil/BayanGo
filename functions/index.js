@@ -811,6 +811,29 @@ exports.onOrderUpdated = onValueUpdated(
         }
       }
 
+      // 3b. Merchant order delivered — decrement stock on the merchant's listings.
+      // Only runs once: when the status transitions INTO "delivered" and the order
+      // has a merchantId. Uses a transaction on each item to avoid races.
+      if (before.status !== "delivered" && after.status === "delivered" && after.merchantId) {
+        try {
+          const items = Array.isArray(after.items) ? after.items : Object.values(after.items || {});
+          for (const it of items) {
+            const listingId = it?.id || it?.listingId;
+            if (!listingId) continue;
+            const qty = Number(it?.qty || it?.quantity || 1);
+            if (!Number.isFinite(qty) || qty <= 0) continue;
+            const stockRef = db.ref(`merchant_listings/${after.merchantId}/${listingId}/stock`);
+            await stockRef.transaction((current) => {
+              const now = Number(current || 0);
+              const next = now - qty;
+              return next < 0 ? 0 : next;
+            });
+          }
+        } catch (e) {
+          console.error(`[onOrderUpdated ${orderId}] stock decrement failed:`, e);
+        }
+      }
+
       // 4. Prices updated
       if (before.pricesUpdatedAt !== after.pricesUpdatedAt && after.pricesUpdatedAt && uid) {
         const total = after.total || 0;
