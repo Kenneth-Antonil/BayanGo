@@ -2743,13 +2743,67 @@
                   <button onClick={() => setActivePage("shop")} style={{ height:36, borderRadius:10, background:"#F3F4F6", fontSize:13, fontWeight:700, display:"flex", alignItems:"center", justifyContent:"center", gap:6, padding:"0 12px" }}><Ic n="arrow-left" />Back</button>
                 </div>
 
-                <label style={{ fontSize:12, fontWeight:700, color:"#666", display:"block", marginBottom:8 }}><Ic n="location-dot" style={{marginRight:5}} />Delivery Fee (Auto)</label>
-                <div style={{ marginBottom:20, border:"1px solid #E5E7EB", borderRadius:12, background:"#F8FAFC", padding:"12px 14px" }}>
-                  <div style={{ fontSize:13, fontWeight:800, color:"#166534" }}>{fmt(deliveryFee)}</div>
-                  <div style={{ fontSize:11, color:"#6B7280", marginTop:4 }}>{deliveryMetaLabel}</div>
-                  <div style={{ fontSize:11, color:"#94A3B8", marginTop:4 }}>
-                    Rule: {fmt(BASE_DELIVERY_FEE)} first 2km, +₱{KM_RATE_2_TO_10}/km up to 10km, then +₱{KM_RATE_BEYOND_10}/km.
+                {/* ── Order Details (at the top) with inline +/- ── */}
+                <div style={{ background:"#fff", borderRadius:14, padding:"14px 16px", marginBottom:16, border:"1.5px solid #E5E7EB", boxShadow:"0 1px 2px rgba(15,23,42,.04)" }}>
+                  <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", marginBottom:10 }}>
+                    <div style={{ fontSize:13, fontWeight:800, color:"#111827" }}>
+                      <Ic n="bag-shopping" style={{marginRight:6, color:"#166534"}} />Order Details
+                    </div>
+                    <div style={{ fontSize:11, fontWeight:700, color:"#64748B" }}>{totalItemCount} item{totalItemCount === 1 ? "" : "s"}</div>
                   </div>
+                  {cartItems.length === 0 && customItems.length === 0 && (
+                    <div style={{ fontSize:12, color:"#94A3B8", padding:"8px 0" }}>Wala pang items sa cart.</div>
+                  )}
+                  {cartItems.map(i => (
+                    <div key={i.id} style={{ display:"flex", alignItems:"center", gap:10, padding:"10px 0", borderBottom:"1px dashed #F1F5F9" }}>
+                      <div style={{ width:42, height:42, borderRadius:10, background:"#F8FAFC", border:"1px solid #E5E7EB", overflow:"hidden", flexShrink:0, display:"flex", alignItems:"center", justifyContent:"center" }}>
+                        {i.img ? (
+                          <img src={i.img} alt={i.name} style={{ width:"100%", height:"100%", objectFit:"cover" }} />
+                        ) : (
+                          <Ic n="basket-shopping" style={{ color:"#CBD5E1" }} />
+                        )}
+                      </div>
+                      <div style={{ flex:1, minWidth:0 }}>
+                        <div style={{ fontSize:13, fontWeight:700, color:"#111827", whiteSpace:"nowrap", overflow:"hidden", textOverflow:"ellipsis" }}>{i.name}</div>
+                        <div style={{ fontSize:11, color:"#6B7280", marginTop:2 }}>
+                          {i.unit === "kg"
+                            ? `${i.weightUnit === 0.25 ? "¼kg" : i.weightUnit === 0.5 ? "½kg" : "1kg"} • ${fmt(i.price * i.weightUnit)} each`
+                            : `${fmt(i.price)} each`}
+                        </div>
+                        <div style={{ fontSize:12, fontWeight:800, color:"#166534", marginTop:3 }}>{fmt(i.price * i.weightUnit * i.qty)}</div>
+                      </div>
+                      <div style={{ display:"flex", alignItems:"center", gap:6, background:"#F8FAFC", border:"1px solid #E5E7EB", borderRadius:999, padding:"3px 4px", flexShrink:0 }}>
+                        <button type="button" onClick={() => rem(i.id)} style={{ width:26, height:26, borderRadius:"50%", background:"#fff", border:"1px solid #E5E7EB", color:"#166534", display:"flex", alignItems:"center", justifyContent:"center", fontSize:11, cursor:"pointer" }}>
+                          <Ic n="minus" />
+                        </button>
+                        <div style={{ minWidth:22, textAlign:"center", fontSize:13, fontWeight:800, color:"#111827" }}>{i.qty}</div>
+                        <button type="button" onClick={() => add(i.id)} style={{ width:26, height:26, borderRadius:"50%", background:"#166534", border:"1px solid #166534", color:"#fff", display:"flex", alignItems:"center", justifyContent:"center", fontSize:11, cursor:"pointer" }}>
+                          <Ic n="plus" />
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+                  {customItems.length > 0 && (
+                    <div style={{ marginTop:8 }}>
+                      <div style={{ fontSize:11, fontWeight:700, color:"#888", padding:"6px 0 4px" }}>
+                        <Ic n="list-check" style={{marginRight:4}} />Custom Items (Estimated)
+                      </div>
+                      {customItems.map(i => (
+                        <div key={i.id} style={{ display:"flex", alignItems:"center", gap:10, padding:"8px 0", borderBottom:"1px dashed #F1F5F9" }}>
+                          <div style={{ width:36, height:36, borderRadius:10, background:"#FEF9C3", color:"#B45309", display:"flex", alignItems:"center", justifyContent:"center", flexShrink:0 }}>
+                            <Ic n="pen-to-square" />
+                          </div>
+                          <div style={{ flex:1, minWidth:0 }}>
+                            <div style={{ fontSize:13, fontWeight:700, color:"#111827", whiteSpace:"nowrap", overflow:"hidden", textOverflow:"ellipsis" }}>{i.name}</div>
+                            <div style={{ fontSize:11, color:"#6B7280", marginTop:2 }}>{i.qty} {i.unit} • ~{fmt(i.estPrice)}</div>
+                          </div>
+                          <button type="button" onClick={() => removeCustom(i.id)} style={{ width:28, height:28, borderRadius:"50%", background:"#FEF2F2", border:"1px solid #FECACA", color:"#DC2626", display:"flex", alignItems:"center", justifyContent:"center", fontSize:11, cursor:"pointer", flexShrink:0 }}>
+                            <Ic n="trash" />
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                  )}
                 </div>
 
                 <div style={{ marginBottom:16 }}>
@@ -2757,21 +2811,30 @@
                     <Ic n="location-dot" style={{marginRight:5}} />Delivery Address
                   </label>
                   <div style={{ border:"1.5px solid #E5E7EB", borderRadius:14, background:"#F8FAFC", overflow:"hidden" }}>
-                    <div style={{ display:"flex", alignItems:"center", gap:10, padding:"12px 14px", borderBottom:"1px solid #E5E7EB", background:"#fff" }}>
-                      <div style={{ width:34, height:34, borderRadius:10, background:"#ECFDF3", color:"#166534", display:"flex", alignItems:"center", justifyContent:"center", fontSize:15 }}>
-                        <Ic n="map-pin" />
-                      </div>
-                      <div style={{ flex:1 }}>
-                        <div style={{ fontSize:13, fontWeight:800, color:"#166534" }}>Delivery pin snippet</div>
-                        <div style={{ fontSize:11, color:"#64748B", marginTop:2 }}>
-                          {hasPinnedLocation
-                            ? `${Number(customerLat).toFixed(5)}, ${Number(customerLng).toFixed(5)}`
-                            : "No exact pin yet"}
+                    {hasPinnedLocation ? (
+                      <button type="button" onClick={() => setShowLocPicker(true)} style={{ display:"block", width:"100%", padding:0, border:"none", background:"transparent", position:"relative", cursor:"pointer" }}>
+                        <MiniMapThumbnail lat={customerLat} lng={customerLng} height={150} />
+                        <div style={{ position:"absolute", top:10, right:10, padding:"5px 10px", borderRadius:999, background:"rgba(17,24,39,.78)", color:"#fff", fontSize:10, fontWeight:700, display:"flex", alignItems:"center", gap:5 }}>
+                          <Ic n="pen-to-square" />Baguhin
                         </div>
-                      </div>
-                    </div>
+                        <div style={{ position:"absolute", left:10, bottom:10, padding:"5px 10px", borderRadius:999, background:"rgba(255,255,255,.95)", color:"#166534", fontSize:10, fontWeight:800, display:"flex", alignItems:"center", gap:5, boxShadow:"0 2px 6px rgba(15,23,42,.18)" }}>
+                          <Ic n="circle-check" />Naka-pin na
+                        </div>
+                      </button>
+                    ) : (
+                      <button type="button" onClick={() => setShowLocPicker(true)} style={{ display:"flex", width:"100%", padding:"18px 16px", border:"none", background:"#FFF7ED", textAlign:"left", alignItems:"center", gap:12, cursor:"pointer", borderBottom:"2px dashed #FED7AA" }}>
+                        <div style={{ width:42, height:42, borderRadius:12, background:"#F59E0B", color:"#fff", display:"flex", alignItems:"center", justifyContent:"center", fontSize:18, flexShrink:0 }}>
+                          <Ic n="map-pin" />
+                        </div>
+                        <div style={{ flex:1 }}>
+                          <div style={{ fontSize:14, fontWeight:800, color:"#92400E" }}>Pin your exact location</div>
+                          <div style={{ fontSize:11, color:"#B45309", marginTop:2 }}>So the rider knows exactly where you are</div>
+                        </div>
+                        <Ic n="chevron-right" style={{ color:"#B45309", fontSize:14 }} />
+                      </button>
+                    )}
 
-                    <div style={{ padding:"12px 14px", display:"flex", alignItems:"flex-start", gap:8 }}>
+                    <div style={{ padding:"12px 14px", display:"flex", alignItems:"flex-start", gap:8, background:"#fff" }}>
                       <div style={{ flex:1 }}>
                         <div style={{ fontSize:13, fontWeight:800, color:"#111827" }}>{name || "Add recipient name"}</div>
                         <div style={{ fontSize:12, color:"#6B7280", marginTop:2 }}>{phone || "Add phone number"}</div>
@@ -2810,50 +2873,6 @@
                     </div>
                   </div>
                 )}
-
-                {/* Pin Location Button */}
-                <div style={{ marginBottom:18 }}>
-                  <label style={{ fontSize:12, fontWeight:700, color:"#666", display:"block", marginBottom:8 }}>
-                    <Ic n="map-pin" style={{marginRight:5}} />Exact Location (for the rider)
-                  </label>
-                  <button onClick={() => setShowLocPicker(true)} style={{
-                    width:"100%", padding:"14px 16px", borderRadius:14,
-                    background: customerLat ? "#F0FDF4" : "#FFF7ED",
-                    border: customerLat ? "2px solid #BBF7D0" : "2px dashed #FED7AA",
-                    display:"flex", alignItems:"center", gap:12, textAlign:"left",
-                  }}>
-                    <div style={{
-                      width:42, height:42, borderRadius:12, flexShrink:0,
-                      background: customerLat ? "#22C55E" : "#F59E0B",
-                      display:"flex", alignItems:"center", justifyContent:"center",
-                      color:"#fff", fontSize:18,
-                    }}>
-                      <Ic n={customerLat ? "location-dot" : "map-pin"} />
-                    </div>
-                    <div style={{ flex:1 }}>
-                      {hasPinnedLocation ? (
-                        <>
-                          <div style={{ fontSize:14, fontWeight:700, color:"#166534" }}>
-                            <Ic n="circle-check" style={{marginRight:4}} />Naka-pin na ang location!
-                          </div>
-                          <div style={{ fontSize:11, color:"#888", marginTop:2 }}>
-                            {Number(customerLat).toFixed(5)}, {Number(customerLng).toFixed(5)} — Tap to change
-                          </div>
-                        </>
-                      ) : (
-                        <>
-                          <div style={{ fontSize:14, fontWeight:700, color:"#92400E" }}>
-                            Pin your exact location
-                          </div>
-                          <div style={{ fontSize:11, color:"#888", marginTop:2 }}>
-                            So the rider knows exactly where you are
-                          </div>
-                        </>
-                      )}
-                    </div>
-                    <Ic n="chevron-right" style={{ color:"#aaa", fontSize:14 }} />
-                  </button>
-                </div>
 
                 {/* Location Picker Modal */}
                 {showLocPicker && (
@@ -2960,30 +2979,11 @@
                 </div>
 
                 <div style={{ background:"#F9FAFB", borderRadius:14, padding:"14px 16px", marginBottom:16, border:"1px solid #E5E7EB" }}>
-                  {cartItems.map(i => (
-                    <div key={i.id} style={{ display:"flex", justifyContent:"space-between", padding:"5px 0", fontSize:13, color:"#555" }}>
-                      <span>
-                        {i.name}
-                        
-                        {i.unit === "kg"
-                          ? ` ×${i.qty} (${i.weightUnit === 0.25 ? "¼kg" : i.weightUnit === 0.5 ? "½kg" : "1kg"} bawat isa)`
-                          : ` ×${i.qty}`}
-                      </span>
-                      <span style={{ fontWeight:600 }}>{fmt(i.price * i.weightUnit * i.qty)}</span>
+                  <div style={{ fontSize:13, color:"#888" }}>
+                    <div style={{ display:"flex", justifyContent:"space-between", marginBottom:4 }}>
+                      <span>Subtotal ({totalItemCount} item{totalItemCount === 1 ? "" : "s"})</span>
+                      <span style={{ fontWeight:600 }}>{fmt(itemsTotal)}</span>
                     </div>
-                  ))}
-                  {customItems.length > 0 && (
-                    <>
-                      <div style={{ fontSize:11, fontWeight:700, color:"#888", padding:"6px 0 2px", marginTop:4, borderTop:"1px dashed #E5E7EB" }}><Ic n="list-check" style={{marginRight:4}} />Custom Items (Estimated)</div>
-                      {customItems.map(i => (
-                        <div key={i.id} style={{ display:"flex", justifyContent:"space-between", padding:"4px 0", fontSize:13, color:"#555" }}>
-                          <span><Ic n="pen-to-square" style={{marginRight:4}} />{i.name} ({i.unit})</span>
-                          <span style={{ fontWeight:600, fontStyle:"italic" }}>~{fmt(i.estPrice)}</span>
-                        </div>
-                      ))}
-                    </>
-                  )}
-                  <div style={{ borderTop:"1px solid #E5E7EB", marginTop:8, paddingTop:8, fontSize:13, color:"#888" }}>
                     <div style={{ display:"flex", justifyContent:"space-between", marginBottom:4 }}>
                       <span>Delivery ({deliveryMetaLabel})</span><span style={{ fontWeight:600 }}>{fmt(deliveryFee)}</span>
                     </div>
@@ -3056,34 +3056,28 @@
                   );
                 })()}
 
-                {/* ── Location Type Selector ── */}
+                {/* ── Location Type Selector (Dropdown) ── */}
                 <div style={{ marginBottom:16 }}>
                   <label style={{ fontSize:12, fontWeight:700, color:"#666", display:"block", marginBottom:8 }}>
                     <Ic n="map" style={{marginRight:5}} />Uri ng Lokasyon
                   </label>
-                  <div style={{ display:"grid", gap:8 }}>
-                    {[
-                      { val:"Mainland", label:"Mainland", desc:"Binangonan mainland" },
-                      { val:"Island",   label:"Island",   desc:"Isla / Kabilang dagat" },
-                    ].map(opt => (
-                      <button key={opt.val} type="button"
-                        onClick={() => setLocationType(opt.val)}
-                        style={{
-                          padding:"11px 12px", borderRadius:12, textAlign:"left",
-                          border: locationType === opt.val ? "2px solid #166534" : "1.5px solid #E5E7EB",
-                          background: locationType === opt.val ? "#F0FDF4" : "#FFFFFF",
-                          transition:"all .18s",
-                          display:"flex",
-                          alignItems:"center",
-                          gap:10
-                        }}>
-                        <span style={{ width:18, height:18, borderRadius:"50%", border: locationType === opt.val ? "5px solid #166534" : "2px solid #CBD5E1", background:"#fff", flexShrink:0 }} />
-                        <span>
-                          <div style={{ fontSize:13, fontWeight:800, color: locationType === opt.val ? "#166534" : "#374151" }}>{opt.label}</div>
-                          <div style={{ fontSize:10, color:"#9CA3AF", marginTop:2 }}>{opt.desc}</div>
-                        </span>
-                      </button>
-                    ))}
+                  <div style={{ position:"relative" }}>
+                    <select
+                      value={locationType}
+                      onChange={e => setLocationType(e.target.value)}
+                      style={{
+                        width:"100%", padding:"12px 40px 12px 14px", borderRadius:12,
+                        border:"1.5px solid #E5E7EB", background:"#fff", fontSize:13,
+                        fontWeight:700, color:"#111827", appearance:"none",
+                        WebkitAppearance:"none", MozAppearance:"none", outline:"none", cursor:"pointer"
+                      }}
+                    >
+                      <option value="Mainland">Mainland — Binangonan mainland</option>
+                      <option value="Island">Island — Isla / Kabilang dagat</option>
+                    </select>
+                    <div style={{ position:"absolute", right:14, top:"50%", transform:"translateY(-50%)", pointerEvents:"none", color:"#9CA3AF" }}>
+                      <Ic n="chevron-down" />
+                    </div>
                   </div>
                   {locationType === "Island" && (
                     <div style={{ marginTop:8, fontSize:11, color:"#B45309", background:"#FEF3C7", borderRadius:8, padding:"6px 10px" }}>
@@ -4322,18 +4316,24 @@
                   ))}
                   {editMode && (
                     <div style={{ paddingTop:10 }}>
-                      <div style={{ fontSize:10, color:"#aaa", fontWeight:600, textTransform:"uppercase", letterSpacing:".06em", marginBottom:8 }}>Location</div>
-                      <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:8 }}>
-                        {["Mainland", "Island"].map(loc => (
-                          <button key={loc} type="button" onClick={() => setLocalLocationType(loc)} style={{
-                            border: localLocationType === loc ? "2px solid #166534" : "1px solid #D1D5DB",
-                            background: localLocationType === loc ? "#F0FDF4" : "#fff",
-                            borderRadius:10, padding:"10px 12px", fontSize:13, fontWeight:700,
-                            color: localLocationType === loc ? "#166534" : "#4B5563",
-                          }}>
-                            {loc}
-                          </button>
-                        ))}
+                      <div style={{ fontSize:10, color:"#aaa", fontWeight:600, textTransform:"uppercase", letterSpacing:".06em", marginBottom:8 }}>Uri ng Lokasyon</div>
+                      <div style={{ position:"relative" }}>
+                        <select
+                          value={localLocationType || "Mainland"}
+                          onChange={e => setLocalLocationType(e.target.value)}
+                          style={{
+                            width:"100%", padding:"10px 38px 10px 12px", borderRadius:10,
+                            border:"1px solid #D1FAE5", background:"#F0FDF4", fontSize:13,
+                            fontWeight:700, color:"#111", appearance:"none",
+                            WebkitAppearance:"none", MozAppearance:"none", outline:"none", cursor:"pointer"
+                          }}
+                        >
+                          <option value="Mainland">Mainland — Binangonan mainland</option>
+                          <option value="Island">Island — Isla / Kabilang dagat</option>
+                        </select>
+                        <div style={{ position:"absolute", right:12, top:"50%", transform:"translateY(-50%)", pointerEvents:"none", color:"#166534" }}>
+                          <Ic n="chevron-down" />
+                        </div>
                       </div>
                     </div>
                   )}
@@ -4420,6 +4420,52 @@
     }
 
     /* ══════════════════ ORDERS PAGE ══════════════════ */
+    /* ══════════════════ MINI MAP THUMBNAIL ══════════════════ */
+    function MiniMapThumbnail({ lat, lng, height = 150 }) {
+      const mapRef = useRef(null);
+      const mapInstanceRef = useRef(null);
+
+      useEffect(() => {
+        if (!mapRef.current || mapInstanceRef.current) return;
+        if (lat == null || lng == null) return;
+        if (typeof L === "undefined" || !L?.map) return;
+
+        const map = L.map(mapRef.current, {
+          center: [lat, lng],
+          zoom: 16,
+          zoomControl: false,
+          attributionControl: false,
+          dragging: false,
+          doubleClickZoom: false,
+          scrollWheelZoom: false,
+          touchZoom: false,
+          boxZoom: false,
+          keyboard: false,
+          tap: false,
+        });
+        L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", { maxZoom: 19 }).addTo(map);
+        const pinIcon = L.divIcon({
+          html: '<div style="display:flex;flex-direction:column;align-items:center;"><div style="width:32px;height:32px;border-radius:50%;background:linear-gradient(135deg,#166534,#22C55E);display:flex;align-items:center;justify-content:center;color:#fff;font-size:14px;box-shadow:0 4px 14px rgba(22,101,52,.45);border:3px solid #fff;"><i class="fa-solid fa-house"></i></div><div style="width:3px;height:8px;background:#166534;margin-top:-2px;border-radius:0 0 2px 2px;"></div></div>',
+          className: '',
+          iconSize: [32, 42],
+          iconAnchor: [16, 42],
+        });
+        L.marker([lat, lng], { icon: pinIcon }).addTo(map);
+        mapInstanceRef.current = map;
+        setTimeout(() => map.invalidateSize(), 60);
+        setTimeout(() => map.invalidateSize(), 260);
+
+        return () => {
+          map.remove();
+          mapInstanceRef.current = null;
+        };
+      }, [lat, lng]);
+
+      return (
+        <div ref={mapRef} style={{ width:"100%", height, background:"#E5E7EB", pointerEvents:"none" }} />
+      );
+    }
+
     /* ══════════════════ LOCATION PICKER ══════════════════ */
     function LocationPicker({ lat, lng, onPick, onClose }) {
       const mapRef = useRef(null);
