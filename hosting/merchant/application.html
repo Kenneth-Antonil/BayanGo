@@ -627,6 +627,7 @@
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-storage-compat.js"></script>
 <script>
   /* Firebase */
   const fbApp = firebase.initializeApp({
@@ -638,8 +639,9 @@
     appId: "1:199013441811:web:315a38f03ddc9b676e3ae6",
     databaseURL: "https://bayango-315c6-default-rtdb.asia-southeast1.firebasedatabase.app"
   });
-  const auth = firebase.auth(fbApp);
-  const db   = firebase.database(fbApp);
+  const auth    = firebase.auth(fbApp);
+  const db      = firebase.database(fbApp);
+  const storage = firebase.storage(fbApp);
 
   /* Auth */
   auth.onAuthStateChanged(user => {
@@ -703,10 +705,30 @@
   function handleFile(input, zoneId, nameId) {
     const file = input.files[0];
     if (!file) return;
-    if (file.size > 5 * 1024 * 1024) { alert('File too large. Maximum is 5MB.'); input.value = ''; return; }
+    if (file.size > 5 * 1024 * 1024) {
+      showMsg('File too large. Maximum is 5MB.', true);
+      input.value = '';
+      return;
+    }
+    const typeOk = /^image\//.test(file.type) || file.type === 'application/pdf';
+    if (!typeOk) {
+      showMsg('Unsupported file type. Upload a JPG, PNG, or PDF.', true);
+      input.value = '';
+      return;
+    }
     uploadedFiles[zoneId] = file;
     document.getElementById(zoneId).classList.add('has-file');
     document.getElementById(nameId).textContent = file.name;
+  }
+
+  /* Upload a single document to Firebase Storage and return its download URL */
+  async function uploadApplicationFile(uid, file, label) {
+    if (!file) return '';
+    const safeName = String(file.name || 'upload').replace(/[^a-zA-Z0-9._-]+/g, '_');
+    const path = `applications/${uid}/${Date.now()}_${label}_${safeName}`;
+    const ref = storage.ref(path);
+    await ref.put(file, { contentType: file.type || 'application/octet-stream' });
+    return await ref.getDownloadURL();
   }
 
   /* Stepper */
@@ -818,33 +840,45 @@
 
     const btn = document.getElementById('submitBtn');
     btn.disabled    = true;
-    btn.textContent = 'Submitting...';
+    btn.textContent = 'Uploading documents...';
 
     const days = [...document.querySelectorAll('.day-btn.on')].map(b => b.dataset.day).join(', ');
 
-    const payload = {
-      storeName:        gv('storeName'),
-      category:         gv('storeCategory'),
-      storeCategory:    gv('storeCategory'),
-      businessAddress:  gv('businessAddress'),
-      operatingDays:    days,
-      operatingHours:   gv('openTime') + ' — ' + gv('closeTime'),
-      description:      gv('description'),
-      contactName:      gv('contactName'),
-      contactPhone:     gv('contactPhone').replace(/\D/g, ''),
-      contactEmail:     gv('contactEmail'),
-      socialLink:       gv('socialLink'),
-      businessPermitNo: gv('businessPermitNo'),
-      govIdType:        gv('govIdType'),
-      permitFileName:   uploadedFiles['permitZone']?.name || '',
-      govIdFileName:    uploadedFiles['govIdZone']?.name  || '',
-      applicantUid:     user.uid,
-      applicantEmail:   user.email || '',
-      status:           'pending',
-      createdAt:        Date.now()
-    };
-
     try {
+      // Upload documents first so the admin review always has the real files.
+      const permitFile = uploadedFiles['permitZone'];
+      const govIdFile  = uploadedFiles['govIdZone'];
+      const [permitUrl, govIdUrl] = await Promise.all([
+        uploadApplicationFile(user.uid, permitFile, 'permit'),
+        uploadApplicationFile(user.uid, govIdFile,  'govid'),
+      ]);
+
+      btn.textContent = 'Submitting...';
+
+      const payload = {
+        storeName:        gv('storeName').trim(),
+        category:         gv('storeCategory'),
+        storeCategory:    gv('storeCategory'),
+        businessAddress:  gv('businessAddress').trim(),
+        operatingDays:    days,
+        operatingHours:   gv('openTime') + ' — ' + gv('closeTime'),
+        description:      gv('description').trim(),
+        contactName:      gv('contactName').trim(),
+        contactPhone:     gv('contactPhone').replace(/\D/g, ''),
+        contactEmail:     gv('contactEmail').trim(),
+        socialLink:       gv('socialLink').trim(),
+        businessPermitNo: gv('businessPermitNo').trim(),
+        govIdType:        gv('govIdType'),
+        permitUrl:        permitUrl,
+        govIdUrl:         govIdUrl,
+        permitFileName:   permitFile?.name || '',
+        govIdFileName:    govIdFile?.name  || '',
+        applicantUid:     user.uid,
+        applicantEmail:   user.email || '',
+        status:           'pending',
+        createdAt:        Date.now()
+      };
+
       const newRef = db.ref('partner_applications').push();
       const key    = newRef.key;
       await db.ref('partner_applications/' + key).set(payload);
