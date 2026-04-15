@@ -286,6 +286,7 @@
         )",
         ".write": "auth != null && (
           (!data.exists() && newData.child('applicantUid').val() === auth.uid) ||
+          (data.exists() && data.child('applicantUid').val() === auth.uid && data.child('status').val() !== 'approved' && data.child('status').val() !== 'rejected') ||
           root.child('admins').child(auth.uid).val() === true
         )"
       }
@@ -303,6 +304,7 @@
         )",
         ".write": "auth != null && (
           (!data.exists() && newData.child('applicantUid').val() === auth.uid) ||
+          (data.exists() && data.child('applicantUid').val() === auth.uid && data.child('status').val() !== 'approved' && data.child('status').val() !== 'rejected') ||
           root.child('admins').child(auth.uid).val() === true
         )"
       }
@@ -320,6 +322,7 @@
         )",
         ".write": "auth != null && (
           (!data.exists() && newData.child('applicantUid').val() === auth.uid) ||
+          (data.exists() && data.child('applicantUid').val() === auth.uid && data.child('status').val() !== 'approved' && data.child('status').val() !== 'rejected') ||
           root.child('admins').child(auth.uid).val() === true
         )"
       }
