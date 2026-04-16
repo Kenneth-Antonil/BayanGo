@@ -371,7 +371,124 @@ exports.createPaymongoQrphCheckout = onRequest(
 );
 
 // ─────────────────────────────────────────────────────────────────────────────
-// HTTPS: ADMIN BROADCAST TO ALL CUSTOMER TOKENS
+// HTTPS: GENERATE PAYMONGO QRPH CODE (in-app QR display via Payment Intents)
+// ─────────────────────────────────────────────────────────────────────────────
+exports.generatePaymongoQrphCode = onRequest(
+  { region: "us-central1", cors: true },
+  async (req, res) => {
+    if (req.method !== "POST") {
+      res.status(405).json({ ok: false, error: "Method Not Allowed" });
+      return;
+    }
+
+    if (!PAYMONGO_SECRET_KEY) {
+      res.status(500).json({ ok: false, error: "Missing PAYMONGO_SECRET_KEY" });
+      return;
+    }
+
+    const orderId = String(req.body?.orderId || "").trim();
+    if (!orderId) {
+      res.status(400).json({ ok: false, error: "orderId is required" });
+      return;
+    }
+
+    const db = getDatabase();
+    const orderRef = db.ref(`orders/${orderId}`);
+    const orderSnap = await orderRef.get();
+    if (!orderSnap.exists()) {
+      res.status(404).json({ ok: false, error: "order_not_found" });
+      return;
+    }
+
+    const order = orderSnap.val() || {};
+    const totalPhp = Number(order.total || 0);
+    if (!Number.isFinite(totalPhp) || totalPhp <= 0) {
+      res.status(400).json({ ok: false, error: "invalid_order_total" });
+      return;
+    }
+
+    const amount = Math.round(totalPhp * 100);
+    const auth = Buffer.from(`${PAYMONGO_SECRET_KEY}:`).toString("base64");
+    const headers = { "Content-Type": "application/json", Authorization: `Basic ${auth}` };
+
+    // Step 1: Create Payment Intent
+    const piRes = await fetch("https://api.paymongo.com/v1/payment_intents", {
+      method: "POST",
+      headers,
+      body: JSON.stringify({
+        data: {
+          attributes: {
+            amount,
+            payment_method_allowed: ["qrph"],
+            currency: "PHP",
+            capture_type: "automatic",
+            metadata: { orderId },
+          },
+        },
+      }),
+    });
+    const piJson = await piRes.json().catch(() => ({}));
+    if (!piRes.ok) {
+      console.error("PayMongo PI create error", piRes.status, piJson);
+      res.status(502).json({ ok: false, error: "paymongo_pi_error", details: piJson });
+      return;
+    }
+    const piId = piJson?.data?.id;
+
+    // Step 2: Create QR Ph Payment Method
+    const pmRes = await fetch("https://api.paymongo.com/v1/payment_methods", {
+      method: "POST",
+      headers,
+      body: JSON.stringify({ data: { attributes: { type: "qrph" } } }),
+    });
+    const pmJson = await pmRes.json().catch(() => ({}));
+    if (!pmRes.ok) {
+      console.error("PayMongo PM create error", pmRes.status, pmJson);
+      res.status(502).json({ ok: false, error: "paymongo_pm_error", details: pmJson });
+      return;
+    }
+    const pmId = pmJson?.data?.id;
+
+    // Step 3: Attach Payment Method to get QR code
+    const attachRes = await fetch(`https://api.paymongo.com/v1/payment_intents/${piId}/attach`, {
+      method: "POST",
+      headers,
+      body: JSON.stringify({
+        data: {
+          attributes: {
+            payment_method: pmId,
+            return_url: "https://bayango.store/#orders",
+          },
+        },
+      }),
+    });
+    const attachJson = await attachRes.json().catch(() => ({}));
+    if (!attachRes.ok) {
+      console.error("PayMongo attach error", attachRes.status, attachJson);
+      res.status(502).json({ ok: false, error: "paymongo_attach_error", details: attachJson });
+      return;
+    }
+
+    // Extract QR image from next_action (PayMongo returns display_instructions for QR Ph)
+    const nextAction = attachJson?.data?.attributes?.next_action || {};
+    const qrImageUrl =
+      nextAction?.display_instructions?.qr_image ||
+      nextAction?.qr_image ||
+      null;
+
+    await orderRef.update({
+      paymentProvider: "paymongo",
+      paymentStatus: "pending",
+      paymentUpdatedAt: Date.now(),
+      paymongoPaymentIntentId: piId,
+      paymongoQrImageUrl: qrImageUrl,
+    });
+
+    res.status(200).json({ ok: true, orderId, paymentIntentId: piId, qrImageUrl });
+  }
+);
+
+
 // ─────────────────────────────────────────────────────────────────────────────
 exports.sendBroadcastNotification = onRequest(
   { region: "us-central1", cors: ADMIN_ALLOWED_ORIGINS },

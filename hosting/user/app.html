@@ -1655,7 +1655,7 @@
         try { const v = localStorage.getItem(`bayango_bag_weight_${user?.uid || "anon"}`); return v ? JSON.parse(v) : {}; } catch { return {}; }
       });
       const [paymentMethod,  setPaymentMethod]  = useState("COD");
-      const [qrPhBusy, setQrPhBusy] = useState(false);
+      const [qrPhModal, setQrPhModal] = useState(null); // { orderId, total }
       const [showAddressEditor, setShowAddressEditor] = useState(false);
       const [showPaymentPicker, setShowPaymentPicker] = useState(false);
       const [activeStoreProfile, setActiveStoreProfile] = useState(null);
@@ -2088,25 +2088,11 @@
         }
       }, [locationType, paymentMethod]);
 
-      const initiateQrPhPayment = async (orderId) => {
-        if (!orderId || qrPhBusy) return;
-        setQrPhBusy(true);
-        try {
-          const res = await fetch(
-            "https://us-central1-bayango-315c6.cloudfunctions.net/createPaymongoQrphCheckout",
-            { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ orderId }) }
-          );
-          const json = await res.json().catch(() => ({}));
-          if (!res.ok || !json.checkoutUrl) {
-            alert("Hindi ma-generate ang QR PH payment link. Subukan ulit.");
-            setQrPhBusy(false);
-            return;
-          }
-          window.location.href = json.checkoutUrl;
-        } catch (err) {
-          alert("May error sa QR PH payment. Subukan ulit.");
-          setQrPhBusy(false);
-        }
+      const initiateQrPhPayment = (orderId, overrideTotal) => {
+        if (!orderId) return;
+        const order = myOrders.find(o => o.id === orderId);
+        const orderTotal = overrideTotal ?? order?.total ?? 0;
+        setQrPhModal({ orderId, total: orderTotal });
       };
 
       const placeOrder = async () => {
@@ -2187,7 +2173,7 @@
           setShowCart(false);
           if (paymentMethod === "QRPH" && newOrderId) {
             setActivePage("orders");
-            await initiateQrPhPayment(newOrderId);
+            initiateQrPhPayment(newOrderId, total);
           } else {
             setActivePage("shop");
             setOrderPlaced(true);
@@ -3692,16 +3678,15 @@
                           <div style={{ fontSize:20, fontWeight:800, color:"#92400E" }}>{fmt(liveOrder.total)}</div>
                         </div>
                         <button
-                          onClick={() => initiateQrPhPayment(liveOrder.id)}
-                          disabled={qrPhBusy}
+                          onClick={() => initiateQrPhPayment(liveOrder.id, liveOrder.total)}
                           style={{
                             width:"100%", padding:"14px", borderRadius:12, border:"none",
-                            background: qrPhBusy ? "#CBD5E1" : "linear-gradient(135deg,#2563EB,#3B82F6)",
-                            color:"#fff", fontSize:14, fontWeight:800, cursor: qrPhBusy ? "not-allowed" : "pointer",
+                            background:"linear-gradient(135deg,#2563EB,#3B82F6)",
+                            color:"#fff", fontSize:14, fontWeight:800, cursor:"pointer",
                             display:"flex", alignItems:"center", justifyContent:"center", gap:8,
-                            boxShadow: qrPhBusy ? "none" : "0 4px 12px rgba(37,99,235,.35)",
+                            boxShadow:"0 4px 12px rgba(37,99,235,.35)",
                           }}>
-                          <Ic n="qrcode" /> {qrPhBusy ? "Loading..." : "Bayad via QR PH"}
+                          <Ic n="qrcode" /> Bayad via QR PH
                         </button>
                         {liveOrder.locationType === "Island" && (
                           <div style={{ fontSize:11, color:"#3B82F6", lineHeight:1.5, display:"flex", alignItems:"flex-start", gap:5, marginTop:8 }}>
@@ -3754,6 +3739,16 @@
             </div>
             );
           })()}
+
+          {/* ── QR PH Payment Modal ── */}
+          {qrPhModal && (
+            <QrPhModal
+              orderId={qrPhModal.orderId}
+              total={qrPhModal.total}
+              onClose={() => setQrPhModal(null)}
+              onPaid={() => { setQrPhModal(null); setActivePage("orders"); }}
+            />
+          )}
 
           {/* ── Rider Map Modal (global so it opens from any tab) ── */}
           {showRiderMap && (
@@ -3916,6 +3911,110 @@
       );
     }
 
+
+    /* ══════════════════ QR PH PAYMENT MODAL ══════════════════ */
+    function QrPhModal({ orderId, total, onClose, onPaid }) {
+      const [qrImageUrl, setQrImageUrl] = useState(null);
+      const [loading, setLoading] = useState(true);
+      const [error, setError] = useState("");
+
+      const fetchQrCode = async () => {
+        setLoading(true);
+        setError("");
+        try {
+          const res = await fetch(
+            "https://us-central1-bayango-315c6.cloudfunctions.net/generatePaymongoQrphCode",
+            { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ orderId }) }
+          );
+          const json = await res.json().catch(() => ({}));
+          if (!res.ok || !json.qrImageUrl) {
+            setError("Hindi ma-generate ang QR code. Subukan ulit.");
+          } else {
+            setQrImageUrl(json.qrImageUrl);
+          }
+        } catch {
+          setError("May error sa pagkuha ng QR code. Subukan ulit.");
+        } finally {
+          setLoading(false);
+        }
+      };
+
+      useEffect(() => { fetchQrCode(); }, []);
+
+      // Real-time listener — close modal automatically when payment is confirmed
+      useEffect(() => {
+        if (!orderId) return;
+        const ref = _fbDb.ref(`orders/${orderId}`);
+        const onSnap = (snap) => {
+          const data = snap.val() || {};
+          if (data.gcashPaymentConfirmed || data.paymentStatus === "paid") {
+            onPaid?.();
+          }
+        };
+        ref.on("value", onSnap);
+        return () => ref.off("value", onSnap);
+      }, [orderId]);
+
+      return (
+        <div onClick={onClose} style={{ position:"fixed", inset:0, background:"rgba(0,0,0,.65)", zIndex:13000, display:"flex", alignItems:"center", justifyContent:"center", padding:20 }}>
+          <div onClick={e => e.stopPropagation()} style={{ background:"#fff", borderRadius:24, padding:"24px 20px", maxWidth:360, width:"100%", boxShadow:"0 24px 64px rgba(0,0,0,.35)" }}>
+
+            {/* Header */}
+            <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", marginBottom:18 }}>
+              <div style={{ display:"flex", alignItems:"center", gap:10 }}>
+                <div style={{ width:38, height:38, borderRadius:12, background:"#EFF6FF", display:"flex", alignItems:"center", justifyContent:"center" }}>
+                  <Ic n="qrcode" size={20} style={{ color:"#2563EB" }} />
+                </div>
+                <div>
+                  <div style={{ fontSize:16, fontWeight:800, color:"#111827" }}>QR PH Payment</div>
+                  <div style={{ fontSize:11, color:"#6B7280" }}>via PayMongo</div>
+                </div>
+              </div>
+              <button onClick={onClose} style={{ width:32, height:32, borderRadius:"50%", background:"#F3F4F6", border:"none", cursor:"pointer", display:"flex", alignItems:"center", justifyContent:"center", color:"#6B7280" }}>
+                <Ic n="xmark" />
+              </button>
+            </div>
+
+            {/* Amount */}
+            {!!total && (
+              <div style={{ background:"#FEF3C7", borderRadius:12, padding:"10px 14px", marginBottom:16, display:"flex", alignItems:"center", justifyContent:"space-between" }}>
+                <div style={{ fontSize:11, color:"#92400E", fontWeight:600 }}>Halaga ng Bayad</div>
+                <div style={{ fontSize:22, fontWeight:800, color:"#92400E" }}>{fmt(total)}</div>
+              </div>
+            )}
+
+            {/* QR Code area */}
+            {loading ? (
+              <div style={{ textAlign:"center", padding:"32px 0" }}>
+                <div style={{ width:40, height:40, border:"4px solid #BFDBFE", borderTopColor:"#2563EB", borderRadius:"50%", animation:"spin 0.8s linear infinite", margin:"0 auto 12px" }} />
+                <div style={{ fontSize:12, color:"#6B7280" }}>Ginagawa ang QR code...</div>
+              </div>
+            ) : error ? (
+              <div style={{ textAlign:"center", padding:"20px 0" }}>
+                <Ic n="triangle-exclamation" size={32} style={{ color:"#F59E0B", display:"block", margin:"0 auto 10px" }} />
+                <div style={{ fontSize:12, color:"#B91C1C", marginBottom:14 }}>{error}</div>
+                <button onClick={fetchQrCode} style={{ padding:"10px 24px", borderRadius:10, background:"#2563EB", color:"#fff", fontWeight:700, border:"none", cursor:"pointer", fontSize:13 }}>
+                  Subukan ulit
+                </button>
+              </div>
+            ) : (
+              <>
+                <div style={{ textAlign:"center", background:"#F8FAFF", border:"2px solid #DBEAFE", borderRadius:16, padding:16, marginBottom:14 }}>
+                  <img src={qrImageUrl} alt="QR PH" style={{ width:200, height:200, objectFit:"contain", display:"block", margin:"0 auto" }} />
+                </div>
+                <div style={{ fontSize:11, color:"#6B7280", textAlign:"center", lineHeight:1.6, marginBottom:12 }}>
+                  I-scan gamit ang <strong>GCash</strong>, <strong>Maya</strong>, <strong>BPI</strong>, <strong>BDO</strong>,<br />o ibang banking app na may InstaPay.
+                </div>
+                <div style={{ background:"#EFF6FF", borderRadius:10, padding:"10px 12px", fontSize:11, color:"#1D4ED8", textAlign:"center", display:"flex", alignItems:"center", justifyContent:"center", gap:6 }}>
+                  <Ic n="circle-info" />
+                  Awtomatikong mako-confirm ang order pagkatapos mag-scan at magbayad.
+                </div>
+              </>
+            )}
+          </div>
+        </div>
+      );
+    }
 
     /* ══════════════════ RATE DELIVERY MODAL ══════════════════ */
     function RateDeliveryModal({ order, user, onClose, onRated }) {
