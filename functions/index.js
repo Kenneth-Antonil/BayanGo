@@ -172,7 +172,7 @@ exports.notifyPartnerMerchantModeration = onValueUpdated(
 // HTTPS: PAYMONGO WEBHOOK (PAYMENT EVENTS)
 // ─────────────────────────────────────────────────────────────────────────────
 exports.paymongoWebhook = onRequest(
-  { region: "us-central1", cors: true },
+  { region: "us-central1", cors: true, secrets: ["PAYMONGO_SECRET_KEY", "PAYMONGO_WEBHOOK_SECRET"] },
   async (req, res) => {
     if (req.method !== "POST") {
       res.status(405).json({ ok: false, error: "Method Not Allowed" });
@@ -300,7 +300,7 @@ exports.paymongoWebhook = onRequest(
 // HTTPS: CREATE PAYMONGO QRPH CHECKOUT SESSION
 // ─────────────────────────────────────────────────────────────────────────────
 exports.createPaymongoQrphCheckout = onRequest(
-  { region: "us-central1", cors: true },
+  { region: "us-central1", cors: true, secrets: ["PAYMONGO_SECRET_KEY"] },
   async (req, res) => {
     if (req.method !== "POST") {
       res.status(405).json({ ok: false, error: "Method Not Allowed" });
@@ -403,7 +403,7 @@ exports.createPaymongoQrphCheckout = onRequest(
 // HTTPS: GENERATE PAYMONGO QRPH CODE (in-app QR display via Payment Intents)
 // ─────────────────────────────────────────────────────────────────────────────
 exports.generatePaymongoQrphCode = onRequest(
-  { region: "us-central1", cors: true },
+  { region: "us-central1", cors: true, secrets: ["PAYMONGO_SECRET_KEY"] },
   async (req, res) => {
     if (req.method !== "POST") {
       res.status(405).json({ ok: false, error: "Method Not Allowed" });
