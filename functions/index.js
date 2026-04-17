@@ -469,12 +469,17 @@ exports.generatePaymongoQrphCode = onRequest(
       return;
     }
 
-    // Extract QR image from next_action (PayMongo returns display_instructions for QR Ph)
+    // PayMongo returns QR Ph image under next_action.display_qr_code.qr_image
     const nextAction = attachJson?.data?.attributes?.next_action || {};
     const qrImageUrl =
+      nextAction?.display_qr_code?.qr_image ||
       nextAction?.display_instructions?.qr_image ||
       nextAction?.qr_image ||
       null;
+
+    if (!qrImageUrl) {
+      console.error("PayMongo QR image not found in next_action", JSON.stringify(nextAction));
+    }
 
     await orderRef.update({
       paymentProvider: "paymongo",
