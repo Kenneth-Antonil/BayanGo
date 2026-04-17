@@ -172,7 +172,7 @@ exports.notifyPartnerMerchantModeration = onValueUpdated(
 // HTTPS: PAYMONGO WEBHOOK (PAYMENT EVENTS)
 // ─────────────────────────────────────────────────────────────────────────────
 exports.paymongoWebhook = onRequest(
-  { region: "us-central1", cors: true, secrets: ["PAYMONGO_SECRET_KEY", "PAYMONGO_WEBHOOK_SECRET"] },
+  { region: "us-central1", cors: true, secrets: ["PAYMONGO_SECRET_KEY"] },
   async (req, res) => {
     if (req.method !== "POST") {
       res.status(405).json({ ok: false, error: "Method Not Allowed" });
