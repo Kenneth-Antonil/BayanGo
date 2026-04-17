@@ -212,6 +212,35 @@ exports.paymongoWebhook = onRequest(
       payload,
     });
 
+    // source.chargeable — create a Payment from the chargeable QR Ph source
+    if (eventType === "source.chargeable" && PAYMONGO_SECRET_KEY) {
+      const sourceId = resourceData?.id || eventData?.id;
+      const sourceAmount = attrs?.amount;
+      if (sourceId && sourceAmount) {
+        const pmAuth = Buffer.from(`${PAYMONGO_SECRET_KEY}:`).toString("base64");
+        const payRes = await fetch("https://api.paymongo.com/v1/payments", {
+          method: "POST",
+          headers: { "Content-Type": "application/json", Authorization: `Basic ${pmAuth}` },
+          body: JSON.stringify({
+            data: {
+              attributes: {
+                amount: sourceAmount,
+                currency: "PHP",
+                source: { id: sourceId, type: "source" },
+                description: `BayanGo Order ${orderId || ""}`,
+              },
+            },
+          }),
+        });
+        const payJson = await payRes.json().catch(() => ({}));
+        if (!payRes.ok) {
+          console.error("Failed to create payment from source", sourceId, JSON.stringify(payJson));
+        } else {
+          console.log("Payment created from source", sourceId, "→", payJson?.data?.id);
+        }
+      }
+    }
+
     if (!orderId) {
       console.log("PayMongo webhook received without orderId metadata.");
       res.status(200).json({ ok: true, logged: true, orderUpdated: false });
@@ -392,104 +421,75 @@ exports.generatePaymongoQrphCode = onRequest(
       return;
     }
 
-    const db = getDatabase();
-    const orderRef = db.ref(`orders/${orderId}`);
-    const orderSnap = await orderRef.get();
-    if (!orderSnap.exists()) {
-      res.status(404).json({ ok: false, error: "order_not_found" });
-      return;
-    }
+    try {
+      const db = getDatabase();
+      const orderRef = db.ref(`orders/${orderId}`);
+      const orderSnap = await orderRef.get();
+      if (!orderSnap.exists()) {
+        res.status(404).json({ ok: false, error: "order_not_found" });
+        return;
+      }
 
-    const order = orderSnap.val() || {};
-    const totalPhp = Number(order.total || 0);
-    if (!Number.isFinite(totalPhp) || totalPhp <= 0) {
-      res.status(400).json({ ok: false, error: "invalid_order_total" });
-      return;
-    }
+      const order = orderSnap.val() || {};
+      const totalPhp = Number(order.total || 0);
+      if (!Number.isFinite(totalPhp) || totalPhp <= 0) {
+        res.status(400).json({ ok: false, error: "invalid_order_total" });
+        return;
+      }
 
-    const amount = Math.round(totalPhp * 100);
-    const auth = Buffer.from(`${PAYMONGO_SECRET_KEY}:`).toString("base64");
-    const headers = { "Content-Type": "application/json", Authorization: `Basic ${auth}` };
+      const amount = Math.round(totalPhp * 100);
+      const auth = Buffer.from(`${PAYMONGO_SECRET_KEY}:`).toString("base64");
+      const headers = { "Content-Type": "application/json", Authorization: `Basic ${auth}` };
 
-    // Step 1: Create Payment Intent
-    const piRes = await fetch("https://api.paymongo.com/v1/payment_intents", {
-      method: "POST",
-      headers,
-      body: JSON.stringify({
-        data: {
-          attributes: {
-            amount,
-            payment_method_allowed: ["qrph"],
-            currency: "PHP",
-            capture_type: "automatic",
-            metadata: { orderId },
+      // Sources API — single call, QR image is directly in the response
+      const sourceRes = await fetch("https://api.paymongo.com/v1/sources", {
+        method: "POST",
+        headers,
+        body: JSON.stringify({
+          data: {
+            attributes: {
+              amount,
+              currency: "PHP",
+              type: "qrph",
+              redirect: {
+                success: "https://bayango.store/#orders",
+                failed: "https://bayango.store/#orders",
+              },
+              metadata: { orderId },
+            },
           },
-        },
-      }),
-    });
-    const piJson = await piRes.json().catch(() => ({}));
-    if (!piRes.ok) {
-      console.error("PayMongo PI create error", piRes.status, piJson);
-      res.status(502).json({ ok: false, error: "paymongo_pi_error", details: piJson });
-      return;
+        }),
+      });
+      const sourceJson = await sourceRes.json().catch(() => ({}));
+
+      if (!sourceRes.ok) {
+        console.error("PayMongo source error", sourceRes.status, JSON.stringify(sourceJson));
+        res.status(502).json({ ok: false, error: "paymongo_source_error", details: sourceJson });
+        return;
+      }
+
+      const sourceId = sourceJson?.data?.id;
+      const qrImageUrl = sourceJson?.data?.attributes?.qr_image || null;
+
+      if (!qrImageUrl) {
+        console.error("QR image not found in source response", JSON.stringify(sourceJson?.data?.attributes));
+        res.status(502).json({ ok: false, error: "qr_image_not_found" });
+        return;
+      }
+
+      await orderRef.update({
+        paymentProvider: "paymongo",
+        paymentStatus: "pending",
+        paymentUpdatedAt: Date.now(),
+        paymongoSourceId: sourceId,
+        paymongoQrImageUrl: qrImageUrl,
+      });
+
+      res.status(200).json({ ok: true, orderId, sourceId, qrImageUrl });
+    } catch (err) {
+      console.error("generatePaymongoQrphCode error:", err);
+      res.status(500).json({ ok: false, error: "internal_error", message: err.message });
     }
-    const piId = piJson?.data?.id;
-
-    // Step 2: Create QR Ph Payment Method
-    const pmRes = await fetch("https://api.paymongo.com/v1/payment_methods", {
-      method: "POST",
-      headers,
-      body: JSON.stringify({ data: { attributes: { type: "qrph" } } }),
-    });
-    const pmJson = await pmRes.json().catch(() => ({}));
-    if (!pmRes.ok) {
-      console.error("PayMongo PM create error", pmRes.status, pmJson);
-      res.status(502).json({ ok: false, error: "paymongo_pm_error", details: pmJson });
-      return;
-    }
-    const pmId = pmJson?.data?.id;
-
-    // Step 3: Attach Payment Method to get QR code
-    const attachRes = await fetch(`https://api.paymongo.com/v1/payment_intents/${piId}/attach`, {
-      method: "POST",
-      headers,
-      body: JSON.stringify({
-        data: {
-          attributes: {
-            payment_method: pmId,
-            return_url: "https://bayango.store/#orders",
-          },
-        },
-      }),
-    });
-    const attachJson = await attachRes.json().catch(() => ({}));
-    if (!attachRes.ok) {
-      console.error("PayMongo attach error", attachRes.status, attachJson);
-      res.status(502).json({ ok: false, error: "paymongo_attach_error", details: attachJson });
-      return;
-    }
-
-    // PayMongo returns QR Ph image under next_action.display_qr_code.qr_image
-    const nextAction = attachJson?.data?.attributes?.next_action || {};
-    const qrImageUrl =
-      nextAction?.display_qr_code?.qr_image ||
-      nextAction?.display_instructions?.qr_image ||
-      nextAction?.qr_image ||
-      null;
-
-    if (!qrImageUrl) {
-      console.error("PayMongo QR image not found in next_action", JSON.stringify(nextAction));
-    }
-
-    await orderRef.update({
-      paymentProvider: "paymongo",
-      paymentStatus: "pending",
-      paymentUpdatedAt: Date.now(),
-      paymongoPaymentIntentId: piId,
-      paymongoQrImageUrl: qrImageUrl,
-    });
-
-    res.status(200).json({ ok: true, orderId, paymentIntentId: piId, qrImageUrl });
   }
 );
 
