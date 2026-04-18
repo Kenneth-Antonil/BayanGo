@@ -172,10 +172,16 @@ exports.notifyPartnerMerchantModeration = onValueUpdated(
 // HTTPS: PAYMONGO WEBHOOK (PAYMENT EVENTS)
 // ─────────────────────────────────────────────────────────────────────────────
 exports.paymongoWebhook = onRequest(
-  { region: "us-central1", cors: true, secrets: ["PAYMONGO_SECRET_KEY", "PAYMONGO_WEBHOOK_SECRET"] },
+  { region: "us-central1", cors: true, secrets: ["PAYMONGO_SECRET_KEY"] },
   async (req, res) => {
     if (req.method !== "POST") {
       res.status(405).json({ ok: false, error: "Method Not Allowed" });
+      return;
+    }
+
+    if (!PAYMONGO_WEBHOOK_SECRET) {
+      console.error("PAYMONGO_WEBHOOK_SECRET is not configured; rejecting webhook.");
+      res.status(503).json({ ok: false, error: "webhook_secret_not_configured" });
       return;
     }
 
@@ -431,7 +437,19 @@ exports.generatePaymongoQrphCode = onRequest(
       }
 
       const order = orderSnap.val() || {};
-      const totalPhp = Number(order.total || 0);
+      const existingQrImageUrl = String(order.paymongoQrImageUrl || "").trim();
+      if (existingQrImageUrl && order.paymentStatus !== "paid") {
+        res.status(200).json({
+          ok: true,
+          orderId,
+          sourceId: order.paymongoSourceId || null,
+          qrImageUrl: existingQrImageUrl,
+          reused: true,
+        });
+        return;
+      }
+
+      const totalPhp = Number(order.total ?? order.grandTotal ?? order.amount ?? 0);
       if (!Number.isFinite(totalPhp) || totalPhp <= 0) {
         res.status(400).json({ ok: false, error: "invalid_order_total" });
         return;
