@@ -431,7 +431,19 @@ exports.generatePaymongoQrphCode = onRequest(
       }
 
       const order = orderSnap.val() || {};
-      const totalPhp = Number(order.total || 0);
+      const existingQrImageUrl = String(order.paymongoQrImageUrl || "").trim();
+      if (existingQrImageUrl && order.paymentStatus !== "paid") {
+        res.status(200).json({
+          ok: true,
+          orderId,
+          sourceId: order.paymongoSourceId || null,
+          qrImageUrl: existingQrImageUrl,
+          reused: true,
+        });
+        return;
+      }
+
+      const totalPhp = Number(order.total ?? order.grandTotal ?? order.amount ?? 0);
       if (!Number.isFinite(totalPhp) || totalPhp <= 0) {
         res.status(400).json({ ok: false, error: "invalid_order_total" });
         return;

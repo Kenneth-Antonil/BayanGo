@@ -2092,7 +2092,11 @@
         if (!orderId) return;
         const order = myOrders.find(o => o.id === orderId);
         const orderTotal = overrideTotal ?? order?.total ?? 0;
-        setQrPhModal({ orderId, total: orderTotal });
+        setQrPhModal({
+          orderId,
+          total: orderTotal,
+          existingQrImageUrl: order?.paymongoQrImageUrl || null,
+        });
       };
 
       const placeOrder = async () => {
@@ -3747,6 +3751,7 @@
             <QrPhModal
               orderId={qrPhModal.orderId}
               total={qrPhModal.total}
+              existingQrImageUrl={qrPhModal.existingQrImageUrl}
               onClose={() => setQrPhModal(null)}
               onPaid={() => { setQrPhModal(null); setActivePage("orders"); }}
             />
@@ -3915,8 +3920,8 @@
 
 
     /* ══════════════════ QR PH PAYMENT MODAL ══════════════════ */
-    function QrPhModal({ orderId, total, onClose, onPaid }) {
-      const [qrImageUrl, setQrImageUrl] = useState(null);
+    function QrPhModal({ orderId, total, existingQrImageUrl, onClose, onPaid }) {
+      const [qrImageUrl, setQrImageUrl] = useState(existingQrImageUrl || null);
       const [loading, setLoading] = useState(true);
       const [error, setError] = useState("");
 
@@ -3941,7 +3946,10 @@
         }
       };
 
-      useEffect(() => { fetchQrCode(); }, []);
+      useEffect(() => {
+        if (existingQrImageUrl) return;
+        fetchQrCode();
+      }, [existingQrImageUrl, orderId]);
 
       // Real-time listener — close modal automatically when payment is confirmed
       useEffect(() => {
