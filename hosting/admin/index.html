@@ -647,6 +647,22 @@
         if (normalizedAction === "deleted") {
           updates.deletedAt = now;
           updates.deletedByUid = user?.uid || null;
+          updates.status = "deleted";
+          updates.approved = false;
+          updates.busyMode = true;
+          updates.active = false;
+          updates.featuredInApp = false;
+          updates.logoUrl = null;
+          updates.description = null;
+          updates.promoBanners = null;
+          updates.campaigns = null;
+          updates.customCategories = null;
+
+          await Promise.all([
+            fns.remove(fns.ref(db, "merchant_listings/" + merchantId)),
+            fns.update(fns.ref(db, "partner_merchants/" + merchantId), updates),
+          ]);
+          return;
         }
         await fns.update(fns.ref(db, "partner_merchants/" + merchantId), updates);
       }, [user?.email, user?.uid]);
@@ -1597,8 +1613,8 @@
                             const reason = window.prompt("Reason for deleting store (required):", enforcementReason || "");
                             if (reason === null) return;
                             if (!String(reason).trim()) { toast.error("Deletion reason is required."); return; }
-                            if (!window.confirm(`Delete store access for ${m.storeName || "this merchant"}?`)) return;
-                            onModerateMerchant?.(m._merchantId, "deleted", reason).then(() => toast.success("Store marked as deleted. Partner will receive an email."));
+                            if (!window.confirm(`Permanently delete ${m.storeName || "this merchant"} and remove all listing products?`)) return;
+                            onModerateMerchant?.(m._merchantId, "deleted", reason).then(() => toast.success("Store permanently deleted. Partner will receive an email."));
                           }} style={{ height: 36, borderRadius: 8, fontSize: 11, fontWeight: 700, cursor: "pointer", background: "#111827", color: "#fff", border: "1px solid #1F2937" }}>
                             Delete Store
                           </button>
