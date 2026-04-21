@@ -4235,6 +4235,7 @@
     /* ══════════════════ NOTIFICATIONS PAGE ══════════════════ */
     function NotificationsPage({ notifications, onDelete, onMarkSeen }) {
       useEffect(() => { onMarkSeen(); }, []);
+      const [openNotifId, setOpenNotifId] = useState(null);
 
       const NOTIF_ICON = {
         order_status: "box",
@@ -4293,6 +4294,133 @@
         return new Date(ts).toLocaleDateString("en-PH", { month:"short", day:"numeric" });
       };
 
+      function SwipeNotifCard({ notif, index }) {
+        const MAX_SWIPE = 84;
+        const SWIPE_OPEN_THRESHOLD = 42;
+        const [dragX, setDragX] = useState(0);
+        const [isDragging, setIsDragging] = useState(false);
+        const dragRef = React.useRef({ startX: 0, startY: 0, startOffset: 0, lockedAxis: null });
+        const isOpen = openNotifId === notif.id;
+
+        useEffect(() => {
+          if (!isDragging) {
+            setDragX(isOpen ? MAX_SWIPE : 0);
+          }
+        }, [isOpen, isDragging]);
+
+        const icon = NOTIF_ICON[notif.type] || "bell";
+        const color = NOTIF_COLOR[notif.type] || "#166534";
+
+        const onTouchStart = (e) => {
+          const t = e.touches?.[0];
+          if (!t) return;
+          dragRef.current = {
+            startX: t.clientX,
+            startY: t.clientY,
+            startOffset: isOpen ? MAX_SWIPE : 0,
+            lockedAxis: null,
+          };
+          setIsDragging(true);
+        };
+
+        const onTouchMove = (e) => {
+          if (!isDragging) return;
+          const t = e.touches?.[0];
+          if (!t) return;
+          const dx = t.clientX - dragRef.current.startX;
+          const dy = t.clientY - dragRef.current.startY;
+
+          if (!dragRef.current.lockedAxis) {
+            if (Math.abs(dx) < 4 && Math.abs(dy) < 4) return;
+            dragRef.current.lockedAxis = Math.abs(dx) > Math.abs(dy) ? "x" : "y";
+          }
+          if (dragRef.current.lockedAxis !== "x") return;
+
+          e.preventDefault();
+          const next = Math.max(0, Math.min(MAX_SWIPE, dragRef.current.startOffset - dx));
+          setDragX(next);
+        };
+
+        const finishSwipe = () => {
+          if (!isDragging) return;
+          setIsDragging(false);
+          const shouldOpen = dragX >= SWIPE_OPEN_THRESHOLD;
+          setOpenNotifId(shouldOpen ? notif.id : null);
+          setDragX(shouldOpen ? MAX_SWIPE : 0);
+        };
+
+        return (
+          <div key={notif.id} className="fade-up" style={{
+            position:"relative",
+            marginBottom:8,
+            borderRadius:14,
+            overflow:"hidden",
+            animationDelay: (index * 0.04) + "s",
+          }}>
+            <div style={{
+              position:"absolute",
+              inset:0,
+              display:"flex",
+              justifyContent:"flex-end",
+              alignItems:"stretch",
+              background:"#EF4444",
+            }}>
+              <button
+                onClick={() => onDelete?.(notif.id)}
+                aria-label="Delete notification"
+                title="Delete"
+                style={{
+                  width:MAX_SWIPE,
+                  border:"none",
+                  background:"transparent",
+                  color:"#fff",
+                  display:"flex",
+                  alignItems:"center",
+                  justifyContent:"center",
+                  gap:6,
+                  fontSize:11,
+                  fontWeight:700,
+                  cursor:"pointer",
+                }}
+              >
+                <Ic n="trash" size={14} /> Delete
+              </button>
+            </div>
+
+            <div
+              onTouchStart={onTouchStart}
+              onTouchMove={onTouchMove}
+              onTouchEnd={finishSwipe}
+              onTouchCancel={finishSwipe}
+              style={{
+                display:"flex", gap:12, padding:"14px 12px",
+                background:"#fff",
+                boxShadow:"0 1px 4px rgba(0,0,0,.05)",
+                border:"1px solid #F0F0F0",
+                transform:`translateX(-${dragX}px)`,
+                transition: isDragging ? "none" : "transform .2s ease",
+                touchAction:"pan-y",
+              }}
+            >
+              <div style={{
+                width:42, height:42, borderRadius:12, flexShrink:0,
+                display:"flex", alignItems:"center", justifyContent:"center",
+                background: color + "18",
+              }}>
+                <Ic n={icon} size={18} style={{ color }} />
+              </div>
+              <div style={{ flex:1, minWidth:0 }}>
+                <div style={{ display:"flex", alignItems:"flex-start", justifyContent:"space-between", gap:8 }}>
+                  <div style={{ fontSize:14, fontWeight:700, color:"#111", marginBottom:2 }}>{notif.title || "BayanGo"}</div>
+                </div>
+                <div style={{ fontSize:12, color:"#666", lineHeight:"1.4" }}>{notif.body}</div>
+                <div style={{ fontSize:10, color:"#bbb", marginTop:4, fontWeight:600 }}>{timeAgo(notif.createdAt)}</div>
+              </div>
+            </div>
+          </div>
+        );
+      }
+
       return (
         <div style={{ padding:"16px 16px 20px" }}>
           <h2 style={{ fontSize:20, fontWeight:800, color:"#111", marginBottom:4 }}>
@@ -4307,46 +4435,9 @@
               <div style={{ fontSize:12, marginTop:4 }}>Mag-o-order ka muna para makatanggap ng updates!</div>
             </div>
           ) : (
-            notifications.map((n, i) => {
-              const icon = NOTIF_ICON[n.type] || "bell";
-              const color = NOTIF_COLOR[n.type] || "#166534";
-              return (
-                <div key={n.id} className="fade-up" style={{
-                  display:"flex", gap:12, padding:"14px 12px",
-                  background:"#fff", borderRadius:14, marginBottom:8,
-                  boxShadow:"0 1px 4px rgba(0,0,0,.05)",
-                  border:"1px solid #F0F0F0",
-                  animationDelay: (i * 0.04) + "s",
-                }}>
-                  <div style={{
-                    width:42, height:42, borderRadius:12, flexShrink:0,
-                    display:"flex", alignItems:"center", justifyContent:"center",
-                    background: color + "18",
-                  }}>
-                    <Ic n={icon} size={18} style={{ color }} />
-                  </div>
-                  <div style={{ flex:1, minWidth:0 }}>
-                    <div style={{ display:"flex", alignItems:"flex-start", justifyContent:"space-between", gap:8 }}>
-                      <div style={{ fontSize:14, fontWeight:700, color:"#111", marginBottom:2 }}>{n.title || "BayanGo"}</div>
-                      <button
-                        onClick={() => onDelete?.(n.id)}
-                        aria-label="Delete notification"
-                        title="Delete"
-                        style={{
-                          width:28, height:28, borderRadius:10, flexShrink:0,
-                          display:"flex", alignItems:"center", justifyContent:"center",
-                          background:"#F3F4F6", color:"#6B7280"
-                        }}
-                      >
-                        <Ic n="trash" size={12} />
-                      </button>
-                    </div>
-                    <div style={{ fontSize:12, color:"#666", lineHeight:"1.4" }}>{n.body}</div>
-                    <div style={{ fontSize:10, color:"#bbb", marginTop:4, fontWeight:600 }}>{timeAgo(n.createdAt)}</div>
-                  </div>
-                </div>
-              );
-            })
+            notifications.map((n, i) => (
+              <SwipeNotifCard key={n.id} notif={n} index={i} />
+            ))
           )}
         </div>
       );
