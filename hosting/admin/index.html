@@ -423,7 +423,7 @@
               const list = [];
               snap.forEach(c => {
                 const v = c.val() || {};
-                list.push({ id: c.key, name: typeof v.name === "string" ? v.name : "", cat: typeof v.cat === "string" ? v.cat : "isda", price: Number.isFinite(Number(v.price)) ? Number(v.price) : 0, basePrice: Number.isFinite(Number(v.basePrice)) ? Number(v.basePrice) : (Number.isFinite(Number(v.price)) ? Number(v.price) : 0), autoPriceEnabled: v.autoPriceEnabled !== false, unit: typeof v.unit === "string" && v.unit ? v.unit : "kg", stock: v.stock !== false, img: typeof v.img === "string" ? v.img : "", createdAt: Number(v.createdAt || 0) });
+                list.push({ id: c.key, name: typeof v.name === "string" ? v.name : "", cat: typeof v.cat === "string" ? v.cat : "isda", price: Number.isFinite(Number(v.price)) ? Number(v.price) : 0, basePrice: Number.isFinite(Number(v.basePrice)) ? Number(v.basePrice) : (Number.isFinite(Number(v.price)) ? Number(v.price) : 0), autoPriceEnabled: v.autoPriceEnabled !== false, unit: typeof v.unit === "string" && v.unit ? v.unit : "kg", stock: v.stock !== false, img: typeof v.img === "string" ? v.img : "", source: v.source === "bg_mart" ? "bg_mart" : "market", createdAt: Number(v.createdAt || 0) });
               });
               setProducts(list);
             }, err => console.error("Products error:", err));
@@ -716,6 +716,7 @@
         { key: "orders",    label: "Orders",      icon: "receipt" },
         { key: "grocery",   label: "Grocery",     icon: "basket-shopping" },
         { key: "products",  label: "Products",    icon: "store" },
+        { key: "bgmart",    label: "BG Mart",     icon: "basket-shopping" },
         { key: "data",      label: "Analytics",   icon: "chart-column" },
         { key: "partners",  label: "Partners",    icon: "handshake", badge: pendingPartners },
         { key: "vouchers",  label: "Vouchers",    icon: "ticket" },
@@ -774,7 +775,7 @@
         { key: "dashboard", icon: "gauge-high",     label: "Home" },
         { key: "orders",    icon: "receipt",         label: "Orders" },
         { key: "grocery",   icon: "basket-shopping", label: "Grocery" },
-        { key: "products",  icon: "store",           label: "Products" },
+        { key: "bgmart",    icon: "basket-shopping", label: "BG Mart" },
         { key: "settings",  icon: "ellipsis",        label: "More" },
       ];
       return (
@@ -1827,6 +1828,103 @@
       );
     }
 
+
+    function BGMartPanel({ products, onAdd, onUpdate, onDelete }) {
+      const bgMartProducts = useMemo(() => products.filter((p) => p.source === "bg_mart"), [products]);
+      const [quickName, setQuickName] = useState("");
+      const [quickCat, setQuickCat] = useState("gulay");
+      const [quickUnit, setQuickUnit] = useState("pc");
+      const [quickPrice, setQuickPrice] = useState("");
+      const [quickImage, setQuickImage] = useState("");
+      const [saving, setSaving] = useState(false);
+      const [showModal, setShowModal] = useState(false);
+      const [editProd, setEditProd] = useState(null);
+      const [modalSaving, setModalSaving] = useState(false);
+
+      const addListing = async () => {
+        const name = quickName.trim();
+        const price = Number(quickPrice);
+        if (!name) return toast.error("Listing name is required.");
+        if (!Number.isFinite(price) || price < 0) return toast.error("Enter valid price.");
+        setSaving(true);
+        try {
+          await onAdd({ name, cat: quickCat, unit: quickUnit || "pc", basePrice: roundPrice(price), price: roundPrice(price), img: quickImage.trim(), stock: true, autoPriceEnabled: true, source: "bg_mart" });
+          setQuickName(""); setQuickPrice(""); setQuickImage("");
+          toast.success("BG Mart listing added.");
+        } catch (err) {
+          toast.error("Failed: " + (err.message || "unknown"));
+        } finally {
+          setSaving(false);
+        }
+      };
+
+      const saveEdit = async (data) => {
+        setModalSaving(true);
+        try {
+          if (editProd?.id) await onUpdate(editProd.id, { ...data, source: "bg_mart" });
+          setShowModal(false);
+          setEditProd(null);
+          toast.success("BG Mart listing updated.");
+        } catch (err) {
+          toast.error("Save failed: " + (err.message || "unknown"));
+        } finally {
+          setModalSaving(false);
+        }
+      };
+
+      const deleteRow = async (row) => {
+        if (!row?.id) return;
+        if (!window.confirm(`Delete ${row.name} from BG Mart?`)) return;
+        try { await onDelete(row.id); toast.success("Listing deleted."); }
+        catch (err) { toast.error("Delete failed: " + (err.message || "unknown")); }
+      };
+
+      return (
+        <div style={{ padding: "20px 24px", paddingBottom: 90 }}>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 10, flexWrap: "wrap", marginBottom: 14 }}>
+            <h2 style={{ fontSize: 18, fontWeight: 800 }}>BG Mart Listings</h2>
+            <span className="status-badge" style={{ background: "#DCFCE7", color: "#166534" }}>{bgMartProducts.length} active listing{bgMartProducts.length !== 1 ? "s" : ""}</span>
+          </div>
+
+          <div className="card" style={{ marginBottom: 14 }}>
+            <div style={{ fontSize: 13, fontWeight: 800, color: "var(--brand)", marginBottom: 8 }}><Ic n="plus" style={{ marginRight: 6 }} />Dedicated Add Listing</div>
+            <div style={{ display: "grid", gridTemplateColumns: "2fr 1fr", gap: 8, marginBottom: 8 }}>
+              <input value={quickName} onChange={e => setQuickName(e.target.value)} placeholder="Item name (e.g., Eggplant)" className="input" />
+              <input value={quickPrice} onChange={e => setQuickPrice(e.target.value)} type="number" min="0" step="0.01" placeholder="Price" className="input" />
+            </div>
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 2fr", gap: 8, marginBottom: 10 }}>
+              <select value={quickCat} onChange={e => setQuickCat(e.target.value)} className="input">{CATEGORIES.map(c => <option key={c.id} value={c.id}>{c.label}</option>)}</select>
+              <input value={quickUnit} onChange={e => setQuickUnit(e.target.value)} placeholder="Unit" className="input" />
+              <input value={quickImage} onChange={e => setQuickImage(e.target.value)} placeholder="Image URL (optional)" className="input" />
+            </div>
+            <button onClick={addListing} disabled={saving} className="btn btn-brand" style={{ width: "100%", padding: 11 }}>{saving ? "Saving..." : "Add BG Mart Listing"}</button>
+            <div style={{ fontSize: 11, color: "var(--text-muted)", marginTop: 8 }}>Listings added here appear in the BG Mart tab in the user app.</div>
+          </div>
+
+          <div className="card">
+            <div style={{ fontSize: 13, fontWeight: 800, marginBottom: 10 }}>Current BG Mart Catalog</div>
+            {bgMartProducts.length === 0 && <div style={{ fontSize: 12, color: "var(--text-muted)" }}>No BG Mart listings yet.</div>}
+            <div style={{ display: "grid", gap: 8 }}>
+              {bgMartProducts.map((p) => (
+                <div key={p.id} style={{ border: "1px solid var(--border)", borderRadius: 12, padding: "10px 12px", display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8 }}>
+                  <div style={{ minWidth: 0 }}>
+                    <div style={{ fontSize: 13, fontWeight: 800, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{p.name}</div>
+                    <div style={{ fontSize: 11, color: "var(--text-muted)", marginTop: 2 }}>{fmt(Number(p.price || p.basePrice || 0))} / {p.unit || "pc"} · {CATEGORIES.find(c => c.id === p.cat)?.label || p.cat}</div>
+                  </div>
+                  <div style={{ display: "flex", gap: 6 }}>
+                    <button onClick={() => { setEditProd(p); setShowModal(true); }} className="btn btn-blue" style={{ padding: "6px 10px", fontSize: 11 }}><Ic n="pen-to-square" />Edit</button>
+                    <button onClick={() => deleteRow(p)} className="btn btn-danger" style={{ padding: "6px 10px", fontSize: 11 }}><Ic n="trash" />Delete</button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {showModal && <ProductModal product={editProd} onSave={saveEdit} onClose={() => { if (!modalSaving) { setShowModal(false); setEditProd(null); } }} saving={modalSaving} />}
+        </div>
+      );
+    }
+
     function ProductModal({ product, onSave, onClose, saving }) {
       const [name, setName] = useState(product?.name || "");
       const [cat, setCat] = useState(product?.cat || "isda");
@@ -1857,7 +1955,7 @@
         if (!cleanName) return toast.error("Product name is required.");
         const parsedPrice = Number(basePrice);
         if (!Number.isFinite(parsedPrice) || parsedPrice < 0) return toast.error("Enter a valid base price.");
-        await onSave({ name: cleanName, cat, unit: unit.trim() || "kg", basePrice: roundPrice(parsedPrice), price: roundPrice(parsedPrice), img: img.trim(), stock, autoPriceEnabled });
+        await onSave({ name: cleanName, cat, unit: unit.trim() || "kg", basePrice: roundPrice(parsedPrice), price: roundPrice(parsedPrice), img: img.trim(), stock, autoPriceEnabled, source: product?.source === "bg_mart" ? "bg_mart" : "market" });
       };
 
       return (
@@ -2130,7 +2228,7 @@
     /* ══════════════════ ADMIN DASHBOARD (Main Shell) ══════════════════ */
     function AdminDashboard({ user, onLogout, orders, onUpdateStatus, onBroadcast, products, onAddProduct, onUpdateProduct, onDeleteProduct, marketPricing, onUpdateMarketPricing, vouchers, onAddVoucher, onUpdateVoucher, onDeleteVoucher, refunds, onCreateRefund, appUsageStats, appUsageMap, partnerApplications, partnerMerchants, onDecidePartnerApplication, onToggleFeaturedPartnerMerchant, onModeratePartnerMerchant, authzError, partnerDataLoaded }) {
       const getInitialTab = () => {
-        const validTabs = new Set(["dashboard", "orders", "grocery", "products", "data", "partners", "vouchers", "refunds", "settings"]);
+        const validTabs = new Set(["dashboard", "orders", "grocery", "products", "bgmart", "data", "partners", "vouchers", "refunds", "settings"]);
         try { const hash = (window.location.hash || "").replace("#", "").toLowerCase(); if (validTabs.has(hash)) return hash; } catch {}
         return "dashboard";
       };
@@ -2414,6 +2512,7 @@
             {tab === "grocery" && <GroceryTab orders={dashboardOrders} />}
             {tab === "partners" && <PartnersPanel applications={partnerApplications} merchants={partnerMerchants} onDecide={onDecidePartnerApplication} onToggleFeatured={onToggleFeaturedPartnerMerchant} onModerateMerchant={onModeratePartnerMerchant} dataLoaded={partnerDataLoaded} authzError={authzError} adminUid={user?.uid} />}
             {tab === "products" && <ProductsPanel products={products} onAdd={onAddProduct} onUpdate={onUpdateProduct} onDelete={onDeleteProduct} marketPricing={marketPricing} onUpdateMarketPricing={onUpdateMarketPricing} />}
+            {tab === "bgmart" && <BGMartPanel products={products} onAdd={onAddProduct} onUpdate={onUpdateProduct} onDelete={onDeleteProduct} />}
             {tab === "data" && <DataTab orders={orders} />}
             {tab === "vouchers" && <VouchersPanel vouchers={vouchers} onAdd={onAddVoucher} onUpdate={onUpdateVoucher} onDelete={onDeleteVoucher} />}
             {tab === "refunds" && <RefundsPanel refunds={refunds} orders={orders} onCreateRefund={onCreateRefund} />}
