@@ -2614,24 +2614,58 @@
           {/* ── Categories ── */}
           <div style={{
             background:"#F8FAF8",
-            padding:"0 0 10px"
+            padding: activeService === "bgmart" ? "12px 0 10px" : "0 0 10px"
           }}>
-            <div style={{ display:"flex", gap:8, padding:"0 20px", overflowX:"auto", scrollbarWidth:"none" }}>
-              {CATEGORIES.map(cat => (
-                <button key={cat.id} onClick={() => setActiveCat(cat.id)} style={{
-                  padding:"10px 18px", borderRadius:30, whiteSpace:"nowrap",
-                  fontSize:13, fontWeight:700, display:"flex", alignItems:"center", gap:6,
-                  background: activeCat===cat.id ? cat.color : "#fff",
-                  color: activeCat===cat.id ? "#fff" : "#555",
-                  boxShadow: activeCat===cat.id ? `0 4px 14px ${cat.color}40` : "0 1px 3px rgba(0,0,0,.06)",
-                  border:"1px solid",
-                  borderColor: activeCat===cat.id ? cat.color : "#E5E7EB",
-                  transition:"background-color .22s ease, color .22s ease, box-shadow .22s ease, border-color .22s ease"
+            {activeService === "bgmart" ? (
+              <div style={{ padding:"0 20px" }}>
+                <label style={{ display:"block", fontSize:12, fontWeight:700, color:"#475569", marginBottom:6 }}>
+                  Category
+                </label>
+                <div style={{
+                  background:"#fff",
+                  border:"1px solid #D1D5DB",
+                  borderRadius:12,
+                  padding:"0 12px",
+                  boxShadow:"0 1px 3px rgba(15,23,42,.08)"
                 }}>
-                  <Ic n={cat.icon} size={14} />{cat.label}
-                </button>
-              ))}
-            </div>
+                  <select
+                    value={activeCat}
+                    onChange={(e) => setActiveCat(e.target.value)}
+                    style={{
+                      width:"100%",
+                      border:"none",
+                      outline:"none",
+                      height:42,
+                      fontSize:14,
+                      fontWeight:600,
+                      color:"#111827",
+                      background:"transparent"
+                    }}
+                  >
+                    {CATEGORIES.map((cat) => (
+                      <option key={cat.id} value={cat.id}>{cat.label}</option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+            ) : (
+              <div style={{ display:"flex", gap:8, padding:"0 20px", overflowX:"auto", scrollbarWidth:"none" }}>
+                {CATEGORIES.map(cat => (
+                  <button key={cat.id} onClick={() => setActiveCat(cat.id)} style={{
+                    padding:"10px 18px", borderRadius:30, whiteSpace:"nowrap",
+                    fontSize:13, fontWeight:700, display:"flex", alignItems:"center", gap:6,
+                    background: activeCat===cat.id ? cat.color : "#fff",
+                    color: activeCat===cat.id ? "#fff" : "#555",
+                    boxShadow: activeCat===cat.id ? `0 4px 14px ${cat.color}40` : "0 1px 3px rgba(0,0,0,.06)",
+                    border:"1px solid",
+                    borderColor: activeCat===cat.id ? cat.color : "#E5E7EB",
+                    transition:"background-color .22s ease, color .22s ease, box-shadow .22s ease, border-color .22s ease"
+                  }}>
+                    <Ic n={cat.icon} size={14} />{cat.label}
+                  </button>
+                ))}
+              </div>
+            )}
           </div>
 
           {/* ── Section Label ── */}
