@@ -812,7 +812,7 @@
         const refreshMergedProducts = () => {
           const regularProducts = baseProductsRaw.map((entry) => ({
             ...entry,
-            source: "market",
+            source: entry?.source === "bg_mart" ? "bg_mart" : "market",
           }));
           const partnerProducts = partnerListingsRaw
             .map((entry) => {
@@ -1871,9 +1871,15 @@
         const featuredStore = partnerStores.find((store) => store.merchantFeatured);
         return featuredStore?.merchantId || null;
       }, [partnerStores]);
+      const catalogProducts = useMemo(() => {
+        if (activeService === "bgmart") {
+          return products.filter((p) => p.source === "bg_mart");
+        }
+        return products.filter((p) => p.source !== "bg_mart");
+      }, [activeService, products]);
       const filtered = useMemo(() => {
         const q = searchQ.trim().toLowerCase();
-        const list = products.filter((p) => {
+        const list = catalogProducts.filter((p) => {
           const byCat = activeCat === "all" ? true : p.cat === activeCat;
           if (!byCat) return false;
           if (!q) return true;
@@ -1882,7 +1888,7 @@
             String(p.storeName || "").toLowerCase().includes(q)
           );
         });
-        if (!featuredMerchantId) return list;
+        if (activeService === "bgmart" || !featuredMerchantId) return list;
         const featuredProducts = list.filter((p) => p.merchantId === featuredMerchantId);
         const hasBuySignal = featuredProducts.some((p) => getProductBuyScore(p) > 0);
         if (!hasBuySignal) return list;
@@ -1897,7 +1903,7 @@
           }
           return 0;
         });
-      }, [activeCat, featuredMerchantId, products, searchQ]);
+      }, [activeCat, activeService, catalogProducts, featuredMerchantId, searchQ]);
       const featuredStores = partnerStores.filter((store) => store.merchantFeatured);
       const storeProfileOriginRef = useRef("shop");
       const openStoreProfile = useCallback((merchantId) => {
@@ -2359,6 +2365,25 @@
                 style={{ width:"100%", height:"auto", display:"block", borderRadius:14 }} />
             </button>
 
+            {/* BG Mart */}
+            <button onClick={() => setActiveService("bgmart")} style={{
+              flex:1, padding:0, background:"transparent",
+              border:"none", outline:"none", WebkitTapHighlightColor:"transparent",
+              opacity: activeService==="bgmart" ? 1 : 0.45,
+              transition:"opacity .2s ease", cursor:"pointer",
+            }}>
+              <div style={{
+                width:"100%", borderRadius:14, padding:"12px 8px",
+                background:"linear-gradient(135deg,#052E16,#166534)", color:"#fff",
+                display:"flex", flexDirection:"column", alignItems:"center", justifyContent:"center", gap:4,
+                minHeight:76,
+              }}>
+                <Ic n="basket-shopping" size={18} style={{ color:"#86EFAC" }} />
+                <span style={{ fontSize:12, fontWeight:800, letterSpacing:".03em" }}>BG Mart</span>
+                <span style={{ fontSize:9, opacity:.85 }}>Grocery Deals</span>
+              </div>
+            </button>
+
             {/* Palakad */}
             <button onClick={() => setActiveService("palakad")} style={{
               flex:1, padding:0, background:"transparent",
@@ -2504,7 +2529,7 @@
           )}
 
           {/* ── Pabili Content (existing shop) ── */}
-          {activeService === "pabili" && <>
+          {(activeService === "pabili" || activeService === "bgmart") && <>
 
           {/* ── Search ── */}
           <div style={{
@@ -2525,7 +2550,7 @@
                 border:"1px solid #E9ECEF"
               }}>
                 <Ic n="magnifying-glass" size={17} style={{ opacity:.42, color:"#64748B" }} />
-                <input placeholder="Search products..." value={searchQ}
+                <input placeholder={activeService === "bgmart" ? "Search BG Mart groceries..." : "Search products..."} value={searchQ}
                   onChange={e => setSearchQ(e.target.value)}
                   style={{ flex:1, border:"none", outline:"none", fontSize:15, fontWeight:500, background:"transparent", color:"#111" }} />
                 {searchQ && <button onClick={() => setSearchQ("")} style={{ opacity:.45, color:"#64748B", fontSize:16 }}><Ic n="xmark" /></button>}
@@ -2534,10 +2559,31 @@
           </div>
 
           {/* ── Batch Timer ── */}
-          <BatchTimerBanner />
+          {activeService !== "bgmart" && <BatchTimerBanner />}
+
+          {activeService === "bgmart" && (
+            <div style={{ padding:"14px 20px 0" }}>
+              <div style={{ borderRadius:16, padding:"14px 14px", border:"1px solid #BBF7D0", background:"linear-gradient(135deg,#ECFDF5,#F0FDF4)" }}>
+                <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", gap:10 }}>
+                  <div>
+                    <div style={{ fontSize:15, fontWeight:800, color:"#14532D" }}><Ic n="store" style={{ marginRight:6 }} />BG Mart Fresh Grocery</div>
+                    <div style={{ fontSize:12, color:"#166534", marginTop:3 }}>Daily essentials curated by BayanGo team.</div>
+                  </div>
+                  <span style={{ background:"#166534", color:"#fff", borderRadius:999, padding:"4px 10px", fontSize:10, fontWeight:800 }}>BEST VALUE</span>
+                </div>
+                <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:8, marginTop:10 }}>
+                  {["First BG Mart order: free delivery at ₱399+","Add 3+ items to unlock priority batching"].map((tip) => (
+                    <div key={tip} style={{ background:"#fff", border:"1px solid #DCFCE7", borderRadius:10, padding:"8px 10px", fontSize:11, fontWeight:700, color:"#166534" }}>
+                      <Ic n="bolt" style={{ marginRight:5 }} />{tip}
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+          )}
 
           {/* Partner Stores Section */}
-          {partnerStores.length > 0 && (
+          {activeService === "pabili" && partnerStores.length > 0 && (
             <div style={{ padding:"16px 20px 0" }}>
               <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:10 }}>
                 <div style={{ fontSize:14, fontWeight:800, color:"#111827", display:"flex", alignItems:"center", gap:6 }}>
@@ -2595,7 +2641,7 @@
           )}
 
           {/* ── Custom List Entry ── */}
-          <div style={{ padding:"12px 20px 14px" }}>
+          {activeService === "pabili" && <div style={{ padding:"12px 20px 14px" }}>
             <button onClick={() => setShowCustomList(true)} style={{
               width:"100%", background:"#F0FDF4", border:"2px dashed #86EFAC", borderRadius:16,
               padding:"13px 16px", display:"flex", alignItems:"center", gap:12,
@@ -2616,7 +2662,7 @@
                 ›
               </span>
             </button>
-          </div>
+          </div>}
 
           {/* ── Categories ── */}
           <div style={{
@@ -2653,7 +2699,7 @@
           <div style={{ padding:"0 20px 12px" }}>
             <div style={{ background:"#FFFBEB", border:"1px solid #FDE68A", borderRadius:12, padding:"10px 12px", color:"#92400E", fontSize:12, fontWeight:600, display:"flex", alignItems:"flex-start", gap:8 }}>
               <Ic n="triangle-exclamation" style={{ marginTop:1 }} />
-              <span>Reminder: Posted prices may change based on current market prices.</span>
+              <span>{activeService === "bgmart" ? "BG Mart pricing may update based on daily supplier rates and promos." : "Reminder: Posted prices may change based on current market prices."}</span>
             </div>
           </div>
 
