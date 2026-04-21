@@ -3977,7 +3977,7 @@
             boxShadow:"0 -4px 20px rgba(0,0,0,.07)", zIndex:150,
           }}>
             {[
-              { key:"shop",    icon:"cart-shopping", label:"Tindahan" },
+              { key:"shop",    icon:"house",         label:"Home" },
               { key:"bgmart",  icon:"basket-shopping", label:"BG Mart" },
               { key:"stores",  icon:"store",         label:"Stores",  badge: partnerStores.length },
               { key:"orders",  icon:"box",           label:"Orders",  badge: activeOrders.length },
@@ -3986,6 +3986,11 @@
               <button key={t.key} onClick={() => {
                 if (t.key === "bgmart") {
                   setActiveService("bgmart");
+                  setActivePage("shop");
+                  return;
+                }
+                if (t.key === "shop") {
+                  setActiveService("pabili");
                   setActivePage("shop");
                   return;
                 }
