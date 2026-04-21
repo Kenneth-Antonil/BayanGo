@@ -1840,6 +1840,64 @@
       const [showModal, setShowModal] = useState(false);
       const [editProd, setEditProd] = useState(null);
       const [modalSaving, setModalSaving] = useState(false);
+      const [promoBannerUrl, setPromoBannerUrl] = useState("");
+      const [bannerSaving, setBannerSaving] = useState(false);
+      const [bannerUploading, setBannerUploading] = useState(false);
+
+      useEffect(() => {
+        let active = true;
+        (async () => {
+          try {
+            const { db, fns } = await initFirebase();
+            const snap = await fns.get(fns.ref(db, "settings/bgMartPromoBanner"));
+            const raw = snap.val() || {};
+            if (active) setPromoBannerUrl(typeof raw.imageUrl === "string" ? raw.imageUrl : "");
+          } catch (err) {
+            console.error("Failed to load BG Mart promo banner:", err);
+          }
+        })();
+        return () => { active = false; };
+      }, []);
+
+      const savePromoBanner = async (nextUrl) => {
+        setBannerSaving(true);
+        try {
+          const { db, fns } = await initFirebase();
+          const cleanUrl = String(nextUrl || "").trim();
+          if (cleanUrl) {
+            await fns.update(fns.ref(db, "settings/bgMartPromoBanner"), {
+              imageUrl: cleanUrl,
+              updatedAt: Date.now(),
+            });
+          } else {
+            await fns.remove(fns.ref(db, "settings/bgMartPromoBanner"));
+          }
+          setPromoBannerUrl(cleanUrl);
+          toast.success(cleanUrl ? "Promo banner saved." : "Promo banner removed.");
+        } catch (err) {
+          toast.error("Banner save failed: " + (err.message || "unknown"));
+        } finally {
+          setBannerSaving(false);
+        }
+      };
+
+      const uploadPromoBanner = async (file) => {
+        if (!file || !String(file.type || "").startsWith("image/")) return toast.error("Please upload an image file.");
+        if (file.size > 6 * 1024 * 1024) return toast.error("Image must be below 6MB.");
+        setBannerUploading(true);
+        try {
+          const st = await initStorage();
+          const safeName = (file.name || "bgmart-banner.jpg").replace(/[^\w.\-]/g, "_");
+          const storageRef = st.ref(st.storage, `bgmart_banners/${Date.now()}_${safeName}`);
+          await st.uploadBytes(storageRef, file);
+          const url = await st.getDownloadURL(storageRef);
+          await savePromoBanner(url);
+        } catch (err) {
+          toast.error("Upload failed: " + (err.message || "unknown"));
+        } finally {
+          setBannerUploading(false);
+        }
+      };
 
       const addListing = async () => {
         const name = quickName.trim();
@@ -1884,6 +1942,24 @@
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 10, flexWrap: "wrap", marginBottom: 14 }}>
             <h2 style={{ fontSize: 18, fontWeight: 800 }}>BG Mart Listings</h2>
             <span className="status-badge" style={{ background: "#DCFCE7", color: "#166534" }}>{bgMartProducts.length} active listing{bgMartProducts.length !== 1 ? "s" : ""}</span>
+          </div>
+
+          <div className="card" style={{ marginBottom: 14 }}>
+            <div style={{ fontSize: 13, fontWeight: 800, color: "var(--brand)", marginBottom: 8 }}><Ic n="image" style={{ marginRight: 6 }} />Promotional Banner</div>
+            {promoBannerUrl
+              ? <img src={promoBannerUrl} alt="BG Mart promotional banner" style={{ width: "100%", maxHeight: 190, objectFit: "cover", borderRadius: 12, border: "1px solid var(--border)" }} />
+              : <div style={{ border: "1.5px dashed var(--border)", borderRadius: 12, padding: "16px 12px", fontSize: 12, color: "var(--text-muted)", textAlign: "center" }}>No promotional banner yet.</div>}
+            <div style={{ display: "flex", gap: 8, marginTop: 10, flexWrap: "wrap" }}>
+              <label className="btn btn-outline" style={{ fontSize: 12, padding: "8px 12px", cursor: bannerUploading || bannerSaving ? "not-allowed" : "pointer", opacity: bannerUploading || bannerSaving ? 0.65 : 1 }}>
+                <Ic n={bannerUploading ? "spinner" : "camera"} className={bannerUploading ? "spin" : ""} />
+                {bannerUploading ? "Uploading..." : "Upload Banner"}
+                <input type="file" accept="image/*" style={{ display: "none" }} disabled={bannerUploading || bannerSaving} onChange={e => { if (e.target.files?.[0]) uploadPromoBanner(e.target.files[0]); e.target.value = ""; }} />
+              </label>
+              <button onClick={() => savePromoBanner("")} disabled={!promoBannerUrl || bannerUploading || bannerSaving} className="btn btn-danger" style={{ fontSize: 12, padding: "8px 12px" }}>
+                {bannerSaving ? "Saving..." : "Remove Banner"}
+              </button>
+            </div>
+            <div style={{ fontSize: 11, color: "var(--text-muted)", marginTop: 8 }}>This image appears on the BG Mart tab in the user app. If none is uploaded, nothing is shown.</div>
           </div>
 
           <div className="card" style={{ marginBottom: 14 }}>

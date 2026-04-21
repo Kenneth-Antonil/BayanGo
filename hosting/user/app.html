@@ -757,6 +757,7 @@
       const [pushBusy, setPushBusy] = useState(false);
       const [pushError, setPushError] = useState("");
       const [gcashSettings, setGcashSettings] = useState({ number:"09618280589", name:"Kenneth Antonil", qrUrl:"" });
+      const [bgMartPromoBannerUrl, setBgMartPromoBannerUrl] = useState("");
       const [appAvailability, setAppAvailability] = useState({ userAppEnabled: true, userAppMessage: "" });
       const [openLegalDoc, setOpenLegalDoc] = useState(null);
 
@@ -772,7 +773,7 @@
       }, []);
 
       useEffect(() => {
-        let unsubAuth, unsubOrders, unsubProducts, unsubMarketPricing, unsubAppAvailability;
+        let unsubAuth, unsubOrders, unsubProducts, unsubMarketPricing, unsubAppAvailability, unsubBgMartBanner;
         let activityIntervalId = null;
         let visibilityHandler = null;
         let usingOrdersFallback = false;
@@ -935,6 +936,15 @@
             });
           });
         };
+        const bindBgMartPromoBanner = () => {
+          if (!_fbDb) return;
+          _fbDb.ref("settings/bgMartPromoBanner").off();
+          unsubBgMartBanner = _fbDb.ref("settings/bgMartPromoBanner").on("value", snap => {
+            const raw = snap.val() || {};
+            const imageUrl = typeof raw.imageUrl === "string" ? raw.imageUrl.trim() : "";
+            setBgMartPromoBannerUrl(imageUrl);
+          });
+        };
 
         try {
           _fbAuth.getRedirectResult().catch(err => console.error("Redirect result error:", err));
@@ -967,6 +977,7 @@
                 console.error("Failed to load GCash settings:", err);
               });
               bindAppAvailability();
+              bindBgMartPromoBanner();
               setPushPermission(typeof Notification !== "undefined" ? Notification.permission : "default");
               enablePushForUser(currentUser, { requestPermission: false });
               trackUserAppUsage(currentUser).catch(err => console.error("Usage tracking error:", err));
@@ -1026,12 +1037,14 @@
               _fbDb.ref("partner_merchants").off();
               _fbDb.ref("refunds").off();
               _fbDb.ref("settings/appAvailability").off();
+              _fbDb.ref("settings/bgMartPromoBanner").off();
               baseProductsRaw = [];
               partnerListingsRaw = [];
               partnerMerchantsById = {};
               setProducts([]);
               setOrders([]);
               setRefunds([]);
+              setBgMartPromoBannerUrl("");
               setPushError("");
               setPushBusy(false);
             }
@@ -1052,6 +1065,7 @@
             _fbDb.ref("partner_merchants").off();
             _fbDb.ref("refunds").off();
             _fbDb.ref("settings/appAvailability").off();
+            _fbDb.ref("settings/bgMartPromoBanner").off();
           }
           if (activityIntervalId) clearInterval(activityIntervalId);
           if (visibilityHandler) document.removeEventListener("visibilitychange", visibilityHandler);
@@ -1363,7 +1377,7 @@
 
       return (
         <>
-          <UserApp products={products} orders={orders} refunds={refunds} onOrder={addOrder} user={user} onLogout={handleLogout} gcashSettings={gcashSettings} appAvailability={appAvailability} onOpenLegal={setOpenLegalDoc} />
+          <UserApp products={products} orders={orders} refunds={refunds} onOrder={addOrder} user={user} onLogout={handleLogout} gcashSettings={gcashSettings} bgMartPromoBannerUrl={bgMartPromoBannerUrl} appAvailability={appAvailability} onOpenLegal={setOpenLegalDoc} />
           {syncError && (
             <div className="pop" style={{
               position:"fixed", top:"calc(env(safe-area-inset-top,0px) + 16px)", left:20, right:20, zIndex:9999,
@@ -1601,7 +1615,7 @@
       );
     }
 
-    function UserApp({ products, orders, refunds, onOrder, user, onLogout, gcashSettings, appAvailability, onOpenLegal }) {
+    function UserApp({ products, orders, refunds, onOrder, user, onLogout, gcashSettings, bgMartPromoBannerUrl, appAvailability, onOpenLegal }) {
       const [activeCat,      setActiveCat]      = useState("all");
       const bagStorageKey = useCallback((key) => `bayango_bag_${key}_${user?.uid || "anon"}`, [user?.uid]);
       const [cart,           setCart]           = useState(() => {
@@ -2506,23 +2520,10 @@
           {/* ── Batch Timer ── */}
           {activeService !== "bgmart" && <BatchTimerBanner />}
 
-          {activeService === "bgmart" && (
+          {activeService === "bgmart" && bgMartPromoBannerUrl && (
             <div style={{ padding:"14px 20px 0" }}>
-              <div style={{ borderRadius:16, padding:"14px 14px", border:"1px solid #BBF7D0", background:"linear-gradient(135deg,#ECFDF5,#F0FDF4)" }}>
-                <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", gap:10 }}>
-                  <div>
-                    <div style={{ fontSize:15, fontWeight:800, color:"#14532D" }}><Ic n="store" style={{ marginRight:6 }} />BG Mart Fresh Grocery</div>
-                    <div style={{ fontSize:12, color:"#166534", marginTop:3 }}>Daily essentials curated by BayanGo team.</div>
-                  </div>
-                  <span style={{ background:"#166534", color:"#fff", borderRadius:999, padding:"4px 10px", fontSize:10, fontWeight:800 }}>BEST VALUE</span>
-                </div>
-                <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:8, marginTop:10 }}>
-                  {["First BG Mart order: free delivery at ₱399+","Add 3+ items to unlock priority batching"].map((tip) => (
-                    <div key={tip} style={{ background:"#fff", border:"1px solid #DCFCE7", borderRadius:10, padding:"8px 10px", fontSize:11, fontWeight:700, color:"#166534" }}>
-                      <Ic n="bolt" style={{ marginRight:5 }} />{tip}
-                    </div>
-                  ))}
-                </div>
+              <div style={{ borderRadius:16, overflow:"hidden", border:"1px solid #DCFCE7", background:"#F0FDF4" }}>
+                <img src={bgMartPromoBannerUrl} alt="BG Mart Promo Banner" style={{ width:"100%", display:"block", objectFit:"cover", maxHeight:210 }} />
               </div>
             </div>
           )}
@@ -3982,7 +3983,13 @@
               { key:"stores",  icon:"store",         label:"Stores",  badge: partnerStores.length },
               { key:"orders",  icon:"box",           label:"Orders",  badge: activeOrders.length },
               { key:"notifications", icon:"bell",    label:"Notifs",  badge: unreadNotifCount },
-            ].map(t => (
+            ].map(t => {
+              const isActive = t.key === "bgmart"
+                ? (activePage === "shop" && activeService === "bgmart")
+                : t.key === "shop"
+                  ? (activePage === "shop" && activeService !== "bgmart")
+                  : activePage === t.key;
+              return (
               <button key={t.key} onClick={() => {
                 if (t.key === "bgmart") {
                   setActiveService("bgmart");
@@ -3996,13 +4003,13 @@
                 }
                 setActivePage(t.key);
               }} style={{
-                flex:1, padding:"11px 0 9px", display:"flex", flexDirection:"column", alignItems:"center", gap:3,
-                color: (t.key === "bgmart" ? (activePage === "shop" && activeService === "bgmart") : activePage===t.key) ? "#166534" : "#94A3B8",
-                borderTop: (t.key === "bgmart" ? (activePage === "shop" && activeService === "bgmart") : activePage===t.key) ? "2px solid #166534" : "2px solid transparent",
+                flex:1, padding: t.key === "bgmart" ? "10px 0 8px" : "11px 0 9px", display:"flex", flexDirection:"column", alignItems:"center", gap:4,
+                color: isActive ? "#166534" : "#94A3B8",
+                borderTop: isActive ? "2px solid #166534" : "2px solid transparent",
                 position:"relative",
               }}>
                 <Ic n={t.icon} size={22} />
-                <span style={{ fontSize:10, fontWeight:700 }}>{t.label}</span>
+                <span style={{ fontSize:t.key === "bgmart" ? 10.5 : 10, fontWeight:700, lineHeight:1.1 }}>{t.label}</span>
                 {t.badge > 0 && (
                   <span style={{
                     position:"absolute", top:6, right:"calc(50% - 18px)",
@@ -4011,7 +4018,7 @@
                   }}>{t.badge}</span>
                 )}
               </button>
-            ))}
+            )})}
           </div>
 
         </div>
