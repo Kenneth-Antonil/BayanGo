@@ -939,9 +939,10 @@
         const bindBgMartPromoBanner = () => {
           if (!_fbDb) return;
           _fbDb.ref("settings/bgMartPromoBanner").off();
-          unsubBgMartBanner = _fbDb.ref("settings/bgMartPromoBanner").on("value", snap => {
+          unsubBgMartBanner = _fbDb.ref("settings/bgMartPromoBanner").on("value", async snap => {
             const raw = snap.val() || {};
-            const imageUrl = typeof raw.imageUrl === "string" ? raw.imageUrl.trim() : "";
+            const imageUrlRaw = typeof raw.imageUrl === "string" ? raw.imageUrl.trim() : "";
+            const imageUrl = await normalizeStorageDownloadUrl(imageUrlRaw);
             setBgMartPromoBannerUrl(imageUrl);
           });
         };
