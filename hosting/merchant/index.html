@@ -833,11 +833,12 @@ function App(){
     try{
       const now=Date.now();
       const merchantId=user.uid;
-      await db.ref(`merchant_listings/${merchantId}`).remove();
-      await db.ref(`partner_merchants/${merchantId}`).update({
+      const merchantUpdate={
         storeOpen:false,
         busyMode:true,
         active:false,
+        approved:false,
+        featuredInApp:false,
         status:"deleted",
         enforcementStatus:"deleted",
         deletedAt:now,
@@ -861,7 +862,15 @@ function App(){
           updatedByUid:merchantId,
           updatedByRole:"merchant",
         },
-      });
+      };
+      const rootUpdates={
+        [`merchant_listings/${merchantId}`]:null,
+        [`partner_merchants/${merchantId}`]:{
+          ...(merchant||{}),
+          ...merchantUpdate,
+        },
+      };
+      await db.ref().update(rootUpdates);
       toast("Store deleted. Your merchant account will now be signed out.","ok");
       setTimeout(()=>auth.signOut(),1200);
     }catch(e){
