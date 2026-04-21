@@ -156,6 +156,63 @@
       { id:"gamot",    label:"Medicine",      icon:"pills",              color:"#14B8A6" },
       { id:"hardware", label:"Hardware",      icon:"screwdriver-wrench", color:"#F59E0B" },
     ];
+    const BG_MART_CATEGORIES = [
+      { id:"food_staples", label:"Food & Staples", icon:"basket-shopping", color:"#166534" },
+      { id:"canned_meat_fish", label:"Canned Meat & Fish", icon:"box", color:"#15803D" },
+      { id:"noodles_pasta", label:"Noodles & Pasta", icon:"bowl-food", color:"#15803D" },
+      { id:"condiments_seasonings", label:"Condiments & Seasonings", icon:"mortar-pestle", color:"#15803D" },
+      { id:"cooking_oil_grains", label:"Cooking Oil & Grains", icon:"seedling", color:"#15803D" },
+      { id:"sauces_spreads", label:"Sauces & Spreads", icon:"bottle-water", color:"#15803D" },
+      { id:"canned_fruits_vegetables", label:"Canned Fruits & Vegetables", icon:"carrot", color:"#15803D" },
+      { id:"baking_essentials_flour", label:"Baking Essentials & Flour", icon:"bread-slice", color:"#15803D" },
+      { id:"soup_bouillon", label:"Soup & Bouillon", icon:"mug-hot", color:"#15803D" },
+      { id:"beverages", label:"Beverages", icon:"mug-hot", color:"#1D4ED8" },
+      { id:"instant_coffee_creamer", label:"Instant Coffee & Creamer", icon:"mug-hot", color:"#1E40AF" },
+      { id:"powdered_milk_chocolate_drinks", label:"Powdered Milk & Chocolate Drinks", icon:"glass-water", color:"#1E40AF" },
+      { id:"powdered_juice_tea", label:"Powdered Juice & Tea", icon:"glass-water", color:"#1E40AF" },
+      { id:"soft_drinks_carbonated", label:"Soft Drinks & Carbonated Beverages", icon:"wine-bottle", color:"#1E40AF" },
+      { id:"bottled_water", label:"Bottled Water", icon:"bottle-water", color:"#1E40AF" },
+      { id:"rtd_tea_juice", label:"Ready-to-Drink (RTD) Tea & Juice", icon:"martini-glass-citrus", color:"#1E40AF" },
+      { id:"beer_wine_spirits", label:"Beer, Wine & Spirits", icon:"whiskey-glass", color:"#1E40AF" },
+      { id:"energy_health_drinks", label:"Energy & Health Drinks", icon:"bolt", color:"#1E40AF" },
+      { id:"snacks_biscuits", label:"Snacks & Biscuits", icon:"cookie-bite", color:"#B45309" },
+      { id:"biscuits_crackers", label:"Biscuits & Crackers", icon:"cookie", color:"#92400E" },
+      { id:"cookies_wafers", label:"Cookies & Wafers", icon:"cookie-bite", color:"#92400E" },
+      { id:"chips_curls_corn_snacks", label:"Chips, Curls & Corn Snacks", icon:"bacon", color:"#92400E" },
+      { id:"candies_chocolates", label:"Candies & Chocolates", icon:"candy-cane", color:"#92400E" },
+      { id:"nuts_dried_fruits", label:"Nuts & Dried Fruits", icon:"apple-whole", color:"#92400E" },
+      { id:"chewing_gum_mints", label:"Chewing Gum & Mints", icon:"tag", color:"#92400E" },
+      { id:"personal_care", label:"Personal Care", icon:"pump-soap", color:"#7C3AED" },
+      { id:"hair_care", label:"Hair Care (Shampoo & Conditioner)", icon:"pump-soap", color:"#6D28D9" },
+      { id:"bath_soap_body_wash", label:"Bath Soap & Body Wash", icon:"soap", color:"#6D28D9" },
+      { id:"oral_care", label:"Oral Care (Toothpaste & Brush)", icon:"tooth", color:"#6D28D9" },
+      { id:"deodorants_fragrances", label:"Deodorants & Fragrances", icon:"spray-can", color:"#6D28D9" },
+      { id:"skin_care_lotions", label:"Skin Care & Lotions", icon:"hands", color:"#6D28D9" },
+      { id:"grooming_shaving", label:"Grooming & Shaving", icon:"razor", color:"#6D28D9" },
+      { id:"feminine_hygiene", label:"Feminine Hygiene", icon:"venus", color:"#6D28D9" },
+      { id:"cotton_buds", label:"Cotton & Buds", icon:"bandage", color:"#6D28D9" },
+      { id:"home_laundry", label:"Home & Laundry", icon:"house", color:"#334155" },
+      { id:"laundry_detergent", label:"Laundry Detergent (Powder & Bar)", icon:"shirt", color:"#475569" },
+      { id:"fabric_conditioner", label:"Fabric Conditioner", icon:"shirt", color:"#475569" },
+      { id:"dishwashing", label:"Dishwashing Liquid & Paste", icon:"utensils", color:"#475569" },
+      { id:"household_cleaners_bleach", label:"Household Cleaners & Bleach", icon:"bottle-droplet", color:"#475569" },
+      { id:"paper_products", label:"Paper Products (Tissue & Napkins)", icon:"toilet-paper", color:"#475569" },
+      { id:"air_fresheners_insecticides", label:"Air Fresheners & Insecticides", icon:"wind", color:"#475569" },
+      { id:"kitchen_utilities", label:"Kitchen Utilities (Foil & Plastic)", icon:"utensils", color:"#475569" },
+      { id:"baby_healthcare", label:"Baby & Healthcare", icon:"baby", color:"#DB2777" },
+      { id:"baby_milk_food", label:"Baby Milk & Food", icon:"baby", color:"#BE185D" },
+      { id:"diapers_wipes", label:"Diapers & Wipes", icon:"baby-carriage", color:"#BE185D" },
+      { id:"baby_toiletries", label:"Baby Toiletries", icon:"soap", color:"#BE185D" },
+      { id:"otc_medicines", label:"Over-the-Counter (OTC) Medicines", icon:"pills", color:"#BE185D" },
+      { id:"rubbing_alcohol_sanitizers", label:"Rubbing Alcohol & Sanitizers", icon:"hands-bubbles", color:"#BE185D" },
+      { id:"vitamins_supplements", label:"Vitamins & Supplements", icon:"pills", color:"#BE185D" },
+      { id:"general_merchandise", label:"General Merchandise", icon:"boxes-stacked", color:"#0F766E" },
+      { id:"batteries_lighting", label:"Batteries & Lighting", icon:"battery-half", color:"#0F766E" },
+      { id:"school_office_supplies", label:"School & Office Supplies", icon:"pen-ruler", color:"#0F766E" },
+      { id:"matches_lighters", label:"Matches & Lighters", icon:"fire", color:"#0F766E" },
+      { id:"small_appliances", label:"Small Appliances", icon:"plug", color:"#0F766E" },
+      { id:"storage_plasticware", label:"Storage & Plasticware", icon:"box-open", color:"#0F766E" },
+    ];
 
     const STATUS_INFO = {
       pending:   { label:"Pending",     icon:"hourglass-half", bg:"#F3F4F6", color:"#6B7280" },
@@ -1832,7 +1889,7 @@
     function BGMartPanel({ products, onAdd, onUpdate, onDelete }) {
       const bgMartProducts = useMemo(() => products.filter((p) => p.source === "bg_mart"), [products]);
       const [quickName, setQuickName] = useState("");
-      const [quickCat, setQuickCat] = useState("gulay");
+      const [quickCat, setQuickCat] = useState("food_staples");
       const [quickUnit, setQuickUnit] = useState("pc");
       const [quickPrice, setQuickPrice] = useState("");
       const [quickImage, setQuickImage] = useState("");
@@ -1969,7 +2026,7 @@
               <input value={quickPrice} onChange={e => setQuickPrice(e.target.value)} type="number" min="0" step="0.01" placeholder="Price" className="input" />
             </div>
             <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 2fr", gap: 8, marginBottom: 10 }}>
-              <select value={quickCat} onChange={e => setQuickCat(e.target.value)} className="input">{CATEGORIES.map(c => <option key={c.id} value={c.id}>{c.label}</option>)}</select>
+              <select value={quickCat} onChange={e => setQuickCat(e.target.value)} className="input">{BG_MART_CATEGORIES.map(c => <option key={c.id} value={c.id}>{c.label}</option>)}</select>
               <input value={quickUnit} onChange={e => setQuickUnit(e.target.value)} placeholder="Unit" className="input" />
               <input value={quickImage} onChange={e => setQuickImage(e.target.value)} placeholder="Image URL (optional)" className="input" />
             </div>
@@ -1985,7 +2042,7 @@
                 <div key={p.id} style={{ border: "1px solid var(--border)", borderRadius: 12, padding: "10px 12px", display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8 }}>
                   <div style={{ minWidth: 0 }}>
                     <div style={{ fontSize: 13, fontWeight: 800, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{p.name}</div>
-                    <div style={{ fontSize: 11, color: "var(--text-muted)", marginTop: 2 }}>{fmt(Number(p.price || p.basePrice || 0))} / {p.unit || "pc"} · {CATEGORIES.find(c => c.id === p.cat)?.label || p.cat}</div>
+                    <div style={{ fontSize: 11, color: "var(--text-muted)", marginTop: 2 }}>{fmt(Number(p.price || p.basePrice || 0))} / {p.unit || "pc"} · {BG_MART_CATEGORIES.find(c => c.id === p.cat)?.label || p.cat}</div>
                   </div>
                   <div style={{ display: "flex", gap: 6 }}>
                     <button onClick={() => { setEditProd(p); setShowModal(true); }} className="btn btn-blue" style={{ padding: "6px 10px", fontSize: 11 }}><Ic n="pen-to-square" />Edit</button>
@@ -2010,6 +2067,7 @@
       const [stock, setStock] = useState(product?.stock !== false);
       const [autoPriceEnabled, setAutoPriceEnabled] = useState(product?.autoPriceEnabled !== false);
       const [imageUploading, setImageUploading] = useState(false);
+      const categoryOptions = product?.source === "bg_mart" ? BG_MART_CATEGORIES : CATEGORIES;
 
       const uploadProductImage = async (file) => {
         if (!file || !String(file.type || "").startsWith("image/")) return toast.error("Please upload an image file.");
@@ -2044,7 +2102,7 @@
             <div style={{ display: "grid", gap: 10 }}>
               <input value={name} onChange={e => setName(e.target.value)} placeholder="Product name" required className="input" />
               <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
-                <select value={cat} onChange={e => setCat(e.target.value)} className="input">{CATEGORIES.map(c => <option key={c.id} value={c.id}>{c.label}</option>)}</select>
+                <select value={cat} onChange={e => setCat(e.target.value)} className="input">{categoryOptions.map(c => <option key={c.id} value={c.id}>{c.label}</option>)}</select>
                 <input value={unit} onChange={e => setUnit(e.target.value)} placeholder="Unit (kg, pc)" className="input" />
               </div>
               <input type="number" min="0" step="1" value={basePrice} onChange={e => setBasePrice(e.target.value)} placeholder="Base price" className="input" />

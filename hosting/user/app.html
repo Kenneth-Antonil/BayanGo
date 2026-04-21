@@ -208,6 +208,64 @@
       { id:"gamot",    label:"Medicine",          icon:"pills",              color:"#14B8A6" },
       { id:"hardware", label:"Hardware",       icon:"screwdriver-wrench", color:"#F59E0B" },
     ];
+    const BG_MART_CATEGORIES = [
+      { id:"all", label:"All", icon:"layer-group", color:"#334155" },
+      { id:"food_staples", label:"Food & Staples", icon:"basket-shopping", color:"#166534" },
+      { id:"canned_meat_fish", label:"Canned Meat & Fish", icon:"box", color:"#15803D" },
+      { id:"noodles_pasta", label:"Noodles & Pasta", icon:"bowl-food", color:"#15803D" },
+      { id:"condiments_seasonings", label:"Condiments & Seasonings", icon:"mortar-pestle", color:"#15803D" },
+      { id:"cooking_oil_grains", label:"Cooking Oil & Grains", icon:"seedling", color:"#15803D" },
+      { id:"sauces_spreads", label:"Sauces & Spreads", icon:"bottle-water", color:"#15803D" },
+      { id:"canned_fruits_vegetables", label:"Canned Fruits & Vegetables", icon:"carrot", color:"#15803D" },
+      { id:"baking_essentials_flour", label:"Baking Essentials & Flour", icon:"bread-slice", color:"#15803D" },
+      { id:"soup_bouillon", label:"Soup & Bouillon", icon:"mug-hot", color:"#15803D" },
+      { id:"beverages", label:"Beverages", icon:"mug-hot", color:"#1D4ED8" },
+      { id:"instant_coffee_creamer", label:"Instant Coffee & Creamer", icon:"mug-hot", color:"#1E40AF" },
+      { id:"powdered_milk_chocolate_drinks", label:"Powdered Milk & Chocolate Drinks", icon:"glass-water", color:"#1E40AF" },
+      { id:"powdered_juice_tea", label:"Powdered Juice & Tea", icon:"glass-water", color:"#1E40AF" },
+      { id:"soft_drinks_carbonated", label:"Soft Drinks & Carbonated Beverages", icon:"wine-bottle", color:"#1E40AF" },
+      { id:"bottled_water", label:"Bottled Water", icon:"bottle-water", color:"#1E40AF" },
+      { id:"rtd_tea_juice", label:"Ready-to-Drink (RTD) Tea & Juice", icon:"martini-glass-citrus", color:"#1E40AF" },
+      { id:"beer_wine_spirits", label:"Beer, Wine & Spirits", icon:"whiskey-glass", color:"#1E40AF" },
+      { id:"energy_health_drinks", label:"Energy & Health Drinks", icon:"bolt", color:"#1E40AF" },
+      { id:"snacks_biscuits", label:"Snacks & Biscuits", icon:"cookie-bite", color:"#B45309" },
+      { id:"biscuits_crackers", label:"Biscuits & Crackers", icon:"cookie", color:"#92400E" },
+      { id:"cookies_wafers", label:"Cookies & Wafers", icon:"cookie-bite", color:"#92400E" },
+      { id:"chips_curls_corn_snacks", label:"Chips, Curls & Corn Snacks", icon:"bacon", color:"#92400E" },
+      { id:"candies_chocolates", label:"Candies & Chocolates", icon:"candy-cane", color:"#92400E" },
+      { id:"nuts_dried_fruits", label:"Nuts & Dried Fruits", icon:"apple-whole", color:"#92400E" },
+      { id:"chewing_gum_mints", label:"Chewing Gum & Mints", icon:"tag", color:"#92400E" },
+      { id:"personal_care", label:"Personal Care", icon:"pump-soap", color:"#7C3AED" },
+      { id:"hair_care", label:"Hair Care (Shampoo & Conditioner)", icon:"pump-soap", color:"#6D28D9" },
+      { id:"bath_soap_body_wash", label:"Bath Soap & Body Wash", icon:"soap", color:"#6D28D9" },
+      { id:"oral_care", label:"Oral Care (Toothpaste & Brush)", icon:"tooth", color:"#6D28D9" },
+      { id:"deodorants_fragrances", label:"Deodorants & Fragrances", icon:"spray-can", color:"#6D28D9" },
+      { id:"skin_care_lotions", label:"Skin Care & Lotions", icon:"hands", color:"#6D28D9" },
+      { id:"grooming_shaving", label:"Grooming & Shaving", icon:"razor", color:"#6D28D9" },
+      { id:"feminine_hygiene", label:"Feminine Hygiene", icon:"venus", color:"#6D28D9" },
+      { id:"cotton_buds", label:"Cotton & Buds", icon:"bandage", color:"#6D28D9" },
+      { id:"home_laundry", label:"Home & Laundry", icon:"house", color:"#334155" },
+      { id:"laundry_detergent", label:"Laundry Detergent (Powder & Bar)", icon:"shirt", color:"#475569" },
+      { id:"fabric_conditioner", label:"Fabric Conditioner", icon:"shirt", color:"#475569" },
+      { id:"dishwashing", label:"Dishwashing Liquid & Paste", icon:"utensils", color:"#475569" },
+      { id:"household_cleaners_bleach", label:"Household Cleaners & Bleach", icon:"bottle-droplet", color:"#475569" },
+      { id:"paper_products", label:"Paper Products (Tissue & Napkins)", icon:"toilet-paper", color:"#475569" },
+      { id:"air_fresheners_insecticides", label:"Air Fresheners & Insecticides", icon:"wind", color:"#475569" },
+      { id:"kitchen_utilities", label:"Kitchen Utilities (Foil & Plastic)", icon:"utensils", color:"#475569" },
+      { id:"baby_healthcare", label:"Baby & Healthcare", icon:"baby", color:"#DB2777" },
+      { id:"baby_milk_food", label:"Baby Milk & Food", icon:"baby", color:"#BE185D" },
+      { id:"diapers_wipes", label:"Diapers & Wipes", icon:"baby-carriage", color:"#BE185D" },
+      { id:"baby_toiletries", label:"Baby Toiletries", icon:"soap", color:"#BE185D" },
+      { id:"otc_medicines", label:"Over-the-Counter (OTC) Medicines", icon:"pills", color:"#BE185D" },
+      { id:"rubbing_alcohol_sanitizers", label:"Rubbing Alcohol & Sanitizers", icon:"hands-bubbles", color:"#BE185D" },
+      { id:"vitamins_supplements", label:"Vitamins & Supplements", icon:"pills", color:"#BE185D" },
+      { id:"general_merchandise", label:"General Merchandise", icon:"boxes-stacked", color:"#0F766E" },
+      { id:"batteries_lighting", label:"Batteries & Lighting", icon:"battery-half", color:"#0F766E" },
+      { id:"school_office_supplies", label:"School & Office Supplies", icon:"pen-ruler", color:"#0F766E" },
+      { id:"matches_lighters", label:"Matches & Lighters", icon:"fire", color:"#0F766E" },
+      { id:"small_appliances", label:"Small Appliances", icon:"plug", color:"#0F766E" },
+      { id:"storage_plasticware", label:"Storage & Plasticware", icon:"box-open", color:"#0F766E" },
+    ];
 
     const DEFAULT_PRODUCTS = [];
 
@@ -1898,6 +1956,8 @@
         }
         return products.filter((p) => p.source !== "bg_mart");
       }, [activeService, products]);
+      const activeShopCategories = activeService === "bgmart" ? BG_MART_CATEGORIES : CATEGORIES;
+      const activeCatMeta = activeShopCategories.find((c) => c.id === activeCat) || activeShopCategories[0] || CATEGORIES[0];
       const filtered = useMemo(() => {
         const q = searchQ.trim().toLowerCase();
         const list = catalogProducts.filter((p) => {
@@ -1925,6 +1985,10 @@
           return 0;
         });
       }, [activeCat, activeService, catalogProducts, featuredMerchantId, searchQ]);
+      useEffect(() => {
+        if (activeShopCategories.some((cat) => cat.id === activeCat)) return;
+        setActiveCat("all");
+      }, [activeCat, activeShopCategories]);
       const featuredStores = partnerStores.filter((store) => store.merchantFeatured);
       const storeProfileOriginRef = useRef("shop");
       const openStoreProfile = useCallback((merchantId) => {
@@ -2642,7 +2706,7 @@
                       background:"transparent"
                     }}
                   >
-                    {CATEGORIES.map((cat) => (
+                    {activeShopCategories.map((cat) => (
                       <option key={cat.id} value={cat.id}>{cat.label}</option>
                     ))}
                   </select>
@@ -2650,7 +2714,7 @@
               </div>
             ) : (
               <div style={{ display:"flex", gap:8, padding:"0 20px", overflowX:"auto", scrollbarWidth:"none" }}>
-                {CATEGORIES.map(cat => (
+                {activeShopCategories.map(cat => (
                   <button key={cat.id} onClick={() => setActiveCat(cat.id)} style={{
                     padding:"10px 18px", borderRadius:30, whiteSpace:"nowrap",
                     fontSize:13, fontWeight:700, display:"flex", alignItems:"center", gap:6,
@@ -2671,8 +2735,8 @@
           {/* ── Section Label ── */}
           <div style={{ padding:"0 20px 10px", display:"flex", justifyContent:"space-between", alignItems:"center" }}>
             <h2 style={{ fontSize:15, fontWeight:800, color:"#111", display:"flex", alignItems:"center", gap:6 }}>
-              <Ic n={CATEGORIES.find(c=>c.id===activeCat)?.icon} style={{color:CATEGORIES.find(c=>c.id===activeCat)?.color}} />
-              {CATEGORIES.find(c=>c.id===activeCat)?.label}
+              <Ic n={activeCatMeta?.icon} style={{color:activeCatMeta?.color}} />
+              {activeCatMeta?.label}
             </h2>
             <span style={{ fontSize:12, color:"#999", fontWeight:500 }}>{filtered.length} items</span>
           </div>
@@ -2697,8 +2761,8 @@
                   cartWeightUnit={cartWeightUnit}
                   setCartWeightUnit={setCartWeightUnit}
                   openStoreProfile={openStoreProfile}
-                  catColor={CATEGORIES.find(c=>c.id===p.cat)?.color}
-                  catIcon={CATEGORIES.find(c=>c.id===p.cat)?.icon}
+                  catColor={activeShopCategories.find(c=>c.id===p.cat)?.color}
+                  catIcon={activeShopCategories.find(c=>c.id===p.cat)?.icon}
                   animDelay={`${i*.05}s`}
                 />
               ))}
