@@ -2150,6 +2150,8 @@
       const [voucherBusyUid, setVoucherBusyUid] = useState("");
       const [userSearch, setUserSearch] = useState("");
       const [gcashSettings, setGcashSettings] = useState({ number: "09618280589", name: "Kenneth Antonil", qrUrl: "" });
+      const [appAvailability, setAppAvailability] = useState({ userAppEnabled: true, userAppMessage: "" });
+      const [appAvailabilitySaving, setAppAvailabilitySaving] = useState(false);
       const [gcashSaving, setGcashSaving] = useState(false);
       const [qrUploading, setQrUploading] = useState(false);
       const [confirmingPay, setConfirmingPay] = useState(null);
@@ -2211,6 +2213,28 @@
         (async () => {
           try {
             const { db, fns } = await initFirebase();
+            const snap = await fns.get(fns.ref(db, "settings/appAvailability"));
+            if (snap.exists()) {
+              const raw = snap.val() || {};
+              setAppAvailability({
+                userAppEnabled: raw.userAppEnabled !== false,
+                userAppMessage: String(raw.userAppMessage || "").trim(),
+              });
+            } else {
+              const defaults = { userAppEnabled: true, userAppMessage: "" };
+              await fns.set(fns.ref(db, "settings/appAvailability"), defaults);
+              setAppAvailability(defaults);
+            }
+          } catch (err) {
+            console.error("App availability settings load failed:", err);
+          }
+        })();
+      }, []);
+
+      useEffect(() => {
+        (async () => {
+          try {
+            const { db, fns } = await initFirebase();
             const snap = await fns.get(fns.ref(db, "push_tokens"));
             if (!snap.exists()) { setRiders([]); return; }
             const allTokens = snap.val() || {};
@@ -2227,6 +2251,23 @@
       }, []);
 
       const saveGcashSettings = async () => { setGcashSaving(true); try { const { db, fns } = await initFirebase(); await fns.set(fns.ref(db, "settings/gcash"), gcashSettings); toast.success("GCash settings saved!"); } catch (err) { toast.error("Error: " + err.message); } finally { setGcashSaving(false); } };
+      const saveAppAvailability = async () => {
+        setAppAvailabilitySaving(true);
+        try {
+          const { db, fns } = await initFirebase();
+          const payload = {
+            userAppEnabled: appAvailability.userAppEnabled !== false,
+            userAppMessage: String(appAvailability.userAppMessage || "").trim(),
+            updatedAt: Date.now(),
+          };
+          await fns.set(fns.ref(db, "settings/appAvailability"), payload);
+          toast.success(payload.userAppEnabled ? "User app reopened." : "User app marked as unavailable.");
+        } catch (err) {
+          toast.error("Error: " + err.message);
+        } finally {
+          setAppAvailabilitySaving(false);
+        }
+      };
       const uploadQrImage = async (file) => {
         if (!file || !String(file.type || "").startsWith("image/")) return toast.error("Upload an image file.");
         if (file.size >= 5 * 1024 * 1024) return toast.error("Image must be < 5MB.");
@@ -2425,6 +2466,31 @@
                       </div>
                     ))}
                   </div>
+                </div>
+
+                {/* App Availability */}
+                <div className="card" style={{ marginBottom: 16 }}>
+                  <div style={{ fontSize: 14, fontWeight: 800, color: appAvailability.userAppEnabled ? "var(--brand)" : "var(--red)", marginBottom: 4 }}><Ic n="power-off" style={{ marginRight: 6 }} />User App Availability</div>
+                  <div style={{ fontSize: 11, color: "var(--text-muted)", marginBottom: 10 }}>Toggle this to show users that the app is currently unavailable.</div>
+                  <label style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 10, fontSize: 12, fontWeight: 700, color: "var(--text-secondary)", cursor: "pointer" }}>
+                    <input
+                      type="checkbox"
+                      checked={!appAvailability.userAppEnabled}
+                      onChange={e => setAppAvailability(s => ({ ...s, userAppEnabled: !e.target.checked }))}
+                    />
+                    Mark user app as currently unavailable
+                  </label>
+                  <textarea
+                    value={appAvailability.userAppMessage}
+                    onChange={e => setAppAvailability(s => ({ ...s, userAppMessage: e.target.value }))}
+                    placeholder="Optional advisory message for users (e.g. maintenance schedule)."
+                    rows={3}
+                    className="input"
+                    style={{ marginBottom: 8, resize: "vertical" }}
+                  />
+                  <button onClick={saveAppAvailability} disabled={appAvailabilitySaving} className="btn btn-danger" style={{ width: "100%", padding: 10 }}>
+                    {appAvailabilitySaving ? "Saving..." : "Save App Availability"}
+                  </button>
                 </div>
 
                 {/* GCash Settings */}

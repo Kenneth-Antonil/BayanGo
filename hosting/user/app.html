@@ -757,6 +757,7 @@
       const [pushBusy, setPushBusy] = useState(false);
       const [pushError, setPushError] = useState("");
       const [gcashSettings, setGcashSettings] = useState({ number:"09618280589", name:"Kenneth Antonil", qrUrl:"" });
+      const [appAvailability, setAppAvailability] = useState({ userAppEnabled: true, userAppMessage: "" });
       const [openLegalDoc, setOpenLegalDoc] = useState(null);
 
       useEffect(() => {
@@ -771,7 +772,7 @@
       }, []);
 
       useEffect(() => {
-        let unsubAuth, unsubOrders, unsubProducts, unsubMarketPricing;
+        let unsubAuth, unsubOrders, unsubProducts, unsubMarketPricing, unsubAppAvailability;
         let activityIntervalId = null;
         let visibilityHandler = null;
         let usingOrdersFallback = false;
@@ -923,6 +924,18 @@
           setGcashSettings(loaded);
         };
 
+        const bindAppAvailability = () => {
+          if (!_fbDb) return;
+          _fbDb.ref("settings/appAvailability").off();
+          unsubAppAvailability = _fbDb.ref("settings/appAvailability").on("value", snap => {
+            const raw = snap.val() || {};
+            setAppAvailability({
+              userAppEnabled: raw.userAppEnabled !== false,
+              userAppMessage: String(raw.userAppMessage || "").trim(),
+            });
+          });
+        };
+
         try {
           _fbAuth.getRedirectResult().catch(err => console.error("Redirect result error:", err));
           unsubAuth = _fbAuth.onAuthStateChanged(currentUser => {
@@ -953,6 +966,7 @@
               loadGcashSettings().catch(err => {
                 console.error("Failed to load GCash settings:", err);
               });
+              bindAppAvailability();
               setPushPermission(typeof Notification !== "undefined" ? Notification.permission : "default");
               enablePushForUser(currentUser, { requestPermission: false });
               trackUserAppUsage(currentUser).catch(err => console.error("Usage tracking error:", err));
@@ -1011,6 +1025,7 @@
               _fbDb.ref("merchant_listings").off();
               _fbDb.ref("partner_merchants").off();
               _fbDb.ref("refunds").off();
+              _fbDb.ref("settings/appAvailability").off();
               baseProductsRaw = [];
               partnerListingsRaw = [];
               partnerMerchantsById = {};
@@ -1036,6 +1051,7 @@
             _fbDb.ref("merchant_listings").off();
             _fbDb.ref("partner_merchants").off();
             _fbDb.ref("refunds").off();
+            _fbDb.ref("settings/appAvailability").off();
           }
           if (activityIntervalId) clearInterval(activityIntervalId);
           if (visibilityHandler) document.removeEventListener("visibilitychange", visibilityHandler);
@@ -1347,7 +1363,7 @@
 
       return (
         <>
-          <UserApp products={products} orders={orders} refunds={refunds} onOrder={addOrder} user={user} onLogout={handleLogout} gcashSettings={gcashSettings} onOpenLegal={setOpenLegalDoc} />
+          <UserApp products={products} orders={orders} refunds={refunds} onOrder={addOrder} user={user} onLogout={handleLogout} gcashSettings={gcashSettings} appAvailability={appAvailability} onOpenLegal={setOpenLegalDoc} />
           {syncError && (
             <div className="pop" style={{
               position:"fixed", top:"calc(env(safe-area-inset-top,0px) + 16px)", left:20, right:20, zIndex:9999,
@@ -1585,7 +1601,7 @@
       );
     }
 
-    function UserApp({ products, orders, refunds, onOrder, user, onLogout, gcashSettings, onOpenLegal }) {
+    function UserApp({ products, orders, refunds, onOrder, user, onLogout, gcashSettings, appAvailability, onOpenLegal }) {
       const [activeCat,      setActiveCat]      = useState("all");
       const bagStorageKey = useCallback((key) => `bayango_bag_${key}_${user?.uid || "anon"}`, [user?.uid]);
       const [cart,           setCart]           = useState(() => {
@@ -2100,6 +2116,10 @@
       };
 
       const placeOrder = async () => {
+        if (appIsUnavailable) {
+          alert(unavailableMessage);
+          return;
+        }
         if (!name || !phone || !addr || !hasPinnedLocation) {
           if (!hasPinnedLocation) {
             alert("Please pin your exact location before placing an order.");
@@ -2232,6 +2252,8 @@
       };
 
       const activeOrders = myOrders.filter(o => !isOrderClosed(o));
+      const appIsUnavailable = appAvailability?.userAppEnabled === false;
+      const unavailableMessage = appAvailability?.userAppMessage || "BayanGo is currently unavailable. Please try again later.";
 
       useEffect(() => {
         let url;
@@ -2311,6 +2333,13 @@
               }
             </button>
           </div>
+
+          {appIsUnavailable && (
+            <div style={{ margin:"12px 16px 0", background:"#FEF2F2", border:"1px solid #FECACA", color:"#991B1B", borderRadius:12, padding:"12px 14px", fontSize:12, fontWeight:700, lineHeight:1.5 }}>
+              <Ic n="triangle-exclamation" style={{ marginRight:6 }} />
+              {unavailableMessage}
+            </div>
+          )}
 
           {/* ── SHOP PAGE ── */}
           {(activePage === "shop" || activePage === "checkout") && <>
@@ -3168,9 +3197,9 @@
                   </div>
                 </div>
 
-                <button onClick={placeOrder} disabled={!name||!phone||!addr||!hasPinnedLocation} style={{
+                <button onClick={placeOrder} disabled={appIsUnavailable || !name||!phone||!addr||!hasPinnedLocation} style={{
                   width:"100%", padding:"17px", borderRadius:16,
-                  background:(!name||!phone||!addr||!hasPinnedLocation)?"#D1D5DB":"linear-gradient(135deg,#166534,#22C55E)",
+                  background:(appIsUnavailable || !name||!phone||!addr||!hasPinnedLocation)?"#D1D5DB":"linear-gradient(135deg,#166534,#22C55E)",
                   color:"#fff", fontSize:16, fontWeight:700,
                   boxShadow:(!name||!phone||!addr||!hasPinnedLocation)?"none":"0 4px 20px rgba(22,101,52,.35)",
                   transition:"all .2s"
