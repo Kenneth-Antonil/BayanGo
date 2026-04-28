@@ -379,6 +379,7 @@ function App(){
   // Campaigns
   const [campaignForm,setCampaignForm]=React.useState({type:"percent_off",title:"",value:"",minOrder:"",startDate:"",endDate:""});
   const [savingCampaign,setSavingCampaign]=React.useState(false);
+  const [deletingStore,setDeletingStore]=React.useState(false);
 
   // Financials
   const [finPeriod,setFinPeriod]=React.useState("daily");
@@ -816,6 +817,66 @@ function App(){
     if(!window.confirm("Delete this campaign?"))return;
     try{await db.ref(`partner_merchants/${user.uid}/campaigns/${id}`).remove();toast("Campaign deleted.","ok");}
     catch(e){toast("Could not delete campaign: "+(e?.message||"Unknown"),"err");}
+  };
+
+  const deleteStorePermanently=async()=>{
+    if(!user?.uid||deletingStore)return;
+    if(!ensureMerchantAccess())return;
+    const warningText="This will permanently remove your store from customer listings and delete your merchant data.";
+    if(!window.confirm(`${warningText}\n\nAdmin records will be kept for compliance.\n\nContinue?`))return;
+    const typed=window.prompt("Type DELETE to confirm store deletion:");
+    if((typed||"").trim().toUpperCase()!=="DELETE"){
+      toast("Store deletion cancelled. Confirmation text did not match.","warn");
+      return;
+    }
+    setDeletingStore(true);
+    try{
+      const now=Date.now();
+      const merchantId=user.uid;
+      const merchantUpdate={
+        storeOpen:false,
+        busyMode:true,
+        active:false,
+        approved:false,
+        featuredInApp:false,
+        status:"deleted",
+        enforcementStatus:"deleted",
+        deletedAt:now,
+        deletedByUid:merchantId,
+        deletedByRole:"merchant",
+        selfDeleted:true,
+        selfDeletedAt:now,
+        selfDeleteReason:"Requested from merchant dashboard settings",
+        deletedStoreName:merchant?.storeName||null,
+        deletedStoreAddress:merchant?.address||merchant?.businessAddress||null,
+        deletedOwnerEmail:user?.email||null,
+        logoUrl:null,
+        description:null,
+        promoBanners:null,
+        campaigns:null,
+        customCategories:null,
+        moderation:{
+          action:"deleted",
+          reason:"Requested by merchant from dashboard settings",
+          updatedAt:now,
+          updatedByUid:merchantId,
+          updatedByRole:"merchant",
+        },
+      };
+      const rootUpdates={
+        [`merchant_listings/${merchantId}`]:null,
+        [`partner_merchants/${merchantId}`]:{
+          ...(merchant||{}),
+          ...merchantUpdate,
+        },
+      };
+      await db.ref().update(rootUpdates);
+      toast("Store deleted. Your merchant account will now be signed out.","ok");
+      setTimeout(()=>auth.signOut(),1200);
+    }catch(e){
+      toast("Could not delete store: "+(e?.message||"Unknown"),"err");
+      setDeletingStore(false);
+    }
   };
 
 
@@ -1594,6 +1655,17 @@ function App(){
           <div><div style={{fontWeight:700,fontSize:14}}>{user.displayName||"Merchant"}</div><div className="muted" style={{fontSize:12}}>{user.email}</div></div>
         </div>
         <button className="btn-danger" onClick={()=>auth.signOut()} style={{marginTop:4}}><i className="fas fa-sign-out-alt" style={{marginRight:6}}></i>Sign Out</button>
+      </div>
+
+      <div className="card stack" style={{borderColor:"var(--danger-border)",background:"var(--danger-bg)"}}>
+        <h3 style={{color:"#991b1b"}}><i className="fas fa-triangle-exclamation" style={{marginRight:6}}></i>Danger Zone</h3>
+        <p className="muted" style={{fontSize:12,color:"#7f1d1d"}}>
+          Delete this store permanently. This removes your products and storefront from the customer app. Admin records are retained.
+        </p>
+        <button className="btn-danger" onClick={deleteStorePermanently} disabled={deletingStore||isAccessRestricted}>
+          <i className={`fas fa-${deletingStore?"spinner fa-spin":"trash"}`} style={{marginRight:6}}></i>
+          {deletingStore?"Deleting Store...":"Delete Store Permanently"}
+        </button>
       </div>
     </>)}
 

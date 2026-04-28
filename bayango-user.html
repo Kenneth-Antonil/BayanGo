@@ -508,15 +508,52 @@
 
         let baseProductsRaw = [];
         let merchantProductsRaw = [];
+        let merchantDirectoryRaw = {};
+        const normalizeMerchantModerationAction = (merchant) => {
+          const explicitAction = String(
+            merchant?.moderation?.action
+            || merchant?.enforcementStatus
+            || ""
+          ).trim().toLowerCase();
+          if (["active", "suspended", "revoked", "deleted"].includes(explicitAction)) return explicitAction;
+          if (merchant?.deletedAt) return "deleted";
+          return "active";
+        };
+        const isApprovedMerchant = (merchant) => {
+          const approvedValue = merchant?.approved;
+          const normalizedApproved = String(approvedValue || "").trim().toLowerCase();
+          const normalizedStatus = String(merchant?.status || "").trim().toLowerCase();
+          return (
+            approvedValue === true
+            || approvedValue === 1
+            || normalizedApproved === "true"
+            || normalizedApproved === "approved"
+            || normalizedStatus === "approved"
+          );
+        };
+        const isMerchantVisibleInUserApp = (merchant) => {
+          if (!isApprovedMerchant(merchant)) return false;
+          const moderationAction = normalizeMerchantModerationAction(merchant);
+          return moderationAction === "active";
+        };
         const refreshMergedProducts = () => {
           const regularProducts = baseProductsRaw.map((entry) => ({
             ...entry,
             source: "market",
           }));
-          const partnerProducts = merchantProductsRaw.map((entry) => ({
-            ...entry,
-            source: "partner",
-          }));
+          const partnerProducts = merchantProductsRaw
+            .map((entry) => {
+              const merchant = merchantDirectoryRaw[entry.merchantId] || {};
+              if (!isMerchantVisibleInUserApp(merchant)) return null;
+              return {
+                ...entry,
+                source: "partner",
+                storeName: entry.storeName || merchant.storeName || "Partner Merchant",
+                merchantLogo: entry.merchantLogo || merchant.logoUrl || "",
+                storeOpen: merchant.storeOpen !== false,
+              };
+            })
+            .filter(Boolean);
           setProducts([...regularProducts, ...partnerProducts]);
         };
 
@@ -566,10 +603,17 @@
 
           _fbDb.ref("partner_merchants").on("value", snap => {
             const merchants = {};
+            const visibleMerchants = {};
             snap.forEach(child => {
-              merchants[child.key] = child.val() || {};
+              const raw = child.val() || {};
+              merchants[child.key] = raw;
+              if (isMerchantVisibleInUserApp(raw)) {
+                visibleMerchants[child.key] = raw;
+              }
             });
-            setMerchantDirectory(merchants);
+            merchantDirectoryRaw = merchants;
+            setMerchantDirectory(visibleMerchants);
+            refreshMergedProducts();
           });
 
           _fbDb.ref("merchant_listings").on("value", snap => {

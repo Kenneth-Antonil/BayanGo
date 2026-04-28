@@ -156,6 +156,63 @@
       { id:"gamot",    label:"Medicine",      icon:"pills",              color:"#14B8A6" },
       { id:"hardware", label:"Hardware",      icon:"screwdriver-wrench", color:"#F59E0B" },
     ];
+    const BG_MART_CATEGORIES = [
+      { id:"food_staples", label:"Food & Staples", icon:"basket-shopping", color:"#166534" },
+      { id:"canned_meat_fish", label:"Canned Meat & Fish", icon:"box", color:"#15803D" },
+      { id:"noodles_pasta", label:"Noodles & Pasta", icon:"bowl-food", color:"#15803D" },
+      { id:"condiments_seasonings", label:"Condiments & Seasonings", icon:"mortar-pestle", color:"#15803D" },
+      { id:"cooking_oil_grains", label:"Cooking Oil & Grains", icon:"seedling", color:"#15803D" },
+      { id:"sauces_spreads", label:"Sauces & Spreads", icon:"bottle-water", color:"#15803D" },
+      { id:"canned_fruits_vegetables", label:"Canned Fruits & Vegetables", icon:"carrot", color:"#15803D" },
+      { id:"baking_essentials_flour", label:"Baking Essentials & Flour", icon:"bread-slice", color:"#15803D" },
+      { id:"soup_bouillon", label:"Soup & Bouillon", icon:"mug-hot", color:"#15803D" },
+      { id:"beverages", label:"Beverages", icon:"mug-hot", color:"#1D4ED8" },
+      { id:"instant_coffee_creamer", label:"Instant Coffee & Creamer", icon:"mug-hot", color:"#1E40AF" },
+      { id:"powdered_milk_chocolate_drinks", label:"Powdered Milk & Chocolate Drinks", icon:"glass-water", color:"#1E40AF" },
+      { id:"powdered_juice_tea", label:"Powdered Juice & Tea", icon:"glass-water", color:"#1E40AF" },
+      { id:"soft_drinks_carbonated", label:"Soft Drinks & Carbonated Beverages", icon:"wine-bottle", color:"#1E40AF" },
+      { id:"bottled_water", label:"Bottled Water", icon:"bottle-water", color:"#1E40AF" },
+      { id:"rtd_tea_juice", label:"Ready-to-Drink (RTD) Tea & Juice", icon:"martini-glass-citrus", color:"#1E40AF" },
+      { id:"beer_wine_spirits", label:"Beer, Wine & Spirits", icon:"whiskey-glass", color:"#1E40AF" },
+      { id:"energy_health_drinks", label:"Energy & Health Drinks", icon:"bolt", color:"#1E40AF" },
+      { id:"snacks_biscuits", label:"Snacks & Biscuits", icon:"cookie-bite", color:"#B45309" },
+      { id:"biscuits_crackers", label:"Biscuits & Crackers", icon:"cookie", color:"#92400E" },
+      { id:"cookies_wafers", label:"Cookies & Wafers", icon:"cookie-bite", color:"#92400E" },
+      { id:"chips_curls_corn_snacks", label:"Chips, Curls & Corn Snacks", icon:"bacon", color:"#92400E" },
+      { id:"candies_chocolates", label:"Candies & Chocolates", icon:"candy-cane", color:"#92400E" },
+      { id:"nuts_dried_fruits", label:"Nuts & Dried Fruits", icon:"apple-whole", color:"#92400E" },
+      { id:"chewing_gum_mints", label:"Chewing Gum & Mints", icon:"tag", color:"#92400E" },
+      { id:"personal_care", label:"Personal Care", icon:"pump-soap", color:"#7C3AED" },
+      { id:"hair_care", label:"Hair Care (Shampoo & Conditioner)", icon:"pump-soap", color:"#6D28D9" },
+      { id:"bath_soap_body_wash", label:"Bath Soap & Body Wash", icon:"soap", color:"#6D28D9" },
+      { id:"oral_care", label:"Oral Care (Toothpaste & Brush)", icon:"tooth", color:"#6D28D9" },
+      { id:"deodorants_fragrances", label:"Deodorants & Fragrances", icon:"spray-can", color:"#6D28D9" },
+      { id:"skin_care_lotions", label:"Skin Care & Lotions", icon:"hands", color:"#6D28D9" },
+      { id:"grooming_shaving", label:"Grooming & Shaving", icon:"razor", color:"#6D28D9" },
+      { id:"feminine_hygiene", label:"Feminine Hygiene", icon:"venus", color:"#6D28D9" },
+      { id:"cotton_buds", label:"Cotton & Buds", icon:"bandage", color:"#6D28D9" },
+      { id:"home_laundry", label:"Home & Laundry", icon:"house", color:"#334155" },
+      { id:"laundry_detergent", label:"Laundry Detergent (Powder & Bar)", icon:"shirt", color:"#475569" },
+      { id:"fabric_conditioner", label:"Fabric Conditioner", icon:"shirt", color:"#475569" },
+      { id:"dishwashing", label:"Dishwashing Liquid & Paste", icon:"utensils", color:"#475569" },
+      { id:"household_cleaners_bleach", label:"Household Cleaners & Bleach", icon:"bottle-droplet", color:"#475569" },
+      { id:"paper_products", label:"Paper Products (Tissue & Napkins)", icon:"toilet-paper", color:"#475569" },
+      { id:"air_fresheners_insecticides", label:"Air Fresheners & Insecticides", icon:"wind", color:"#475569" },
+      { id:"kitchen_utilities", label:"Kitchen Utilities (Foil & Plastic)", icon:"utensils", color:"#475569" },
+      { id:"baby_healthcare", label:"Baby & Healthcare", icon:"baby", color:"#DB2777" },
+      { id:"baby_milk_food", label:"Baby Milk & Food", icon:"baby", color:"#BE185D" },
+      { id:"diapers_wipes", label:"Diapers & Wipes", icon:"baby-carriage", color:"#BE185D" },
+      { id:"baby_toiletries", label:"Baby Toiletries", icon:"soap", color:"#BE185D" },
+      { id:"otc_medicines", label:"Over-the-Counter (OTC) Medicines", icon:"pills", color:"#BE185D" },
+      { id:"rubbing_alcohol_sanitizers", label:"Rubbing Alcohol & Sanitizers", icon:"hands-bubbles", color:"#BE185D" },
+      { id:"vitamins_supplements", label:"Vitamins & Supplements", icon:"pills", color:"#BE185D" },
+      { id:"general_merchandise", label:"General Merchandise", icon:"boxes-stacked", color:"#0F766E" },
+      { id:"batteries_lighting", label:"Batteries & Lighting", icon:"battery-half", color:"#0F766E" },
+      { id:"school_office_supplies", label:"School & Office Supplies", icon:"pen-ruler", color:"#0F766E" },
+      { id:"matches_lighters", label:"Matches & Lighters", icon:"fire", color:"#0F766E" },
+      { id:"small_appliances", label:"Small Appliances", icon:"plug", color:"#0F766E" },
+      { id:"storage_plasticware", label:"Storage & Plasticware", icon:"box-open", color:"#0F766E" },
+    ];
 
     const STATUS_INFO = {
       pending:   { label:"Pending",     icon:"hourglass-half", bg:"#F3F4F6", color:"#6B7280" },
@@ -423,7 +480,7 @@
               const list = [];
               snap.forEach(c => {
                 const v = c.val() || {};
-                list.push({ id: c.key, name: typeof v.name === "string" ? v.name : "", cat: typeof v.cat === "string" ? v.cat : "isda", price: Number.isFinite(Number(v.price)) ? Number(v.price) : 0, basePrice: Number.isFinite(Number(v.basePrice)) ? Number(v.basePrice) : (Number.isFinite(Number(v.price)) ? Number(v.price) : 0), autoPriceEnabled: v.autoPriceEnabled !== false, unit: typeof v.unit === "string" && v.unit ? v.unit : "kg", stock: v.stock !== false, img: typeof v.img === "string" ? v.img : "", createdAt: Number(v.createdAt || 0) });
+                list.push({ id: c.key, name: typeof v.name === "string" ? v.name : "", cat: typeof v.cat === "string" ? v.cat : "isda", price: Number.isFinite(Number(v.price)) ? Number(v.price) : 0, basePrice: Number.isFinite(Number(v.basePrice)) ? Number(v.basePrice) : (Number.isFinite(Number(v.price)) ? Number(v.price) : 0), autoPriceEnabled: v.autoPriceEnabled !== false, unit: typeof v.unit === "string" && v.unit ? v.unit : "kg", stock: v.stock !== false, img: typeof v.img === "string" ? v.img : "", source: v.source === "bg_mart" ? "bg_mart" : "market", createdAt: Number(v.createdAt || 0) });
               });
               setProducts(list);
             }, err => console.error("Products error:", err));
@@ -647,6 +704,22 @@
         if (normalizedAction === "deleted") {
           updates.deletedAt = now;
           updates.deletedByUid = user?.uid || null;
+          updates.status = "deleted";
+          updates.approved = false;
+          updates.busyMode = true;
+          updates.active = false;
+          updates.featuredInApp = false;
+          updates.logoUrl = null;
+          updates.description = null;
+          updates.promoBanners = null;
+          updates.campaigns = null;
+          updates.customCategories = null;
+
+          await Promise.all([
+            fns.remove(fns.ref(db, "merchant_listings/" + merchantId)),
+            fns.update(fns.ref(db, "partner_merchants/" + merchantId), updates),
+          ]);
+          return;
         }
         await fns.update(fns.ref(db, "partner_merchants/" + merchantId), updates);
       }, [user?.email, user?.uid]);
@@ -700,6 +773,7 @@
         { key: "orders",    label: "Orders",      icon: "receipt" },
         { key: "grocery",   label: "Grocery",     icon: "basket-shopping" },
         { key: "products",  label: "Products",    icon: "store" },
+        { key: "bgmart",    label: "BG Mart",     icon: "basket-shopping" },
         { key: "data",      label: "Analytics",   icon: "chart-column" },
         { key: "partners",  label: "Partners",    icon: "handshake", badge: pendingPartners },
         { key: "vouchers",  label: "Vouchers",    icon: "ticket" },
@@ -758,7 +832,7 @@
         { key: "dashboard", icon: "gauge-high",     label: "Home" },
         { key: "orders",    icon: "receipt",         label: "Orders" },
         { key: "grocery",   icon: "basket-shopping", label: "Grocery" },
-        { key: "products",  icon: "store",           label: "Products" },
+        { key: "bgmart",    icon: "basket-shopping", label: "BG Mart" },
         { key: "settings",  icon: "ellipsis",        label: "More" },
       ];
       return (
@@ -1597,8 +1671,8 @@
                             const reason = window.prompt("Reason for deleting store (required):", enforcementReason || "");
                             if (reason === null) return;
                             if (!String(reason).trim()) { toast.error("Deletion reason is required."); return; }
-                            if (!window.confirm(`Delete store access for ${m.storeName || "this merchant"}?`)) return;
-                            onModerateMerchant?.(m._merchantId, "deleted", reason).then(() => toast.success("Store marked as deleted. Partner will receive an email."));
+                            if (!window.confirm(`Permanently delete ${m.storeName || "this merchant"} and remove all listing products?`)) return;
+                            onModerateMerchant?.(m._merchantId, "deleted", reason).then(() => toast.success("Store permanently deleted. Partner will receive an email."));
                           }} style={{ height: 36, borderRadius: 8, fontSize: 11, fontWeight: 700, cursor: "pointer", background: "#111827", color: "#fff", border: "1px solid #1F2937" }}>
                             Delete Store
                           </button>
@@ -1811,6 +1885,179 @@
       );
     }
 
+
+    function BGMartPanel({ products, onAdd, onUpdate, onDelete }) {
+      const bgMartProducts = useMemo(() => products.filter((p) => p.source === "bg_mart"), [products]);
+      const [quickName, setQuickName] = useState("");
+      const [quickCat, setQuickCat] = useState("food_staples");
+      const [quickUnit, setQuickUnit] = useState("pc");
+      const [quickPrice, setQuickPrice] = useState("");
+      const [quickImage, setQuickImage] = useState("");
+      const [saving, setSaving] = useState(false);
+      const [showModal, setShowModal] = useState(false);
+      const [editProd, setEditProd] = useState(null);
+      const [modalSaving, setModalSaving] = useState(false);
+      const [promoBannerUrl, setPromoBannerUrl] = useState("");
+      const [bannerSaving, setBannerSaving] = useState(false);
+      const [bannerUploading, setBannerUploading] = useState(false);
+
+      useEffect(() => {
+        let active = true;
+        (async () => {
+          try {
+            const { db, fns } = await initFirebase();
+            const snap = await fns.get(fns.ref(db, "settings/bgMartPromoBanner"));
+            const raw = snap.val() || {};
+            if (active) setPromoBannerUrl(typeof raw.imageUrl === "string" ? raw.imageUrl : "");
+          } catch (err) {
+            console.error("Failed to load BG Mart promo banner:", err);
+          }
+        })();
+        return () => { active = false; };
+      }, []);
+
+      const savePromoBanner = async (nextUrl) => {
+        setBannerSaving(true);
+        try {
+          const { db, fns } = await initFirebase();
+          const cleanUrl = String(nextUrl || "").trim();
+          if (cleanUrl) {
+            await fns.update(fns.ref(db, "settings/bgMartPromoBanner"), {
+              imageUrl: cleanUrl,
+              updatedAt: Date.now(),
+            });
+          } else {
+            await fns.remove(fns.ref(db, "settings/bgMartPromoBanner"));
+          }
+          setPromoBannerUrl(cleanUrl);
+          toast.success(cleanUrl ? "Promo banner saved." : "Promo banner removed.");
+        } catch (err) {
+          toast.error("Banner save failed: " + (err.message || "unknown"));
+        } finally {
+          setBannerSaving(false);
+        }
+      };
+
+      const uploadPromoBanner = async (file) => {
+        if (!file || !String(file.type || "").startsWith("image/")) return toast.error("Please upload an image file.");
+        if (file.size > 6 * 1024 * 1024) return toast.error("Image must be below 6MB.");
+        setBannerUploading(true);
+        try {
+          const st = await initStorage();
+          const safeName = (file.name || "bgmart-banner.jpg").replace(/[^\w.\-]/g, "_");
+          const storageRef = st.ref(st.storage, `bgmart_banners/${Date.now()}_${safeName}`);
+          await st.uploadBytes(storageRef, file);
+          const url = await st.getDownloadURL(storageRef);
+          await savePromoBanner(url);
+        } catch (err) {
+          toast.error("Upload failed: " + (err.message || "unknown"));
+        } finally {
+          setBannerUploading(false);
+        }
+      };
+
+      const addListing = async () => {
+        const name = quickName.trim();
+        const price = Number(quickPrice);
+        if (!name) return toast.error("Listing name is required.");
+        if (!Number.isFinite(price) || price < 0) return toast.error("Enter valid price.");
+        setSaving(true);
+        try {
+          await onAdd({ name, cat: quickCat, unit: quickUnit || "pc", basePrice: roundPrice(price), price: roundPrice(price), img: quickImage.trim(), stock: true, autoPriceEnabled: true, source: "bg_mart" });
+          setQuickName(""); setQuickPrice(""); setQuickImage("");
+          toast.success("BG Mart listing added.");
+        } catch (err) {
+          toast.error("Failed: " + (err.message || "unknown"));
+        } finally {
+          setSaving(false);
+        }
+      };
+
+      const saveEdit = async (data) => {
+        setModalSaving(true);
+        try {
+          if (editProd?.id) await onUpdate(editProd.id, { ...data, source: "bg_mart" });
+          setShowModal(false);
+          setEditProd(null);
+          toast.success("BG Mart listing updated.");
+        } catch (err) {
+          toast.error("Save failed: " + (err.message || "unknown"));
+        } finally {
+          setModalSaving(false);
+        }
+      };
+
+      const deleteRow = async (row) => {
+        if (!row?.id) return;
+        if (!window.confirm(`Delete ${row.name} from BG Mart?`)) return;
+        try { await onDelete(row.id); toast.success("Listing deleted."); }
+        catch (err) { toast.error("Delete failed: " + (err.message || "unknown")); }
+      };
+
+      return (
+        <div style={{ padding: "20px 24px", paddingBottom: 90 }}>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 10, flexWrap: "wrap", marginBottom: 14 }}>
+            <h2 style={{ fontSize: 18, fontWeight: 800 }}>BG Mart Listings</h2>
+            <span className="status-badge" style={{ background: "#DCFCE7", color: "#166534" }}>{bgMartProducts.length} active listing{bgMartProducts.length !== 1 ? "s" : ""}</span>
+          </div>
+
+          <div className="card" style={{ marginBottom: 14 }}>
+            <div style={{ fontSize: 13, fontWeight: 800, color: "var(--brand)", marginBottom: 8 }}><Ic n="image" style={{ marginRight: 6 }} />Promotional Banner</div>
+            {promoBannerUrl
+              ? <img src={promoBannerUrl} alt="BG Mart promotional banner" style={{ width: "100%", maxHeight: 190, objectFit: "cover", borderRadius: 12, border: "1px solid var(--border)" }} />
+              : <div style={{ border: "1.5px dashed var(--border)", borderRadius: 12, padding: "16px 12px", fontSize: 12, color: "var(--text-muted)", textAlign: "center" }}>No promotional banner yet.</div>}
+            <div style={{ display: "flex", gap: 8, marginTop: 10, flexWrap: "wrap" }}>
+              <label className="btn btn-outline" style={{ fontSize: 12, padding: "8px 12px", cursor: bannerUploading || bannerSaving ? "not-allowed" : "pointer", opacity: bannerUploading || bannerSaving ? 0.65 : 1 }}>
+                <Ic n={bannerUploading ? "spinner" : "camera"} className={bannerUploading ? "spin" : ""} />
+                {bannerUploading ? "Uploading..." : "Upload Banner"}
+                <input type="file" accept="image/*" style={{ display: "none" }} disabled={bannerUploading || bannerSaving} onChange={e => { if (e.target.files?.[0]) uploadPromoBanner(e.target.files[0]); e.target.value = ""; }} />
+              </label>
+              <button onClick={() => savePromoBanner("")} disabled={!promoBannerUrl || bannerUploading || bannerSaving} className="btn btn-danger" style={{ fontSize: 12, padding: "8px 12px" }}>
+                {bannerSaving ? "Saving..." : "Remove Banner"}
+              </button>
+            </div>
+            <div style={{ fontSize: 11, color: "var(--text-muted)", marginTop: 8 }}>This image appears on the BG Mart tab in the user app. If none is uploaded, nothing is shown.</div>
+          </div>
+
+          <div className="card" style={{ marginBottom: 14 }}>
+            <div style={{ fontSize: 13, fontWeight: 800, color: "var(--brand)", marginBottom: 8 }}><Ic n="plus" style={{ marginRight: 6 }} />Dedicated Add Listing</div>
+            <div style={{ display: "grid", gridTemplateColumns: "2fr 1fr", gap: 8, marginBottom: 8 }}>
+              <input value={quickName} onChange={e => setQuickName(e.target.value)} placeholder="Item name (e.g., Eggplant)" className="input" />
+              <input value={quickPrice} onChange={e => setQuickPrice(e.target.value)} type="number" min="0" step="0.01" placeholder="Price" className="input" />
+            </div>
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 2fr", gap: 8, marginBottom: 10 }}>
+              <select value={quickCat} onChange={e => setQuickCat(e.target.value)} className="input">{BG_MART_CATEGORIES.map(c => <option key={c.id} value={c.id}>{c.label}</option>)}</select>
+              <input value={quickUnit} onChange={e => setQuickUnit(e.target.value)} placeholder="Unit" className="input" />
+              <input value={quickImage} onChange={e => setQuickImage(e.target.value)} placeholder="Image URL (optional)" className="input" />
+            </div>
+            <button onClick={addListing} disabled={saving} className="btn btn-brand" style={{ width: "100%", padding: 11 }}>{saving ? "Saving..." : "Add BG Mart Listing"}</button>
+            <div style={{ fontSize: 11, color: "var(--text-muted)", marginTop: 8 }}>Listings added here appear in the BG Mart tab in the user app.</div>
+          </div>
+
+          <div className="card">
+            <div style={{ fontSize: 13, fontWeight: 800, marginBottom: 10 }}>Current BG Mart Catalog</div>
+            {bgMartProducts.length === 0 && <div style={{ fontSize: 12, color: "var(--text-muted)" }}>No BG Mart listings yet.</div>}
+            <div style={{ display: "grid", gap: 8 }}>
+              {bgMartProducts.map((p) => (
+                <div key={p.id} style={{ border: "1px solid var(--border)", borderRadius: 12, padding: "10px 12px", display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8 }}>
+                  <div style={{ minWidth: 0 }}>
+                    <div style={{ fontSize: 13, fontWeight: 800, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{p.name}</div>
+                    <div style={{ fontSize: 11, color: "var(--text-muted)", marginTop: 2 }}>{fmt(Number(p.price || p.basePrice || 0))} / {p.unit || "pc"} · {BG_MART_CATEGORIES.find(c => c.id === p.cat)?.label || p.cat}</div>
+                  </div>
+                  <div style={{ display: "flex", gap: 6 }}>
+                    <button onClick={() => { setEditProd(p); setShowModal(true); }} className="btn btn-blue" style={{ padding: "6px 10px", fontSize: 11 }}><Ic n="pen-to-square" />Edit</button>
+                    <button onClick={() => deleteRow(p)} className="btn btn-danger" style={{ padding: "6px 10px", fontSize: 11 }}><Ic n="trash" />Delete</button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {showModal && <ProductModal product={editProd} onSave={saveEdit} onClose={() => { if (!modalSaving) { setShowModal(false); setEditProd(null); } }} saving={modalSaving} />}
+        </div>
+      );
+    }
+
     function ProductModal({ product, onSave, onClose, saving }) {
       const [name, setName] = useState(product?.name || "");
       const [cat, setCat] = useState(product?.cat || "isda");
@@ -1820,6 +2067,7 @@
       const [stock, setStock] = useState(product?.stock !== false);
       const [autoPriceEnabled, setAutoPriceEnabled] = useState(product?.autoPriceEnabled !== false);
       const [imageUploading, setImageUploading] = useState(false);
+      const categoryOptions = product?.source === "bg_mart" ? BG_MART_CATEGORIES : CATEGORIES;
 
       const uploadProductImage = async (file) => {
         if (!file || !String(file.type || "").startsWith("image/")) return toast.error("Please upload an image file.");
@@ -1841,7 +2089,7 @@
         if (!cleanName) return toast.error("Product name is required.");
         const parsedPrice = Number(basePrice);
         if (!Number.isFinite(parsedPrice) || parsedPrice < 0) return toast.error("Enter a valid base price.");
-        await onSave({ name: cleanName, cat, unit: unit.trim() || "kg", basePrice: roundPrice(parsedPrice), price: roundPrice(parsedPrice), img: img.trim(), stock, autoPriceEnabled });
+        await onSave({ name: cleanName, cat, unit: unit.trim() || "kg", basePrice: roundPrice(parsedPrice), price: roundPrice(parsedPrice), img: img.trim(), stock, autoPriceEnabled, source: product?.source === "bg_mart" ? "bg_mart" : "market" });
       };
 
       return (
@@ -1854,7 +2102,7 @@
             <div style={{ display: "grid", gap: 10 }}>
               <input value={name} onChange={e => setName(e.target.value)} placeholder="Product name" required className="input" />
               <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
-                <select value={cat} onChange={e => setCat(e.target.value)} className="input">{CATEGORIES.map(c => <option key={c.id} value={c.id}>{c.label}</option>)}</select>
+                <select value={cat} onChange={e => setCat(e.target.value)} className="input">{categoryOptions.map(c => <option key={c.id} value={c.id}>{c.label}</option>)}</select>
                 <input value={unit} onChange={e => setUnit(e.target.value)} placeholder="Unit (kg, pc)" className="input" />
               </div>
               <input type="number" min="0" step="1" value={basePrice} onChange={e => setBasePrice(e.target.value)} placeholder="Base price" className="input" />
@@ -2114,7 +2362,7 @@
     /* ══════════════════ ADMIN DASHBOARD (Main Shell) ══════════════════ */
     function AdminDashboard({ user, onLogout, orders, onUpdateStatus, onBroadcast, products, onAddProduct, onUpdateProduct, onDeleteProduct, marketPricing, onUpdateMarketPricing, vouchers, onAddVoucher, onUpdateVoucher, onDeleteVoucher, refunds, onCreateRefund, appUsageStats, appUsageMap, partnerApplications, partnerMerchants, onDecidePartnerApplication, onToggleFeaturedPartnerMerchant, onModeratePartnerMerchant, authzError, partnerDataLoaded }) {
       const getInitialTab = () => {
-        const validTabs = new Set(["dashboard", "orders", "grocery", "products", "data", "partners", "vouchers", "refunds", "settings"]);
+        const validTabs = new Set(["dashboard", "orders", "grocery", "products", "bgmart", "data", "partners", "vouchers", "refunds", "settings"]);
         try { const hash = (window.location.hash || "").replace("#", "").toLowerCase(); if (validTabs.has(hash)) return hash; } catch {}
         return "dashboard";
       };
@@ -2134,6 +2382,8 @@
       const [voucherBusyUid, setVoucherBusyUid] = useState("");
       const [userSearch, setUserSearch] = useState("");
       const [gcashSettings, setGcashSettings] = useState({ number: "09618280589", name: "Kenneth Antonil", qrUrl: "" });
+      const [appAvailability, setAppAvailability] = useState({ userAppEnabled: true, userAppMessage: "" });
+      const [appAvailabilitySaving, setAppAvailabilitySaving] = useState(false);
       const [gcashSaving, setGcashSaving] = useState(false);
       const [qrUploading, setQrUploading] = useState(false);
       const [confirmingPay, setConfirmingPay] = useState(null);
@@ -2195,6 +2445,28 @@
         (async () => {
           try {
             const { db, fns } = await initFirebase();
+            const snap = await fns.get(fns.ref(db, "settings/appAvailability"));
+            if (snap.exists()) {
+              const raw = snap.val() || {};
+              setAppAvailability({
+                userAppEnabled: raw.userAppEnabled !== false,
+                userAppMessage: String(raw.userAppMessage || "").trim(),
+              });
+            } else {
+              const defaults = { userAppEnabled: true, userAppMessage: "" };
+              await fns.set(fns.ref(db, "settings/appAvailability"), defaults);
+              setAppAvailability(defaults);
+            }
+          } catch (err) {
+            console.error("App availability settings load failed:", err);
+          }
+        })();
+      }, []);
+
+      useEffect(() => {
+        (async () => {
+          try {
+            const { db, fns } = await initFirebase();
             const snap = await fns.get(fns.ref(db, "push_tokens"));
             if (!snap.exists()) { setRiders([]); return; }
             const allTokens = snap.val() || {};
@@ -2211,6 +2483,23 @@
       }, []);
 
       const saveGcashSettings = async () => { setGcashSaving(true); try { const { db, fns } = await initFirebase(); await fns.set(fns.ref(db, "settings/gcash"), gcashSettings); toast.success("GCash settings saved!"); } catch (err) { toast.error("Error: " + err.message); } finally { setGcashSaving(false); } };
+      const saveAppAvailability = async () => {
+        setAppAvailabilitySaving(true);
+        try {
+          const { db, fns } = await initFirebase();
+          const payload = {
+            userAppEnabled: appAvailability.userAppEnabled !== false,
+            userAppMessage: String(appAvailability.userAppMessage || "").trim(),
+            updatedAt: Date.now(),
+          };
+          await fns.set(fns.ref(db, "settings/appAvailability"), payload);
+          toast.success(payload.userAppEnabled ? "User app reopened." : "User app marked as unavailable.");
+        } catch (err) {
+          toast.error("Error: " + err.message);
+        } finally {
+          setAppAvailabilitySaving(false);
+        }
+      };
       const uploadQrImage = async (file) => {
         if (!file || !String(file.type || "").startsWith("image/")) return toast.error("Upload an image file.");
         if (file.size >= 5 * 1024 * 1024) return toast.error("Image must be < 5MB.");
@@ -2357,6 +2646,7 @@
             {tab === "grocery" && <GroceryTab orders={dashboardOrders} />}
             {tab === "partners" && <PartnersPanel applications={partnerApplications} merchants={partnerMerchants} onDecide={onDecidePartnerApplication} onToggleFeatured={onToggleFeaturedPartnerMerchant} onModerateMerchant={onModeratePartnerMerchant} dataLoaded={partnerDataLoaded} authzError={authzError} adminUid={user?.uid} />}
             {tab === "products" && <ProductsPanel products={products} onAdd={onAddProduct} onUpdate={onUpdateProduct} onDelete={onDeleteProduct} marketPricing={marketPricing} onUpdateMarketPricing={onUpdateMarketPricing} />}
+            {tab === "bgmart" && <BGMartPanel products={products} onAdd={onAddProduct} onUpdate={onUpdateProduct} onDelete={onDeleteProduct} />}
             {tab === "data" && <DataTab orders={orders} />}
             {tab === "vouchers" && <VouchersPanel vouchers={vouchers} onAdd={onAddVoucher} onUpdate={onUpdateVoucher} onDelete={onDeleteVoucher} />}
             {tab === "refunds" && <RefundsPanel refunds={refunds} orders={orders} onCreateRefund={onCreateRefund} />}
@@ -2409,6 +2699,31 @@
                       </div>
                     ))}
                   </div>
+                </div>
+
+                {/* App Availability */}
+                <div className="card" style={{ marginBottom: 16 }}>
+                  <div style={{ fontSize: 14, fontWeight: 800, color: appAvailability.userAppEnabled ? "var(--brand)" : "var(--red)", marginBottom: 4 }}><Ic n="power-off" style={{ marginRight: 6 }} />User App Availability</div>
+                  <div style={{ fontSize: 11, color: "var(--text-muted)", marginBottom: 10 }}>Toggle this to show users that the app is currently unavailable.</div>
+                  <label style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 10, fontSize: 12, fontWeight: 700, color: "var(--text-secondary)", cursor: "pointer" }}>
+                    <input
+                      type="checkbox"
+                      checked={!appAvailability.userAppEnabled}
+                      onChange={e => setAppAvailability(s => ({ ...s, userAppEnabled: !e.target.checked }))}
+                    />
+                    Mark user app as currently unavailable
+                  </label>
+                  <textarea
+                    value={appAvailability.userAppMessage}
+                    onChange={e => setAppAvailability(s => ({ ...s, userAppMessage: e.target.value }))}
+                    placeholder="Optional advisory message for users (e.g. maintenance schedule)."
+                    rows={3}
+                    className="input"
+                    style={{ marginBottom: 8, resize: "vertical" }}
+                  />
+                  <button onClick={saveAppAvailability} disabled={appAvailabilitySaving} className="btn btn-danger" style={{ width: "100%", padding: 10 }}>
+                    {appAvailabilitySaving ? "Saving..." : "Save App Availability"}
+                  </button>
                 </div>
 
                 {/* GCash Settings */}
