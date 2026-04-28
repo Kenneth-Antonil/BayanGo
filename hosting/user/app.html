@@ -1734,6 +1734,7 @@
       const [showCustomList, setShowCustomList] = useState(false);
       const [newItemName,    setNewItemName]    = useState("");
       const [newItemQty,     setNewItemQty]     = useState("");
+      const [newItemUnit,    setNewItemUnit]    = useState("pc");
       const [newItemPrice,   setNewItemPrice]   = useState("");
       const [showLocPicker,  setShowLocPicker]  = useState(false);
       const [vouchers,       setVouchers]       = useState([]);
@@ -1909,20 +1910,17 @@
 
       const addCustom = () => {
         if (!newItemName.trim()) return;
-        const qtyInput = newItemQty.trim();
-        const qtyMatch = qtyInput.match(/^(\d+(?:\.\d+)?)\s*(.*)$/);
-        const parsedQty = qtyMatch ? Number(qtyMatch[1]) : 1;
-        const parsedUnit = qtyMatch ? qtyMatch[2].trim() : qtyInput;
+        const parsedQty = Number(newItemQty);
         setCustomItems(prev => [...prev, {
           id: "cust_" + genId(),
           name: newItemName.trim(),
           qty: Number.isFinite(parsedQty) && parsedQty > 0 ? parsedQty : 1,
-          unit: parsedUnit || "pc",
+          unit: newItemUnit || "pc",
           estPrice: parseFloat(newItemPrice) || 0,
           isCustom: true,
           img: null,
         }]);
-        setNewItemName(""); setNewItemQty(""); setNewItemPrice("");
+        setNewItemName(""); setNewItemQty(""); setNewItemUnit("pc"); setNewItemPrice("");
       };
       const removeCustom = id => setCustomItems(prev => prev.filter(i => i.id !== id));
 
@@ -2803,10 +2801,23 @@
                   />
                   <div style={{ display:"flex", gap:8, marginBottom:10 }}>
                     <input
-                      placeholder="Quantity (hal. 1 kilo, 2 piraso)"
+                      placeholder="Quantity (hal. 1, 2, 0.5)"
                       value={newItemQty} onChange={e => setNewItemQty(e.target.value)}
+                      type="number" min="0.01" step="0.01"
                       style={{ flex:1, padding:"11px 14px", borderRadius:10, border:"1.5px solid #E5E7EB", fontSize:13, outline:"none", background:"#fff" }}
                     />
+                    <select
+                      value={newItemUnit}
+                      onChange={e => setNewItemUnit(e.target.value)}
+                      style={{ width:120, padding:"11px 10px", borderRadius:10, border:"1.5px solid #E5E7EB", fontSize:13, outline:"none", background:"#fff" }}
+                    >
+                      <option value="pc">pc</option>
+                      <option value="kg">kilogram</option>
+                      <option value="tali">tali</option>
+                      <option value="pack">pack</option>
+                      <option value="set">set</option>
+                      <option value="bottle">bottle</option>
+                    </select>
                     <input
                       placeholder="Est. ₱"
                       value={newItemPrice} onChange={e => setNewItemPrice(e.target.value)}
@@ -2835,7 +2846,7 @@
                         <div style={{ width:44, height:44, borderRadius:12, display:"flex", alignItems:"center", justifyContent:"center", background:"#F0FDF4" }}><Ic n="pen-to-square" size={22} style={{color:"#22C55E"}} /></div>
                         <div style={{ flex:1 }}>
                           <div style={{ fontSize:14, fontWeight:700, color:"#111" }}>{item.name}</div>
-                          <div style={{ fontSize:12, color:"#999" }}>{item.unit}</div>
+                          <div style={{ fontSize:12, color:"#999" }}>{item.qty} {item.unit}</div>
                         </div>
                         <div style={{ textAlign:"right" }}>
                           <div style={{ fontSize:13, fontWeight:800, color:"#166534" }}>~{fmt(item.estPrice)}</div>
