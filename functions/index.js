@@ -3,6 +3,7 @@ const { onValueCreated, onValueUpdated } = require("firebase-functions/v2/databa
 const { onRequest } = require("firebase-functions/v2/https");
 const { initializeApp } = require("firebase-admin/app");
 const { getDatabase } = require("firebase-admin/database");
+const { getFirestore } = require("firebase-admin/firestore");
 const { getStorage } = require("firebase-admin/storage");
 const crypto = require("crypto");
 
@@ -47,6 +48,16 @@ initializeApp();
 
 const PAYMONGO_WEBHOOK_SECRET = process.env.PAYMONGO_WEBHOOK_SECRET || "";
 const PAYMONGO_SECRET_KEY = process.env.PAYMONGO_SECRET_KEY || "";
+
+function escapeCsv(value) {
+  const text = String(value ?? "");
+  if (/[,"\n]/.test(text)) return `"${text.replace(/"/g, "\"\"")}"`;
+  return text;
+}
+
+function toStartOfMonth(year, month) {
+  return Date.UTC(year, month - 1, 1, 0, 0, 0, 0);
+}
 
 // ─────────────────────────────────────────────────────────────────────────────
 // RTDB-TRIGGERED: notification_queue
@@ -299,6 +310,72 @@ exports.paymongoWebhook = onRequest(
     }
 
     res.status(200).json({ ok: true, logged: true, orderUpdated: true, orderId, paymentState });
+  }
+);
+
+exports.exportMonthlyAccountingCsv = onRequest(
+  { region: "asia-southeast1", cors: true },
+  async (req, res) => {
+    if (req.method !== "GET") {
+      res.status(405).json({ ok: false, error: "Method Not Allowed" });
+      return;
+    }
+
+    const monthParam = String(req.query.month || "").trim(); // YYYY-MM
+    if (!/^\d{4}-(0[1-9]|1[0-2])$/.test(monthParam)) {
+      res.status(400).json({ ok: false, error: "month query must be YYYY-MM" });
+      return;
+    }
+
+    const [yearRaw, monthRaw] = monthParam.split("-");
+    const year = Number(yearRaw);
+    const month = Number(monthRaw);
+    const start = toStartOfMonth(year, month);
+    const end = month === 12 ? toStartOfMonth(year + 1, 1) : toStartOfMonth(year, month + 1);
+
+    const db = getFirestore();
+    const txnSnap = await db.collection("transactions")
+      .where("timestamp", ">=", start)
+      .where("timestamp", "<", end)
+      .get();
+    const expenseSnap = await db.collection("expenses")
+      .where("timestamp", ">=", start)
+      .where("timestamp", "<", end)
+      .get();
+
+    const rows = [];
+    txnSnap.forEach((doc) => {
+      const v = doc.data() || {};
+      rows.push({
+        date: new Date(Number(v.timestamp || 0)).toISOString().slice(0, 10),
+        invoice: v.invoiceNumber || "",
+        description: `Sale${v.customerName ? ` - ${v.customerName}` : ""}`,
+        category: v.category || "SERVICE",
+        amount: Number(v.grossAmount || 0),
+      });
+    });
+    expenseSnap.forEach((doc) => {
+      const v = doc.data() || {};
+      rows.push({
+        date: new Date(Number(v.timestamp || 0)).toISOString().slice(0, 10),
+        invoice: v.invoiceNumber || "",
+        description: `Expense${v.supplierName ? ` - ${v.supplierName}` : ""}`,
+        category: v.category || "OPERATING_EXPENSE",
+        amount: Number(v.amount || 0) * -1,
+      });
+    });
+
+    rows.sort((a, b) => a.date.localeCompare(b.date));
+
+    const csvHeader = "Date,Invoice/OR #,Description,Category,Amount";
+    const csvBody = rows
+      .map((r) => [r.date, r.invoice, r.description, r.category, r.amount.toFixed(2)].map(escapeCsv).join(","))
+      .join("\n");
+    const csv = `${csvHeader}\n${csvBody}`;
+
+    res.setHeader("Content-Type", "text/csv; charset=utf-8");
+    res.setHeader("Content-Disposition", `attachment; filename="bayango-books-${monthParam}.csv"`);
+    res.status(200).send(csv);
   }
 );
 
