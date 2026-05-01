@@ -440,7 +440,7 @@
       { key:"terms", label:"Terms & Conditions", icon:"file-contract", href:"terms-of-condition.html" },
       { key:"bir", label:"BIR Registration", icon:"receipt", href:"#legal-bir" },
     ];
-    function LegalLinks({ compact = false }) {
+    function LegalLinks({ compact = false, onOpenLegal = null }) {
       return (
         <div style={{
           display:"flex",
@@ -448,7 +448,12 @@
           gap: compact ? 6 : 8,
         }}>
           {LEGAL_LINKS.map(link => (
-            <a key={link.key} href={link.href} style={{
+            <a key={link.key} href={link.href} onClick={e => {
+              if (typeof onOpenLegal === "function" && LEGAL_CONTENT[link.key]) {
+                e.preventDefault();
+                onOpenLegal(link.key);
+              }
+            }} style={{
               border:"1px solid #BBF7D0",
               background:"#F7FEF9",
               borderRadius:999,
@@ -495,9 +500,16 @@
                 </div>
               )}
               {doc.sections.map(section => (
-                <div key={section.heading} style={{ marginBottom:10 }}>
-                  <div style={{ fontSize:12.5, fontWeight:800, color:"#111827", marginBottom:3 }}>{section.heading}</div>
-                  <div style={{ fontSize:12, color:"#4B5563", lineHeight:1.5 }}>{section.body}</div>
+                <div key={section.heading} style={{ marginBottom:12, padding:"8px 10px", borderRadius:10, background:"#F8FAFC" }}>
+                  <div style={{ fontSize:12.5, fontWeight:800, color:"#111827", marginBottom:5 }}>{section.heading}</div>
+                  <div style={{
+                    fontSize:12,
+                    color:"#4B5563",
+                    lineHeight:1.6,
+                    letterSpacing: section.heading === "Reference Number" ? ".04em" : "normal",
+                    fontFamily: section.heading === "Reference Number" ? "ui-monospace, SFMono-Regular, Menlo, monospace" : "inherit",
+                    wordBreak:"break-word"
+                  }}>{section.body}</div>
                 </div>
               ))}
             </div>
@@ -4816,7 +4828,7 @@
                   <div style={{ fontSize:11, color:"#94A3B8", fontWeight:700, textTransform:"uppercase", letterSpacing:".07em", marginBottom:8 }}>
                     About & Policies
                   </div>
-                  <LegalLinks compact />
+                  <LegalLinks compact onOpenLegal={onOpenLegal} />
                 </div>
 
               </div>
