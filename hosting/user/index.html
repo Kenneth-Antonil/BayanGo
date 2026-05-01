@@ -379,11 +379,44 @@
       border-radius: 14px;
       overflow: hidden;
       box-shadow: 0 8px 20px rgba(15, 23, 42, .12);
+      border: 1px solid #DCFCE7;
+      background: linear-gradient(180deg, #F0FDF4 0%, #FFFFFF 75%);
+    }
+    .bir-head {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+      padding: 12px 14px 10px;
+      border-bottom: 1px solid #E5E7EB;
+    }
+    .bir-title {
+      font-size: 13px;
+      font-weight: 900;
+      color: #14532D;
+      letter-spacing: .2px;
+    }
+    .bir-pill {
+      font-size: 10.5px;
+      font-weight: 800;
+      color: #166534;
+      background: #DCFCE7;
+      border: 1px solid #BBF7D0;
+      border-radius: 999px;
+      padding: 4px 8px;
+      white-space: nowrap;
     }
     .bir-card img {
       width: 100%;
       height: auto;
       display: block;
+    }
+    .bir-note {
+      margin: 0;
+      padding: 10px 14px 14px;
+      font-size: 11px;
+      color: #4B5563;
+      line-height: 1.45;
     }
 
     /* ── Fade-in animation ── */
@@ -562,7 +595,12 @@
     </div>
 
     <div class="bir-card fade-up delay-4">
-      <img src="https://i.imgur.com/RFn6xr3.png" alt="Bureau of Internal Revenue registered card for 2026 with QR code and RSN 046RC20260000006702">
+      <div class="bir-head">
+        <div class="bir-title">BIR Registered Seller</div>
+        <div class="bir-pill">Compliant • 2026</div>
+      </div>
+      <img src="https://i.imgur.com/RFn6xr3.png" alt="Bureau of Internal Revenue registration card with QR code and RSN 046RC20260000006702">
+      <p class="bir-note">Makikita sa card ang merchant details at registration reference. Pwede mong i-scan ang QR code para sa mabilis na verification.</p>
     </div>
 
   </div><!-- end .page -->
