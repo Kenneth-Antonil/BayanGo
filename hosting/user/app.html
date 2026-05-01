@@ -490,11 +490,8 @@
             <div style={{ padding:"12px 14px 14px", overflowY:"auto", maxHeight:"calc(82vh - 52px)" }}>
               <div style={{ fontSize:10, color:"#94A3B8", marginBottom:8 }}>Last updated: {doc.updatedAt}</div>
               {docKey === "bir" && (
-                <div style={{ border:"1px solid #BFDBFE", borderRadius:14, background:"linear-gradient(145deg,#EFF6FF,#FFFFFF)", padding:12, marginBottom:10 }}>
-                  <div style={{ fontSize:11, fontWeight:800, letterSpacing:".08em", color:"#1E40AF", textTransform:"uppercase" }}>Bureau of Internal Revenue</div>
-                  <div style={{ fontSize:24, fontWeight:900, color:"#0F172A", lineHeight:1.1, margin:"2px 0 4px" }}>2026</div>
-                  <div style={{ fontSize:12, fontWeight:700, color:"#1D4ED8" }}>www.bir.gov.ph</div>
-                  <div style={{ fontSize:10, color:"#64748B", marginTop:4 }}>RSN 046RC20260000006702</div>
+                <div style={{ borderRadius:14, overflow:"hidden", marginBottom:10, boxShadow:"0 8px 20px rgba(15,23,42,.12)" }}>
+                  <img src="https://i.imgur.com/RFn6xr3.png" alt="Bureau of Internal Revenue registered card for 2026 with QR code and RSN 046RC20260000006702" style={{ width:"100%", display:"block", height:"auto" }} />
                 </div>
               )}
               {doc.sections.map(section => (
