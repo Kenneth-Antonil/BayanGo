@@ -4608,7 +4608,10 @@
               background:"#EF4444",
             }}>
               <button
-                onClick={() => onDelete?.(notif.id)}
+                onClick={() => {
+                  setOpenNotifId(null);
+                  window.requestAnimationFrame(() => onDelete?.(notif.id));
+                }}
                 aria-label="Delete notification"
                 title="Delete"
                 style={{
