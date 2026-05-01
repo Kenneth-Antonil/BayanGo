@@ -376,52 +376,15 @@
     }
     .bir-card {
       margin: 18px 20px 0;
-      border: 1.5px solid #BFDBFE;
-      border-radius: 18px;
-      background: linear-gradient(145deg,#EFF6FF,#FFFFFF);
-      padding: 14px;
-      box-shadow: 0 8px 20px rgba(30,64,175,.12);
-      display: flex;
-      gap: 12px;
-      align-items: center;
-    }
-    .bir-logo {
-      width: 54px;
-      height: 54px;
       border-radius: 14px;
-      background: #1E3A8A;
-      color: #fff;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      font-size: 24px;
-      flex-shrink: 0;
+      overflow: hidden;
+      box-shadow: 0 8px 20px rgba(15, 23, 42, .12);
     }
-    .bir-meta { flex: 1; min-width: 0; }
-    .bir-title { font-size: 11px; color: #1E40AF; font-weight: 800; letter-spacing: .08em; text-transform: uppercase; }
-    .bir-value { font-size: 28px; line-height: 1; font-weight: 900; color: #0F172A; margin: 3px 0 4px; }
-    .bir-link { font-size: 12px; color: #1D4ED8; font-weight: 700; text-decoration: none; }
-    .bir-rsn { font-size: 9px; color: #64748B; margin-top: 4px; word-break: break-all; }
-    .bir-qr {
-      width: 72px;
-      height: 72px;
-      border-radius: 10px;
-      border: 2px solid #111827;
-      display: grid;
-      grid-template-columns: repeat(4, 1fr);
-      grid-template-rows: repeat(4, 1fr);
-      gap: 2px;
-      padding: 4px;
-      background: #fff;
-      flex-shrink: 0;
+    .bir-card img {
+      width: 100%;
+      height: auto;
+      display: block;
     }
-    .bir-qr span { background: #111827; border-radius: 1px; opacity: .9; }
-    .bir-qr span:nth-child(2),
-    .bir-qr span:nth-child(5),
-    .bir-qr span:nth-child(7),
-    .bir-qr span:nth-child(8),
-    .bir-qr span:nth-child(12),
-    .bir-qr span:nth-child(15) { opacity: 0; }
 
     /* ── Fade-in animation ── */
     @keyframes fadeUp {
@@ -599,19 +562,7 @@
     </div>
 
     <div class="bir-card fade-up delay-4">
-      <div class="bir-logo"><i class="fa-solid fa-shield-halved"></i></div>
-      <div class="bir-meta">
-        <div class="bir-title">Bureau of Internal Revenue</div>
-        <div class="bir-value">2026</div>
-        <a class="bir-link" href="https://www.bir.gov.ph" target="_blank" rel="noopener noreferrer">www.bir.gov.ph</a>
-        <div class="bir-rsn">RSN 046RC20260000006702</div>
-      </div>
-      <div class="bir-qr" aria-hidden="true">
-        <span></span><span></span><span></span><span></span>
-        <span></span><span></span><span></span><span></span>
-        <span></span><span></span><span></span><span></span>
-        <span></span><span></span><span></span><span></span>
-      </div>
+      <img src="https://i.imgur.com/RFn6xr3.png" alt="Bureau of Internal Revenue registered card for 2026 with QR code and RSN 046RC20260000006702">
     </div>
 
   </div><!-- end .page -->
