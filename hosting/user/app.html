@@ -414,11 +414,31 @@
           },
         ],
       },
+      bir: {
+        title: "BIR Registration",
+        icon: "receipt",
+        updatedAt: "March 28, 2026",
+        sections: [
+          {
+            heading: "Registered Merchant",
+            body: "BayanGo is registered with the Bureau of Internal Revenue (BIR) for 2026."
+          },
+          {
+            heading: "Reference Number",
+            body: "RSN 046RC20260000006702"
+          },
+          {
+            heading: "Verification",
+            body: "For verification, visit www.bir.gov.ph or scan the QR code shown in our legal information card."
+          },
+        ],
+      },
     };
     const LEGAL_LINKS = [
       { key:"about", label:"About Us", icon:"circle-info", href:"about-us.html" },
       { key:"privacy", label:"Privacy Policy", icon:"shield-halved", href:"privacy-policy.html" },
       { key:"terms", label:"Terms & Conditions", icon:"file-contract", href:"terms-of-condition.html" },
+      { key:"bir", label:"BIR Registration", icon:"receipt", href:"#legal-bir" },
     ];
     function LegalLinks({ compact = false }) {
       return (
@@ -469,6 +489,14 @@
             </div>
             <div style={{ padding:"12px 14px 14px", overflowY:"auto", maxHeight:"calc(82vh - 52px)" }}>
               <div style={{ fontSize:10, color:"#94A3B8", marginBottom:8 }}>Last updated: {doc.updatedAt}</div>
+              {docKey === "bir" && (
+                <div style={{ border:"1px solid #BFDBFE", borderRadius:14, background:"linear-gradient(145deg,#EFF6FF,#FFFFFF)", padding:12, marginBottom:10 }}>
+                  <div style={{ fontSize:11, fontWeight:800, letterSpacing:".08em", color:"#1E40AF", textTransform:"uppercase" }}>Bureau of Internal Revenue</div>
+                  <div style={{ fontSize:24, fontWeight:900, color:"#0F172A", lineHeight:1.1, margin:"2px 0 4px" }}>2026</div>
+                  <div style={{ fontSize:12, fontWeight:700, color:"#1D4ED8" }}>www.bir.gov.ph</div>
+                  <div style={{ fontSize:10, color:"#64748B", marginTop:4 }}>RSN 046RC20260000006702</div>
+                </div>
+              )}
               {doc.sections.map(section => (
                 <div key={section.heading} style={{ marginBottom:10 }}>
                   <div style={{ fontSize:12.5, fontWeight:800, color:"#111827", marginBottom:3 }}>{section.heading}</div>
