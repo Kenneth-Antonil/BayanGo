@@ -1802,7 +1802,10 @@
       });
       const getDeletedNotifStorageKey = useCallback((uid) => `bayango_deleted_notifs_${uid || "anon"}`, []);
       const [deletedNotifIds, setDeletedNotifIds] = useState({});
-      const unreadNotifCount = notifications.filter(n => n.createdAt > notifLastSeen).length;
+      const unreadNotifCount = useMemo(() => {
+        if (activePage === "notifications") return 0;
+        return notifications.filter(n => Number(n?.createdAt || 0) > notifLastSeen).length;
+      }, [activePage, notifications, notifLastSeen]);
       const serviceOptions = [
         { id:"pabili",  label:"Pabili",  icon:"bag-shopping", desc:"Bumili ng market at grocery items" },
         { id:"palakad", label:"Palakad", icon:"person-walking", desc:"Concierge para sa errands mo" },
@@ -1860,6 +1863,13 @@
         });
         return () => ref.off("value", handler);
       }, [deletedNotifIds, user?.uid]);
+
+      useEffect(() => {
+        if (activePage !== "notifications") return;
+        const now = Date.now();
+        setNotifLastSeen(prev => (now > prev ? now : prev));
+        try { localStorage.setItem("bayango_notif_last_seen", String(now)); } catch {}
+      }, [activePage, notifications.length]);
 
       const deleteNotification = useCallback((notifId) => {
         if (!notifId) return;
@@ -3756,11 +3766,7 @@
           )}
 
           {activePage === "notifications" && (
-            <NotificationsPage notifications={notifications} onDelete={deleteNotification} onMarkSeen={() => {
-              const now = Date.now();
-              setNotifLastSeen(now);
-              try { localStorage.setItem("bayango_notif_last_seen", String(now)); } catch {}
-            }} />
+            <NotificationsPage notifications={notifications} onDelete={deleteNotification} />
           )}
 
           {activePage === "account" && (
@@ -4528,8 +4534,7 @@
     }
 
     /* ══════════════════ NOTIFICATIONS PAGE ══════════════════ */
-    function NotificationsPage({ notifications, onDelete, onMarkSeen }) {
-      useEffect(() => { onMarkSeen(); }, []);
+    function NotificationsPage({ notifications, onDelete }) {
       const [openNotifId, setOpenNotifId] = useState(null);
 
       const NOTIF_ICON = {
