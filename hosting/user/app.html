@@ -1744,6 +1744,10 @@
           if (p.lat)   setCustomerLat(p.lat);
           if (p.lng)   setCustomerLng(p.lng);
         }).catch(err => console.error("Profile load error:", err.code));
+        _fbDb.ref("users/" + user.uid + "/loyaltyPoints").once("value").then(snap => {
+          const pts = Number(snap.val() || 0);
+          setLoyaltyPoints(Number.isFinite(pts) ? Math.max(0, pts) : 0);
+        }).catch(err => console.error("Loyalty points load error:", err.code));
       }, [user?.uid]);
       const [searchQ,        setSearchQ]        = useState("");
       const [shopScrolled,   setShopScrolled]   = useState(false);
@@ -1786,6 +1790,8 @@
       const [qrPhModal, setQrPhModal] = useState(null); // { orderId, total }
       const [showAddressEditor, setShowAddressEditor] = useState(false);
       const [showPaymentPicker, setShowPaymentPicker] = useState(false);
+      const [loyaltyPoints,  setLoyaltyPoints]  = useState(0);
+      const [useLoyaltyPoints, setUseLoyaltyPoints] = useState(false);
       const [activeStoreProfile, setActiveStoreProfile] = useState(null);
       const [activeStoreCat, setActiveStoreCat] = useState("all");
       const [storeSearchQ, setStoreSearchQ] = useState("");
@@ -1934,8 +1940,11 @@
       };
 
       const voucherDiscount = Math.min(computeVoucherDiscount(appliedVoucher), itemsTotal + deliveryFee);
-      const totalDiscount   = freeShipDiscount + voucherDiscount;
-      const total            = Math.max(0, itemsTotal + deliveryFee + serviceFee + smallOrderFee - totalDiscount);
+      const totalBeforePoints = Math.max(0, itemsTotal + deliveryFee + serviceFee + smallOrderFee - (freeShipDiscount + voucherDiscount));
+      const loyaltyDiscount = useLoyaltyPoints ? Math.min(loyaltyPoints, totalBeforePoints) : 0;
+      const totalDiscount   = freeShipDiscount + voucherDiscount + loyaltyDiscount;
+      const total            = Math.max(0, totalBeforePoints - loyaltyDiscount);
+      const earnedLoyaltyPoints = 0.20;
       const totalItemCount = cartCount + customItems.length;
 
       const add = id => setCart(c => ({ ...c, [id]:(c[id]||0)+1 }));
@@ -2300,6 +2309,9 @@
               discount: voucherDiscount,
             } : null,
             totalDiscount,
+            loyaltyDiscount,
+            loyaltyPointsUsed: loyaltyDiscount,
+            loyaltyPointsEarned: earnedLoyaltyPoints,
             total,
             zone: deliveryMetaLabel,
             customer: { name, phone, address: addr, lat: customerLat, lng: customerLng },
@@ -2314,6 +2326,17 @@
             locationType,
             paymentMethod,
           });
+          if (user?.uid && _fbDb) {
+            const earned = Number(earnedLoyaltyPoints || 0);
+            await _fbDb.ref("users/" + user.uid + "/loyaltyPoints").transaction((current) => {
+              const base = Number(current || 0);
+              const safeBase = Number.isFinite(base) ? base : 0;
+              const updated = safeBase - loyaltyDiscount + earned;
+              return Math.max(0, Math.round(updated * 100) / 100);
+            });
+            setLoyaltyPoints(prev => Math.max(0, Math.round((Number(prev || 0) - loyaltyDiscount + earned) * 100) / 100));
+          }
+          setUseLoyaltyPoints(false);
           setCart({});
           setCartWeightUnit({});
           setCustomItems([]);
@@ -3192,6 +3215,12 @@
                         <span style={{ fontWeight:600, color:"#166534" }}>-{fmt(voucherDiscount)}</span>
                       </div>
                     )}
+                    {loyaltyDiscount > 0 && (
+                      <div style={{ display:"flex", justifyContent:"space-between", marginTop:4 }}>
+                        <span style={{ color:"#166534" }}><Ic n="star" style={{marginRight:4}} />Loyalty Points</span>
+                        <span style={{ fontWeight:600, color:"#166534" }}>-{fmt(loyaltyDiscount)}</span>
+                      </div>
+                    )}
                   </div>
                   <div style={{ marginTop:10, paddingTop:10, borderTop:"2px dashed #D1D5DB", display:"flex", justifyContent:"space-between", fontSize:17, fontWeight:800, color:"#111" }}>
                     <span>~Total</span><span>~{fmt(total)}</span>
@@ -3272,6 +3301,18 @@
                 </div>
 
                 <div style={{ marginBottom:14 }}>
+                  <div style={{ background:"#EFF6FF", borderRadius:12, border:"1px solid #BFDBFE", padding:"11px 12px", marginBottom:12 }}>
+                    <div style={{ fontSize:12, fontWeight:800, color:"#1E3A8A", marginBottom:6 }}>
+                      <Ic n="star" style={{marginRight:5}} />Points Balance: {loyaltyPoints.toFixed(2)}
+                    </div>
+                    <label style={{ display:"flex", alignItems:"center", gap:8, fontSize:12, color:"#1E40AF", cursor:"pointer" }}>
+                      <input type="checkbox" checked={useLoyaltyPoints} onChange={e => setUseLoyaltyPoints(e.target.checked)} disabled={loyaltyPoints <= 0} />
+                      Gamitin ang points sa order na ito (up to {fmt(Math.min(loyaltyPoints, totalBeforePoints))})
+                    </label>
+                    <div style={{ fontSize:10, color:"#1D4ED8", marginTop:5 }}>
+                      Every successful order earns +0.20 points.
+                    </div>
+                  </div>
                   <label style={{ fontSize:12, fontWeight:700, color:"#666", display:"block", marginBottom:8 }}>
                     <Ic n="wallet" style={{marginRight:5}} />Paraan ng Bayad
                   </label>
