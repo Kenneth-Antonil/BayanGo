@@ -217,6 +217,7 @@ const CAMPAIGN_TYPES=[
 ];
 const fmt=n=>"₱"+Number(n||0).toLocaleString("en-PH",{minimumFractionDigits:0});
 const ago=ts=>{if(!ts)return"";const d=Date.now()-ts;if(d<60000)return"just now";if(d<3600000)return Math.floor(d/60000)+"m ago";if(d<86400000)return Math.floor(d/3600000)+"h ago";return new Date(ts).toLocaleDateString("en-PH",{month:"short",day:"numeric"});};
+const escapeHtml=v=>String(v??"").replace(/[&<>"']/g,m=>({ "&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;" }[m]));
 // Normalised approval check — mirrors the admin dashboard logic so the
 // merchant dashboard unlocks no matter which approval format was written
 // (boolean true, number 1, string "true"/"approved", or status === "approved").
@@ -643,6 +644,47 @@ function App(){
     }
   };
 
+  const printOrderReceipt=(o)=>{
+    const items=Array.isArray(o.items)?o.items:Object.values(o.items||{});
+    const subtotal=items.reduce((sum,it)=>sum+(Number(it.price||0)*Number(it.qty||1)),0);
+    const total=Number(o.total||subtotal||0);
+    const deliveryFee=Math.max(0,total-subtotal);
+    const orderedAt=new Date(o.createdAt||Date.now());
+    const orderedAtText=`${orderedAt.toLocaleDateString("en-PH",{year:"numeric",month:"short",day:"2-digit"})} ${orderedAt.toLocaleTimeString("en-PH",{hour:"2-digit",minute:"2-digit"})}`;
+    const popup=window.open("","_blank","width=430,height=760");
+    if(!popup){toast("Pop-up blocked. Please allow pop-ups to print receipt.","warn");return;}
+    const itemRows=items.map(it=>{
+      const qty=Number(it.qty||1);
+      const price=Number(it.price||0);
+      const lineTotal=qty*price;
+      return `<tr><td class="name">${escapeHtml(it.name||"Item")}<div class="meta">${qty} x ₱${price.toFixed(2)}</div></td><td class="amt">₱${lineTotal.toFixed(2)}</td></tr>`;
+    }).join("");
+    popup.document.write(`<!doctype html><html><head><title>Receipt - ${escapeHtml(o.id||"Order")}</title><style>
+      body{font-family:"Courier New",monospace;background:#eceff1;margin:0;padding:16px}
+      .receipt{width:340px;margin:0 auto;background:#fff;padding:18px 14px;border:1px dashed #94a3b8;color:#0f172a}
+      .center{text-align:center}.muted{font-size:12px;color:#475569}.rule{border-top:1px dashed #64748b;margin:10px 0}
+      table{width:100%;border-collapse:collapse;font-size:13px} td{padding:4px 0;vertical-align:top} .amt{text-align:right}
+      .name{font-weight:700}.meta{font-size:11px;color:#64748b;font-weight:400}.row{display:flex;justify-content:space-between;font-size:13px;margin:3px 0}
+      .total{font-size:16px;font-weight:800} .footer{margin-top:14px;padding-top:10px;border-top:1px dashed #64748b;text-align:center;font-size:11px;color:#334155}
+      @media print{body{background:#fff;padding:0}.receipt{border:none;width:auto;margin:0}}
+    </style></head><body><div class="receipt">
+      <div class="center"><div style="font-size:18px;font-weight:800;letter-spacing:1px">${escapeHtml(merchant?.storeName||"BayanGo Merchant")}</div>
+      <div class="muted">${escapeHtml(merchant?.address||"")}</div><div class="muted">${escapeHtml(merchant?.contactPhone||"")}</div></div>
+      <div class="rule"></div>
+      <div class="row"><span>Order #</span><span>${escapeHtml(o.id||"-")}</span></div>
+      <div class="row"><span>Date</span><span>${escapeHtml(orderedAtText)}</span></div>
+      <div class="row"><span>Customer</span><span>${escapeHtml(o.customer?.name||"Customer")}</span></div>
+      <div class="rule"></div>
+      <table><tbody>${itemRows||"<tr><td>No items</td><td></td></tr>"}</tbody></table>
+      <div class="rule"></div>
+      <div class="row"><span>Subtotal</span><span>₱${subtotal.toFixed(2)}</span></div>
+      <div class="row"><span>Delivery/Fees</span><span>₱${deliveryFee.toFixed(2)}</span></div>
+      <div class="row total"><span>TOTAL</span><span>₱${total.toFixed(2)}</span></div>
+      <div class="footer">This is not an official receipt</div>
+    </div><script>window.onload=function(){window.focus();window.print();};</script></body></html>`);
+    popup.document.close();
+  };
+
   // ─── Listing Actions ───────────────────────────────────────
   const saveListing=async()=>{
     if(!user||savingListing)return;
@@ -1047,6 +1089,11 @@ function App(){
             {s==='new' && <button className="btn-danger btn-sm" onClick={()=>{if(window.confirm("Reject this order?"))updateOrder(o.id,'cancelled','rejected');}}><i className="fas fa-times" style={{marginRight:4}}></i>Reject</button>}
           </div>
         )}
+        <div className="btn-group" style={{marginTop:8}}>
+          <button className="btn-muted btn-sm" onClick={()=>printOrderReceipt(o)}>
+            <i className="fas fa-print" style={{marginRight:4}}></i>Print Receipt
+          </button>
+        </div>
       </div>
     );
   };
