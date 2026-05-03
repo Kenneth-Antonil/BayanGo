@@ -515,6 +515,24 @@
         }
       };
 
+      const sendCustomerMessage = async (order, senderRole = "rider") => {
+        const msg = window.prompt("Ilagay ang message para sa customer:");
+        const text = String(msg || "").trim();
+        if (!text) return;
+        try {
+          await _fbDb.ref(`orders/${order.id}/messages`).push({
+            text,
+            senderRole,
+            senderUid: user.uid,
+            senderName: user.displayName || user.email || "Rider",
+            createdAt: Date.now(),
+          });
+          showToast("Message sent to customer.");
+        } catch (err) {
+          showToast("Failed to send message: " + (err.code || err.message));
+        }
+      };
+
       const recomputeTotals = (items, deliveryFee, totalDiscount) => {
         const subtotal = items.reduce((s, i) => {
           const p = Number(i.price || 0), q = Number(i.qty || 1);
@@ -1435,6 +1453,10 @@
                           Update Actual Price and Upload Receipt
                           {order.pricesUpdatedAt && <Ic n="circle-check" style={{ color:"#BBF7D0", marginLeft:2 }} />}
                         </button>
+                        <button onClick={() => sendCustomerMessage(order, "rider")} style={{
+                          width:"100%", marginBottom:8, padding:"10px", borderRadius:12,
+                          background:"#FFF7ED", color:"#9A3412", border:"1px solid #FDBA74", fontSize:13, fontWeight:700,
+                        }}><Ic n="message" style={{ marginRight:6 }} />Message Customer</button>
                         <button onClick={() => onOtw(order)} disabled={markingOtw === order.id || gcashPending} style={{
                           width:"100%", padding:"14px", borderRadius:14,
                           background: (markingOtw === order.id || gcashPending) ? "#E2E8F0" : "linear-gradient(135deg,#1D4ED8,#3B82F6)",
@@ -1470,15 +1492,21 @@
                   statusBadge={isIsland ? <><Ic n="ship" style={{ marginRight:4 }} />In the Boat</> : <><Ic n="motorcycle" style={{ marginRight:4 }} />OTW</>}
                   badgeBg={isIsland ? "#EFF6FF" : "#DBEAFE"} badgeColor="#1D4ED8"
                   actionBtn={
-                    <button onClick={() => onDeliver(order.id)} disabled={delivering === order.id} style={{
-                      width:"100%", padding:"14px", borderRadius:14,
-                      background: delivering === order.id ? "#E2E8F0" : "linear-gradient(135deg,#059669,#10B981)",
-                      color: delivering === order.id ? "#94A3B8" : "#fff",
-                      fontSize:15, fontWeight:800,
-                      boxShadow: delivering ? "none" : "0 4px 16px rgba(5,150,105,.35)",
-                    }}>
-                      {delivering === order.id ? <span className="pulse">Updating...</span> : <><Ic n="circle-check" style={{ marginRight:6 }} />Delivered!</>}
-                    </button>
+                    <>
+                      <button onClick={() => sendCustomerMessage(order, "rider")} style={{
+                        width:"100%", marginBottom:8, padding:"10px", borderRadius:12,
+                        background:"#FFF7ED", color:"#9A3412", border:"1px solid #FDBA74", fontSize:13, fontWeight:700,
+                      }}><Ic n="message" style={{ marginRight:6 }} />Message Customer</button>
+                      <button onClick={() => onDeliver(order.id)} disabled={delivering === order.id} style={{
+                        width:"100%", padding:"14px", borderRadius:14,
+                        background: delivering === order.id ? "#E2E8F0" : "linear-gradient(135deg,#059669,#10B981)",
+                        color: delivering === order.id ? "#94A3B8" : "#fff",
+                        fontSize:15, fontWeight:800,
+                        boxShadow: delivering ? "none" : "0 4px 16px rgba(5,150,105,.35)",
+                      }}>
+                        {delivering === order.id ? <span className="pulse">Updating...</span> : <><Ic n="circle-check" style={{ marginRight:6 }} />Delivered!</>}
+                      </button>
+                    </>
                   }
                 />
                 );

@@ -3898,6 +3898,31 @@
                   </div>
                 )}
 
+                {(() => {
+                  const orderMessages = Object.entries(liveOrder.messages || {})
+                    .map(([id, msg]) => ({ id, ...(msg || {}) }))
+                    .filter(msg => String(msg.text || "").trim())
+                    .sort((a, b) => Number(a.createdAt || 0) - Number(b.createdAt || 0));
+                  if (!orderMessages.length) return null;
+                  return (
+                    <div style={{ marginTop:18, borderRadius:16, border:"1.5px solid #DBEAFE", background:"#F8FAFF", padding:"14px" }}>
+                      <div style={{ fontSize:13, fontWeight:800, color:"#1E3A8A", marginBottom:10, display:"flex", alignItems:"center", gap:6 }}>
+                        <Ic n="message" /> Messages (Rider/Admin)
+                      </div>
+                      <div style={{ display:"grid", gap:8 }}>
+                        {orderMessages.map((msg) => (
+                          <div key={msg.id} style={{ background:"#fff", border:"1px solid #E2E8F0", borderRadius:10, padding:"9px 10px" }}>
+                            <div style={{ fontSize:11, fontWeight:700, color:"#475569", marginBottom:4 }}>
+                              {msg.senderRole === "admin" ? "Admin" : "Rider"} • {msg.createdAt ? new Date(msg.createdAt).toLocaleString("en-PH", { month:"short", day:"numeric", hour:"2-digit", minute:"2-digit" }) : "—"}
+                            </div>
+                            <div style={{ fontSize:12, color:"#0F172A" }}>{msg.text}</div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  );
+                })()}
+
                 {/* QR PH Payment Section (PayMongo) */}
                 {liveOrder.paymentMethod === "QRPH" && !isOrderClosed(liveOrder) && (
                   <div style={{ marginTop:18, borderRadius:16, border:"2px solid #3B82F6", background:"#EFF6FF", padding:"16px" }}>
@@ -5427,6 +5452,11 @@
         const canTrackRider = o.status === "buying" || o.status === "pickup" || o.status === "otw" || o.status === "in_boat";
         const hasQrPhBanner = o.paymentMethod === "QRPH" && o.status !== "delivered" && o.status !== "cancelled";
         const hasBottomAttachment = canTrackRider || hasQrPhBanner;
+        const orderMessages = Object.entries(o.messages || {})
+          .map(([id, msg]) => ({ id, ...(msg || {}) }))
+          .filter(msg => String(msg.text || "").trim())
+          .sort((a, b) => Number(a.createdAt || 0) - Number(b.createdAt || 0));
+        const latestMessage = orderMessages.length ? orderMessages[orderMessages.length - 1] : null;
         return (
           <div style={{ marginBottom:12 }}>
             <button onClick={() => onTrack(o)} style={{
@@ -5477,6 +5507,11 @@
                 <div style={{ fontSize:12, color:"#888" }}>{o.customer?.address}</div>
                 <div style={{ fontSize:14, fontWeight:800, color:"#166534" }}>~{fmt(o.total)}</div>
               </div>
+              {latestMessage && (
+                <div style={{ marginTop:10, padding:"9px 10px", borderRadius:10, border:"1px solid #BFDBFE", background:"#EFF6FF", fontSize:11, color:"#1E3A8A" }}>
+                  <strong>{latestMessage.senderRole === "admin" ? "Admin" : "Rider"}:</strong> {String(latestMessage.text).slice(0, 90)}
+                </div>
+              )}
 
               {/* Refund badge */}
               {orderRefund && (

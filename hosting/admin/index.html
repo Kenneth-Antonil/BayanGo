@@ -2512,6 +2512,23 @@
         try { const { db, fns } = await initFirebase(); await fns.update(fns.ref(db, "orders/" + order.id), { gcashPaymentConfirmed: true }); if (selected?.id === order.id) setSelected(s => ({ ...s, gcashPaymentConfirmed: true })); toast.success("GCash payment confirmed!"); }
         catch (err) { toast.error("Error: " + err.message); } finally { setConfirmingPay(null); }
       };
+      const sendCustomerMessage = async (order) => {
+        const text = String(window.prompt("Type message for customer:") || "").trim();
+        if (!text) return;
+        try {
+          const { db, fns } = await initFirebase();
+          await fns.push(fns.ref(db, `orders/${order.id}/messages`), {
+            text,
+            senderRole: "admin",
+            senderUid: user.uid,
+            senderName: user.displayName || user.email || "Admin",
+            createdAt: Date.now(),
+          });
+          toast.success("Message sent to customer.");
+        } catch (err) {
+          toast.error("Failed to send message: " + err.message);
+        }
+      };
       const assignOrderToRider = async (order, riderUid) => {
         if (!riderUid) return toast.error("Select a rider first.");
         const rider = riders.find(r => r.uid === riderUid);
@@ -2964,6 +2981,8 @@
                       ? <div style={{ marginBottom: 12, padding: "12px 14px", borderRadius: "var(--radius)", background: "#DCFCE7", color: "#166534", fontSize: 13, fontWeight: 700 }}><Ic n="circle-check" style={{ marginRight: 6 }} />GCash Payment Confirmed</div>
                       : <button onClick={() => confirmGcashPayment(selected)} disabled={confirmingPay === selected.id} className="btn btn-blue" style={{ width: "100%", marginBottom: 12, padding: 12 }}><Ic n="qrcode" />{confirmingPay === selected.id ? "Confirming..." : "Confirm GCash Payment"}</button>
                   )}
+
+                  <button onClick={() => sendCustomerMessage(selected)} className="btn" style={{ width: "100%", marginBottom: 8, padding: 12, background: "#FFF7ED", color: "#9A3412", border: "1px solid #FDBA74" }}><Ic n="message" style={{ marginRight: 5 }} />Message Customer</button>
 
                   {getNextLabel(selected) && <button onClick={() => advance(selected)} disabled={updating === selected.id} className="btn btn-brand" style={{ width: "100%", padding: 14, fontSize: 14 }}>{updating === selected.id ? "Updating..." : `${getNextLabel(selected)} \u2192`}</button>}
                   {canCancelOrder(selected) && <button onClick={() => cancelOrder(selected)} disabled={cancellingOrderId === selected.id} className="btn" style={{ width: "100%", marginTop: 8, padding: 12, background: "var(--red-bg)", color: "var(--red)", border: "1px solid #FECACA" }}><Ic n={cancellingOrderId === selected.id ? "hourglass-half" : "ban"} style={{ marginRight: 4 }} />{cancellingOrderId === selected.id ? "Cancelling..." : "Cancel Order"}</button>}
