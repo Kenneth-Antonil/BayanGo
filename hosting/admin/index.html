@@ -2396,6 +2396,8 @@
       const [assigningOrderId, setAssigningOrderId] = useState(null);
       const [assignRiderId, setAssignRiderId] = useState("");
       const [cancellingOrderId, setCancellingOrderId] = useState(null);
+      const [messageModalOrder, setMessageModalOrder] = useState(null);
+      const [customerMessageDraft, setCustomerMessageDraft] = useState("");
 
       const pendingPartners = (partnerApplications || []).filter(a => !["approved", "rejected"].includes(String(a.status || "").toLowerCase())).length;
 
@@ -2512,8 +2514,8 @@
         try { const { db, fns } = await initFirebase(); await fns.update(fns.ref(db, "orders/" + order.id), { gcashPaymentConfirmed: true }); if (selected?.id === order.id) setSelected(s => ({ ...s, gcashPaymentConfirmed: true })); toast.success("GCash payment confirmed!"); }
         catch (err) { toast.error("Error: " + err.message); } finally { setConfirmingPay(null); }
       };
-      const sendCustomerMessage = async (order) => {
-        const text = String(window.prompt("Type message for customer:") || "").trim();
+      const sendCustomerMessage = async (order, rawText) => {
+        const text = String(rawText || "").trim();
         if (!text) return;
         try {
           const { db, fns } = await initFirebase();
@@ -2525,6 +2527,8 @@
             createdAt: Date.now(),
           });
           toast.success("Message sent to customer.");
+          setCustomerMessageDraft("");
+          setMessageModalOrder(null);
         } catch (err) {
           toast.error("Failed to send message: " + err.message);
         }
@@ -2982,7 +2986,7 @@
                       : <button onClick={() => confirmGcashPayment(selected)} disabled={confirmingPay === selected.id} className="btn btn-blue" style={{ width: "100%", marginBottom: 12, padding: 12 }}><Ic n="qrcode" />{confirmingPay === selected.id ? "Confirming..." : "Confirm GCash Payment"}</button>
                   )}
 
-                  <button onClick={() => sendCustomerMessage(selected)} className="btn" style={{ width: "100%", marginBottom: 8, padding: 12, background: "#FFF7ED", color: "#9A3412", border: "1px solid #FDBA74" }}><Ic n="message" style={{ marginRight: 5 }} />Message Customer</button>
+                  <button onClick={() => { setMessageModalOrder(selected); setCustomerMessageDraft(""); }} className="btn" style={{ width: "100%", marginBottom: 8, padding: 12, background: "#FFF7ED", color: "#9A3412", border: "1px solid #FDBA74" }}><Ic n="message" style={{ marginRight: 5 }} />Message Customer</button>
 
                   {getNextLabel(selected) && <button onClick={() => advance(selected)} disabled={updating === selected.id} className="btn btn-brand" style={{ width: "100%", padding: 14, fontSize: 14 }}>{updating === selected.id ? "Updating..." : `${getNextLabel(selected)} \u2192`}</button>}
                   {canCancelOrder(selected) && <button onClick={() => cancelOrder(selected)} disabled={cancellingOrderId === selected.id} className="btn" style={{ width: "100%", marginTop: 8, padding: 12, background: "var(--red-bg)", color: "var(--red)", border: "1px solid #FECACA" }}><Ic n={cancellingOrderId === selected.id ? "hourglass-half" : "ban"} style={{ marginRight: 4 }} />{cancellingOrderId === selected.id ? "Cancelling..." : "Cancel Order"}</button>}
@@ -2994,6 +2998,22 @@
             {proofPreviewUrl && (
               <div onClick={() => setProofPreviewUrl("")} style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,.85)", zIndex: 9000, display: "flex", alignItems: "center", justifyContent: "center", padding: 20 }}>
                 <img src={proofPreviewUrl} alt="Proof preview" onClick={e => e.stopPropagation()} style={{ maxWidth: "95vw", maxHeight: "90vh", borderRadius: 14, objectFit: "contain", background: "#fff" }} />
+              </div>
+            )}
+
+            {messageModalOrder && (
+              <div onClick={() => setMessageModalOrder(null)} style={{ position: "fixed", inset: 0, background: "rgba(15,23,42,.6)", zIndex: 9500, display: "flex", alignItems: "center", justifyContent: "center", padding: 16 }}>
+                <div onClick={e => e.stopPropagation()} style={{ width: "100%", maxWidth: 440, background: "#fff", borderRadius: 16, border: "1px solid var(--border)", boxShadow: "0 20px 60px rgba(15,23,42,.35)", overflow: "hidden" }}>
+                  <div style={{ padding: "14px 16px", borderBottom: "1px solid var(--border)", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                    <div style={{ fontSize: 14, fontWeight: 800, color: "var(--text-primary)" }}><Ic n="message" style={{ marginRight: 6 }} />Message Customer</div>
+                    <button onClick={() => setMessageModalOrder(null)} className="btn" style={{ padding: "6px 10px", fontSize: 11 }}>Close</button>
+                  </div>
+                  <div style={{ padding: 14 }}>
+                    <div style={{ fontSize: 12, fontWeight: 700, color: "var(--text-secondary)", marginBottom: 8 }}>Order #{String(messageModalOrder.id || "").slice(0, 8)} • {messageModalOrder.customer?.name || "Customer"}</div>
+                    <textarea value={customerMessageDraft} onChange={e => setCustomerMessageDraft(e.target.value)} placeholder="Type your message..." rows={4} style={{ width: "100%", resize: "vertical", padding: "10px 12px", borderRadius: 10, border: "1px solid var(--border)", fontSize: 13 }} />
+                    <button onClick={() => sendCustomerMessage(messageModalOrder, customerMessageDraft)} className="btn btn-brand" style={{ width: "100%", marginTop: 10, padding: 11 }}><Ic n="paper-plane" style={{ marginRight: 6 }} />Send Message</button>
+                  </div>
+                </div>
               </div>
             )}
 
