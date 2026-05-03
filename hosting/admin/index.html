@@ -2431,6 +2431,30 @@
         window.XLSX.writeFile(wb, `bayango-orders-${label}-${new Date().toISOString().slice(0, 10)}.xlsx`);
         toast.success("Excel exported!");
       };
+      const escapeHtml = (v) => String(v ?? "").replace(/[&<>"']/g, m => ({ "&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;" }[m]));
+      const printOrderReceipt = (order) => {
+        const items = Array.isArray(order?.items) ? order.items : [];
+        const subtotal = Number(order.subtotal || items.reduce((s, i) => s + (Number(i.price || 0) * Number(i.qty || 1)), 0));
+        const deliveryFee = Number(order.deliveryFee || 0);
+        const serviceFee = Number(order.serviceFee || 0);
+        const discount = Number(order.totalDiscount || 0);
+        const total = Number(order.total || Math.max(0, subtotal + deliveryFee + serviceFee - discount));
+        const ts = order.createdAt?.toDate ? order.createdAt.toDate() : new Date(order.createdAt || Date.now());
+        const popup = window.open("", "_blank", "width=430,height=760");
+        if (!popup) return toast.error("Pop-up blocked. Allow pop-ups to print.");
+        const rows = items.map(i => `<tr><td class="name">${escapeHtml(i.name || "Item")}<div class="meta">${Number(i.qty || 1)} x ₱${Number(i.price || 0).toFixed(2)}</div></td><td class="amt">₱${(Number(i.qty || 1) * Number(i.price || 0)).toFixed(2)}</td></tr>`).join("");
+        popup.document.write(`<!doctype html><html><head><title>Receipt - ${escapeHtml(order.id || "")}</title><style>
+          body{font-family:"Courier New",monospace;background:#eef2f7;padding:14px}.receipt{max-width:340px;margin:0 auto;background:#fff;padding:16px 14px;border:1px dashed #94a3b8}
+          .center{text-align:center}.muted{font-size:12px;color:#64748b}.rule{border-top:1px dashed #64748b;margin:10px 0}table{width:100%;border-collapse:collapse;font-size:13px}.amt{text-align:right}
+          td{padding:4px 0;vertical-align:top}.name{font-weight:700}.meta{font-size:11px;color:#64748b;font-weight:400}.row{display:flex;justify-content:space-between;font-size:13px;margin:3px 0}.total{font-size:16px;font-weight:800}
+          .footer{text-align:center;margin-top:12px;padding-top:10px;border-top:1px dashed #64748b;font-size:11px} @media print{body{background:#fff;padding:0}.receipt{border:none;max-width:none}}
+        </style></head><body><div class="receipt"><div class="center"><div style="font-size:18px;font-weight:800">BayanGo Admin Receipt</div><div class="muted">${escapeHtml(ts.toLocaleDateString("en-PH"))} ${escapeHtml(ts.toLocaleTimeString("en-PH",{hour:"2-digit",minute:"2-digit"}))}</div></div>
+        <div class="rule"></div><div class="row"><span>Order #</span><span>${escapeHtml(order.id || "-")}</span></div><div class="row"><span>Customer</span><span>${escapeHtml(order.customer?.name || "Customer")}</span></div>
+        <table><tbody>${rows || "<tr><td>No items</td><td></td></tr>"}</tbody></table><div class="rule"></div>
+        <div class="row"><span>Subtotal</span><span>₱${subtotal.toFixed(2)}</span></div><div class="row"><span>Delivery</span><span>₱${deliveryFee.toFixed(2)}</span></div><div class="row"><span>Service</span><span>₱${serviceFee.toFixed(2)}</span></div><div class="row"><span>Discount</span><span>-₱${discount.toFixed(2)}</span></div>
+        <div class="row total"><span>TOTAL</span><span>₱${total.toFixed(2)}</span></div><div class="footer">This is not an official receipt</div></div><script>window.onload=function(){window.focus();window.print();};</script></body></html>`);
+        popup.document.close();
+      };
 
       useEffect(() => {
         (async () => {
@@ -2856,6 +2880,7 @@
 
                         <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
                           <button onClick={() => { setSelected(order); setEditedPrices({}); setProofImages(order.proofImages || []); setAssignRiderId(order.riderId || ""); }} className="btn btn-outline" style={{ flex: "1 1 80px", padding: 9 }}><Ic n="clipboard" />Details</button>
+                          <button onClick={() => printOrderReceipt(order)} className="btn btn-outline" style={{ flex: "1 1 100px", padding: 9 }}><Ic n="print" />Print</button>
                           {getNextLabel(order) && <button onClick={() => advance(order)} disabled={updating === order.id} className="btn btn-brand" style={{ flex: "2 1 120px", padding: 9 }}>{updating === order.id ? "Updating..." : `${getNextLabel(order)} \u2192`}</button>}
                           {canCancelOrder(order) && <button onClick={() => cancelOrder(order)} disabled={cancellingOrderId === order.id} className="btn" style={{ flex: "1 1 80px", padding: 9, background: "var(--red-bg)", color: "var(--red)", border: "1px solid #FECACA" }}><Ic n={cancellingOrderId === order.id ? "hourglass-half" : "ban"} />{cancellingOrderId === order.id ? "..." : "Cancel"}</button>}
                         </div>
