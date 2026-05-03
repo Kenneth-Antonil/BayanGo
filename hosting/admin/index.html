@@ -2452,7 +2452,7 @@
         <div class="rule"></div><div class="row"><span>Order #</span><span>${escapeHtml(order.id || "-")}</span></div><div class="row"><span>Customer</span><span>${escapeHtml(order.customer?.name || "Customer")}</span></div>
         <table><tbody>${rows || "<tr><td>No items</td><td></td></tr>"}</tbody></table><div class="rule"></div>
         <div class="row"><span>Subtotal</span><span>₱${subtotal.toFixed(2)}</span></div><div class="row"><span>Delivery</span><span>₱${deliveryFee.toFixed(2)}</span></div><div class="row"><span>Service</span><span>₱${serviceFee.toFixed(2)}</span></div><div class="row"><span>Discount</span><span>-₱${discount.toFixed(2)}</span></div>
-        <div class="row total"><span>TOTAL</span><span>₱${total.toFixed(2)}</span></div><div class="footer">This is not an official receipt</div></div><script>window.onload=function(){window.focus();window.print();};</script></body></html>`);
+        <div class="row total"><span>TOTAL</span><span>₱${total.toFixed(2)}</span></div><div class="footer">This is not an official receipt</div></div><script>window.onload=function(){window.focus();window.print();};<\/script></body></html>`);
         popup.document.close();
       };
 
