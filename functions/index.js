@@ -179,6 +179,39 @@ exports.notifyPartnerMerchantModeration = onValueUpdated(
   }
 );
 
+
+exports.onOrderMessageCreated = onValueCreated(
+  { ref: "orders/{orderId}/messages/{messageId}", region: "asia-southeast1" },
+  async (event) => {
+    const payload = event.data.val() || {};
+    const orderId = event.params.orderId;
+    const senderRole = String(payload.senderRole || "").toLowerCase();
+    const text = String(payload.text || "").trim();
+    if (!text) return;
+
+    try {
+      const db = getDatabase();
+      const orderSnap = await db.ref(`orders/${orderId}`).get();
+      if (!orderSnap.exists()) return;
+      const order = orderSnap.val() || {};
+      const uid = order.uid || order.userId || order.customerUid;
+      if (!uid) return;
+
+      if (!["rider", "admin"].includes(senderRole)) return;
+
+      await db.ref("notification_queue").push({
+        uid,
+        title: "BayanGo: May bagong message sa order mo",
+        body: `${senderRole === "admin" ? "Admin" : "Rider"}: ${text.slice(0, 100)}`,
+        link: `${USER_APP_URL}#orders`,
+        createdAt: Date.now(),
+      });
+    } catch (err) {
+      console.error(`[onOrderMessageCreated ${orderId}] Error:`, err);
+    }
+  }
+);
+
 // ─────────────────────────────────────────────────────────────────────────────
 // HTTPS: PAYMONGO WEBHOOK (PAYMENT EVENTS)
 // ─────────────────────────────────────────────────────────────────────────────
