@@ -1280,6 +1280,14 @@
 
       const mergedMerchants = useMemo(() => {
         const byKey = new Map();
+        const deletedKeys = new Set((storeRecords || []).map((record) => {
+          const uid = String(record?.merchantId || record?.applicantUid || record?.uid || record?.id || "").trim();
+          const store = String(record?.storeName || "").trim().toLowerCase();
+          if (uid && store) return `uid:${uid}|store:${store}`;
+          if (uid) return `uid:${uid}`;
+          return `fallback:${store}|${String(record?.contactName || "").trim().toLowerCase()}`;
+        }));
+
         const makeKey = (entry = {}) => {
           const uid = String(entry.applicantUid || entry.uid || "").trim();
           const store = String(entry.storeName || "").trim().toLowerCase();
@@ -1294,10 +1302,11 @@
           if (String(app?.status || "").trim().toLowerCase() !== "approved") return;
           const candidate = { id: app.id, applicationId: app.id, applicantUid: app.applicantUid || app.uid || "", _merchantId: app.applicantUid || app.uid || "", contactName: app.contactName || "", contactPhone: app.contactPhone || "", storeName: app.storeName || "", category: app.category || app.storeCategory || "sari", description: app.description || "", logoUrl: app.logoUrl || "", status: "approved", approved: true, _source: "application_fallback" };
           const key = makeKey(candidate);
+          if (deletedKeys.has(key) || deletedKeys.has(`uid:${candidate._merchantId}`)) return;
           if (!byKey.has(key)) byKey.set(key, candidate);
         });
         return Array.from(byKey.values()).sort((a, b) => String(a.storeName || "").localeCompare(String(b.storeName || "")));
-      }, [applications, merchants]);
+      }, [applications, merchants, storeRecords]);
 
       const approvedMerchants = mergedMerchants.filter(m => normalizedMerchantStatus(m) === "approved");
       const filteredMerchants = useMemo(() => {
