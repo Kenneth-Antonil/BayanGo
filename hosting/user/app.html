@@ -4222,10 +4222,10 @@
 
           {/* ── Bottom Nav ── */}
           <div style={{
-            position:"fixed", bottom:"8px", left:0, right:0,
+            position:"fixed", bottom:0, left:0, right:0,
             maxWidth:480, margin:"0 auto",
             background:"#fff", borderTop:"1px solid #E5E7EB",
-            display: activePage === "checkout" ? "none" : "flex", paddingBottom:"calc(env(safe-area-inset-bottom,0px) + 2px)",
+            display: activePage === "checkout" ? "none" : "flex", paddingBottom:"env(safe-area-inset-bottom,0px)",
             boxShadow:"0 -4px 20px rgba(0,0,0,.07)", zIndex:150,
           }}>
             {[
