@@ -1280,13 +1280,17 @@
 
       const mergedMerchants = useMemo(() => {
         const byKey = new Map();
-        const deletedKeys = new Set((storeRecords || []).map((record) => {
+        const deletedKeys = new Set();
+        (storeRecords || []).forEach((record) => {
           const uid = String(record?.merchantId || record?.applicantUid || record?.uid || record?.id || "").trim();
           const store = String(record?.storeName || "").trim().toLowerCase();
-          if (uid && store) return `uid:${uid}|store:${store}`;
-          if (uid) return `uid:${uid}`;
-          return `fallback:${store}|${String(record?.contactName || "").trim().toLowerCase()}`;
-        }));
+          if (uid) {
+            deletedKeys.add(`uid:${uid}`);
+            if (store) deletedKeys.add(`uid:${uid}|store:${store}`);
+          } else if (store) {
+            deletedKeys.add(`fallback:${store}|${String(record?.contactName || "").trim().toLowerCase()}`);
+          }
+        });
 
         const makeKey = (entry = {}) => {
           const uid = String(entry.applicantUid || entry.uid || "").trim();
