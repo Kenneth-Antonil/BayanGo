@@ -1820,6 +1820,13 @@
       const [storeSearchQ, setStoreSearchQ] = useState("");
       const [storeCatFilter, setStoreCatFilter] = useState("all");
       const [notifications, setNotifications]  = useState([]);
+      const [messageLastSeen, setMessageLastSeen] = useState(() => {
+        try {
+          return parseInt(localStorage.getItem("bayango_messages_last_seen") || "0", 10);
+        } catch {
+          return 0;
+        }
+      });
       const [notifLastSeen, setNotifLastSeen]  = useState(() => {
         try { return parseInt(localStorage.getItem("bayango_notif_last_seen") || "0", 10); } catch { return 0; }
       });
@@ -2434,12 +2441,37 @@
       };
 
       const activeOrders = myOrders.filter(o => !isOrderClosed(o));
-      const incomingMessageCount = myOrders.reduce((count, o) => {
-        const msgs = Object.values(o.messages || {}).filter(m => String(m?.text || "").trim() && m.senderRole !== "user");
-        return count + msgs.length;
-      }, 0);
+      const incomingMessageCount = useMemo(() => {
+        if (activePage === "messages") return 0;
+        return myOrders.reduce((count, o) => {
+          const msgs = Object.values(o.messages || {}).filter((m) => {
+            const hasText = String(m?.text || "").trim();
+            const fromSupport = m?.senderRole !== "user";
+            const isUnread = Number(m?.createdAt || 0) > messageLastSeen;
+            return hasText && fromSupport && isUnread;
+          });
+          return count + msgs.length;
+        }, 0);
+      }, [activePage, myOrders, messageLastSeen]);
       const appIsUnavailable = appAvailability?.userAppEnabled === false;
       const unavailableMessage = appAvailability?.userAppMessage || "BayanGo is currently unavailable. Please try again later.";
+
+      useEffect(() => {
+        if (activePage !== "messages") return;
+        const latestMessageAt = myOrders.reduce((latest, order) => {
+          const orderLatest = Object.values(order.messages || {}).reduce((innerLatest, msg) => {
+            if (msg?.senderRole === "user") return innerLatest;
+            if (!String(msg?.text || "").trim()) return innerLatest;
+            return Math.max(innerLatest, Number(msg?.createdAt || 0));
+          }, 0);
+          return Math.max(latest, orderLatest);
+        }, 0);
+        if (latestMessageAt <= messageLastSeen) return;
+        setMessageLastSeen(latestMessageAt);
+        try {
+          localStorage.setItem("bayango_messages_last_seen", String(latestMessageAt));
+        } catch {}
+      }, [activePage, myOrders, messageLastSeen]);
 
       useEffect(() => {
         let url;
@@ -2506,9 +2538,9 @@
           }}>
             <img src="https://i.imgur.com/h7HgGC0.png" style={{ height:40, objectFit:"contain" }} />
             <div style={{ display:"flex", alignItems:"center", gap:8 }}>
-              <button onClick={() => setActivePage("messages")} style={{ width:38, height:38, borderRadius:10, overflow:"hidden", border:"1px solid rgba(255,255,255,.26)", padding:0, flexShrink:0, background:"rgba(255,255,255,.12)", color:"#fff", display:"flex", alignItems:"center", justifyContent:"center", position:"relative" }}>
+              <button onClick={() => setActivePage("messages")} style={{ width:38, height:38, borderRadius:10, overflow:"visible", border:"1px solid rgba(255,255,255,.26)", padding:0, flexShrink:0, background:"rgba(255,255,255,.12)", color:"#fff", display:"flex", alignItems:"center", justifyContent:"center", position:"relative" }}>
                 <Ic n="message" size={16} />
-                {incomingMessageCount > 0 && <span style={{ position:"absolute", top:-3, right:-3, background:"#EF4444", color:"#fff", minWidth:16, height:16, borderRadius:999, fontSize:9, fontWeight:800, display:"flex", alignItems:"center", justifyContent:"center", padding:"0 4px" }}>{incomingMessageCount > 99 ? "99+" : incomingMessageCount}</span>}
+                {incomingMessageCount > 0 && <span style={{ position:"absolute", top:-5, right:-5, background:"#EF4444", color:"#fff", minWidth:17, height:17, borderRadius:999, fontSize:9, fontWeight:800, display:"flex", alignItems:"center", justifyContent:"center", padding:"0 5px", boxShadow:"0 0 0 2px #166534" }}>{incomingMessageCount > 99 ? "99+" : incomingMessageCount}</span>}
               </button>
               <button onClick={() => setShowUserMenu(true)} style={{ width:38, height:38, borderRadius:10, overflow:"hidden", border:"1px solid rgba(255,255,255,.26)", padding:0, flexShrink:0, background:"rgba(255,255,255,.12)", color:"#fff", display:"flex", alignItems:"center", justifyContent:"center" }}>
                 <Ic n="bars" size={18} />
@@ -4231,9 +4263,8 @@
             {[
               { key:"shop",    icon:"house",         label:"Home" },
               { key:"bgmart",  icon:"basket-shopping", label:"BG Mart" },
-              { key:"stores",  icon:"store",         label:"Stores",  badge: partnerStores.length },
+              { key:"stores",  icon:"store",         label:"Stores" },
               { key:"orders",  icon:"box",           label:"Orders",  badge: activeOrders.length },
-              { key:"messages", icon:"message",      label:"Msgs",    badge: incomingMessageCount },
               { key:"notifications", icon:"bell",    label:"Notifs",  badge: unreadNotifCount },
             ].map(t => {
               const isActive = t.key === "bgmart"
