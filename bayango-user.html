@@ -1566,31 +1566,34 @@
           right:14,
           bottom:"calc(env(safe-area-inset-bottom,0px) + 76px)",
           zIndex:76,
-          borderRadius:16,
-          background:isUrgent ? "linear-gradient(135deg,#7F1D1D,#DC2626)" : "linear-gradient(135deg,#111827,#1F2937)",
-          border:`1px solid ${isUrgent ? "#FCA5A5" : "#374151"}`,
-          boxShadow:`0 14px 32px ${halo}`,
-          padding:"12px 12px 11px",
+          borderRadius:20,
+          background:isUrgent
+            ? "radial-gradient(120% 120% at 0% 0%, #991B1B 0%, #7F1D1D 35%, #DC2626 100%)"
+            : "radial-gradient(135% 120% at 0% 0%, #1E293B 0%, #111827 45%, #0F172A 100%)",
+          border:`1px solid ${isUrgent ? "#FCA5A5" : "#475569"}`,
+          boxShadow:`0 18px 38px ${halo}, inset 0 1px 0 rgba(255,255,255,.15)`,
+          padding:"14px 14px 13px",
           color:"#fff",
+          backdropFilter:"blur(5px)",
           animation:"slideUp .45s cubic-bezier(.22,1,.36,1)"
         }}>
-          <div style={{ display:"flex", alignItems:"center", gap:8 }}>
-            <span style={{ width:24, height:24, borderRadius:8, background:toneBg, color:accent, display:"inline-flex", alignItems:"center", justifyContent:"center", flexShrink:0 }}>
-              <Ic n={isUrgent ? "fire" : (isAM ? "sun" : "cloud-sun")} size={12} />
+          <div style={{ display:"flex", alignItems:"center", gap:10 }}>
+            <span style={{ width:30, height:30, borderRadius:10, background:toneBg, color:accent, display:"inline-flex", alignItems:"center", justifyContent:"center", flexShrink:0, boxShadow:"inset 0 1px 2px rgba(255,255,255,.4)" }}>
+              <Ic n={isUrgent ? "fire" : (isAM ? "sun" : "cloud-sun")} size={14} />
             </span>
             <div style={{ minWidth:0, flex:1 }}>
-              <div style={{ fontSize:10, opacity:.78, fontWeight:700, letterSpacing:".07em", textTransform:"uppercase" }}>Batch cut-off alert</div>
-              <div style={{ fontSize:13, fontWeight:800, whiteSpace:"nowrap", overflow:"hidden", textOverflow:"ellipsis" }}>{isUrgent ? "Urgent: malapit na ang cut-off!" : `${batch} Batch delivery ${deliveryLabel}`}</div>
+              <div style={{ fontSize:10, opacity:.82, fontWeight:700, letterSpacing:".11em", textTransform:"uppercase", marginBottom:3 }}>Batch cut-off alert</div>
+              <div style={{ fontSize:15, lineHeight:1.2, fontWeight:800, letterSpacing:"-.01em", whiteSpace:"nowrap", overflow:"hidden", textOverflow:"ellipsis" }}>{isUrgent ? "Urgent: malapit na ang cut-off!" : `${batch} Batch delivery ${deliveryLabel}`}</div>
             </div>
-            <button onClick={onDismiss} style={{ width:24, height:24, borderRadius:8, background:"rgba(255,255,255,.12)", color:"#fff", display:"inline-flex", alignItems:"center", justifyContent:"center", flexShrink:0 }} aria-label="Close batch timer">
+            <button onClick={onDismiss} style={{ width:28, height:28, borderRadius:9, background:"rgba(255,255,255,.14)", color:"#fff", display:"inline-flex", alignItems:"center", justifyContent:"center", flexShrink:0, border:"1px solid rgba(255,255,255,.22)" }} aria-label="Close batch timer">
               <Ic n="xmark" size={11} />
             </button>
           </div>
-          <div style={{ marginTop:9, display:"flex", justifyContent:"space-between", alignItems:"flex-end", gap:8 }}>
-            <div style={{ fontSize:11, opacity:.9 }}>Cut-off <strong style={{ color:"#fff" }}>{cutoffLabel}</strong></div>
+          <div style={{ marginTop:12, display:"flex", justifyContent:"space-between", alignItems:"flex-end", gap:10 }}>
+            <div style={{ fontSize:12, lineHeight:1.35, opacity:.94, letterSpacing:".01em" }}>Cut-off <strong style={{ color:"#fff", fontWeight:800 }}>{cutoffLabel}</strong></div>
             <div style={{ textAlign:"right" }}>
-              <div style={{ fontSize:9, opacity:.74, fontWeight:700, letterSpacing:".08em", textTransform:"uppercase" }}>Time left</div>
-              <div style={{ fontSize: hh > 0 ? 18 : 20, fontWeight:900, letterSpacing:".04em", color:isUrgent ? "#FECACA" : "#FDE68A", fontVariantNumeric:"tabular-nums" }}>
+              <div style={{ fontSize:10, opacity:.78, fontWeight:700, letterSpacing:".1em", textTransform:"uppercase", marginBottom:1 }}>Time left</div>
+              <div style={{ fontSize: hh > 0 ? 20 : 22, lineHeight:1.05, fontWeight:900, letterSpacing:".03em", textShadow:"0 2px 10px rgba(0,0,0,.25)", color:isUrgent ? "#FECACA" : "#FDE68A", fontVariantNumeric:"tabular-nums" }}>
                 {hh > 0 ? `${pad(hh)}:${pad(mm)}:${pad(ss)}` : `${pad(mm)}:${pad(ss)}`}
               </div>
             </div>
