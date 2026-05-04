@@ -1538,76 +1538,55 @@
       }
     }
 
-    function BatchTimerBanner() {
+    function BatchTimerBanner({ hidden, onDismiss }) {
       const [info, setInfo] = React.useState(getDeliveryBatch);
       React.useEffect(() => {
         const t = setInterval(() => setInfo(getDeliveryBatch()), 1000);
         return () => clearInterval(t);
       }, []);
+      if (hidden) return null;
       const { batch, cutoffLabel, deliveryLabel, secsToDeadline } = info;
       const hh  = Math.floor(secsToDeadline / 3600);
       const mm  = Math.floor((secsToDeadline % 3600) / 60);
       const ss  = secsToDeadline % 60;
       const pad = n => String(n).padStart(2, "0");
       const isAM     = batch === "AM";
-      const isUrgent = secsToDeadline < 30 * 60; // last 30 mins
-      const accent   = isAM ? "#1D4ED8" : "#D97706";
+      const isUrgent = secsToDeadline < 30 * 60;
+      const accent   = isUrgent ? "#DC2626" : (isAM ? "#1D4ED8" : "#D97706");
+      const halo     = isUrgent ? "rgba(239,68,68,.35)" : "rgba(59,130,246,.25)";
       const toneBg   = isUrgent ? "#FEE2E2" : (isAM ? "#DBEAFE" : "#FEF3C7");
       return (
-        <div style={{
-          margin:"14px 20px 0",
-          borderRadius:18,
-          background:"#FFFFFF",
-          border:"1px solid #E5E7EB",
-          boxShadow:"0 6px 16px rgba(15,23,42,.06)",
-          padding:"14px",
+        <div className="pop" style={{
+          position:"fixed",
+          left:14,
+          right:14,
+          bottom:"calc(env(safe-area-inset-bottom,0px) + 76px)",
+          zIndex:76,
+          borderRadius:16,
+          background:isUrgent ? "linear-gradient(135deg,#7F1D1D,#DC2626)" : "linear-gradient(135deg,#111827,#1F2937)",
+          border:`1px solid ${isUrgent ? "#FCA5A5" : "#374151"}`,
+          boxShadow:`0 14px 32px ${halo}`,
+          padding:"12px 12px 11px",
+          color:"#fff",
+          animation:"slideUp .45s cubic-bezier(.22,1,.36,1)"
         }}>
-          <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", gap:10, marginBottom:12 }}>
-            <div style={{ display:"flex", alignItems:"center", gap:8, minWidth:0 }}>
-              <span style={{
-                width:28, height:28, borderRadius:8, flexShrink:0,
-                background: toneBg, color: isUrgent ? "#DC2626" : accent,
-                display:"inline-flex", alignItems:"center", justifyContent:"center"
-              }}>
-                <Ic n={isUrgent ? "fire" : (isAM ? "sun" : "cloud-sun")} size={13} />
-              </span>
-              <div style={{ minWidth:0 }}>
-                <div style={{ fontSize:10, fontWeight:700, letterSpacing:".08em", color:"#6B7280", textTransform:"uppercase" }}>
-                  Batch countdown
-                </div>
-                <div style={{ fontSize:13, fontWeight:800, color:"#111827", whiteSpace:"nowrap", overflow:"hidden", textOverflow:"ellipsis" }}>
-                  {isUrgent ? "Malapit nang mag-cut-off!" : `${batch} Batch orders`}
-                </div>
-              </div>
+          <div style={{ display:"flex", alignItems:"center", gap:8 }}>
+            <span style={{ width:24, height:24, borderRadius:8, background:toneBg, color:accent, display:"inline-flex", alignItems:"center", justifyContent:"center", flexShrink:0 }}>
+              <Ic n={isUrgent ? "fire" : (isAM ? "sun" : "cloud-sun")} size={12} />
+            </span>
+            <div style={{ minWidth:0, flex:1 }}>
+              <div style={{ fontSize:10, opacity:.78, fontWeight:700, letterSpacing:".07em", textTransform:"uppercase" }}>Batch cut-off alert</div>
+              <div style={{ fontSize:13, fontWeight:800, whiteSpace:"nowrap", overflow:"hidden", textOverflow:"ellipsis" }}>{isUrgent ? "Urgent: malapit na ang cut-off!" : `${batch} Batch delivery ${deliveryLabel}`}</div>
             </div>
-            <div style={{
-              padding:"6px 10px",
-              borderRadius:10,
-              background: toneBg,
-              color: isUrgent ? "#B91C1C" : accent,
-              fontSize:11,
-              fontWeight:700,
-              whiteSpace:"nowrap"
-            }}>
-              Cut-off {cutoffLabel}
-            </div>
+            <button onClick={onDismiss} style={{ width:24, height:24, borderRadius:8, background:"rgba(255,255,255,.12)", color:"#fff", display:"inline-flex", alignItems:"center", justifyContent:"center", flexShrink:0 }} aria-label="Close batch timer">
+              <Ic n="xmark" size={11} />
+            </button>
           </div>
-          <div style={{
-            borderRadius:12,
-            border:`1px solid ${toneBg}`,
-            background:"#F9FAFB",
-            padding:"10px 12px",
-            display:"flex",
-            alignItems:"center",
-            justifyContent:"space-between",
-            gap:10
-          }}>
-            <div style={{ fontSize:12, fontWeight:600, color:"#4B5563" }}>
-              Delivery at <strong style={{ color:"#111827", fontWeight:800 }}>{deliveryLabel}</strong>
-            </div>
-            <div style={{ textAlign:"right", flexShrink:0 }}>
-              <div style={{ fontSize:9, fontWeight:700, color:"#9CA3AF", letterSpacing:".06em", textTransform:"uppercase", marginBottom:2 }}>Time left</div>
-              <div style={{ fontSize: hh > 0 ? 17 : 19, fontWeight:800, letterSpacing:".04em", color: isUrgent ? "#DC2626" : accent, fontVariantNumeric:"tabular-nums" }}>
+          <div style={{ marginTop:9, display:"flex", justifyContent:"space-between", alignItems:"flex-end", gap:8 }}>
+            <div style={{ fontSize:11, opacity:.9 }}>Cut-off <strong style={{ color:"#fff" }}>{cutoffLabel}</strong></div>
+            <div style={{ textAlign:"right" }}>
+              <div style={{ fontSize:9, opacity:.74, fontWeight:700, letterSpacing:".08em", textTransform:"uppercase" }}>Time left</div>
+              <div style={{ fontSize: hh > 0 ? 18 : 20, fontWeight:900, letterSpacing:".04em", color:isUrgent ? "#FECACA" : "#FDE68A", fontVariantNumeric:"tabular-nums" }}>
                 {hh > 0 ? `${pad(hh)}:${pad(mm)}:${pad(ss)}` : `${pad(mm)}:${pad(ss)}`}
               </div>
             </div>
@@ -1791,6 +1770,7 @@
       };
       const [activePage,     setActivePage]     = useState(getInitialPage);
       const [activeService,  setActiveService]  = useState("pabili");
+      const [hideBatchTimer, setHideBatchTimer] = useState(false);
       const [showUserMenu,   setShowUserMenu]   = useState(false);
       const [customItems,    setCustomItems]    = useState(() => {
         try { const v = localStorage.getItem(`bayango_bag_custom_${user?.uid || "anon"}`); return v ? JSON.parse(v) : []; } catch { return []; }
@@ -2702,7 +2682,7 @@
           </div>
 
           {/* ── Batch Timer ── */}
-          {activeService !== "bgmart" && <BatchTimerBanner />}
+          {activeService !== "bgmart" && <BatchTimerBanner hidden={hideBatchTimer} onDismiss={() => setHideBatchTimer(true)} />}
 
           {activeService === "bgmart" && bgMartPromoBannerUrl && (
             <div style={{ padding:"14px 20px 0" }}>
