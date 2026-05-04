@@ -111,6 +111,7 @@
     .metric-icon { width: 38px; height: 38px; border-radius: 10px; display: flex; align-items: center; justify-content: center; font-size: 15px; }
     .metric-delta { font-size: 11px; font-weight: 700; margin-top: 4px; display: inline-flex; align-items: center; gap: 3px; padding: 2px 6px; border-radius: 6px; }
   </style>
+  <link rel="stylesheet" href="/native-feel.css">
 </head>
 <body>
   <div id="root"></div>
@@ -444,6 +445,7 @@
       const [refunds, setRefunds] = useState([]);
       const [partnerApplications, setPartnerApplications] = useState([]);
       const [partnerMerchants, setPartnerMerchants] = useState([]);
+      const [partnerStoreRecords, setPartnerStoreRecords] = useState([]);
       const [appUsageStats, setAppUsageStats] = useState({ activeUsers: 0, downloadedUsers: 0 });
       const [appUsageMap, setAppUsageMap] = useState({});
       const [ready, setReady] = useState(false);
@@ -453,7 +455,7 @@
       const [partnerDataLoaded, setPartnerDataLoaded] = useState(false);
 
       useEffect(() => {
-        let unsubOrders, unsubProducts, unsubVouchers, unsubRefunds, unsubMarket, unsubAppUsage, unsubAuth, unsubPartnerApplications, unsubPartnerMerchants;
+        let unsubOrders, unsubProducts, unsubVouchers, unsubRefunds, unsubMarket, unsubAppUsage, unsubAuth, unsubPartnerApplications, unsubPartnerMerchants, unsubPartnerStoreRecords;
         (async () => {
           const { db, fns, auth, authFns } = await initFirebase();
           unsubAuth = authFns.onAuthStateChanged(auth, (currentUser) => {
@@ -461,10 +463,10 @@
             setReady(true);
             setAuthzError("");
             if (currentUser) enableAdminPush(currentUser);
-            unsubOrders?.(); unsubProducts?.(); unsubVouchers?.(); unsubRefunds?.(); unsubAppUsage?.(); unsubPartnerApplications?.(); unsubPartnerMerchants?.(); unsubMarket?.();
+            unsubOrders?.(); unsubProducts?.(); unsubVouchers?.(); unsubRefunds?.(); unsubAppUsage?.(); unsubPartnerApplications?.(); unsubPartnerMerchants?.(); unsubPartnerStoreRecords?.(); unsubMarket?.();
             setPartnerDataLoaded(false);
             if (!currentUser) {
-              setOrders([]); setVouchers([]); setPartnerApplications([]); setPartnerMerchants([]);
+              setOrders([]); setVouchers([]); setPartnerApplications([]); setPartnerMerchants([]); setPartnerStoreRecords([]);
               setAppUsageStats({ activeUsers: 0, downloadedUsers: 0 }); setAppUsageMap({});
               return;
             }
@@ -620,9 +622,17 @@
               if (String(err?.code || "").toLowerCase().includes("permission")) setAuthzError("Permission denied for partner merchants.");
             });
             unsubPartnerMerchants = () => fns.off(partnerMerchantsRef);
+
+            const partnerStoreRecordsRef = fns.ref(db, "partner_store_records");
+            fns.onValue(partnerStoreRecordsRef, snap => {
+              const list = []; snap.forEach(c => list.push({ id: c.key, ...(c.val() || {}) }));
+              list.sort((a, b) => Number(b.recordedAt || 0) - Number(a.recordedAt || 0));
+              setPartnerStoreRecords(list);
+            }, err => console.error("Partner store records error:", err?.code, err?.message));
+            unsubPartnerStoreRecords = () => fns.off(partnerStoreRecordsRef);
           });
         })();
-        return () => { unsubOrders?.(); unsubProducts?.(); unsubVouchers?.(); unsubRefunds?.(); unsubMarket?.(); unsubAppUsage?.(); unsubPartnerApplications?.(); unsubPartnerMerchants?.(); unsubAuth?.(); };
+        return () => { unsubOrders?.(); unsubProducts?.(); unsubVouchers?.(); unsubRefunds?.(); unsubMarket?.(); unsubAppUsage?.(); unsubPartnerApplications?.(); unsubPartnerMerchants?.(); unsubPartnerStoreRecords?.(); unsubAuth?.(); };
       }, []);
 
       const addOrder = useCallback(async (order) => { const { db, fns } = await initFirebase(); await fns.push(fns.ref(db, "orders"), { ...order, status: "pending", createdAt: Date.now() }); }, []);
@@ -715,10 +725,27 @@
           updates.campaigns = null;
           updates.customCategories = null;
 
-          await Promise.all([
-            fns.remove(fns.ref(db, "merchant_listings/" + merchantId)),
-            fns.update(fns.ref(db, "partner_merchants/" + merchantId), updates),
-          ]);
+          const existingSnapshot = await fns.get(fns.ref(db, "partner_merchants/" + merchantId));
+          const existingMerchant = existingSnapshot.val() || {};
+
+          await fns.update(fns.ref(db), {
+            ["merchant_listings/" + merchantId]: null,
+            ["partner_merchants/" + merchantId]: null,
+            ["partner_store_records/" + merchantId]: {
+              ...existingMerchant,
+              moderation: moderationPayload,
+              enforcementStatus: "deleted",
+              deletedAt: now,
+              deletedByUid: user?.uid || null,
+              status: "deleted",
+              approved: false,
+              active: false,
+              featuredInApp: false,
+              storeOpen: false,
+              merchantId,
+              recordedAt: now,
+            },
+          });
           return;
         }
         await fns.update(fns.ref(db, "partner_merchants/" + merchantId), updates);
@@ -757,7 +784,7 @@
             vouchers={vouchers} onAddVoucher={addVoucher} onUpdateVoucher={updateVoucher} onDeleteVoucher={deleteVoucher}
             refunds={refunds} onCreateRefund={submitRefund}
             appUsageStats={appUsageStats} appUsageMap={appUsageMap}
-            partnerApplications={partnerApplications} partnerMerchants={partnerMerchants}
+            partnerApplications={partnerApplications} partnerMerchants={partnerMerchants} partnerStoreRecords={partnerStoreRecords}
             onDecidePartnerApplication={decidePartnerApplication} onToggleFeaturedPartnerMerchant={toggleFeaturedPartnerMerchant} onModeratePartnerMerchant={moderatePartnerMerchant}
             authzError={authzError} partnerDataLoaded={partnerDataLoaded}
           />
@@ -1217,7 +1244,7 @@
     }
 
     /* ══════════════════ PARTNERS PANEL ══════════════════ */
-    function PartnersPanel({ applications = [], merchants = [], onDecide, onToggleFeatured, onModerateMerchant, dataLoaded = true, authzError = "", adminUid = "" }) {
+    function PartnersPanel({ applications = [], merchants = [], storeRecords = [], onDecide, onToggleFeatured, onModerateMerchant, dataLoaded = true, authzError = "", adminUid = "" }) {
       const [partnerTab, setPartnerTab] = useState("pending");
       const [searchQ, setSearchQ] = useState("");
       const [rejectingId, setRejectingId] = useState("");
@@ -1253,6 +1280,18 @@
 
       const mergedMerchants = useMemo(() => {
         const byKey = new Map();
+        const deletedKeys = new Set();
+        (storeRecords || []).forEach((record) => {
+          const uid = String(record?.merchantId || record?.applicantUid || record?.uid || record?.id || "").trim();
+          const store = String(record?.storeName || "").trim().toLowerCase();
+          if (uid) {
+            deletedKeys.add(`uid:${uid}`);
+            if (store) deletedKeys.add(`uid:${uid}|store:${store}`);
+          } else if (store) {
+            deletedKeys.add(`fallback:${store}|${String(record?.contactName || "").trim().toLowerCase()}`);
+          }
+        });
+
         const makeKey = (entry = {}) => {
           const uid = String(entry.applicantUid || entry.uid || "").trim();
           const store = String(entry.storeName || "").trim().toLowerCase();
@@ -1267,10 +1306,11 @@
           if (String(app?.status || "").trim().toLowerCase() !== "approved") return;
           const candidate = { id: app.id, applicationId: app.id, applicantUid: app.applicantUid || app.uid || "", _merchantId: app.applicantUid || app.uid || "", contactName: app.contactName || "", contactPhone: app.contactPhone || "", storeName: app.storeName || "", category: app.category || app.storeCategory || "sari", description: app.description || "", logoUrl: app.logoUrl || "", status: "approved", approved: true, _source: "application_fallback" };
           const key = makeKey(candidate);
+          if (deletedKeys.has(key) || deletedKeys.has(`uid:${candidate._merchantId}`)) return;
           if (!byKey.has(key)) byKey.set(key, candidate);
         });
         return Array.from(byKey.values()).sort((a, b) => String(a.storeName || "").localeCompare(String(b.storeName || "")));
-      }, [applications, merchants]);
+      }, [applications, merchants, storeRecords]);
 
       const approvedMerchants = mergedMerchants.filter(m => normalizedMerchantStatus(m) === "approved");
       const filteredMerchants = useMemo(() => {
@@ -1393,6 +1433,7 @@
             {[
               { key: "pending", label: "Pending", count: pending.length, color: "#F59E0B" },
               { key: "merchants", label: "Merchants", count: approvedMerchants.length, color: "#22C55E" },
+              { key: "records", label: "Store Records", count: storeRecords.length, color: "#334155" },
               { key: "rejected", label: "Rejected", count: rejected.length, color: "#EF4444" },
             ].map(t => (
               <button key={t.key} onClick={() => setPartnerTab(t.key)} className="tab" style={{
@@ -1518,6 +1559,30 @@
                 </div>
               );
               })}
+            </div>
+          )}
+
+          {partnerTab === "records" && (
+            <div>
+              {storeRecords.length === 0 ? (
+                <div className="card" style={{ textAlign: "center", padding: "32px 16px" }}>
+                  <Ic n="box-archive" size={28} style={{ color: "var(--muted)", opacity: .4, marginBottom: 8, display: "block" }} />
+                  <div style={{ fontSize: 13, fontWeight: 700, color: "var(--muted)" }}>No deleted store records yet</div>
+                </div>
+              ) : storeRecords.map((record, idx) => (
+                <div key={`${record.id}-${idx}`} className="card" style={{ marginBottom: 10, borderLeft: "4px solid #111827" }}>
+                  <div style={{ display: "flex", justifyContent: "space-between", gap: 8 }}>
+                    <div>
+                      <div style={{ fontWeight: 800, fontSize: 15 }}>{record.storeName || "Unnamed Store"}</div>
+                      <div style={{ fontSize: 12, color: "var(--muted)", marginTop: 2 }}>{record.contactName || "-"} • {record.contactPhone || "-"}</div>
+                    </div>
+                    <div style={{ fontSize: 11, color: "var(--muted)", textAlign: "right" }}>{fmtDateTime(record.recordedAt || record.deletedAt)}</div>
+                  </div>
+                  <div style={{ marginTop: 8, fontSize: 12, color: "#334155" }}>
+                    Reason: {record?.moderation?.reason || "No reason provided."}
+                  </div>
+                </div>
+              ))}
             </div>
           )}
 
@@ -2360,7 +2425,7 @@
     }
 
     /* ══════════════════ ADMIN DASHBOARD (Main Shell) ══════════════════ */
-    function AdminDashboard({ user, onLogout, orders, onUpdateStatus, onBroadcast, products, onAddProduct, onUpdateProduct, onDeleteProduct, marketPricing, onUpdateMarketPricing, vouchers, onAddVoucher, onUpdateVoucher, onDeleteVoucher, refunds, onCreateRefund, appUsageStats, appUsageMap, partnerApplications, partnerMerchants, onDecidePartnerApplication, onToggleFeaturedPartnerMerchant, onModeratePartnerMerchant, authzError, partnerDataLoaded }) {
+    function AdminDashboard({ user, onLogout, orders, onUpdateStatus, onBroadcast, products, onAddProduct, onUpdateProduct, onDeleteProduct, marketPricing, onUpdateMarketPricing, vouchers, onAddVoucher, onUpdateVoucher, onDeleteVoucher, refunds, onCreateRefund, appUsageStats, appUsageMap, partnerApplications, partnerMerchants, partnerStoreRecords, onDecidePartnerApplication, onToggleFeaturedPartnerMerchant, onModeratePartnerMerchant, authzError, partnerDataLoaded }) {
       const getInitialTab = () => {
         const validTabs = new Set(["dashboard", "orders", "grocery", "products", "bgmart", "data", "partners", "vouchers", "refunds", "settings"]);
         try { const hash = (window.location.hash || "").replace("#", "").toLowerCase(); if (validTabs.has(hash)) return hash; } catch {}
@@ -2396,6 +2461,8 @@
       const [assigningOrderId, setAssigningOrderId] = useState(null);
       const [assignRiderId, setAssignRiderId] = useState("");
       const [cancellingOrderId, setCancellingOrderId] = useState(null);
+      const [messageModalOrder, setMessageModalOrder] = useState(null);
+      const [customerMessageDraft, setCustomerMessageDraft] = useState("");
 
       const pendingPartners = (partnerApplications || []).filter(a => !["approved", "rejected"].includes(String(a.status || "").toLowerCase())).length;
 
@@ -2428,6 +2495,30 @@
         window.XLSX.utils.book_append_sheet(wb, ws, "Orders");
         window.XLSX.writeFile(wb, `bayango-orders-${label}-${new Date().toISOString().slice(0, 10)}.xlsx`);
         toast.success("Excel exported!");
+      };
+      const escapeHtml = (v) => String(v ?? "").replace(/[&<>"']/g, m => ({ "&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;" }[m]));
+      const printOrderReceipt = (order) => {
+        const items = Array.isArray(order?.items) ? order.items : [];
+        const subtotal = Number(order.subtotal || items.reduce((s, i) => s + (Number(i.price || 0) * Number(i.qty || 1)), 0));
+        const deliveryFee = Number(order.deliveryFee || 0);
+        const serviceFee = Number(order.serviceFee || 0);
+        const discount = Number(order.totalDiscount || 0);
+        const total = Number(order.total || Math.max(0, subtotal + deliveryFee + serviceFee - discount));
+        const ts = order.createdAt?.toDate ? order.createdAt.toDate() : new Date(order.createdAt || Date.now());
+        const popup = window.open("", "_blank", "width=430,height=760");
+        if (!popup) return toast.error("Pop-up blocked. Allow pop-ups to print.");
+        const rows = items.map(i => `<tr><td class="name">${escapeHtml(i.name || "Item")}<div class="meta">${Number(i.qty || 1)} x ₱${Number(i.price || 0).toFixed(2)}</div></td><td class="amt">₱${(Number(i.qty || 1) * Number(i.price || 0)).toFixed(2)}</td></tr>`).join("");
+        popup.document.write(`<!doctype html><html><head><title>Receipt - ${escapeHtml(order.id || "")}</title><style>
+          body{font-family:"Courier New",monospace;background:#eef2f7;padding:14px}.receipt{max-width:340px;margin:0 auto;background:#fff;padding:16px 14px;border:1px dashed #94a3b8}
+          .center{text-align:center}.muted{font-size:12px;color:#64748b}.rule{border-top:1px dashed #64748b;margin:10px 0}table{width:100%;border-collapse:collapse;font-size:13px}.amt{text-align:right}
+          td{padding:4px 0;vertical-align:top}.name{font-weight:700}.meta{font-size:11px;color:#64748b;font-weight:400}.row{display:flex;justify-content:space-between;font-size:13px;margin:3px 0}.total{font-size:16px;font-weight:800}
+          .footer{text-align:center;margin-top:12px;padding-top:10px;border-top:1px dashed #64748b;font-size:11px} @media print{body{background:#fff;padding:0}.receipt{border:none;max-width:none}}
+        </style></head><body><div class="receipt"><div class="center"><div style="font-size:18px;font-weight:800">BayanGo Admin Receipt</div><div class="muted">${escapeHtml(ts.toLocaleDateString("en-PH"))} ${escapeHtml(ts.toLocaleTimeString("en-PH",{hour:"2-digit",minute:"2-digit"}))}</div></div>
+        <div class="rule"></div><div class="row"><span>Order #</span><span>${escapeHtml(order.id || "-")}</span></div><div class="row"><span>Customer</span><span>${escapeHtml(order.customer?.name || "Customer")}</span></div>
+        <table><tbody>${rows || "<tr><td>No items</td><td></td></tr>"}</tbody></table><div class="rule"></div>
+        <div class="row"><span>Subtotal</span><span>₱${subtotal.toFixed(2)}</span></div><div class="row"><span>Delivery</span><span>₱${deliveryFee.toFixed(2)}</span></div><div class="row"><span>Service</span><span>₱${serviceFee.toFixed(2)}</span></div><div class="row"><span>Discount</span><span>-₱${discount.toFixed(2)}</span></div>
+        <div class="row total"><span>TOTAL</span><span>₱${total.toFixed(2)}</span></div><div class="footer">This is not an official receipt</div></div><script>window.onload=function(){window.focus();window.print();};<\/script></body></html>`);
+        popup.document.close();
       };
 
       useEffect(() => {
@@ -2511,6 +2602,25 @@
         setConfirmingPay(order.id);
         try { const { db, fns } = await initFirebase(); await fns.update(fns.ref(db, "orders/" + order.id), { gcashPaymentConfirmed: true }); if (selected?.id === order.id) setSelected(s => ({ ...s, gcashPaymentConfirmed: true })); toast.success("GCash payment confirmed!"); }
         catch (err) { toast.error("Error: " + err.message); } finally { setConfirmingPay(null); }
+      };
+      const sendCustomerMessage = async (order, rawText) => {
+        const text = String(rawText || "").trim();
+        if (!text) return;
+        try {
+          const { db, fns } = await initFirebase();
+          await fns.push(fns.ref(db, `orders/${order.id}/messages`), {
+            text,
+            senderRole: "admin",
+            senderUid: user.uid,
+            senderName: user.displayName || user.email || "Admin",
+            createdAt: Date.now(),
+          });
+          toast.success("Message sent to customer.");
+          setCustomerMessageDraft("");
+          setMessageModalOrder(null);
+        } catch (err) {
+          toast.error("Failed to send message: " + err.message);
+        }
       };
       const assignOrderToRider = async (order, riderUid) => {
         if (!riderUid) return toast.error("Select a rider first.");
@@ -2644,7 +2754,7 @@
 
             {tab === "dashboard" && <DashboardOverview orders={orders} appUsageStats={appUsageStats} products={products} />}
             {tab === "grocery" && <GroceryTab orders={dashboardOrders} />}
-            {tab === "partners" && <PartnersPanel applications={partnerApplications} merchants={partnerMerchants} onDecide={onDecidePartnerApplication} onToggleFeatured={onToggleFeaturedPartnerMerchant} onModerateMerchant={onModeratePartnerMerchant} dataLoaded={partnerDataLoaded} authzError={authzError} adminUid={user?.uid} />}
+            {tab === "partners" && <PartnersPanel applications={partnerApplications} merchants={partnerMerchants} storeRecords={partnerStoreRecords} onDecide={onDecidePartnerApplication} onToggleFeatured={onToggleFeaturedPartnerMerchant} onModerateMerchant={onModeratePartnerMerchant} dataLoaded={partnerDataLoaded} authzError={authzError} adminUid={user?.uid} />}
             {tab === "products" && <ProductsPanel products={products} onAdd={onAddProduct} onUpdate={onUpdateProduct} onDelete={onDeleteProduct} marketPricing={marketPricing} onUpdateMarketPricing={onUpdateMarketPricing} />}
             {tab === "bgmart" && <BGMartPanel products={products} onAdd={onAddProduct} onUpdate={onUpdateProduct} onDelete={onDeleteProduct} />}
             {tab === "data" && <DataTab orders={orders} />}
@@ -2835,6 +2945,7 @@
 
                         <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
                           <button onClick={() => { setSelected(order); setEditedPrices({}); setProofImages(order.proofImages || []); setAssignRiderId(order.riderId || ""); }} className="btn btn-outline" style={{ flex: "1 1 80px", padding: 9 }}><Ic n="clipboard" />Details</button>
+                          <button onClick={() => printOrderReceipt(order)} className="btn btn-outline" style={{ flex: "1 1 100px", padding: 9 }}><Ic n="print" />Print</button>
                           {getNextLabel(order) && <button onClick={() => advance(order)} disabled={updating === order.id} className="btn btn-brand" style={{ flex: "2 1 120px", padding: 9 }}>{updating === order.id ? "Updating..." : `${getNextLabel(order)} \u2192`}</button>}
                           {canCancelOrder(order) && <button onClick={() => cancelOrder(order)} disabled={cancellingOrderId === order.id} className="btn" style={{ flex: "1 1 80px", padding: 9, background: "var(--red-bg)", color: "var(--red)", border: "1px solid #FECACA" }}><Ic n={cancellingOrderId === order.id ? "hourglass-half" : "ban"} />{cancellingOrderId === order.id ? "..." : "Cancel"}</button>}
                         </div>
@@ -2965,6 +3076,8 @@
                       : <button onClick={() => confirmGcashPayment(selected)} disabled={confirmingPay === selected.id} className="btn btn-blue" style={{ width: "100%", marginBottom: 12, padding: 12 }}><Ic n="qrcode" />{confirmingPay === selected.id ? "Confirming..." : "Confirm GCash Payment"}</button>
                   )}
 
+                  <button onClick={() => { setMessageModalOrder(selected); setCustomerMessageDraft(""); }} className="btn" style={{ width: "100%", marginBottom: 8, padding: 12, background: "#FFF7ED", color: "#9A3412", border: "1px solid #FDBA74" }}><Ic n="message" style={{ marginRight: 5 }} />Message Customer</button>
+
                   {getNextLabel(selected) && <button onClick={() => advance(selected)} disabled={updating === selected.id} className="btn btn-brand" style={{ width: "100%", padding: 14, fontSize: 14 }}>{updating === selected.id ? "Updating..." : `${getNextLabel(selected)} \u2192`}</button>}
                   {canCancelOrder(selected) && <button onClick={() => cancelOrder(selected)} disabled={cancellingOrderId === selected.id} className="btn" style={{ width: "100%", marginTop: 8, padding: 12, background: "var(--red-bg)", color: "var(--red)", border: "1px solid #FECACA" }}><Ic n={cancellingOrderId === selected.id ? "hourglass-half" : "ban"} style={{ marginRight: 4 }} />{cancellingOrderId === selected.id ? "Cancelling..." : "Cancel Order"}</button>}
                   {selected.status === "delivered" && <div style={{ textAlign: "center", padding: 12, fontSize: 14, fontWeight: 700, color: "var(--brand)" }}><Ic n="circle-check" style={{ marginRight: 6 }} />Order delivered!</div>}
@@ -2975,6 +3088,22 @@
             {proofPreviewUrl && (
               <div onClick={() => setProofPreviewUrl("")} style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,.85)", zIndex: 9000, display: "flex", alignItems: "center", justifyContent: "center", padding: 20 }}>
                 <img src={proofPreviewUrl} alt="Proof preview" onClick={e => e.stopPropagation()} style={{ maxWidth: "95vw", maxHeight: "90vh", borderRadius: 14, objectFit: "contain", background: "#fff" }} />
+              </div>
+            )}
+
+            {messageModalOrder && (
+              <div onClick={() => setMessageModalOrder(null)} style={{ position: "fixed", inset: 0, background: "rgba(15,23,42,.6)", zIndex: 9500, display: "flex", alignItems: "center", justifyContent: "center", padding: 16 }}>
+                <div onClick={e => e.stopPropagation()} style={{ width: "100%", maxWidth: 440, background: "#fff", borderRadius: 16, border: "1px solid var(--border)", boxShadow: "0 20px 60px rgba(15,23,42,.35)", overflow: "hidden" }}>
+                  <div style={{ padding: "14px 16px", borderBottom: "1px solid var(--border)", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                    <div style={{ fontSize: 14, fontWeight: 800, color: "var(--text-primary)" }}><Ic n="message" style={{ marginRight: 6 }} />Message Customer</div>
+                    <button onClick={() => setMessageModalOrder(null)} className="btn" style={{ padding: "6px 10px", fontSize: 11 }}>Close</button>
+                  </div>
+                  <div style={{ padding: 14 }}>
+                    <div style={{ fontSize: 12, fontWeight: 700, color: "var(--text-secondary)", marginBottom: 8 }}>Order #{String(messageModalOrder.id || "").slice(0, 8)} • {messageModalOrder.customer?.name || "Customer"}</div>
+                    <textarea value={customerMessageDraft} onChange={e => setCustomerMessageDraft(e.target.value)} placeholder="Type your message..." rows={4} style={{ width: "100%", resize: "vertical", padding: "10px 12px", borderRadius: 10, border: "1px solid var(--border)", fontSize: 13 }} />
+                    <button onClick={() => sendCustomerMessage(messageModalOrder, customerMessageDraft)} className="btn btn-brand" style={{ width: "100%", marginTop: 10, padding: 11 }}><Ic n="paper-plane" style={{ marginRight: 6 }} />Send Message</button>
+                  </div>
+                </div>
               </div>
             )}
 

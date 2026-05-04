@@ -45,6 +45,7 @@
     .rider-splash-dots span:nth-child(2) { animation-delay:.15s; }
     .rider-splash-dots span:nth-child(3) { animation-delay:.3s; }
   </style>
+  <link rel="stylesheet" href="/native-feel.css">
 </head>
 <body>
   <div id="root">
@@ -328,6 +329,8 @@
       const [proofPreviewUrl,   setProofPreviewUrl]   = useState("");
       const [savingRiderPrices, setSavingRiderPrices] = useState(false);
       const [uploadingRiderProof, setUploadingRiderProof] = useState(false);
+      const [messageOrder, setMessageOrder] = useState(null);
+      const [messageDraft, setMessageDraft] = useState("");
       const [riderCoords,     setRiderCoords]     = useState(null);
       const notificationAudioRef = useRef(null);
       const lastAvailableOrderIdsRef = useRef(new Set());
@@ -512,6 +515,25 @@
           showToast("Error: " + (err.code || err.message));
         } finally {
           setDelivering(null);
+        }
+      };
+
+      const sendCustomerMessage = async (order, text, senderRole = "rider") => {
+        const clean = String(text || "").trim();
+        if (!clean) return;
+        try {
+          await _fbDb.ref(`orders/${order.id}/messages`).push({
+            text: clean,
+            senderRole,
+            senderUid: user.uid,
+            senderName: user.displayName || user.email || "Rider",
+            createdAt: Date.now(),
+          });
+          showToast("Message sent to customer.");
+          setMessageDraft("");
+          setMessageOrder(null);
+        } catch (err) {
+          showToast("Failed to send message: " + (err.code || err.message));
         }
       };
 
@@ -766,6 +788,22 @@
               </button>
             ))}
           </div>
+
+          {messageOrder && (
+            <div onClick={() => setMessageOrder(null)} style={{ position:"fixed", inset:0, zIndex:850, background:"rgba(15,23,42,.62)", display:"flex", alignItems:"center", justifyContent:"center", padding:16 }}>
+              <div onClick={e => e.stopPropagation()} style={{ width:"100%", maxWidth:420, borderRadius:16, background:"#fff", border:"1px solid #E2E8F0", overflow:"hidden", boxShadow:"0 22px 50px rgba(15,23,42,.32)" }}>
+                <div style={{ padding:"13px 14px", borderBottom:"1px solid #E2E8F0", display:"flex", justifyContent:"space-between", alignItems:"center" }}>
+                  <div style={{ fontSize:14, fontWeight:800, color:"#0F172A" }}><Ic n="message" style={{ marginRight:6 }} />Message Customer</div>
+                  <button onClick={() => setMessageOrder(null)} style={{ border:"1px solid #CBD5E1", borderRadius:8, background:"#fff", padding:"6px 10px", fontSize:11, fontWeight:700 }}>Close</button>
+                </div>
+                <div style={{ padding:14 }}>
+                  <div style={{ fontSize:12, color:"#64748B", fontWeight:700, marginBottom:8 }}>{messageOrder.customer?.name || "Customer"} • #{String(messageOrder.id || "").slice(0,8)}</div>
+                  <textarea value={messageDraft} onChange={e => setMessageDraft(e.target.value)} rows={4} placeholder="Ilagay ang message para sa customer..." style={{ width:"100%", padding:"10px 11px", border:"1px solid #CBD5E1", borderRadius:10, fontSize:13, resize:"vertical" }} />
+                  <button onClick={() => sendCustomerMessage(messageOrder, messageDraft, "rider")} style={{ marginTop:10, width:"100%", border:"none", borderRadius:10, background:"linear-gradient(135deg,#1D4ED8,#3B82F6)", color:"#fff", padding:"11px", fontSize:13, fontWeight:800 }}><Ic n="paper-plane" style={{ marginRight:6 }} />Send Message</button>
+                </div>
+              </div>
+            </div>
+          )}
 
           {/* ── Toast ── */}
           {toast && (
@@ -1435,6 +1473,10 @@
                           Update Actual Price and Upload Receipt
                           {order.pricesUpdatedAt && <Ic n="circle-check" style={{ color:"#BBF7D0", marginLeft:2 }} />}
                         </button>
+                        <button onClick={() => { setMessageOrder(order); setMessageDraft(""); }} style={{
+                          width:"100%", marginBottom:8, padding:"10px", borderRadius:12,
+                          background:"#FFF7ED", color:"#9A3412", border:"1px solid #FDBA74", fontSize:13, fontWeight:700,
+                        }}><Ic n="message" style={{ marginRight:6 }} />Message Customer</button>
                         <button onClick={() => onOtw(order)} disabled={markingOtw === order.id || gcashPending} style={{
                           width:"100%", padding:"14px", borderRadius:14,
                           background: (markingOtw === order.id || gcashPending) ? "#E2E8F0" : "linear-gradient(135deg,#1D4ED8,#3B82F6)",
@@ -1470,15 +1512,21 @@
                   statusBadge={isIsland ? <><Ic n="ship" style={{ marginRight:4 }} />In the Boat</> : <><Ic n="motorcycle" style={{ marginRight:4 }} />OTW</>}
                   badgeBg={isIsland ? "#EFF6FF" : "#DBEAFE"} badgeColor="#1D4ED8"
                   actionBtn={
-                    <button onClick={() => onDeliver(order.id)} disabled={delivering === order.id} style={{
-                      width:"100%", padding:"14px", borderRadius:14,
-                      background: delivering === order.id ? "#E2E8F0" : "linear-gradient(135deg,#059669,#10B981)",
-                      color: delivering === order.id ? "#94A3B8" : "#fff",
-                      fontSize:15, fontWeight:800,
-                      boxShadow: delivering ? "none" : "0 4px 16px rgba(5,150,105,.35)",
-                    }}>
-                      {delivering === order.id ? <span className="pulse">Updating...</span> : <><Ic n="circle-check" style={{ marginRight:6 }} />Delivered!</>}
-                    </button>
+                    <>
+                      <button onClick={() => { setMessageOrder(order); setMessageDraft(""); }} style={{
+                        width:"100%", marginBottom:8, padding:"10px", borderRadius:12,
+                        background:"#FFF7ED", color:"#9A3412", border:"1px solid #FDBA74", fontSize:13, fontWeight:700,
+                      }}><Ic n="message" style={{ marginRight:6 }} />Message Customer</button>
+                      <button onClick={() => onDeliver(order.id)} disabled={delivering === order.id} style={{
+                        width:"100%", padding:"14px", borderRadius:14,
+                        background: delivering === order.id ? "#E2E8F0" : "linear-gradient(135deg,#059669,#10B981)",
+                        color: delivering === order.id ? "#94A3B8" : "#fff",
+                        fontSize:15, fontWeight:800,
+                        boxShadow: delivering ? "none" : "0 4px 16px rgba(5,150,105,.35)",
+                      }}>
+                        {delivering === order.id ? <span className="pulse">Updating...</span> : <><Ic n="circle-check" style={{ marginRight:6 }} />Delivered!</>}
+                      </button>
+                    </>
                   }
                 />
                 );

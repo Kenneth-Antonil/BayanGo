@@ -179,139 +179,44 @@ exports.notifyPartnerMerchantModeration = onValueUpdated(
   }
 );
 
-// ─────────────────────────────────────────────────────────────────────────────
-// HTTPS: PAYMONGO WEBHOOK (PAYMENT EVENTS)
-// ─────────────────────────────────────────────────────────────────────────────
-exports.paymongoWebhook = onRequest(
-  { region: "us-central1", cors: true, secrets: ["PAYMONGO_SECRET_KEY"] },
-  async (req, res) => {
-    if (req.method !== "POST") {
-      res.status(405).json({ ok: false, error: "Method Not Allowed" });
-      return;
-    }
 
-    if (!PAYMONGO_WEBHOOK_SECRET) {
-      console.error("PAYMONGO_WEBHOOK_SECRET is not configured; rejecting webhook.");
-      res.status(503).json({ ok: false, error: "webhook_secret_not_configured" });
-      return;
-    }
+exports.onOrderMessageCreated = onValueCreated(
+  { ref: "orders/{orderId}/messages/{messageId}", region: "asia-southeast1" },
+  async (event) => {
+    const payload = event.data.val() || {};
+    const orderId = event.params.orderId;
+    const senderRole = String(payload.senderRole || "").toLowerCase();
+    const text = String(payload.text || "").trim();
+    if (!text) return;
 
-    const signatureHeader = req.get("paymongo-signature") || "";
-    const signatureCheck = verifyPaymongoSignature({
-      rawBody: req.rawBody,
-      signatureHeader,
-      secret: PAYMONGO_WEBHOOK_SECRET,
-    });
+    try {
+      const db = getDatabase();
+      const orderSnap = await db.ref(`orders/${orderId}`).get();
+      if (!orderSnap.exists()) return;
+      const order = orderSnap.val() || {};
+      const uid = order.uid || order.userId || order.customerUid;
+      if (!uid) return;
 
-    if (!signatureCheck.valid) {
-      console.warn("PayMongo signature verification failed:", signatureCheck.reason);
-      res.status(401).json({ ok: false, error: "Unauthorized webhook signature" });
-      return;
-    }
-
-    const payload = req.body || {};
-    const eventData = payload?.data || {};
-    const eventType = String(eventData?.attributes?.type || payload?.type || "unknown");
-    const attrs = eventData?.attributes?.data?.attributes || eventData?.attributes || {};
-    const resourceData = eventData?.attributes?.data || {};
-    const paymentState = derivePaymentState(eventType, attrs);
-    const orderId = extractOrderId(resourceData?.attributes ? resourceData : eventData);
-
-    const db = getDatabase();
-    const logRef = db.ref("payment_webhooks").push();
-    await logRef.set({
-      provider: "paymongo",
-      eventType,
-      paymentState,
-      orderId: orderId || null,
-      resourceId: resourceData?.id || eventData?.id || null,
-      receivedAt: Date.now(),
-      payload,
-    });
-
-    // source.chargeable — create a Payment from the chargeable QR Ph source
-    if (eventType === "source.chargeable" && PAYMONGO_SECRET_KEY) {
-      const sourceId = resourceData?.id || eventData?.id;
-      const sourceAmount = attrs?.amount;
-      if (sourceId && sourceAmount) {
-        const pmAuth = Buffer.from(`${PAYMONGO_SECRET_KEY}:`).toString("base64");
-        const payRes = await fetch("https://api.paymongo.com/v1/payments", {
-          method: "POST",
-          headers: { "Content-Type": "application/json", Authorization: `Basic ${pmAuth}` },
-          body: JSON.stringify({
-            data: {
-              attributes: {
-                amount: sourceAmount,
-                currency: "PHP",
-                source: { id: sourceId, type: "source" },
-                description: `BayanGo Order ${orderId || ""}`,
-              },
-            },
-          }),
-        });
-        const payJson = await payRes.json().catch(() => ({}));
-        if (!payRes.ok) {
-          console.error("Failed to create payment from source", sourceId, JSON.stringify(payJson));
-        } else {
-          console.log("Payment created from source", sourceId, "→", payJson?.data?.id);
-        }
-      }
-    }
-
-    if (!orderId) {
-      console.log("PayMongo webhook received without orderId metadata.");
-      res.status(200).json({ ok: true, logged: true, orderUpdated: false });
-      return;
-    }
-
-    const orderRef = db.ref(`orders/${orderId}`);
-    const orderSnap = await orderRef.get();
-    if (!orderSnap.exists()) {
-      console.log(`PayMongo webhook order not found: ${orderId}`);
-      res.status(200).json({ ok: true, logged: true, orderUpdated: false, reason: "order_not_found" });
-      return;
-    }
-
-    const order = orderSnap.val() || {};
-    const updates = {
-      paymentProvider: "paymongo",
-      paymentStatus: paymentState,
-      paymentUpdatedAt: Date.now(),
-      paymongoEventType: eventType,
-      paymongoResourceId: resourceData?.id || eventData?.id || null,
-    };
-
-    if (paymentState === "paid") {
-      updates.gcashPaymentConfirmed = true;
-      updates.paidAt = Date.now();
-    }
-
-    await orderRef.update(updates);
-
-    if (order?.uid) {
-      let title = "Payment Update";
-      let body = "We received your payment update.";
-
-      if (paymentState === "paid") {
-        title = "✅ Payment Confirmed";
-        body = `Order #${String(orderId).slice(-6)} paid na. Ihahanda na namin ito ngayon!`;
-      } else if (paymentState === "failed") {
-        title = "⚠️ Payment Failed";
-        body = `Order #${String(orderId).slice(-6)} payment failed. Subukan ulit ang payment method.`;
-      }
+      if (!["rider", "admin"].includes(senderRole)) return;
 
       await db.ref("notification_queue").push({
-        uid: order.uid,
-        title,
-        body,
+        uid,
+        title: "BayanGo: May bagong message sa order mo",
+        body: `${senderRole === "admin" ? "Admin" : "Rider"}: ${text.slice(0, 100)}`,
         link: `${USER_APP_URL}#orders`,
         createdAt: Date.now(),
       });
+    } catch (err) {
+      console.error(`[onOrderMessageCreated ${orderId}] Error:`, err);
     }
-
-    res.status(200).json({ ok: true, logged: true, orderUpdated: true, orderId, paymentState });
   }
 );
+
+// ─────────────────────────────────────────────────────────────────────────────
+// HTTPS: PAYMONGO WEBHOOK (PAYMENT EVENTS)
+// ─────────────────────────────────────────────────────────────────────────────
+// exports.paymongoWebhook removed as requested
+
 
 exports.exportMonthlyAccountingCsv = onRequest(
   { region: "asia-southeast1", cors: true },
@@ -382,211 +287,14 @@ exports.exportMonthlyAccountingCsv = onRequest(
 // ─────────────────────────────────────────────────────────────────────────────
 // HTTPS: CREATE PAYMONGO QRPH CHECKOUT SESSION
 // ─────────────────────────────────────────────────────────────────────────────
-exports.createPaymongoQrphCheckout = onRequest(
-  { region: "us-central1", cors: true, secrets: ["PAYMONGO_SECRET_KEY"] },
-  async (req, res) => {
-    if (req.method !== "POST") {
-      res.status(405).json({ ok: false, error: "Method Not Allowed" });
-      return;
-    }
+// exports.createPaymongoQrphCheckout removed as requested
 
-    if (!PAYMONGO_SECRET_KEY) {
-      res.status(500).json({ ok: false, error: "Missing PAYMONGO_SECRET_KEY" });
-      return;
-    }
-
-    const orderId = String(req.body?.orderId || "").trim();
-    if (!orderId) {
-      res.status(400).json({ ok: false, error: "orderId is required" });
-      return;
-    }
-
-    const db = getDatabase();
-    const orderRef = db.ref(`orders/${orderId}`);
-    const orderSnap = await orderRef.get();
-    if (!orderSnap.exists()) {
-      res.status(404).json({ ok: false, error: "order_not_found" });
-      return;
-    }
-
-    const order = orderSnap.val() || {};
-    const totalPhp = Number(order.total || 0);
-    if (!Number.isFinite(totalPhp) || totalPhp <= 0) {
-      res.status(400).json({ ok: false, error: "invalid_order_total" });
-      return;
-    }
-
-    const amount = Math.round(totalPhp * 100);
-    const auth = Buffer.from(`${PAYMONGO_SECRET_KEY}:`).toString("base64");
-    const successUrl = `${USER_APP_URL}#orders`;
-    const failUrl = `${USER_APP_URL}#orders`;
-
-    const payload = {
-      data: {
-        attributes: {
-          line_items: [
-            {
-              currency: "PHP",
-              amount,
-              name: `BayanGo Order ${orderId.slice(-6)}`,
-              quantity: 1,
-            },
-          ],
-          payment_method_types: ["qrph"],
-          metadata: {
-            orderId,
-          },
-          send_email_receipt: false,
-          show_description: true,
-          show_line_items: true,
-          description: `QR PH payment for order ${orderId}`,
-          success_url: successUrl,
-          cancel_url: failUrl,
-        },
-      },
-    };
-
-    const response = await fetch("https://api.paymongo.com/v1/checkout_sessions", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Basic ${auth}`,
-      },
-      body: JSON.stringify(payload),
-    });
-
-    const json = await response.json().catch(() => ({}));
-    if (!response.ok) {
-      console.error("PayMongo checkout session error", response.status, json);
-      res.status(502).json({ ok: false, error: "paymongo_api_error", details: json });
-      return;
-    }
-
-    const checkoutId = json?.data?.id || null;
-    const checkoutUrl = json?.data?.attributes?.checkout_url || null;
-
-    await orderRef.update({
-      paymentProvider: "paymongo",
-      paymentStatus: "pending",
-      paymentUpdatedAt: Date.now(),
-      paymongoCheckoutId: checkoutId,
-      paymongoCheckoutUrl: checkoutUrl,
-    });
-
-    res.status(200).json({
-      ok: true,
-      orderId,
-      checkoutId,
-      checkoutUrl,
-    });
-  }
-);
 
 // ─────────────────────────────────────────────────────────────────────────────
 // HTTPS: GENERATE PAYMONGO QRPH CODE (in-app QR display via Payment Intents)
 // ─────────────────────────────────────────────────────────────────────────────
-exports.generatePaymongoQrphCode = onRequest(
-  { region: "us-central1", cors: true, secrets: ["PAYMONGO_SECRET_KEY"] },
-  async (req, res) => {
-    if (req.method !== "POST") {
-      res.status(405).json({ ok: false, error: "Method Not Allowed" });
-      return;
-    }
+// exports.generatePaymongoQrphCode removed as requested
 
-    if (!PAYMONGO_SECRET_KEY) {
-      res.status(500).json({ ok: false, error: "Missing PAYMONGO_SECRET_KEY" });
-      return;
-    }
-
-    const orderId = String(req.body?.orderId || "").trim();
-    if (!orderId) {
-      res.status(400).json({ ok: false, error: "orderId is required" });
-      return;
-    }
-
-    try {
-      const db = getDatabase();
-      const orderRef = db.ref(`orders/${orderId}`);
-      const orderSnap = await orderRef.get();
-      if (!orderSnap.exists()) {
-        res.status(404).json({ ok: false, error: "order_not_found" });
-        return;
-      }
-
-      const order = orderSnap.val() || {};
-      const existingQrImageUrl = String(order.paymongoQrImageUrl || "").trim();
-      if (existingQrImageUrl && order.paymentStatus !== "paid") {
-        res.status(200).json({
-          ok: true,
-          orderId,
-          sourceId: order.paymongoSourceId || null,
-          qrImageUrl: existingQrImageUrl,
-          reused: true,
-        });
-        return;
-      }
-
-      const totalPhp = Number(order.total ?? order.grandTotal ?? order.amount ?? 0);
-      if (!Number.isFinite(totalPhp) || totalPhp <= 0) {
-        res.status(400).json({ ok: false, error: "invalid_order_total" });
-        return;
-      }
-
-      const amount = Math.round(totalPhp * 100);
-      const auth = Buffer.from(`${PAYMONGO_SECRET_KEY}:`).toString("base64");
-      const headers = { "Content-Type": "application/json", Authorization: `Basic ${auth}` };
-
-      // Sources API — single call, QR image is directly in the response
-      const sourceRes = await fetch("https://api.paymongo.com/v1/sources", {
-        method: "POST",
-        headers,
-        body: JSON.stringify({
-          data: {
-            attributes: {
-              amount,
-              currency: "PHP",
-              type: "qrph",
-              redirect: {
-                success: "https://bayango.store/#orders",
-                failed: "https://bayango.store/#orders",
-              },
-              metadata: { orderId },
-            },
-          },
-        }),
-      });
-      const sourceJson = await sourceRes.json().catch(() => ({}));
-
-      if (!sourceRes.ok) {
-        console.error("PayMongo source error", sourceRes.status, JSON.stringify(sourceJson));
-        res.status(502).json({ ok: false, error: "paymongo_source_error", details: sourceJson });
-        return;
-      }
-
-      const sourceId = sourceJson?.data?.id;
-      const qrImageUrl = sourceJson?.data?.attributes?.qr_image || null;
-
-      if (!qrImageUrl) {
-        console.error("QR image not found in source response", JSON.stringify(sourceJson?.data?.attributes));
-        res.status(502).json({ ok: false, error: "qr_image_not_found" });
-        return;
-      }
-
-      await orderRef.update({
-        paymentProvider: "paymongo",
-        paymentStatus: "pending",
-        paymentUpdatedAt: Date.now(),
-        paymongoSourceId: sourceId,
-        paymongoQrImageUrl: qrImageUrl,
-      });
-
-      res.status(200).json({ ok: true, orderId, sourceId, qrImageUrl });
-    } catch (err) {
-      console.error("generatePaymongoQrphCode error:", err);
-      res.status(500).json({ ok: false, error: "internal_error", message: err.message });
-    }
-  }
-);
 
 
 // ─────────────────────────────────────────────────────────────────────────────

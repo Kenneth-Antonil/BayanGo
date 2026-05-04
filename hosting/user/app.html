@@ -73,6 +73,7 @@
       margin-top:8px; font-size:11px; color:#6B7280; line-height:1.5;
     }
   </style>
+  <link rel="stylesheet" href="/native-feel.css">
 </head>
 <body>
 
@@ -1819,6 +1820,13 @@
       const [storeSearchQ, setStoreSearchQ] = useState("");
       const [storeCatFilter, setStoreCatFilter] = useState("all");
       const [notifications, setNotifications]  = useState([]);
+      const [messageLastSeen, setMessageLastSeen] = useState(() => {
+        try {
+          return parseInt(localStorage.getItem("bayango_messages_last_seen") || "0", 10);
+        } catch {
+          return 0;
+        }
+      });
       const [notifLastSeen, setNotifLastSeen]  = useState(() => {
         try { return parseInt(localStorage.getItem("bayango_notif_last_seen") || "0", 10); } catch { return 0; }
       });
@@ -2433,8 +2441,37 @@
       };
 
       const activeOrders = myOrders.filter(o => !isOrderClosed(o));
+      const incomingMessageCount = useMemo(() => {
+        if (activePage === "messages") return 0;
+        return myOrders.reduce((count, o) => {
+          const msgs = Object.values(o.messages || {}).filter((m) => {
+            const hasText = String(m?.text || "").trim();
+            const fromSupport = m?.senderRole !== "user";
+            const isUnread = Number(m?.createdAt || 0) > messageLastSeen;
+            return hasText && fromSupport && isUnread;
+          });
+          return count + msgs.length;
+        }, 0);
+      }, [activePage, myOrders, messageLastSeen]);
       const appIsUnavailable = appAvailability?.userAppEnabled === false;
       const unavailableMessage = appAvailability?.userAppMessage || "BayanGo is currently unavailable. Please try again later.";
+
+      useEffect(() => {
+        if (activePage !== "messages") return;
+        const latestMessageAt = myOrders.reduce((latest, order) => {
+          const orderLatest = Object.values(order.messages || {}).reduce((innerLatest, msg) => {
+            if (msg?.senderRole === "user") return innerLatest;
+            if (!String(msg?.text || "").trim()) return innerLatest;
+            return Math.max(innerLatest, Number(msg?.createdAt || 0));
+          }, 0);
+          return Math.max(latest, orderLatest);
+        }, 0);
+        if (latestMessageAt <= messageLastSeen) return;
+        setMessageLastSeen(latestMessageAt);
+        try {
+          localStorage.setItem("bayango_messages_last_seen", String(latestMessageAt));
+        } catch {}
+      }, [activePage, myOrders, messageLastSeen]);
 
       useEffect(() => {
         let url;
@@ -2500,14 +2537,15 @@
             boxShadow:"none",
           }}>
             <img src="https://i.imgur.com/h7HgGC0.png" style={{ height:40, objectFit:"contain" }} />
-            <button onClick={() => setShowUserMenu(true)} style={{
-              width:38, height:38, borderRadius:10, overflow:"hidden",
-              border:"1px solid rgba(255,255,255,.26)",
-              padding:0, flexShrink:0, background:"rgba(255,255,255,.12)", color:"#fff",
-              display:"flex", alignItems:"center", justifyContent:"center",
-            }}>
-              <Ic n="bars" size={18} />
-            </button>
+            <div style={{ display:"flex", alignItems:"center", gap:8 }}>
+              <button onClick={() => setActivePage("messages")} style={{ width:38, height:38, borderRadius:10, overflow:"visible", border:"1px solid rgba(255,255,255,.26)", padding:0, flexShrink:0, background:"rgba(255,255,255,.12)", color:"#fff", display:"flex", alignItems:"center", justifyContent:"center", position:"relative" }}>
+                <Ic n="message" size={16} />
+                {incomingMessageCount > 0 && <span style={{ position:"absolute", top:-5, right:-5, background:"#EF4444", color:"#fff", minWidth:17, height:17, borderRadius:999, fontSize:9, fontWeight:800, display:"flex", alignItems:"center", justifyContent:"center", padding:"0 5px", boxShadow:"0 0 0 2px #166534" }}>{incomingMessageCount > 99 ? "99+" : incomingMessageCount}</span>}
+              </button>
+              <button onClick={() => setShowUserMenu(true)} style={{ width:38, height:38, borderRadius:10, overflow:"hidden", border:"1px solid rgba(255,255,255,.26)", padding:0, flexShrink:0, background:"rgba(255,255,255,.12)", color:"#fff", display:"flex", alignItems:"center", justifyContent:"center" }}>
+                <Ic n="bars" size={18} />
+              </button>
+            </div>
           </div>
 
           {appIsUnavailable && (
@@ -3621,7 +3659,7 @@
                   <Ic n="handshake" size={24} style={{ marginBottom:8, opacity:.8 }} />
                   <div style={{ fontSize:15, fontWeight:800, marginBottom:4 }}>Own a store in Binangonan?</div>
                   <div style={{ fontSize:12, opacity:.85, marginBottom:12, lineHeight:1.4 }}>Join BayanGo's partner network and reach more customers!</div>
-                  <a href="/user/partner-apply.html" style={{
+                  <a href="/partner-apply.html" style={{
                     display:"inline-block", background:"#fff", color:"#166534",
                     padding:"10px 20px", borderRadius:12, fontWeight:800, fontSize:13, textDecoration:"none"
                   }}>Apply Now</a>
@@ -3787,6 +3825,10 @@
             </OrdersErrorBoundary>
           )}
 
+          {activePage === "messages" && (
+            <MessagesPage orders={myOrders} onBack={() => setActivePage("orders")} />
+          )}
+
           {activePage === "notifications" && (
             <NotificationsPage notifications={notifications} onDelete={deleteNotification} />
           )}
@@ -3897,6 +3939,31 @@
                     </div>
                   </div>
                 )}
+
+                {(() => {
+                  const orderMessages = Object.entries(liveOrder.messages || {})
+                    .map(([id, msg]) => ({ id, ...(msg || {}) }))
+                    .filter(msg => String(msg.text || "").trim())
+                    .sort((a, b) => Number(a.createdAt || 0) - Number(b.createdAt || 0));
+                  if (!orderMessages.length) return null;
+                  return (
+                    <div style={{ marginTop:18, borderRadius:16, border:"1.5px solid #DBEAFE", background:"#F8FAFF", padding:"14px" }}>
+                      <div style={{ fontSize:13, fontWeight:800, color:"#1E3A8A", marginBottom:10, display:"flex", alignItems:"center", gap:6 }}>
+                        <Ic n="message" /> Messages (Rider/Admin)
+                      </div>
+                      <div style={{ display:"grid", gap:8 }}>
+                        {orderMessages.map((msg) => (
+                          <div key={msg.id} style={{ background:"#fff", border:"1px solid #E2E8F0", borderRadius:10, padding:"9px 10px" }}>
+                            <div style={{ fontSize:11, fontWeight:700, color:"#475569", marginBottom:4 }}>
+                              {msg.senderRole === "admin" ? "Admin" : "Rider"} • {msg.createdAt ? new Date(msg.createdAt).toLocaleString("en-PH", { month:"short", day:"numeric", hour:"2-digit", minute:"2-digit" }) : "—"}
+                            </div>
+                            <div style={{ fontSize:12, color:"#0F172A" }}>{msg.text}</div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  );
+                })()}
 
                 {/* QR PH Payment Section (PayMongo) */}
                 {liveOrder.paymentMethod === "QRPH" && !isOrderClosed(liveOrder) && (
@@ -4190,13 +4257,13 @@
             position:"fixed", bottom:0, left:0, right:0,
             maxWidth:480, margin:"0 auto",
             background:"#fff", borderTop:"1px solid #E5E7EB",
-            display: activePage === "checkout" ? "none" : "flex", paddingBottom:"env(safe-area-inset-bottom,0px)",
+            display: activePage === "checkout" ? "none" : "flex", paddingBottom:"calc(env(safe-area-inset-bottom,0px) + 10px)",
             boxShadow:"0 -4px 20px rgba(0,0,0,.07)", zIndex:150,
           }}>
             {[
               { key:"shop",    icon:"house",         label:"Home" },
               { key:"bgmart",  icon:"basket-shopping", label:"BG Mart" },
-              { key:"stores",  icon:"store",         label:"Stores",  badge: partnerStores.length },
+              { key:"stores",  icon:"store",         label:"Stores" },
               { key:"orders",  icon:"box",           label:"Orders",  badge: activeOrders.length },
               { key:"notifications", icon:"bell",    label:"Notifs",  badge: unreadNotifCount },
             ].map(t => {
@@ -5427,6 +5494,11 @@
         const canTrackRider = o.status === "buying" || o.status === "pickup" || o.status === "otw" || o.status === "in_boat";
         const hasQrPhBanner = o.paymentMethod === "QRPH" && o.status !== "delivered" && o.status !== "cancelled";
         const hasBottomAttachment = canTrackRider || hasQrPhBanner;
+        const orderMessages = Object.entries(o.messages || {})
+          .map(([id, msg]) => ({ id, ...(msg || {}) }))
+          .filter(msg => String(msg.text || "").trim())
+          .sort((a, b) => Number(a.createdAt || 0) - Number(b.createdAt || 0));
+        const latestMessage = orderMessages.length ? orderMessages[orderMessages.length - 1] : null;
         return (
           <div style={{ marginBottom:12 }}>
             <button onClick={() => onTrack(o)} style={{
@@ -5477,6 +5549,11 @@
                 <div style={{ fontSize:12, color:"#888" }}>{o.customer?.address}</div>
                 <div style={{ fontSize:14, fontWeight:800, color:"#166534" }}>~{fmt(o.total)}</div>
               </div>
+              {latestMessage && (
+                <div style={{ marginTop:10, padding:"9px 10px", borderRadius:10, border:"1px solid #BFDBFE", background:"#EFF6FF", fontSize:11, color:"#1E3A8A" }}>
+                  <strong>{latestMessage.senderRole === "admin" ? "Admin" : "Rider"}:</strong> {String(latestMessage.text).slice(0, 90)}
+                </div>
+              )}
 
               {/* Refund badge */}
               {orderRefund && (
@@ -5624,6 +5701,59 @@
                 )}
               </>
             )}
+          </div>
+        </div>
+      );
+    }
+
+    function MessagesPage({ orders, onBack }) {
+      const [replyByOrder, setReplyByOrder] = useState({});
+      const threads = (orders || [])
+        .map((o) => {
+          const messages = Object.entries(o.messages || {})
+            .map(([id, msg]) => ({ id, ...(msg || {}) }))
+            .filter(m => String(m.text || "").trim())
+            .sort((a, b) => Number(a.createdAt || 0) - Number(b.createdAt || 0));
+          return { order: o, messages };
+        })
+        .filter(t => t.messages.length)
+        .sort((a, b) => Number(b.messages[b.messages.length - 1]?.createdAt || 0) - Number(a.messages[a.messages.length - 1]?.createdAt || 0));
+
+      const sendReply = async (orderId) => {
+        const text = String(replyByOrder[orderId] || "").trim();
+        if (!text) return;
+        await _fbDb.ref(`orders/${orderId}/messages`).push({ text, senderRole: "user", createdAt: Date.now() });
+        setReplyByOrder(prev => ({ ...prev, [orderId]: "" }));
+      };
+
+      return (
+        <div style={{ padding:"10px 14px 18px" }}>
+          <div style={{ display:"flex", alignItems:"center", gap:10, marginBottom:10 }}>
+            <button onClick={onBack} style={{ width:34, height:34, borderRadius:9, border:"1px solid #D1D5DB", background:"#fff" }}><Ic n="arrow-left" /></button>
+            <div style={{ fontSize:18, fontWeight:900, color:"#0F172A" }}>Messages</div>
+          </div>
+          {!threads.length && <div style={{ background:"#fff", border:"1px solid #E2E8F0", borderRadius:14, padding:16, fontSize:12, color:"#64748B" }}>Wala pang messages mula sa admin o rider.</div>}
+          <div style={{ display:"grid", gap:12 }}>
+            {threads.map(({ order, messages }) => (
+              <div key={order.id} style={{ background:"#fff", border:"1px solid #DBEAFE", borderRadius:14, padding:12 }}>
+                <div style={{ fontSize:12, fontWeight:800, color:"#1D4ED8", marginBottom:8 }}>Order #{String(order.id || "").slice(0, 8)}</div>
+                <div style={{ display:"grid", gap:8, maxHeight:220, overflowY:"auto", paddingRight:2 }}>
+                  {messages.map((m) => {
+                    const mine = m.senderRole === "user";
+                    return <div key={m.id} style={{ display:"flex", justifyContent: mine ? "flex-end" : "flex-start" }}>
+                      <div style={{ maxWidth:"86%", background: mine ? "#DCFCE7" : "#EFF6FF", border: `1px solid ${mine ? "#86EFAC" : "#BFDBFE"}`, borderRadius:12, padding:"8px 10px" }}>
+                        <div style={{ fontSize:10, fontWeight:800, color: mine ? "#166534" : "#1E3A8A" }}>{mine ? "Ikaw" : (m.senderRole === "admin" ? "Admin" : "Rider")}</div>
+                        <div style={{ fontSize:12, color:"#0F172A" }}>{m.text}</div>
+                      </div>
+                    </div>;
+                  })}
+                </div>
+                <div style={{ display:"flex", gap:8, marginTop:10 }}>
+                  <input value={replyByOrder[order.id] || ""} onChange={(e) => setReplyByOrder(prev => ({ ...prev, [order.id]: e.target.value }))} placeholder="Mag-reply sa admin/rider..." style={{ flex:1, border:"1px solid #CBD5E1", borderRadius:10, padding:"10px 11px", fontSize:12 }} />
+                  <button onClick={() => sendReply(order.id)} style={{ border:"none", borderRadius:10, background:"#16A34A", color:"#fff", fontWeight:800, fontSize:12, padding:"0 13px" }}>Send</button>
+                </div>
+              </div>
+            ))}
           </div>
         </div>
       );
