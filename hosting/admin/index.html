@@ -716,10 +716,10 @@
           updates.campaigns = null;
           updates.customCategories = null;
 
-          await Promise.all([
-            fns.remove(fns.ref(db, "merchant_listings/" + merchantId)),
-            fns.update(fns.ref(db, "partner_merchants/" + merchantId), updates),
-          ]);
+          await fns.update(fns.ref(db), {
+            ["merchant_listings/" + merchantId]: null,
+            ["partner_merchants/" + merchantId]: null,
+          });
           return;
         }
         await fns.update(fns.ref(db, "partner_merchants/" + merchantId), updates);
