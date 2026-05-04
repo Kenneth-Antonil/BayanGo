@@ -445,6 +445,7 @@
       const [refunds, setRefunds] = useState([]);
       const [partnerApplications, setPartnerApplications] = useState([]);
       const [partnerMerchants, setPartnerMerchants] = useState([]);
+      const [partnerStoreRecords, setPartnerStoreRecords] = useState([]);
       const [appUsageStats, setAppUsageStats] = useState({ activeUsers: 0, downloadedUsers: 0 });
       const [appUsageMap, setAppUsageMap] = useState({});
       const [ready, setReady] = useState(false);
@@ -454,7 +455,7 @@
       const [partnerDataLoaded, setPartnerDataLoaded] = useState(false);
 
       useEffect(() => {
-        let unsubOrders, unsubProducts, unsubVouchers, unsubRefunds, unsubMarket, unsubAppUsage, unsubAuth, unsubPartnerApplications, unsubPartnerMerchants;
+        let unsubOrders, unsubProducts, unsubVouchers, unsubRefunds, unsubMarket, unsubAppUsage, unsubAuth, unsubPartnerApplications, unsubPartnerMerchants, unsubPartnerStoreRecords;
         (async () => {
           const { db, fns, auth, authFns } = await initFirebase();
           unsubAuth = authFns.onAuthStateChanged(auth, (currentUser) => {
@@ -462,10 +463,10 @@
             setReady(true);
             setAuthzError("");
             if (currentUser) enableAdminPush(currentUser);
-            unsubOrders?.(); unsubProducts?.(); unsubVouchers?.(); unsubRefunds?.(); unsubAppUsage?.(); unsubPartnerApplications?.(); unsubPartnerMerchants?.(); unsubMarket?.();
+            unsubOrders?.(); unsubProducts?.(); unsubVouchers?.(); unsubRefunds?.(); unsubAppUsage?.(); unsubPartnerApplications?.(); unsubPartnerMerchants?.(); unsubPartnerStoreRecords?.(); unsubMarket?.();
             setPartnerDataLoaded(false);
             if (!currentUser) {
-              setOrders([]); setVouchers([]); setPartnerApplications([]); setPartnerMerchants([]);
+              setOrders([]); setVouchers([]); setPartnerApplications([]); setPartnerMerchants([]); setPartnerStoreRecords([]);
               setAppUsageStats({ activeUsers: 0, downloadedUsers: 0 }); setAppUsageMap({});
               return;
             }
@@ -621,9 +622,17 @@
               if (String(err?.code || "").toLowerCase().includes("permission")) setAuthzError("Permission denied for partner merchants.");
             });
             unsubPartnerMerchants = () => fns.off(partnerMerchantsRef);
+
+            const partnerStoreRecordsRef = fns.ref(db, "partner_store_records");
+            fns.onValue(partnerStoreRecordsRef, snap => {
+              const list = []; snap.forEach(c => list.push({ id: c.key, ...(c.val() || {}) }));
+              list.sort((a, b) => Number(b.recordedAt || 0) - Number(a.recordedAt || 0));
+              setPartnerStoreRecords(list);
+            }, err => console.error("Partner store records error:", err?.code, err?.message));
+            unsubPartnerStoreRecords = () => fns.off(partnerStoreRecordsRef);
           });
         })();
-        return () => { unsubOrders?.(); unsubProducts?.(); unsubVouchers?.(); unsubRefunds?.(); unsubMarket?.(); unsubAppUsage?.(); unsubPartnerApplications?.(); unsubPartnerMerchants?.(); unsubAuth?.(); };
+        return () => { unsubOrders?.(); unsubProducts?.(); unsubVouchers?.(); unsubRefunds?.(); unsubMarket?.(); unsubAppUsage?.(); unsubPartnerApplications?.(); unsubPartnerMerchants?.(); unsubPartnerStoreRecords?.(); unsubAuth?.(); };
       }, []);
 
       const addOrder = useCallback(async (order) => { const { db, fns } = await initFirebase(); await fns.push(fns.ref(db, "orders"), { ...order, status: "pending", createdAt: Date.now() }); }, []);
@@ -716,9 +725,26 @@
           updates.campaigns = null;
           updates.customCategories = null;
 
+          const existingSnapshot = await fns.get(fns.ref(db, "partner_merchants/" + merchantId));
+          const existingMerchant = existingSnapshot.val() || {};
+
           await fns.update(fns.ref(db), {
             ["merchant_listings/" + merchantId]: null,
             ["partner_merchants/" + merchantId]: null,
+            ["partner_store_records/" + merchantId]: {
+              ...existingMerchant,
+              moderation: moderationPayload,
+              enforcementStatus: "deleted",
+              deletedAt: now,
+              deletedByUid: user?.uid || null,
+              status: "deleted",
+              approved: false,
+              active: false,
+              featuredInApp: false,
+              storeOpen: false,
+              merchantId,
+              recordedAt: now,
+            },
           });
           return;
         }
@@ -758,7 +784,7 @@
             vouchers={vouchers} onAddVoucher={addVoucher} onUpdateVoucher={updateVoucher} onDeleteVoucher={deleteVoucher}
             refunds={refunds} onCreateRefund={submitRefund}
             appUsageStats={appUsageStats} appUsageMap={appUsageMap}
-            partnerApplications={partnerApplications} partnerMerchants={partnerMerchants}
+            partnerApplications={partnerApplications} partnerMerchants={partnerMerchants} partnerStoreRecords={partnerStoreRecords}
             onDecidePartnerApplication={decidePartnerApplication} onToggleFeaturedPartnerMerchant={toggleFeaturedPartnerMerchant} onModeratePartnerMerchant={moderatePartnerMerchant}
             authzError={authzError} partnerDataLoaded={partnerDataLoaded}
           />
@@ -1218,7 +1244,7 @@
     }
 
     /* ══════════════════ PARTNERS PANEL ══════════════════ */
-    function PartnersPanel({ applications = [], merchants = [], onDecide, onToggleFeatured, onModerateMerchant, dataLoaded = true, authzError = "", adminUid = "" }) {
+    function PartnersPanel({ applications = [], merchants = [], storeRecords = [], onDecide, onToggleFeatured, onModerateMerchant, dataLoaded = true, authzError = "", adminUid = "" }) {
       const [partnerTab, setPartnerTab] = useState("pending");
       const [searchQ, setSearchQ] = useState("");
       const [rejectingId, setRejectingId] = useState("");
@@ -1394,6 +1420,7 @@
             {[
               { key: "pending", label: "Pending", count: pending.length, color: "#F59E0B" },
               { key: "merchants", label: "Merchants", count: approvedMerchants.length, color: "#22C55E" },
+              { key: "records", label: "Store Records", count: storeRecords.length, color: "#334155" },
               { key: "rejected", label: "Rejected", count: rejected.length, color: "#EF4444" },
             ].map(t => (
               <button key={t.key} onClick={() => setPartnerTab(t.key)} className="tab" style={{
@@ -1519,6 +1546,30 @@
                 </div>
               );
               })}
+            </div>
+          )}
+
+          {partnerTab === "records" && (
+            <div>
+              {storeRecords.length === 0 ? (
+                <div className="card" style={{ textAlign: "center", padding: "32px 16px" }}>
+                  <Ic n="box-archive" size={28} style={{ color: "var(--muted)", opacity: .4, marginBottom: 8, display: "block" }} />
+                  <div style={{ fontSize: 13, fontWeight: 700, color: "var(--muted)" }}>No deleted store records yet</div>
+                </div>
+              ) : storeRecords.map((record, idx) => (
+                <div key={`${record.id}-${idx}`} className="card" style={{ marginBottom: 10, borderLeft: "4px solid #111827" }}>
+                  <div style={{ display: "flex", justifyContent: "space-between", gap: 8 }}>
+                    <div>
+                      <div style={{ fontWeight: 800, fontSize: 15 }}>{record.storeName || "Unnamed Store"}</div>
+                      <div style={{ fontSize: 12, color: "var(--muted)", marginTop: 2 }}>{record.contactName || "-"} • {record.contactPhone || "-"}</div>
+                    </div>
+                    <div style={{ fontSize: 11, color: "var(--muted)", textAlign: "right" }}>{fmtDateTime(record.recordedAt || record.deletedAt)}</div>
+                  </div>
+                  <div style={{ marginTop: 8, fontSize: 12, color: "#334155" }}>
+                    Reason: {record?.moderation?.reason || "No reason provided."}
+                  </div>
+                </div>
+              ))}
             </div>
           )}
 
@@ -2361,7 +2412,7 @@
     }
 
     /* ══════════════════ ADMIN DASHBOARD (Main Shell) ══════════════════ */
-    function AdminDashboard({ user, onLogout, orders, onUpdateStatus, onBroadcast, products, onAddProduct, onUpdateProduct, onDeleteProduct, marketPricing, onUpdateMarketPricing, vouchers, onAddVoucher, onUpdateVoucher, onDeleteVoucher, refunds, onCreateRefund, appUsageStats, appUsageMap, partnerApplications, partnerMerchants, onDecidePartnerApplication, onToggleFeaturedPartnerMerchant, onModeratePartnerMerchant, authzError, partnerDataLoaded }) {
+    function AdminDashboard({ user, onLogout, orders, onUpdateStatus, onBroadcast, products, onAddProduct, onUpdateProduct, onDeleteProduct, marketPricing, onUpdateMarketPricing, vouchers, onAddVoucher, onUpdateVoucher, onDeleteVoucher, refunds, onCreateRefund, appUsageStats, appUsageMap, partnerApplications, partnerMerchants, partnerStoreRecords, onDecidePartnerApplication, onToggleFeaturedPartnerMerchant, onModeratePartnerMerchant, authzError, partnerDataLoaded }) {
       const getInitialTab = () => {
         const validTabs = new Set(["dashboard", "orders", "grocery", "products", "bgmart", "data", "partners", "vouchers", "refunds", "settings"]);
         try { const hash = (window.location.hash || "").replace("#", "").toLowerCase(); if (validTabs.has(hash)) return hash; } catch {}
@@ -2690,7 +2741,7 @@
 
             {tab === "dashboard" && <DashboardOverview orders={orders} appUsageStats={appUsageStats} products={products} />}
             {tab === "grocery" && <GroceryTab orders={dashboardOrders} />}
-            {tab === "partners" && <PartnersPanel applications={partnerApplications} merchants={partnerMerchants} onDecide={onDecidePartnerApplication} onToggleFeatured={onToggleFeaturedPartnerMerchant} onModerateMerchant={onModeratePartnerMerchant} dataLoaded={partnerDataLoaded} authzError={authzError} adminUid={user?.uid} />}
+            {tab === "partners" && <PartnersPanel applications={partnerApplications} merchants={partnerMerchants} storeRecords={partnerStoreRecords} onDecide={onDecidePartnerApplication} onToggleFeatured={onToggleFeaturedPartnerMerchant} onModerateMerchant={onModeratePartnerMerchant} dataLoaded={partnerDataLoaded} authzError={authzError} adminUid={user?.uid} />}
             {tab === "products" && <ProductsPanel products={products} onAdd={onAddProduct} onUpdate={onUpdateProduct} onDelete={onDeleteProduct} marketPricing={marketPricing} onUpdateMarketPricing={onUpdateMarketPricing} />}
             {tab === "bgmart" && <BGMartPanel products={products} onAdd={onAddProduct} onUpdate={onUpdateProduct} onDelete={onDeleteProduct} />}
             {tab === "data" && <DataTab orders={orders} />}
