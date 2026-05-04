@@ -345,6 +345,17 @@
     },
 
     // ─────────────────────────────────────────────────────────────────────────
+    // PARTNER STORE RECORDS (audit trail for moderated merchants)
+    // Only admins can read/write these records.
+    // ─────────────────────────────────────────────────────────────────────────
+    "partner_store_records": {
+      ".read": "auth != null && root.child('admins').child(auth.uid).val() === true",
+      "$uid": {
+        ".write": "auth != null && root.child('admins').child(auth.uid).val() === true"
+      }
+    },
+
+    // ─────────────────────────────────────────────────────────────────────────
     // MERCHANT LISTINGS (products per merchant)
     // Any authenticated user can read. Merchant owner or admin can write.
     // ─────────────────────────────────────────────────────────────────────────
