@@ -668,7 +668,7 @@
         btn.disabled = true;
         btn.innerHTML = '<i class="fa-solid fa-circle-check"></i><span>INSTALLED. BINUBUKSAN...</span>';
       });
-      setTimeout(() => window.location.replace('app.html'), 800);
+      window.location.replace('app.html');
     }
 
     window.addEventListener('beforeinstallprompt', (e) => {
