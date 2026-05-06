@@ -33,3 +33,37 @@ Use `hosting/admin/components/BIRTaxSummaryWidget.jsx` in admin dashboard to sho
 - Net Taxable Income
 - Estimated 3% Percentage Tax (or 12% VAT if VAT-registered)
 - Missing receipt warning count for audit follow-up
+
+
+## Firebase Hosting Troubleshooting
+
+### `HTTP Error: 404 ... /sites/bayango-user-demo/versions`
+
+If deploy fails with:
+
+`Request to https://firebasehosting.googleapis.com/v1beta1/projects/-/sites/bayango-user-demo/versions had HTTP Error: 404, Requested entity was not found.`
+
+it usually means the **Hosting site does not exist in the currently selected Firebase project**, or your CLI is pointing to the wrong project.
+
+Run these checks in order:
+
+```bash
+firebase use
+firebase target
+firebase hosting:sites:list --project bayango-315c6
+```
+
+If `bayango-user-demo` is missing, create it and re-apply the deploy target:
+
+```bash
+firebase hosting:sites:create bayango-user-demo --project bayango-315c6
+firebase target:apply hosting user-demo bayango-user-demo --project bayango-315c6
+```
+
+Then deploy again:
+
+```bash
+firebase deploy --only hosting:user-demo --project bayango-315c6
+```
+
+If you intentionally use a different project, update `.firebaserc` target mapping for `user-demo` to a site that exists in that project.
