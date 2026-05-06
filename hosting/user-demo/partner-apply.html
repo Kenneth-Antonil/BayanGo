@@ -1,0 +1,603 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no" />
+  <title>BayanGo — Partner Merchant Application</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700;900&family=DM+Sans:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" />
+  <style>
+    :root {
+      --brand: #166534; --brand-deep: #14532d; --brand-light: #22C55E; --brand-bg: #F0FDF4; --brand-border: #BBF7D0;
+      --bg: #F8FAFC; --card: #FFFFFF; --text: #0F172A; --muted: #64748B;
+      --danger: #DC2626; --danger-bg: #FEF2F2; --danger-border: #FECACA;
+      --warn-bg: #FFFBEB; --warn-border: #FDE68A;
+      --radius: 16px; --shadow: 0 1px 3px rgba(0,0,0,.06), 0 4px 16px rgba(0,0,0,.04);
+      --line: #E2E8F0;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: 'DM Sans', sans-serif; background: var(--bg); color: var(--text); min-height: 100vh; }
+    .page { max-width: 680px; margin: 0 auto; padding: 32px 16px 60px; }
+
+    /* Header */
+    .header { margin-bottom: 24px; text-align: center; }
+    .header h1 {
+      font-family: 'Playfair Display', serif;
+      font-size: clamp(1.55rem, 3vw, 2.1rem);
+      font-weight: 900;
+      line-height: 1.15;
+      letter-spacing: -.02em;
+      margin-bottom: 7px;
+    }
+    .header p { color: var(--muted); font-size: 15px; line-height: 1.6; font-weight: 400; max-width: 500px; margin: 0 auto; }
+
+    /* Stepper */
+    .stepper { display: flex; margin-bottom: 30px; padding: 0 10px; }
+    .step-item { flex: 1; display: flex; flex-direction: column; align-items: center; position: relative; }
+    .step-item:not(:last-child)::after {
+      content: ''; position: absolute; top: 17px; left: 50%; width: 100%; height: 2px; background: var(--line); transition: background .35s; z-index: 0;
+    }
+    .step-item.done:not(:last-child)::after { background: var(--brand); }
+    .step-circle {
+      width: 34px; height: 34px; border-radius: 50%; border: 2px solid var(--line); background: var(--card); color: var(--muted);
+      font-size: 13px; font-weight: 700; display: flex; align-items: center; justify-content: center; position: relative; z-index: 1; transition: all .3s;
+    }
+    .step-item.active .step-circle { border-color: var(--brand); background: var(--brand); color: #fff; box-shadow: 0 0 0 4px rgba(22,101,52,.15); }
+    .step-item.done .step-circle { border-color: var(--brand); background: var(--brand); color: #fff; }
+    .step-label { font-size: 10px; font-weight: 700; color: var(--muted); margin-top: 6px; text-align: center; text-transform: uppercase; letter-spacing: .05em; }
+    .step-item.active .step-label, .step-item.done .step-label { color: var(--brand); }
+
+    /* Cards */
+    .card { background: var(--card); border: 1px solid var(--line); border-radius: var(--radius); padding: 26px; box-shadow: var(--shadow); margin-bottom: 20px; }
+    .card-title { font-size: 18px; font-weight: 800; margin-bottom: 4px; display: flex; align-items: center; gap: 10px; color: var(--text); }
+    .card-subtitle { font-size: 13px; color: var(--muted); margin-bottom: 20px; }
+
+    /* Forms */
+    .form-group { margin-bottom: 18px; }
+    .form-label { font-size: 13px; font-weight: 700; color: #1E293B; margin-bottom: 6px; display: block; }
+    .form-label .req { color: var(--danger); margin-left: 2px; }
+    .form-label .hint { font-weight: 400; color: var(--muted); font-size: 12px; margin-left: 3px; }
+    .form-input, .form-select, .form-textarea {
+      width: 100%; padding: 12px 14px; border: 1.5px solid var(--line); border-radius: 12px;
+      font-size: 14px; font-family: inherit; background: #fff; transition: all .2s;
+    }
+    .form-input:focus, .form-select:focus, .form-textarea:focus { outline: none; border-color: var(--brand); box-shadow: 0 0 0 3px rgba(34,197,94,.12); }
+    .form-input.error, .form-select.error, .form-textarea.error { border-color: var(--danger); background: var(--danger-bg); }
+    .form-textarea { resize: vertical; min-height: 100px; line-height: 1.6; }
+    .form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+
+    /* Category Grid */
+    .category-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
+    .cat-btn {
+      padding: 14px 10px; border: 2px solid var(--line); border-radius: 14px;
+      background: #fff; cursor: pointer; text-align: center; transition: all .2s;
+    }
+    .cat-btn:hover { border-color: var(--brand-border); background: var(--brand-bg); }
+    .cat-btn.selected { border-color: var(--brand); background: var(--brand-bg); box-shadow: 0 4px 12px rgba(22,101,52,.1); }
+    .cat-btn i { display: block; font-size: 22px; margin-bottom: 6px; }
+    .cat-btn span { font-size: 11px; font-weight: 700; color: #334155; }
+
+    /* Hours */
+    .hours-grid { display: grid; grid-template-columns: 1fr auto 1fr; gap: 10px; align-items: center; }
+    .hours-sep { font-size: 13px; font-weight: 700; color: var(--muted); }
+
+    /* Upload */
+    .upload-zone {
+      border: 1.5px dashed #cbd5e1; border-radius: 12px; padding: 24px 16px;
+      text-align: center; cursor: pointer; background: #F8FAFC; position: relative; transition: all .2s;
+    }
+    .upload-zone:hover { border-color: var(--brand); background: var(--brand-bg); }
+    .upload-zone input[type=file] { position: absolute; inset: 0; opacity: 0; cursor: pointer; }
+    .upload-label strong { display: block; font-size: 14px; font-weight: 700; color: var(--brand); margin-bottom: 4px; }
+    .upload-label small { font-size: 12px; color: var(--muted); }
+    .file-name { font-size: 13px; font-weight: 700; color: var(--brand); display: none; margin-top: 6px; }
+    .upload-zone.has-file { border-color: var(--brand); border-style: solid; background: var(--brand-bg); }
+    .upload-zone.has-file .upload-label { display: none; }
+    .upload-zone.has-file .file-name { display: block; }
+
+    /* Buttons */
+    .btn { padding: 14px 24px; border: none; border-radius: 14px; font-size: 15px; font-weight: 800; cursor: pointer; transition: all .2s; display: inline-flex; align-items: center; justify-content: center; gap: 8px; }
+    .btn:active { transform: scale(.98); }
+    .btn-primary { background: linear-gradient(135deg, var(--brand), var(--brand-deep)); color: #fff; width: 100%; box-shadow: 0 4px 14px rgba(22,101,52,.25); }
+    .btn-primary:hover { opacity: .95; transform: translateY(-1px); }
+    .btn-outline { background: #fff; border: 2px solid var(--line); color: #334155; }
+    .btn-outline:hover { border-color: #CBD5E1; background: #F8FAFC; }
+    .btn-nav { display: flex; gap: 12px; margin-top: 10px; }
+    .btn-nav .btn { flex: 1; }
+
+    /* Success Screen */
+    .success-screen { text-align: center; padding: 40px 20px; }
+    .success-icon { width: 80px; height: 80px; border-radius: 50%; background: var(--brand-bg); border: 3px solid var(--brand-border); display: inline-flex; align-items: center; justify-content: center; font-size: 36px; color: var(--brand); margin: 0 auto 20px; }
+    .success-screen h2 { font-size: 22px; font-weight: 900; color: var(--brand); margin-bottom: 10px; }
+    .success-screen p { font-size: 14px; color: var(--muted); line-height: 1.6; }
+    .ref-box { background: #F1F5F9; border-radius: 12px; padding: 12px; margin: 20px 0; border: 1px solid #E2E8F0; }
+    .ref-box small { display: block; font-size: 11px; text-transform: uppercase; letter-spacing: .05em; color: var(--muted); margin-bottom: 2px; }
+    .ref-box span { font-family: monospace; font-size: 18px; font-weight: 800; color: var(--text); }
+
+    /* Progress Track */
+    .track-steps { margin-top: 30px; text-align: left; }
+    .track-step { display: flex; gap: 14px; margin-bottom: 16px; position: relative; }
+    .track-step:not(:last-child)::after { content: ''; position: absolute; left: 10px; top: 22px; bottom: -10px; width: 2px; background: #E2E8F0; }
+    .track-dot { width: 22px; height: 22px; border-radius: 50%; background: #E2E8F0; border: 4px solid #fff; box-shadow: 0 0 0 1px #E2E8F0; z-index: 1; flex-shrink: 0; }
+    .track-step.done .track-dot { background: var(--brand); box-shadow: 0 0 0 1px var(--brand); }
+    .track-step.cur .track-dot { background: #fff; border-color: var(--brand); box-shadow: 0 0 0 1px var(--brand); }
+    .track-text strong { display: block; font-size: 13px; color: var(--text); }
+    .track-text small { font-size: 11px; color: var(--muted); }
+
+    .msg { padding: 14px; border-radius: 12px; font-size: 13px; font-weight: 600; margin-top: 15px; display: none; }
+    .msg.error { background: var(--danger-bg); color: var(--danger); border: 1px solid var(--danger-border); display: block; }
+
+    @media (max-width: 480px) {
+      .category-grid { grid-template-columns: repeat(2, 1fr); }
+      .form-row { grid-template-columns: 1fr; }
+    }
+  </style>
+</head>
+<body>
+  <div class="page">
+    <div class="header">
+      <h1>Become a Partner</h1>
+      <p>Join BayanGo's network of local merchants in Binangonan. Grow your business and reach more customers!</p>
+    </div>
+
+    <div id="auth-section">
+      <div class="card" style="text-align:center; padding: 40px 20px;">
+        <div style="width:72px; height:72px; border-radius:50%; background:var(--brand-bg); display:inline-flex; align-items:center; justify-content:center; color:var(--brand); font-size:30px; margin-bottom:16px;">
+          <i class="fas fa-user-plus"></i>
+        </div>
+        <h2 style="font-size:20px; font-weight:800; margin-bottom:8px;">Sign In to Apply</h2>
+        <p style="font-size:13px; color:var(--muted); margin-bottom:24px;">Please sign in with your Google account to start your application.</p>
+        <button class="btn btn-outline" id="loginBtn" style="width:100%; max-width:280px; margin:0 auto;">
+          <img src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg" style="width:20px; height:20px;" alt="G" />
+          Continue with Google
+        </button>
+      </div>
+    </div>
+
+    <div id="main-section" style="display:none">
+      <div class="stepper">
+        <div class="step-item active" data-step="1">
+          <div class="step-circle">1</div>
+          <div class="step-label">Store</div>
+        </div>
+        <div class="step-item" data-step="2">
+          <div class="step-circle">2</div>
+          <div class="step-label">Owner</div>
+        </div>
+        <div class="step-item" data-step="3">
+          <div class="step-circle">3</div>
+          <div class="step-label">Docs</div>
+        </div>
+        <div class="step-item" data-step="4">
+          <div class="step-circle">4</div>
+          <div class="step-label">Review</div>
+        </div>
+      </div>
+
+      <!-- STEP 1: Store Info -->
+      <div id="step1" class="step-content">
+        <div class="card">
+          <div class="card-title"><i class="fas fa-store" style="color:var(--brand)"></i> Store Information</div>
+          <div class="card-subtitle">Tell us about your business</div>
+
+          <div class="form-group">
+            <label class="form-label">Store Name <span class="req">*</span></label>
+            <input class="form-input" id="storeName" placeholder="e.g. Maria's Sari-Sari Store" />
+          </div>
+
+          <div class="form-group">
+            <label class="form-label">Store Category <span class="req">*</span></label>
+            <div class="category-grid" id="categoryGrid"></div>
+          </div>
+
+          <div class="form-group">
+            <label class="form-label">Store Description <span class="req">*</span> <span class="hint">(Min 30 chars)</span></label>
+            <textarea class="form-textarea" id="description" placeholder="Describe your store, what you sell, and what makes it special..."></textarea>
+            <div style="text-align:right; font-size:11px; color:var(--muted); margin-top:4px;" id="charCount">0 / 300</div>
+          </div>
+
+          <div class="form-group">
+            <label class="form-label">Business Address <span class="req">*</span></label>
+            <input class="form-input" id="businessAddress" placeholder="Complete address in Binangonan" />
+          </div>
+
+          <div class="form-group">
+            <label class="form-label">Operating Hours <span class="req">*</span></label>
+            <div class="hours-grid">
+              <select class="form-select" id="openTime"></select>
+              <span class="hours-sep">to</span>
+              <select class="form-select" id="closeTime"></select>
+            </div>
+          </div>
+        </div>
+        <div class="btn-nav">
+          <button class="btn btn-primary" onclick="goStep(2)">Next: Owner Details <i class="fas fa-arrow-right"></i></button>
+        </div>
+      </div>
+
+      <!-- STEP 2: Owner Details -->
+      <div id="step2" class="step-content" style="display:none">
+        <div class="card">
+          <div class="card-title"><i class="fas fa-user-tie" style="color:#2563EB"></i> Owner Details</div>
+          <div class="card-subtitle">Contact information for the business owner</div>
+
+          <div class="form-group">
+            <label class="form-label">Full Name <span class="req">*</span></label>
+            <input class="form-input" id="contactName" placeholder="Owner or Manager's name" />
+          </div>
+
+          <div class="form-row">
+            <div class="form-group">
+              <label class="form-label">Phone Number <span class="req">*</span></label>
+              <input class="form-input" id="contactPhone" placeholder="09XXXXXXXXX" maxlength="11" />
+            </div>
+            <div class="form-group">
+              <label class="form-label">Email Address <span class="req">*</span></label>
+              <input class="form-input" id="contactEmail" type="email" placeholder="email@example.com" />
+            </div>
+          </div>
+
+          <div class="form-group">
+            <label class="form-label">Facebook Page / Website <span class="hint">(Optional)</span></label>
+            <input class="form-input" id="socialLink" placeholder="https://facebook.com/yourstore" />
+          </div>
+        </div>
+        <div class="btn-nav">
+          <button class="btn btn-outline" onclick="goStep(1)"><i class="fas fa-arrow-left"></i> Back</button>
+          <button class="btn btn-primary" onclick="goStep(3)">Next: Documents <i class="fas fa-arrow-right"></i></button>
+        </div>
+      </div>
+
+      <!-- STEP 3: Documents -->
+      <div id="step3" class="step-content" style="display:none">
+        <div class="card">
+          <div class="card-title"><i class="fas fa-file-contract" style="color:#F59E0B"></i> Business Documents</div>
+          <div class="card-subtitle">Upload clear photos of your documents</div>
+
+          <div class="form-group">
+            <label class="form-label">Business Permit Number <span class="req">*</span></label>
+            <input class="form-input" id="businessPermitNo" placeholder="Permit number" />
+          </div>
+
+          <div class="form-group">
+            <label class="form-label">Business Permit Photo <span class="req">*</span></label>
+            <div class="upload-zone" id="permitZone">
+              <input type="file" accept="image/*" onchange="handleFile(this, 'permitZone', 'permitName')" />
+              <div class="upload-label">
+                <strong>Click to upload photo</strong>
+                <small>JPG or PNG (Max 5MB)</small>
+              </div>
+              <div class="file-name" id="permitName"></div>
+            </div>
+          </div>
+
+          <div class="form-group">
+            <label class="form-label">Government ID Type <span class="req">*</span></label>
+            <select class="form-select" id="govIdType">
+              <option value="">Select ID type</option>
+              <option value="drivers_license">Driver's License</option>
+              <option value="national_id">National ID</option>
+              <option value="passport">Passport</option>
+              <option value="postal_id">Postal ID</option>
+              <option value="voters_id">Voter's ID</option>
+              <option value="umid">UMID / SSS</option>
+            </select>
+          </div>
+
+          <div class="form-group">
+            <label class="form-label">Government ID Photo <span class="req">*</span></label>
+            <div class="upload-zone" id="govIdZone">
+              <input type="file" accept="image/*" onchange="handleFile(this, 'govIdZone', 'govIdName')" />
+              <div class="upload-label">
+                <strong>Click to upload photo</strong>
+                <small>JPG or PNG (Max 5MB)</small>
+              </div>
+              <div class="file-name" id="govIdName"></div>
+            </div>
+          </div>
+        </div>
+        <div class="btn-nav">
+          <button class="btn btn-outline" onclick="goStep(2)"><i class="fas fa-arrow-left"></i> Back</button>
+          <button class="btn btn-primary" onclick="goStep(4)">Review Application <i class="fas fa-arrow-right"></i></button>
+        </div>
+      </div>
+
+      <!-- STEP 4: Review -->
+      <div id="step4" class="step-content" style="display:none">
+        <div class="card">
+          <div class="card-title"><i class="fas fa-clipboard-check" style="color:var(--brand)"></i> Review Details</div>
+          <div class="card-subtitle">Please verify your information</div>
+          <div id="reviewContent" style="font-size:13px; line-height:1.6;"></div>
+        </div>
+
+        <div class="card" style="padding: 16px; background: var(--brand-bg); border-color: var(--brand-border);">
+          <label style="display:flex; gap:12px; cursor:pointer;">
+            <input type="checkbox" id="termsCheck" style="width:18px; height:18px; margin-top:2px; accent-color:var(--brand);" />
+            <span style="font-size:13px; line-height:1.5; color:var(--brand-deep); font-weight:500;">
+              I confirm that all information provided is true and correct. I understand that my application is subject to verification.
+            </span>
+          </label>
+        </div>
+
+        <div id="msgBox" class="msg"></div>
+
+        <div class="btn-nav">
+          <button class="btn btn-outline" onclick="goStep(3)"><i class="fas fa-arrow-left"></i> Back</button>
+          <button class="btn btn-primary" id="submitBtn" onclick="submitApplication()">
+            <i class="fas fa-paper-plane"></i> Submit Application
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <div id="success-section" style="display:none">
+      <div class="card success-screen">
+        <div class="success-icon"><i class="fas fa-check"></i></div>
+        <h2>Application Sent!</h2>
+        <p>Your merchant application has been submitted successfully. Our team will review your documents and contact you soon.</p>
+        
+        <div class="ref-box">
+          <small>Application Reference</small>
+          <span id="refNo">BG-XXXX-XXXX</span>
+        </div>
+
+        <div class="track-steps">
+          <div class="track-step done">
+            <div class="track-dot"></div>
+            <div class="track-text"><strong>Application Received</strong><small>Just now</small></div>
+          </div>
+          <div class="track-step cur">
+            <div class="track-dot"></div>
+            <div class="track-text"><strong>Document Verification</strong><small>1-2 business days</small></div>
+          </div>
+          <div class="track-step">
+            <div class="track-dot"></div>
+            <div class="track-text"><strong>Admin Approval</strong><small>Pending review</small></div>
+          </div>
+        </div>
+
+        <button class="btn btn-outline" style="margin-top:30px; width:100%;" onclick="location.reload()">Back to Home</button>
+      </div>
+    </div>
+  </div>
+
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-storage-compat.js"></script>
+  <script>
+    const app = firebase.initializeApp({
+      apiKey: "AIzaSyC0AQ3rkH-fhxlThobjDDtrvxttAfFLXTE",
+      authDomain: "bayango-315c6.firebaseapp.com",
+      projectId: "bayango-315c6",
+      storageBucket: "bayango-315c6.firebasestorage.app",
+      messagingSenderId: "199013441811",
+      appId: "1:199013441811:web:315a38f03ddc9b676e3ae6",
+      databaseURL: "https://bayango-315c6-default-rtdb.asia-southeast1.firebasedatabase.app"
+    });
+    const auth = firebase.auth(app);
+    const db = firebase.database(app);
+    const storage = firebase.storage(app);
+
+    const CATEGORIES = [
+      { id: "sari", label: "General Goods", icon: "store", color: "#EC4899" },
+      { id: "ulam", label: "Cooked Meals", icon: "bowl-food", color: "#A855F7" },
+      { id: "gamot", label: "Medicine", icon: "pills", color: "#14B8A6" },
+      { id: "hardware", label: "Hardware", icon: "screwdriver-wrench", color: "#F59E0B" },
+      { id: "gulay", label: "Vegetables", icon: "leaf", color: "#22C55E" },
+      { id: "isda", label: "Fish", icon: "fish", color: "#0EA5E9" },
+      { id: "karne", label: "Meat", icon: "drumstick-bite", color: "#EF4444" },
+      { id: "prutas", label: "Fruits", icon: "apple-whole", color: "#F97316" },
+      { id: "bigas", label: "Rice", icon: "bowl-rice", color: "#EAB308" },
+      { id: "bakery", label: "Bakery", icon: "bread-slice", color: "#D97706" },
+      { id: "water", label: "Water Station", icon: "droplet", color: "#38BDF8" },
+      { id: "laundry", label: "Laundry", icon: "shirt", color: "#818CF8" },
+    ];
+
+    let selectedCategory = "";
+    let currentStep = 1;
+    let uploadedFiles = { permit: null, govId: null };
+
+    // Initialize
+    auth.onAuthStateChanged(user => {
+      document.getElementById("auth-section").style.display = user ? "none" : "block";
+      document.getElementById("main-section").style.display = user ? "block" : "none";
+      if (user) {
+        document.getElementById("contactEmail").value = user.email || "";
+        document.getElementById("contactName").value = user.displayName || "";
+        checkExistingApplication(user.uid);
+      }
+    });
+
+    document.getElementById("loginBtn").onclick = () => auth.signInWithPopup(new firebase.auth.GoogleAuthProvider());
+
+    // Build category grid
+    const grid = document.getElementById("categoryGrid");
+    CATEGORIES.forEach(cat => {
+      const btn = document.createElement("button");
+      btn.type = "button";
+      btn.className = "cat-btn";
+      btn.innerHTML = `<i class="fas fa-${cat.icon}" style="color:${cat.color}"></i><span>${cat.label}</span>`;
+      btn.onclick = () => {
+        document.querySelectorAll(".cat-btn").forEach(b => b.classList.remove("selected"));
+        btn.classList.add("selected");
+        selectedCategory = cat.id;
+      };
+      grid.appendChild(btn);
+    });
+
+    // Time options
+    const timeSlots = [];
+    for (let h = 0; h < 24; h++) {
+      const ampm = h < 12 ? 'AM' : 'PM';
+      const hr = h === 0 ? 12 : h > 12 ? h - 12 : h;
+      const time = `${String(hr).padStart(2, '0')}:00 ${ampm}`;
+      timeSlots.push(time);
+      timeSlots.push(`${String(hr).padStart(2, '0')}:30 ${ampm}`);
+    }
+    ['openTime', 'closeTime'].forEach(id => {
+      const sel = document.getElementById(id);
+      timeSlots.forEach(t => {
+        const opt = document.createElement('option');
+        opt.value = opt.textContent = t;
+        sel.appendChild(opt);
+      });
+    });
+    document.getElementById('openTime').value = '08:00 AM';
+    document.getElementById('closeTime').value = '08:00 PM';
+
+    // Char counter
+    document.getElementById('description').addEventListener('input', function() {
+      const len = this.value.length;
+      document.getElementById('charCount').textContent = `${len} / 300`;
+      document.getElementById('charCount').style.color = len < 30 ? 'var(--danger)' : 'var(--muted)';
+    });
+
+    function handleFile(input, zoneId, nameId) {
+      const file = input.files[0];
+      if (!file) return;
+      if (file.size > 5 * 1024 * 1024) { alert("File too large (Max 5MB)"); input.value = ""; return; }
+      const key = zoneId === 'permitZone' ? 'permit' : 'govId';
+      uploadedFiles[key] = file;
+      document.getElementById(zoneId).classList.add('has-file');
+      document.getElementById(nameId).textContent = file.name;
+    }
+
+    function goStep(step) {
+      if (step > currentStep && !validateStep(currentStep)) return;
+      currentStep = step;
+      document.querySelectorAll(".step-content").forEach(el => el.style.display = "none");
+      document.getElementById("step" + step).style.display = "block";
+      document.querySelectorAll(".step-item").forEach(el => {
+        const s = parseInt(el.dataset.step);
+        el.classList.remove("active", "done");
+        if (s === step) el.classList.add("active");
+        else if (s < step) el.classList.add("done");
+      });
+      if (step === 4) buildReview();
+      window.scrollTo({ top: 0, behavior: "smooth" });
+    }
+
+    function validateStep(step) {
+      const v = (id) => document.getElementById(id).value.trim();
+      const err = (id, msg) => { alert(msg); document.getElementById(id).focus(); return false; };
+      
+      if (step === 1) {
+        if (!v("storeName")) return err("storeName", "Store name is required");
+        if (!selectedCategory) { alert("Please select a category"); return false; }
+        if (v("description").length < 30) return err("description", "Description must be at least 30 characters");
+        if (!v("businessAddress")) return err("businessAddress", "Address is required");
+      }
+      if (step === 2) {
+        if (!v("contactName")) return err("contactName", "Contact name is required");
+        if (!/^09\d{9}$/.test(v("contactPhone"))) return err("contactPhone", "Invalid PH mobile number (09XXXXXXXXX)");
+        if (!v("contactEmail").includes("@")) return err("contactEmail", "Invalid email address");
+      }
+      if (step === 3) {
+        if (!v("businessPermitNo")) return err("businessPermitNo", "Permit number is required");
+        if (!uploadedFiles.permit) { alert("Please upload business permit photo"); return false; }
+        if (!v("govIdType")) return err("govIdType", "Please select ID type");
+        if (!uploadedFiles.govId) { alert("Please upload government ID photo"); return false; }
+      }
+      return true;
+    }
+
+    function buildReview() {
+      const cat = CATEGORIES.find(c => c.id === selectedCategory);
+      const html = `
+        <div style="display:grid; grid-template-columns: 100px 1fr; gap: 8px; border-bottom: 1px solid #eee; padding-bottom: 8px; margin-bottom: 8px;">
+          <b style="color:var(--muted)">Store:</b> <span>${document.getElementById("storeName").value}</span>
+          <b style="color:var(--muted)">Category:</b> <span>${cat ? cat.label : ""}</span>
+          <b style="color:var(--muted)">Hours:</b> <span>${document.getElementById("openTime").value} - ${document.getElementById("closeTime").value}</span>
+          <b style="color:var(--muted)">Address:</b> <span>${document.getElementById("businessAddress").value}</span>
+        </div>
+        <div style="display:grid; grid-template-columns: 100px 1fr; gap: 8px;">
+          <b style="color:var(--muted)">Contact:</b> <span>${document.getElementById("contactName").value}</span>
+          <b style="color:var(--muted)">Phone:</b> <span>${document.getElementById("contactPhone").value}</span>
+          <b style="color:var(--muted)">Permit #:</b> <span>${document.getElementById("businessPermitNo").value}</span>
+        </div>
+      `;
+      document.getElementById("reviewContent").innerHTML = html;
+    }
+
+    async function checkExistingApplication(uid) {
+      const snap = await db.ref("partner_applications/" + uid).once("value");
+      if (snap.exists()) {
+        const app = snap.val();
+        if (app.status === "approved") {
+          window.location.href = "/merchant/";
+        } else {
+          showSuccess(uid, app.status);
+        }
+      }
+    }
+
+    function showSuccess(uid, status = "pending") {
+      document.getElementById("main-section").style.display = "none";
+      document.getElementById("success-section").style.display = "block";
+      document.getElementById("refNo").textContent = "BG-" + uid.substring(0, 8).toUpperCase();
+    }
+
+    async function uploadFile(file, path) {
+      const ref = storage.ref(path);
+      await ref.put(file);
+      return await ref.getDownloadURL();
+    }
+
+    async function submitApplication() {
+      if (!document.getElementById("termsCheck").checked) {
+        alert("Please agree to the terms."); return;
+      }
+
+      const btn = document.getElementById("submitBtn");
+      btn.disabled = true;
+      btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Submitting...';
+
+      try {
+        const user = auth.currentUser;
+        const uid = user.uid;
+        
+        // Upload documents
+        const permitUrl = await uploadFile(uploadedFiles.permit, `applications/${uid}/permit_${Date.now()}`);
+        const govIdUrl = await uploadFile(uploadedFiles.govId, `applications/${uid}/id_${Date.now()}`);
+
+        const data = {
+          id: uid,
+          applicantUid: uid,
+          storeName: document.getElementById("storeName").value.trim(),
+          category: selectedCategory,
+          storeCategory: selectedCategory,
+          description: document.getElementById("description").value.trim(),
+          businessAddress: document.getElementById("businessAddress").value.trim(),
+          openTime: document.getElementById("openTime").value,
+          closeTime: document.getElementById("closeTime").value,
+          operatingHours: `${document.getElementById("openTime").value} - ${document.getElementById("closeTime").value}`,
+          contactName: document.getElementById("contactName").value.trim(),
+          contactPhone: document.getElementById("contactPhone").value.trim(),
+          contactEmail: document.getElementById("contactEmail").value.trim(),
+          socialLink: document.getElementById("socialLink").value.trim(),
+          businessPermitNo: document.getElementById("businessPermitNo").value.trim(),
+          govIdType: document.getElementById("govIdType").value,
+          permitUrl: permitUrl,
+          govIdUrl: govIdUrl,
+          status: "pending",
+          createdAt: ServerValue.TIMESTAMP,
+          updatedAt: ServerValue.TIMESTAMP
+        };
+
+        await db.ref("partner_applications/" + uid).set(data);
+        showSuccess(uid);
+      } catch (err) {
+        console.error(err);
+        document.getElementById("msgBox").textContent = "Error: " + err.message;
+        document.getElementById("msgBox").style.display = "block";
+        btn.disabled = false;
+        btn.innerHTML = '<i class="fas fa-paper-plane"></i> Submit Application';
+      }
+    }
+
+    const ServerValue = firebase.database.ServerValue;
+  </script>
+</body>
+</html>
