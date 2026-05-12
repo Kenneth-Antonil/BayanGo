@@ -1067,11 +1067,18 @@
         };
 
         try {
-          clearTimeout(timeout);
-          setUser(guestUser);
-          setLoading(false);
-
-          const currentUser = guestUser;
+          _fbAuth.getRedirectResult().catch(err => console.error("Redirect result error:", err));
+          if (!_fbAuth.currentUser) {
+            _fbAuth.signInAnonymously().catch(err => {
+              console.error("Anonymous sign-in failed:", err);
+              setUser(guestUser);
+            });
+          }
+          unsubAuth = _fbAuth.onAuthStateChanged(currentUser => {
+            const activeUser = currentUser || guestUser;
+            clearTimeout(timeout);
+            setUser(activeUser);
+            setLoading(false);
 
             // Clean up previous order listener
             if (unsubOrders) {
@@ -1088,7 +1095,7 @@
             }
             usingOrdersFallback = false;
 
-            if (currentUser && _fbDb) {
+            if (activeUser && _fbDb) {
               bindMarketPricing();
               bindProducts();
               bindPartnerMerchants();
@@ -1099,12 +1106,12 @@
               bindAppAvailability();
               bindBgMartPromoBanner();
               setPushPermission(typeof Notification !== "undefined" ? Notification.permission : "default");
-              enablePushForUser(currentUser, { requestPermission: false });
-              trackUserAppUsage(currentUser).catch(err => console.error("Usage tracking error:", err));
+              enablePushForUser(activeUser, { requestPermission: false });
+              trackUserAppUsage(activeUser).catch(err => console.error("Usage tracking error:", err));
 
               visibilityHandler = () => {
                 if (document.visibilityState === "visible") {
-                  trackUserAppUsage(currentUser).catch(err => console.error("Usage visibility sync error:", err));
+                  trackUserAppUsage(activeUser).catch(err => console.error("Usage visibility sync error:", err));
                 }
               };
               document.addEventListener("visibilitychange", visibilityHandler);
@@ -1115,7 +1122,7 @@
                   const order = { id: child.key, ...child.val() };
                   const ownerUid = order?.uid || order?.userId || null;
                   if (usingOrdersFallback) {
-                    if (ownerUid === currentUser.uid) list.push(order);
+                    if (ownerUid === activeUser.uid) list.push(order);
                   } else {
                     list.push(order);
                   }
@@ -1123,7 +1130,7 @@
                 setOrders(list.sort((a,b) => (b?.createdAt || 0) - (a?.createdAt || 0))); // newest first
               };
 
-              const ordersQueryRef = _fbDb.ref("orders").orderByChild("uid").equalTo(currentUser.uid);
+              const ordersQueryRef = _fbDb.ref("orders").orderByChild("uid").equalTo(activeUser.uid);
               const ordersPlainRef = _fbDb.ref("orders");
 
               unsubOrders = ordersQueryRef.on("value", mapAndSort, err => {
@@ -1136,7 +1143,7 @@
                 });
               });
 
-              const refundsQueryRef = _fbDb.ref("refunds").orderByChild("uid").equalTo(currentUser.uid);
+              const refundsQueryRef = _fbDb.ref("refunds").orderByChild("uid").equalTo(activeUser.uid);
               refundsQueryRef.on("value", snap => {
                 const list = [];
                 snap.forEach(c => list.push({ id: c.key, ...c.val() }));
@@ -1146,7 +1153,7 @@
 
               activityIntervalId = setInterval(() => {
                 if (document.visibilityState === "visible") {
-                  trackUserAppUsage(currentUser).catch(err => console.error("Usage interval sync error:", err));
+                  trackUserAppUsage(activeUser).catch(err => console.error("Usage interval sync error:", err));
                 }
               }, 60 * 1000);
 
@@ -1168,6 +1175,7 @@
               setPushError("");
               setPushBusy(false);
             }
+          });
         } catch (err) {
           console.error("Firebase error:", err);
           clearTimeout(timeout);
