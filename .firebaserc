@@ -16,6 +16,9 @@
         ],
         "merchant": [
           "bayango-merchant"
+        ],
+        "user-demo": [
+          "bayango-user-demo"
         ]
       }
     }
