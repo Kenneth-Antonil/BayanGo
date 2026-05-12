@@ -1092,7 +1092,7 @@
             }
             usingOrdersFallback = false;
 
-            if (currentUser && _fbDb) {
+            if (_fbDb) {
               bindMarketPricing();
               bindProducts();
               bindPartnerMerchants();
@@ -1102,6 +1102,9 @@
               });
               bindAppAvailability();
               bindBgMartPromoBanner();
+            }
+
+            if (currentUser && _fbDb) {
               setPushPermission(typeof Notification !== "undefined" ? Notification.permission : "default");
               enablePushForUser(currentUser, { requestPermission: false });
               trackUserAppUsage(currentUser).catch(err => console.error("Usage tracking error:", err));
@@ -1155,17 +1158,7 @@
               }, 60 * 1000);
 
             } else {
-              _fbDb.ref("products").off();
-              _fbDb.ref("settings/marketPricing").off();
-              _fbDb.ref("merchant_listings").off();
-              _fbDb.ref("partner_merchants").off();
               _fbDb.ref("refunds").off();
-              _fbDb.ref("settings/appAvailability").off();
-              _fbDb.ref("settings/bgMartPromoBanner").off();
-              baseProductsRaw = [];
-              partnerListingsRaw = [];
-              partnerMerchantsById = {};
-              setProducts([]);
               setOrders([]);
               setRefunds([]);
               setBgMartPromoBannerUrl("");
