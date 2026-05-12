@@ -985,9 +985,30 @@
           _fbDb.ref("merchant_listings").off();
           _fbDb.ref("merchant_listings").on("value", snap => {
             const rows = [];
-            snap.forEach(merchantNode => {
-              const merchantId = merchantNode.key;
-              merchantNode.forEach(listingNode => {
+            snap.forEach(node => {
+              const rawNode = node.val() || {};
+              const looksLikeListing = rawNode && typeof rawNode === "object" && (
+                rawNode.merchantId || rawNode.name || rawNode.price != null || rawNode.basePrice != null
+              );
+
+              if (looksLikeListing) {
+                const merchantId = rawNode.merchantId || node.key;
+                if (!merchantId) return;
+                if (rawNode.active === false) return;
+                if (rawNode.approved === false) return;
+                const normalized = { id: node.key, merchantId, ...rawNode };
+                rows.push({
+                  ...normalized,
+                  basePrice: Number.isFinite(Number(rawNode.basePrice)) ? Number(rawNode.basePrice) : Number(rawNode.price || 0),
+                  autoPriceEnabled: rawNode.autoPriceEnabled !== false,
+                  price: computeLivePrice(normalized, currentMarketPricing),
+                  unit: rawNode.unit || "pc",
+                });
+                return;
+              }
+
+              const merchantId = node.key;
+              node.forEach(listingNode => {
                 const raw = listingNode.val() || {};
                 if (raw.active === false) return;
                 if (raw.approved === false) return;
