@@ -1338,7 +1338,7 @@
 
       if (loading) return <SplashScreen message="Ina-activate ang iyong app..." />;
 
-      if (!isStandalone) {
+      if (!DEMO_MODE && !isStandalone) {
         return <InstallGate />;
       }
 
