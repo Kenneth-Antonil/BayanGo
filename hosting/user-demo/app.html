@@ -855,6 +855,13 @@
     /* ══════════════════ MAIN APP ══════════════════ */
     const DEMO_MODE = true;
     const DEMO_USER = { uid: "demo-user", email: "demo@bayango.local", displayName: "Demo User" };
+    const DEMO_PRODUCTS_FALLBACK = [
+      { id:"demo_market_1", name:"Premium Rice 5kg", cat:"rice", unit:"bag", price:265, basePrice:265, stock:true, active:true, source:"market", autoPriceEnabled:false },
+      { id:"demo_market_2", name:"Fresh Eggs (12pcs)", cat:"eggs", unit:"tray", price:118, basePrice:118, stock:true, active:true, source:"market", autoPriceEnabled:false },
+      { id:"demo_partner_1", merchantId:"demo_merchant_1", name:"Organic Bananas 1kg", cat:"fruits", unit:"kg", price:92, basePrice:92, stock:true, active:true, approved:true, source:"partner", autoPriceEnabled:false, storeName:"Green Basket Store", storeOpen:true, merchantFeatured:true, storeDescription:"Fresh produce and healthy staples.", storeCategory:"fruits_vegetables" },
+      { id:"demo_partner_2", merchantId:"demo_merchant_1", name:"Tomatoes 1kg", cat:"fruits_vegetables", unit:"kg", price:85, basePrice:85, stock:true, active:true, approved:true, source:"partner", autoPriceEnabled:false, storeName:"Green Basket Store", storeOpen:true, merchantFeatured:true, storeDescription:"Fresh produce and healthy staples.", storeCategory:"fruits_vegetables" },
+      { id:"demo_partner_3", merchantId:"demo_merchant_2", name:"Sardines (155g)", cat:"canned_goods", unit:"can", price:29, basePrice:29, stock:true, active:true, approved:true, source:"partner", autoPriceEnabled:false, storeName:"Tindahan ni Aling Nena", storeOpen:true, merchantFeatured:false, storeDescription:"Neighborhood essentials and pantry goods.", storeCategory:"sari" }
+    ];
 
     function App() {
       const [products,      setProducts]      = useState([]);
@@ -1163,7 +1170,7 @@
               baseProductsRaw = [];
               partnerListingsRaw = [];
               partnerMerchantsById = {};
-              setProducts([]);
+              setProducts(DEMO_MODE ? DEMO_PRODUCTS_FALLBACK : []);
               setOrders([]);
               setRefunds([]);
               setBgMartPromoBannerUrl("");
