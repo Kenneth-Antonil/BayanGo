@@ -209,6 +209,7 @@
 
   <script type="text/babel">
     const { useState, useEffect, useCallback, useRef, useMemo } = React;
+    const DEMO_MODE = true;
 
     /* ══════════════════ CONSTANTS ══════════════════ */
     const Ic = ({ n, style, size, className }) => (
@@ -1066,7 +1067,21 @@
           });
         };
 
+        const bindPublicData = () => {
+          if (!_fbDb) return;
+          bindMarketPricing();
+          bindProducts();
+          bindPartnerMerchants();
+          bindPartnerListings();
+          loadGcashSettings().catch(err => {
+            console.error("Failed to load GCash settings:", err);
+          });
+          bindAppAvailability();
+          bindBgMartPromoBanner();
+        };
+
         try {
+          bindPublicData();
           _fbAuth.getRedirectResult().catch(err => console.error("Redirect result error:", err));
           if (!_fbAuth.currentUser) {
             _fbAuth.signInAnonymously().catch(err => {
@@ -1096,15 +1111,6 @@
             usingOrdersFallback = false;
 
             if (activeUser && _fbDb) {
-              bindMarketPricing();
-              bindProducts();
-              bindPartnerMerchants();
-              bindPartnerListings();
-              loadGcashSettings().catch(err => {
-                console.error("Failed to load GCash settings:", err);
-              });
-              bindAppAvailability();
-              bindBgMartPromoBanner();
               setPushPermission(typeof Notification !== "undefined" ? Notification.permission : "default");
               enablePushForUser(activeUser, { requestPermission: false });
               trackUserAppUsage(activeUser).catch(err => console.error("Usage tracking error:", err));
@@ -1178,7 +1184,9 @@
           });
         } catch (err) {
           console.error("Firebase error:", err);
+          bindPublicData();
           clearTimeout(timeout);
+          setUser(guestUser);
           setLoading(false);
         }
 
@@ -1342,7 +1350,11 @@
 
       if (loading) return <SplashScreen message="Ina-activate ang iyong app..." />;
 
-      if (false && !user) {
+      if (!DEMO_MODE && !isStandalone) {
+        return <InstallGate />;
+      }
+
+      if (!DEMO_MODE && !user) {
         const inputStyle = {
           border:"1px solid #E5E7EB", borderRadius:12, padding:"14px 16px",
           fontSize:15, outline:"none", background:"#fff", width:"100%",
