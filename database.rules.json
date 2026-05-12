@@ -28,7 +28,7 @@
     // Any authenticated user can read. Only admins can write.
     // ─────────────────────────────────────────────────────────────────────────
     "products": {
-      ".read":  "auth != null",
+      ".read":  "true",
       ".write": "auth != null && root.child('admins').child(auth.uid).val() === true"
     },
 
@@ -37,7 +37,7 @@
     // Any authenticated user can read. Only admins can write.
     // ─────────────────────────────────────────────────────────────────────────
     "vouchers": {
-      ".read":  "auth != null",
+      ".read":  "true",
       ".write": "auth != null && root.child('admins').child(auth.uid).val() === true"
     },
 
@@ -46,7 +46,7 @@
     // Any authenticated user can read. Only admins can write.
     // ─────────────────────────────────────────────────────────────────────────
     "settings": {
-      ".read":  "auth != null",
+      ".read":  "true",
       ".write": "auth != null && root.child('admins').child(auth.uid).val() === true"
     },
 
@@ -335,7 +335,7 @@
     // Any authenticated user can read (to browse merchant stores).
     // ─────────────────────────────────────────────────────────────────────────
     "partner_merchants": {
-      ".read": "auth != null",
+      ".read": "true",
       "$uid": {
         ".write": "auth != null && (
           auth.uid === $uid ||
@@ -360,7 +360,7 @@
     // Any authenticated user can read. Merchant owner or admin can write.
     // ─────────────────────────────────────────────────────────────────────────
     "merchant_listings": {
-      ".read": "auth != null",
+      ".read": "true",
       "$merchantId": {
         ".write": "auth != null && (
           auth.uid === $merchantId ||
