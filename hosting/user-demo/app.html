@@ -125,6 +125,10 @@
     </div>
   </div>
 
+  <link rel="preconnect" href="https://cdnjs.cloudflare.com" crossorigin>
+  <link rel="preconnect" href="https://www.gstatic.com" crossorigin>
+  <link rel="preconnect" href="https://unpkg.com" crossorigin>
+
   <script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.23.2/babel.min.js"></script>
@@ -858,8 +862,7 @@
       const [products,      setProducts]      = useState([]);
       const [orders,        setOrders]        = useState([]);
       const [refunds,       setRefunds]       = useState([]);
-      const guestUser = useMemo(() => ({ uid:"demo-guest", isGuest:true, email:null, displayName:"Demo Guest" }), []);
-      const [user,        setUser]        = useState(guestUser);
+      const [user,        setUser]        = useState(null);
       const [loading,     setLoading]     = useState(true);
       const [isStandalone, setIsStandalone] = useState(isStandaloneMode());
       const [authMode,      setAuthMode]      = useState("options");
@@ -898,7 +901,7 @@
         let visibilityHandler = null;
         let usingOrdersFallback = false;
         let currentMarketPricing = {};
-        const timeout = setTimeout(() => setLoading(false), 8000);
+        const timeout = setTimeout(() => setLoading(false), 2500);
 
         let baseProductsRaw = [];
         let partnerListingsRaw = [];
@@ -985,30 +988,9 @@
           _fbDb.ref("merchant_listings").off();
           _fbDb.ref("merchant_listings").on("value", snap => {
             const rows = [];
-            snap.forEach(node => {
-              const rawNode = node.val() || {};
-              const looksLikeListing = rawNode && typeof rawNode === "object" && (
-                rawNode.merchantId || rawNode.name || rawNode.price != null || rawNode.basePrice != null
-              );
-
-              if (looksLikeListing) {
-                const merchantId = rawNode.merchantId || node.key;
-                if (!merchantId) return;
-                if (rawNode.active === false) return;
-                if (rawNode.approved === false) return;
-                const normalized = { id: node.key, merchantId, ...rawNode };
-                rows.push({
-                  ...normalized,
-                  basePrice: Number.isFinite(Number(rawNode.basePrice)) ? Number(rawNode.basePrice) : Number(rawNode.price || 0),
-                  autoPriceEnabled: rawNode.autoPriceEnabled !== false,
-                  price: computeLivePrice(normalized, currentMarketPricing),
-                  unit: rawNode.unit || "pc",
-                });
-                return;
-              }
-
-              const merchantId = node.key;
-              node.forEach(listingNode => {
+            snap.forEach(merchantNode => {
+              const merchantId = merchantNode.key;
+              merchantNode.forEach(listingNode => {
                 const raw = listingNode.val() || {};
                 if (raw.active === false) return;
                 if (raw.approved === false) return;
@@ -1024,9 +1006,7 @@
             });
             partnerListingsRaw = rows;
             refreshMergedProducts();
-          }, err => {
-            console.error("Partner listings listener error:", err.code);
-          });
+          }, err => console.error("Partner listings listener error:", err.code));
         };
 
         const bindPartnerMerchants = () => {
@@ -1041,9 +1021,7 @@
             });
             partnerMerchantsById = map;
             refreshMergedProducts();
-          }, err => {
-            console.error("Partner merchants listener error:", err.code);
-          });
+          }, err => console.error("Partner merchants listener error:", err.code));
         };
 
 
@@ -1092,32 +1070,11 @@
           });
         };
 
-        const bindPublicData = () => {
-          if (!_fbDb) return;
-          bindMarketPricing();
-          bindProducts();
-          bindPartnerMerchants();
-          bindPartnerListings();
-          loadGcashSettings().catch(err => {
-            console.error("Failed to load GCash settings:", err);
-          });
-          bindAppAvailability();
-          bindBgMartPromoBanner();
-        };
-
         try {
-          bindPublicData();
           _fbAuth.getRedirectResult().catch(err => console.error("Redirect result error:", err));
-          if (!_fbAuth.currentUser) {
-            _fbAuth.signInAnonymously().catch(err => {
-              console.error("Anonymous sign-in failed:", err);
-              setUser(guestUser);
-            });
-          }
           unsubAuth = _fbAuth.onAuthStateChanged(currentUser => {
-            const activeUser = currentUser || guestUser;
             clearTimeout(timeout);
-            setUser(activeUser);
+            setUser(currentUser);
             setLoading(false);
 
             // Clean up previous order listener
@@ -1135,14 +1092,23 @@
             }
             usingOrdersFallback = false;
 
-            if (activeUser && _fbDb) {
+            if (currentUser && _fbDb) {
+              bindMarketPricing();
+              bindProducts();
+              bindPartnerMerchants();
+              bindPartnerListings();
+              loadGcashSettings().catch(err => {
+                console.error("Failed to load GCash settings:", err);
+              });
+              bindAppAvailability();
+              bindBgMartPromoBanner();
               setPushPermission(typeof Notification !== "undefined" ? Notification.permission : "default");
-              enablePushForUser(activeUser, { requestPermission: false });
-              trackUserAppUsage(activeUser).catch(err => console.error("Usage tracking error:", err));
+              enablePushForUser(currentUser, { requestPermission: false });
+              trackUserAppUsage(currentUser).catch(err => console.error("Usage tracking error:", err));
 
               visibilityHandler = () => {
                 if (document.visibilityState === "visible") {
-                  trackUserAppUsage(activeUser).catch(err => console.error("Usage visibility sync error:", err));
+                  trackUserAppUsage(currentUser).catch(err => console.error("Usage visibility sync error:", err));
                 }
               };
               document.addEventListener("visibilitychange", visibilityHandler);
@@ -1153,7 +1119,7 @@
                   const order = { id: child.key, ...child.val() };
                   const ownerUid = order?.uid || order?.userId || null;
                   if (usingOrdersFallback) {
-                    if (ownerUid === activeUser.uid) list.push(order);
+                    if (ownerUid === currentUser.uid) list.push(order);
                   } else {
                     list.push(order);
                   }
@@ -1161,7 +1127,7 @@
                 setOrders(list.sort((a,b) => (b?.createdAt || 0) - (a?.createdAt || 0))); // newest first
               };
 
-              const ordersQueryRef = _fbDb.ref("orders").orderByChild("uid").equalTo(activeUser.uid);
+              const ordersQueryRef = _fbDb.ref("orders").orderByChild("uid").equalTo(currentUser.uid);
               const ordersPlainRef = _fbDb.ref("orders");
 
               unsubOrders = ordersQueryRef.on("value", mapAndSort, err => {
@@ -1174,7 +1140,7 @@
                 });
               });
 
-              const refundsQueryRef = _fbDb.ref("refunds").orderByChild("uid").equalTo(activeUser.uid);
+              const refundsQueryRef = _fbDb.ref("refunds").orderByChild("uid").equalTo(currentUser.uid);
               refundsQueryRef.on("value", snap => {
                 const list = [];
                 snap.forEach(c => list.push({ id: c.key, ...c.val() }));
@@ -1184,7 +1150,7 @@
 
               activityIntervalId = setInterval(() => {
                 if (document.visibilityState === "visible") {
-                  trackUserAppUsage(activeUser).catch(err => console.error("Usage interval sync error:", err));
+                  trackUserAppUsage(currentUser).catch(err => console.error("Usage interval sync error:", err));
                 }
               }, 60 * 1000);
 
@@ -1209,9 +1175,7 @@
           });
         } catch (err) {
           console.error("Firebase error:", err);
-          bindPublicData();
           clearTimeout(timeout);
-          setUser(guestUser);
           setLoading(false);
         }
 
@@ -1341,7 +1305,7 @@
       };
 
       const handleLogout = async () => {
-        return;
+        await _fbAuth.signOut();
       };
 
       const handleEnablePush = async () => {
@@ -1844,13 +1808,6 @@
       const [storeSearchQ, setStoreSearchQ] = useState("");
       const [storeCatFilter, setStoreCatFilter] = useState("all");
       const [notifications, setNotifications]  = useState([]);
-      const [messageLastSeen, setMessageLastSeen] = useState(() => {
-        try {
-          return parseInt(localStorage.getItem("bayango_messages_last_seen") || "0", 10);
-        } catch {
-          return 0;
-        }
-      });
       const [notifLastSeen, setNotifLastSeen]  = useState(() => {
         try { return parseInt(localStorage.getItem("bayango_notif_last_seen") || "0", 10); } catch { return 0; }
       });
@@ -2465,37 +2422,8 @@
       };
 
       const activeOrders = myOrders.filter(o => !isOrderClosed(o));
-      const incomingMessageCount = useMemo(() => {
-        if (activePage === "messages") return 0;
-        return myOrders.reduce((count, o) => {
-          const msgs = Object.values(o.messages || {}).filter((m) => {
-            const hasText = String(m?.text || "").trim();
-            const fromSupport = m?.senderRole !== "user";
-            const isUnread = Number(m?.createdAt || 0) > messageLastSeen;
-            return hasText && fromSupport && isUnread;
-          });
-          return count + msgs.length;
-        }, 0);
-      }, [activePage, myOrders, messageLastSeen]);
       const appIsUnavailable = appAvailability?.userAppEnabled === false;
       const unavailableMessage = appAvailability?.userAppMessage || "BayanGo is currently unavailable. Please try again later.";
-
-      useEffect(() => {
-        if (activePage !== "messages") return;
-        const latestMessageAt = myOrders.reduce((latest, order) => {
-          const orderLatest = Object.values(order.messages || {}).reduce((innerLatest, msg) => {
-            if (msg?.senderRole === "user") return innerLatest;
-            if (!String(msg?.text || "").trim()) return innerLatest;
-            return Math.max(innerLatest, Number(msg?.createdAt || 0));
-          }, 0);
-          return Math.max(latest, orderLatest);
-        }, 0);
-        if (latestMessageAt <= messageLastSeen) return;
-        setMessageLastSeen(latestMessageAt);
-        try {
-          localStorage.setItem("bayango_messages_last_seen", String(latestMessageAt));
-        } catch {}
-      }, [activePage, myOrders, messageLastSeen]);
 
       useEffect(() => {
         let url;
@@ -2561,15 +2489,14 @@
             boxShadow:"none",
           }}>
             <img src="https://i.imgur.com/h7HgGC0.png" style={{ height:40, objectFit:"contain" }} />
-            <div style={{ display:"flex", alignItems:"center", gap:8 }}>
-              <button onClick={() => setActivePage("messages")} style={{ width:38, height:38, borderRadius:10, overflow:"visible", border:"1px solid rgba(255,255,255,.26)", padding:0, flexShrink:0, background:"rgba(255,255,255,.12)", color:"#fff", display:"flex", alignItems:"center", justifyContent:"center", position:"relative" }}>
-                <Ic n="message" size={16} />
-                {incomingMessageCount > 0 && <span style={{ position:"absolute", top:-5, right:-5, background:"#EF4444", color:"#fff", minWidth:17, height:17, borderRadius:999, fontSize:9, fontWeight:800, display:"flex", alignItems:"center", justifyContent:"center", padding:"0 5px", boxShadow:"0 0 0 2px #166534" }}>{incomingMessageCount > 99 ? "99+" : incomingMessageCount}</span>}
-              </button>
-              <button onClick={() => setShowUserMenu(true)} style={{ width:38, height:38, borderRadius:10, overflow:"hidden", border:"1px solid rgba(255,255,255,.26)", padding:0, flexShrink:0, background:"rgba(255,255,255,.12)", color:"#fff", display:"flex", alignItems:"center", justifyContent:"center" }}>
-                <Ic n="bars" size={18} />
-              </button>
-            </div>
+            <button onClick={() => setShowUserMenu(true)} style={{
+              width:38, height:38, borderRadius:10, overflow:"hidden",
+              border:"1px solid rgba(255,255,255,.26)",
+              padding:0, flexShrink:0, background:"rgba(255,255,255,.12)", color:"#fff",
+              display:"flex", alignItems:"center", justifyContent:"center",
+            }}>
+              <Ic n="bars" size={18} />
+            </button>
           </div>
 
           {appIsUnavailable && (
@@ -3674,7 +3601,7 @@
                   <Ic n="handshake" size={18} style={{ marginBottom:6, opacity:.85 }} />
                   <div style={{ fontSize:13, fontWeight:700, marginBottom:3 }}>Own a store in Binangonan?</div>
                   <div style={{ fontSize:11, opacity:.88, marginBottom:10, lineHeight:1.35 }}>Join BayanGo's partner network and reach more customers!</div>
-                  <a href="/partner-apply.html" style={{
+                  <a href="/user/partner-apply.html" style={{
                     display:"inline-block", background:"#fff", color:"#166534",
                     padding:"8px 14px", borderRadius:10, fontWeight:700, fontSize:12, textDecoration:"none"
                   }}>Apply Now</a>
@@ -3840,10 +3767,6 @@
             </OrdersErrorBoundary>
           )}
 
-          {activePage === "messages" && (
-            <MessagesPage orders={myOrders} onBack={() => setActivePage("orders")} />
-          )}
-
           {activePage === "notifications" && (
             <NotificationsPage notifications={notifications} onDelete={deleteNotification} />
           )}
@@ -3954,31 +3877,6 @@
                     </div>
                   </div>
                 )}
-
-                {(() => {
-                  const orderMessages = Object.entries(liveOrder.messages || {})
-                    .map(([id, msg]) => ({ id, ...(msg || {}) }))
-                    .filter(msg => String(msg.text || "").trim())
-                    .sort((a, b) => Number(a.createdAt || 0) - Number(b.createdAt || 0));
-                  if (!orderMessages.length) return null;
-                  return (
-                    <div style={{ marginTop:18, borderRadius:16, border:"1.5px solid #DBEAFE", background:"#F8FAFF", padding:"14px" }}>
-                      <div style={{ fontSize:13, fontWeight:800, color:"#1E3A8A", marginBottom:10, display:"flex", alignItems:"center", gap:6 }}>
-                        <Ic n="message" /> Messages (Rider/Admin)
-                      </div>
-                      <div style={{ display:"grid", gap:8 }}>
-                        {orderMessages.map((msg) => (
-                          <div key={msg.id} style={{ background:"#fff", border:"1px solid #E2E8F0", borderRadius:10, padding:"9px 10px" }}>
-                            <div style={{ fontSize:11, fontWeight:700, color:"#475569", marginBottom:4 }}>
-                              {msg.senderRole === "admin" ? "Admin" : "Rider"} • {msg.createdAt ? new Date(msg.createdAt).toLocaleString("en-PH", { month:"short", day:"numeric", hour:"2-digit", minute:"2-digit" }) : "—"}
-                            </div>
-                            <div style={{ fontSize:12, color:"#0F172A" }}>{msg.text}</div>
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-                  );
-                })()}
 
                 {/* QR PH Payment Section (PayMongo) */}
                 {liveOrder.paymentMethod === "QRPH" && !isOrderClosed(liveOrder) && (
@@ -4278,7 +4176,7 @@
             {[
               { key:"shop",    icon:"house",         label:"Home" },
               { key:"bgmart",  icon:"basket-shopping", label:"BG Mart" },
-              { key:"stores",  icon:"store",         label:"Stores" },
+              { key:"stores",  icon:"store",         label:"Stores",  badge: partnerStores.length },
               { key:"orders",  icon:"box",           label:"Orders",  badge: activeOrders.length },
               { key:"notifications", icon:"bell",    label:"Notifs",  badge: unreadNotifCount },
             ].map(t => {
@@ -5509,11 +5407,6 @@
         const canTrackRider = o.status === "buying" || o.status === "pickup" || o.status === "otw" || o.status === "in_boat";
         const hasQrPhBanner = o.paymentMethod === "QRPH" && o.status !== "delivered" && o.status !== "cancelled";
         const hasBottomAttachment = canTrackRider || hasQrPhBanner;
-        const orderMessages = Object.entries(o.messages || {})
-          .map(([id, msg]) => ({ id, ...(msg || {}) }))
-          .filter(msg => String(msg.text || "").trim())
-          .sort((a, b) => Number(a.createdAt || 0) - Number(b.createdAt || 0));
-        const latestMessage = orderMessages.length ? orderMessages[orderMessages.length - 1] : null;
         return (
           <div style={{ marginBottom:12 }}>
             <button onClick={() => onTrack(o)} style={{
@@ -5564,11 +5457,6 @@
                 <div style={{ fontSize:12, color:"#888" }}>{o.customer?.address}</div>
                 <div style={{ fontSize:14, fontWeight:800, color:"#166534" }}>~{fmt(o.total)}</div>
               </div>
-              {latestMessage && (
-                <div style={{ marginTop:10, padding:"9px 10px", borderRadius:10, border:"1px solid #BFDBFE", background:"#EFF6FF", fontSize:11, color:"#1E3A8A" }}>
-                  <strong>{latestMessage.senderRole === "admin" ? "Admin" : "Rider"}:</strong> {String(latestMessage.text).slice(0, 90)}
-                </div>
-              )}
 
               {/* Refund badge */}
               {orderRefund && (
@@ -5716,59 +5604,6 @@
                 )}
               </>
             )}
-          </div>
-        </div>
-      );
-    }
-
-    function MessagesPage({ orders, onBack }) {
-      const [replyByOrder, setReplyByOrder] = useState({});
-      const threads = (orders || [])
-        .map((o) => {
-          const messages = Object.entries(o.messages || {})
-            .map(([id, msg]) => ({ id, ...(msg || {}) }))
-            .filter(m => String(m.text || "").trim())
-            .sort((a, b) => Number(a.createdAt || 0) - Number(b.createdAt || 0));
-          return { order: o, messages };
-        })
-        .filter(t => t.messages.length)
-        .sort((a, b) => Number(b.messages[b.messages.length - 1]?.createdAt || 0) - Number(a.messages[a.messages.length - 1]?.createdAt || 0));
-
-      const sendReply = async (orderId) => {
-        const text = String(replyByOrder[orderId] || "").trim();
-        if (!text) return;
-        await _fbDb.ref(`orders/${orderId}/messages`).push({ text, senderRole: "user", createdAt: Date.now() });
-        setReplyByOrder(prev => ({ ...prev, [orderId]: "" }));
-      };
-
-      return (
-        <div style={{ padding:"10px 14px 18px" }}>
-          <div style={{ display:"flex", alignItems:"center", gap:10, marginBottom:10 }}>
-            <button onClick={onBack} style={{ width:34, height:34, borderRadius:9, border:"1px solid #D1D5DB", background:"#fff" }}><Ic n="arrow-left" /></button>
-            <div style={{ fontSize:18, fontWeight:900, color:"#0F172A" }}>Messages</div>
-          </div>
-          {!threads.length && <div style={{ background:"#fff", border:"1px solid #E2E8F0", borderRadius:14, padding:16, fontSize:12, color:"#64748B" }}>Wala pang messages mula sa admin o rider.</div>}
-          <div style={{ display:"grid", gap:12 }}>
-            {threads.map(({ order, messages }) => (
-              <div key={order.id} style={{ background:"#fff", border:"1px solid #DBEAFE", borderRadius:14, padding:12 }}>
-                <div style={{ fontSize:12, fontWeight:800, color:"#1D4ED8", marginBottom:8 }}>Order #{String(order.id || "").slice(0, 8)}</div>
-                <div style={{ display:"grid", gap:8, maxHeight:220, overflowY:"auto", paddingRight:2 }}>
-                  {messages.map((m) => {
-                    const mine = m.senderRole === "user";
-                    return <div key={m.id} style={{ display:"flex", justifyContent: mine ? "flex-end" : "flex-start" }}>
-                      <div style={{ maxWidth:"86%", background: mine ? "#DCFCE7" : "#EFF6FF", border: `1px solid ${mine ? "#86EFAC" : "#BFDBFE"}`, borderRadius:12, padding:"8px 10px" }}>
-                        <div style={{ fontSize:10, fontWeight:800, color: mine ? "#166534" : "#1E3A8A" }}>{mine ? "Ikaw" : (m.senderRole === "admin" ? "Admin" : "Rider")}</div>
-                        <div style={{ fontSize:12, color:"#0F172A" }}>{m.text}</div>
-                      </div>
-                    </div>;
-                  })}
-                </div>
-                <div style={{ display:"flex", gap:8, marginTop:10 }}>
-                  <input value={replyByOrder[order.id] || ""} onChange={(e) => setReplyByOrder(prev => ({ ...prev, [order.id]: e.target.value }))} placeholder="Mag-reply sa admin/rider..." style={{ flex:1, border:"1px solid #CBD5E1", borderRadius:10, padding:"10px 11px", fontSize:12 }} />
-                  <button onClick={() => sendReply(order.id)} style={{ border:"none", borderRadius:10, background:"#16A34A", color:"#fff", fontWeight:800, fontSize:12, padding:"0 13px" }}>Send</button>
-                </div>
-              </div>
-            ))}
           </div>
         </div>
       );
