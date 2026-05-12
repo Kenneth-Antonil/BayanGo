@@ -901,6 +901,7 @@
         let visibilityHandler = null;
         let usingOrdersFallback = false;
         let currentMarketPricing = {};
+        let attemptedDemoAnonymousSignIn = false;
         const timeout = setTimeout(() => setLoading(false), 2500);
 
         let baseProductsRaw = [];
@@ -1164,6 +1165,13 @@
               setBgMartPromoBannerUrl("");
               setPushError("");
               setPushBusy(false);
+
+              if (DEMO_MODE && !attemptedDemoAnonymousSignIn) {
+                attemptedDemoAnonymousSignIn = true;
+                _fbAuth.signInAnonymously().catch(err => {
+                  console.error("Demo anonymous sign-in failed:", err?.code || err?.message || err);
+                });
+              }
             }
           });
         } catch (err) {
