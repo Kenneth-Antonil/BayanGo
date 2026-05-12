@@ -1024,7 +1024,9 @@
             });
             partnerListingsRaw = rows;
             refreshMergedProducts();
-          }, err => console.error("Partner listings listener error:", err.code));
+          }, err => {
+            console.error("Partner listings listener error:", err.code);
+          });
         };
 
         const bindPartnerMerchants = () => {
@@ -1039,7 +1041,9 @@
             });
             partnerMerchantsById = map;
             refreshMergedProducts();
-          }, err => console.error("Partner merchants listener error:", err.code));
+          }, err => {
+            console.error("Partner merchants listener error:", err.code);
+          });
         };
 
 
