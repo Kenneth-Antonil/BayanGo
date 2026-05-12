@@ -857,7 +857,8 @@
       const [products,      setProducts]      = useState([]);
       const [orders,        setOrders]        = useState([]);
       const [refunds,       setRefunds]       = useState([]);
-      const [user,        setUser]        = useState(null);
+      const guestUser = useMemo(() => ({ uid:"demo-guest", isGuest:true, email:null, displayName:"Demo Guest" }), []);
+      const [user,        setUser]        = useState(guestUser);
       const [loading,     setLoading]     = useState(true);
       const [isStandalone, setIsStandalone] = useState(isStandaloneMode());
       const [authMode,      setAuthMode]      = useState("options");
@@ -1066,11 +1067,11 @@
         };
 
         try {
-          _fbAuth.getRedirectResult().catch(err => console.error("Redirect result error:", err));
-          unsubAuth = _fbAuth.onAuthStateChanged(currentUser => {
-            clearTimeout(timeout);
-            setUser(currentUser);
-            setLoading(false);
+          clearTimeout(timeout);
+          setUser(guestUser);
+          setLoading(false);
+
+          const currentUser = guestUser;
 
             // Clean up previous order listener
             if (unsubOrders) {
@@ -1167,7 +1168,6 @@
               setPushError("");
               setPushBusy(false);
             }
-          });
         } catch (err) {
           console.error("Firebase error:", err);
           clearTimeout(timeout);
@@ -1300,7 +1300,7 @@
       };
 
       const handleLogout = async () => {
-        await _fbAuth.signOut();
+        return;
       };
 
       const handleEnablePush = async () => {
@@ -1334,7 +1334,7 @@
 
       if (loading) return <SplashScreen message="Ina-activate ang iyong app..." />;
 
-      if (!user) {
+      if (false && !user) {
         const inputStyle = {
           border:"1px solid #E5E7EB", borderRadius:12, padding:"14px 16px",
           fontSize:15, outline:"none", background:"#fff", width:"100%",
