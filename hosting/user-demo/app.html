@@ -1334,10 +1334,6 @@
 
       if (loading) return <SplashScreen message="Ina-activate ang iyong app..." />;
 
-      if (!isStandalone) {
-        return <InstallGate />;
-      }
-
       if (!user) {
         const inputStyle = {
           border:"1px solid #E5E7EB", borderRadius:12, padding:"14px 16px",
