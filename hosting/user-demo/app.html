@@ -1067,7 +1067,21 @@
           });
         };
 
+        const bindPublicData = () => {
+          if (!_fbDb) return;
+          bindMarketPricing();
+          bindProducts();
+          bindPartnerMerchants();
+          bindPartnerListings();
+          loadGcashSettings().catch(err => {
+            console.error("Failed to load GCash settings:", err);
+          });
+          bindAppAvailability();
+          bindBgMartPromoBanner();
+        };
+
         try {
+          bindPublicData();
           _fbAuth.getRedirectResult().catch(err => console.error("Redirect result error:", err));
           if (!_fbAuth.currentUser) {
             _fbAuth.signInAnonymously().catch(err => {
@@ -1097,15 +1111,6 @@
             usingOrdersFallback = false;
 
             if (activeUser && _fbDb) {
-              bindMarketPricing();
-              bindProducts();
-              bindPartnerMerchants();
-              bindPartnerListings();
-              loadGcashSettings().catch(err => {
-                console.error("Failed to load GCash settings:", err);
-              });
-              bindAppAvailability();
-              bindBgMartPromoBanner();
               setPushPermission(typeof Notification !== "undefined" ? Notification.permission : "default");
               enablePushForUser(activeUser, { requestPermission: false });
               trackUserAppUsage(activeUser).catch(err => console.error("Usage tracking error:", err));
@@ -1179,7 +1184,9 @@
           });
         } catch (err) {
           console.error("Firebase error:", err);
+          bindPublicData();
           clearTimeout(timeout);
+          setUser(guestUser);
           setLoading(false);
         }
 
