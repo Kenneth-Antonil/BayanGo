@@ -1966,6 +1966,9 @@
       const [quickUnit, setQuickUnit] = useState("pc");
       const [quickPrice, setQuickPrice] = useState("");
       const [quickImage, setQuickImage] = useState("");
+      const [quickImageUploading, setQuickImageUploading] = useState(false);
+      const [seasonalPageTitle, setSeasonalPageTitle] = useState("Seasonal Listings");
+      const [seasonalTitleSaving, setSeasonalTitleSaving] = useState(false);
       const [saving, setSaving] = useState(false);
       const [showModal, setShowModal] = useState(false);
       const [editProd, setEditProd] = useState(null);
@@ -1987,6 +1990,11 @@
               setPromoBannerUrl(typeof raw.imageUrl === "string" ? raw.imageUrl : "");
               setSeasonalCarousel(Array.isArray(raw.carouselImages) ? raw.carouselImages.filter((u) => typeof u === "string" && u.trim()) : []);
               setBannerEnabled(raw.enabled === true);
+            }
+            if (isSeasonal) {
+              const titleSnap = await fns.get(fns.ref(db, "settings/seasonalPage"));
+              const titleRaw = titleSnap.val() || {};
+              if (active) setSeasonalPageTitle(typeof titleRaw.title === "string" && titleRaw.title.trim() ? titleRaw.title.trim() : "Seasonal Listings");
             }
           } catch (err) {
             console.error("Failed to load promo banner:", err);
@@ -2081,6 +2089,40 @@
         }
       };
 
+      const uploadQuickImage = async (file) => {
+        if (!file || !String(file.type || "").startsWith("image/")) return toast.error("Please upload an image file.");
+        if (file.size > 5 * 1024 * 1024) return toast.error("Image must be < 5MB.");
+        setQuickImageUploading(true);
+        try {
+          const st = await initStorage();
+          const safeName = (file.name || "seasonal-product.jpg").replace(/[^\w.\-]/g, "_");
+          const storageRef = st.ref(st.storage, `${isSeasonal ? "seasonal_listing_images" : "bgmart_listing_images"}/${Date.now()}_${safeName}`);
+          await st.uploadBytes(storageRef, file);
+          setQuickImage(await st.getDownloadURL(storageRef));
+          toast.success("Image uploaded.");
+        } catch (err) {
+          toast.error("Upload failed: " + (err.message || err));
+        } finally {
+          setQuickImageUploading(false);
+        }
+      };
+
+      const saveSeasonalTitle = async () => {
+        if (!isSeasonal) return;
+        const cleanTitle = seasonalPageTitle.trim() || "Seasonal Listings";
+        setSeasonalTitleSaving(true);
+        try {
+          const { db, fns } = await initFirebase();
+          await fns.update(fns.ref(db, "settings/seasonalPage"), { title: cleanTitle, updatedAt: Date.now() });
+          setSeasonalPageTitle(cleanTitle);
+          toast.success("Seasonal page title updated.");
+        } catch (err) {
+          toast.error("Failed to save title: " + (err.message || "unknown"));
+        } finally {
+          setSeasonalTitleSaving(false);
+        }
+      };
+
       const saveEdit = async (data) => {
         setModalSaving(true);
         try {
@@ -2145,6 +2187,15 @@
           </div>
 
           <div className="card" style={{ marginBottom: 14 }}>
+            {isSeasonal && (
+              <div style={{ marginBottom: 10 }}>
+                <div style={{ fontSize: 13, fontWeight: 800, color: "var(--brand)", marginBottom: 8 }}><Ic n="font" style={{ marginRight: 6 }} />Seasonal Page Title</div>
+                <div style={{ display: "grid", gridTemplateColumns: "1fr auto", gap: 8 }}>
+                  <input value={seasonalPageTitle} onChange={e => setSeasonalPageTitle(e.target.value)} placeholder="Seasonal Listings" className="input" />
+                  <button onClick={saveSeasonalTitle} disabled={seasonalTitleSaving} className="btn btn-outline" style={{ padding: "8px 12px", fontSize: 12 }}>{seasonalTitleSaving ? "Saving..." : "Save Title"}</button>
+                </div>
+              </div>
+            )}
             <div style={{ fontSize: 13, fontWeight: 800, color: "var(--brand)", marginBottom: 8 }}><Ic n="plus" style={{ marginRight: 6 }} />Dedicated Add Listing</div>
             <div style={{ display: "grid", gridTemplateColumns: "2fr 1fr", gap: 8, marginBottom: 8 }}>
               <input value={quickName} onChange={e => setQuickName(e.target.value)} placeholder="Item name (e.g., Eggplant)" className="input" />
@@ -2153,7 +2204,16 @@
             <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 2fr", gap: 8, marginBottom: 10 }}>
               <select value={quickCat} onChange={e => setQuickCat(e.target.value)} className="input">{BG_MART_CATEGORIES.map(c => <option key={c.id} value={c.id}>{c.label}</option>)}</select>
               <input value={quickUnit} onChange={e => setQuickUnit(e.target.value)} placeholder="Unit" className="input" />
-              <input value={quickImage} onChange={e => setQuickImage(e.target.value)} placeholder="Image URL (optional)" className="input" />
+              <div style={{ border: "1px solid var(--border)", borderRadius: 10, padding: 8, display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8 }}>
+                <div style={{ minWidth: 0, fontSize: 11, color: quickImage ? "var(--text-secondary)" : "var(--text-muted)", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
+                  {quickImage ? "Image uploaded" : "No image uploaded"}
+                </div>
+                <label className="btn btn-outline" style={{ fontSize: 11, padding: "6px 10px", cursor: quickImageUploading ? "not-allowed" : "pointer", opacity: quickImageUploading ? 0.65 : 1 }}>
+                  <Ic n={quickImageUploading ? "spinner" : "image"} className={quickImageUploading ? "spin" : ""} />
+                  {quickImageUploading ? "Uploading..." : (quickImage ? "Replace" : "Upload")}
+                  <input type="file" accept="image/*" style={{ display: "none" }} disabled={quickImageUploading} onChange={e => { if (e.target.files?.[0]) uploadQuickImage(e.target.files[0]); e.target.value = ""; }} />
+                </label>
+              </div>
             </div>
             <button onClick={addListing} disabled={saving} className="btn btn-brand" style={{ width: "100%", padding: 11 }}>{saving ? "Saving..." : `Add ${itemLabel} Listing`}</button>
             <div style={{ fontSize: 11, color: "var(--text-muted)", marginTop: 8 }}>Listings added here appear in the {itemLabel} page in the user app.</div>
