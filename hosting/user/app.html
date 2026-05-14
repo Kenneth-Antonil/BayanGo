@@ -1655,6 +1655,23 @@
               borderRadius:6, zIndex:2, letterSpacing:".06em"
             }}>SOLD OUT</div>
           )}
+          {p.promoRibbon && String(p.promoRibbon).startsWith("http") && (
+            <img
+              src={p.promoRibbon}
+              alt={`${p.name || "Product"} promo`}
+              style={{
+                position:"absolute",
+                top:0,
+                right:0,
+                width:74,
+                height:74,
+                objectFit:"contain",
+                zIndex:3,
+                pointerEvents:"none"
+              }}
+              onError={e => { e.currentTarget.style.display = "none"; }}
+            />
+          )}
           <div style={{
             height:110, position:"relative", overflow:"hidden",
             background:`linear-gradient(135deg,${color}18,${color}07)`,
