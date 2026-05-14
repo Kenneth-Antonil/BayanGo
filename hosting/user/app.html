@@ -877,6 +877,7 @@
       const [gcashSettings, setGcashSettings] = useState({ number:"09618280589", name:"Kenneth Antonil", qrUrl:"" });
       const [bgMartPromoBannerUrl, setBgMartPromoBannerUrl] = useState("");
       const [seasonalBanner, setSeasonalBanner] = useState({ imageUrl: "", enabled: false, carouselImages: [] });
+      const [seasonalPageTitle, setSeasonalPageTitle] = useState("Seasonal Listings");
       const [appAvailability, setAppAvailability] = useState({ userAppEnabled: true, userAppMessage: "" });
       const [openLegalDoc, setOpenLegalDoc] = useState(null);
 
@@ -1077,6 +1078,14 @@
             setSeasonalBanner({ imageUrl, enabled: raw.enabled === true && (!!imageUrl || normalizedCarousel.length > 0), carouselImages: normalizedCarousel });
           });
         };
+        const bindSeasonalPageSettings = () => {
+          _fbDb.ref("settings/seasonalPage").off();
+          _fbDb.ref("settings/seasonalPage").on("value", snap => {
+            const raw = snap.val() || {};
+            const cleanTitle = typeof raw.title === "string" && raw.title.trim() ? raw.title.trim() : "Seasonal Listings";
+            setSeasonalPageTitle(cleanTitle);
+          });
+        };
 
         try {
           _fbAuth.getRedirectResult().catch(err => console.error("Redirect result error:", err));
@@ -1111,6 +1120,7 @@
               bindAppAvailability();
               bindBgMartPromoBanner();
               bindSeasonalBanner();
+              bindSeasonalPageSettings();
               setPushPermission(typeof Notification !== "undefined" ? Notification.permission : "default");
               enablePushForUser(currentUser, { requestPermission: false });
               trackUserAppUsage(currentUser).catch(err => console.error("Usage tracking error:", err));
@@ -1172,6 +1182,7 @@
               _fbDb.ref("settings/appAvailability").off();
               _fbDb.ref("settings/bgMartPromoBanner").off();
               _fbDb.ref("settings/seasonalBanner").off();
+              _fbDb.ref("settings/seasonalPage").off();
               baseProductsRaw = [];
               partnerListingsRaw = [];
               partnerMerchantsById = {};
@@ -1201,6 +1212,7 @@
             _fbDb.ref("settings/appAvailability").off();
             _fbDb.ref("settings/bgMartPromoBanner").off();
             _fbDb.ref("settings/seasonalBanner").off();
+            _fbDb.ref("settings/seasonalPage").off();
           }
           if (activityIntervalId) clearInterval(activityIntervalId);
           if (visibilityHandler) document.removeEventListener("visibilitychange", visibilityHandler);
@@ -1512,7 +1524,7 @@
 
       return (
         <>
-          <UserApp products={products} orders={orders} refunds={refunds} onOrder={addOrder} user={user} onLogout={handleLogout} gcashSettings={gcashSettings} bgMartPromoBannerUrl={bgMartPromoBannerUrl} seasonalBanner={seasonalBanner} appAvailability={appAvailability} onOpenLegal={setOpenLegalDoc} />
+          <UserApp products={products} orders={orders} refunds={refunds} onOrder={addOrder} user={user} onLogout={handleLogout} gcashSettings={gcashSettings} bgMartPromoBannerUrl={bgMartPromoBannerUrl} seasonalBanner={seasonalBanner} seasonalPageTitle={seasonalPageTitle} appAvailability={appAvailability} onOpenLegal={setOpenLegalDoc} />
           {syncError && (
             <div className="pop" style={{
               position:"fixed", top:"calc(env(safe-area-inset-top,0px) + 16px)", left:20, right:20, zIndex:9999,
@@ -1732,7 +1744,7 @@
       );
     }
 
-    function UserApp({ products, orders, refunds, onOrder, user, onLogout, gcashSettings, bgMartPromoBannerUrl, seasonalBanner, appAvailability, onOpenLegal }) {
+    function UserApp({ products, orders, refunds, onOrder, user, onLogout, gcashSettings, bgMartPromoBannerUrl, seasonalBanner, seasonalPageTitle, appAvailability, onOpenLegal }) {
       const [activeCat,      setActiveCat]      = useState("all");
       const bagStorageKey = useCallback((key) => `bayango_bag_${key}_${user?.uid || "anon"}`, [user?.uid]);
       const [cart,           setCart]           = useState(() => {
@@ -3829,7 +3841,7 @@
               <button onClick={() => setActivePage("shop")} style={{ fontSize:12, fontWeight:700, color:"#166534", background:"#ECFDF5", border:"1px solid #BBF7D0", borderRadius:999, padding:"6px 12px", marginBottom:12 }}>
                 <Ic n="arrow-left" size={10} style={{ marginRight:6 }} /> Back to shop
               </button>
-              <div style={{ fontSize:18, fontWeight:800, color:"#111827", marginBottom:4 }}>Seasonal Listings</div>
+              <div style={{ fontSize:18, fontWeight:800, color:"#111827", marginBottom:4 }}>{seasonalPageTitle || "Seasonal Listings"}</div>
               <div style={{ fontSize:12, color:"#6B7280", marginBottom:12 }}>Limited-time items curated by admin.</div>
               <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:12 }}>
                 {seasonalProducts.map((p, i) => (
