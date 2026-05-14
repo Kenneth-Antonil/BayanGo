@@ -801,6 +801,7 @@
         { key: "grocery",   label: "Grocery",     icon: "basket-shopping" },
         { key: "products",  label: "Products",    icon: "store" },
         { key: "bgmart",    label: "BG Mart",     icon: "basket-shopping" },
+        { key: "seasonal",  label: "Seasonal",    icon: "sun" },
         { key: "data",      label: "Analytics",   icon: "chart-column" },
         { key: "partners",  label: "Partners",    icon: "handshake", badge: pendingPartners },
         { key: "vouchers",  label: "Vouchers",    icon: "ticket" },
@@ -860,6 +861,7 @@
         { key: "orders",    icon: "receipt",         label: "Orders" },
         { key: "grocery",   icon: "basket-shopping", label: "Grocery" },
         { key: "bgmart",    icon: "basket-shopping", label: "BG Mart" },
+        { key: "seasonal",  icon: "sun",             label: "Seasonal" },
         { key: "settings",  icon: "ellipsis",        label: "More" },
       ];
       return (
@@ -1951,8 +1953,14 @@
     }
 
 
-    function BGMartPanel({ products, onAdd, onUpdate, onDelete }) {
-      const bgMartProducts = useMemo(() => products.filter((p) => p.source === "bg_mart"), [products]);
+    function BGMartPanel({ products, onAdd, onUpdate, onDelete, mode = "bgmart" }) {
+      const isSeasonal = mode === "seasonal";
+      const sourceKey = isSeasonal ? "seasonal_listing" : "bg_mart";
+      const settingsPath = isSeasonal ? "settings/seasonalBanner" : "settings/bgMartPromoBanner";
+      const panelTitle = isSeasonal ? "Seasonal Listings" : "BG Mart Listings";
+      const bannerTitle = isSeasonal ? "Seasonal Banner (320x50)" : "Promotional Banner";
+      const itemLabel = isSeasonal ? "Seasonal" : "BG Mart";
+      const bgMartProducts = useMemo(() => products.filter((p) => p.source === sourceKey), [products, sourceKey]);
       const [quickName, setQuickName] = useState("");
       const [quickCat, setQuickCat] = useState("food_staples");
       const [quickUnit, setQuickUnit] = useState("pc");
@@ -1963,6 +1971,7 @@
       const [editProd, setEditProd] = useState(null);
       const [modalSaving, setModalSaving] = useState(false);
       const [promoBannerUrl, setPromoBannerUrl] = useState("");
+      const [bannerEnabled, setBannerEnabled] = useState(false);
       const [bannerSaving, setBannerSaving] = useState(false);
       const [bannerUploading, setBannerUploading] = useState(false);
 
@@ -1971,30 +1980,35 @@
         (async () => {
           try {
             const { db, fns } = await initFirebase();
-            const snap = await fns.get(fns.ref(db, "settings/bgMartPromoBanner"));
+            const snap = await fns.get(fns.ref(db, settingsPath));
             const raw = snap.val() || {};
-            if (active) setPromoBannerUrl(typeof raw.imageUrl === "string" ? raw.imageUrl : "");
+            if (active) {
+              setPromoBannerUrl(typeof raw.imageUrl === "string" ? raw.imageUrl : "");
+              setBannerEnabled(raw.enabled === true);
+            }
           } catch (err) {
-            console.error("Failed to load BG Mart promo banner:", err);
+            console.error("Failed to load promo banner:", err);
           }
         })();
         return () => { active = false; };
-      }, []);
+      }, [settingsPath]);
 
-      const savePromoBanner = async (nextUrl) => {
+      const savePromoBanner = async (nextUrl, enabled = true) => {
         setBannerSaving(true);
         try {
           const { db, fns } = await initFirebase();
           const cleanUrl = String(nextUrl || "").trim();
           if (cleanUrl) {
-            await fns.update(fns.ref(db, "settings/bgMartPromoBanner"), {
+            await fns.update(fns.ref(db, settingsPath), {
               imageUrl: cleanUrl,
+              enabled: enabled === true,
               updatedAt: Date.now(),
             });
           } else {
-            await fns.remove(fns.ref(db, "settings/bgMartPromoBanner"));
+            await fns.remove(fns.ref(db, settingsPath));
           }
           setPromoBannerUrl(cleanUrl);
+          setBannerEnabled(cleanUrl ? enabled === true : false);
           toast.success(cleanUrl ? "Promo banner saved." : "Promo banner removed.");
         } catch (err) {
           toast.error("Banner save failed: " + (err.message || "unknown"));
@@ -2009,8 +2023,8 @@
         setBannerUploading(true);
         try {
           const st = await initStorage();
-          const safeName = (file.name || "bgmart-banner.jpg").replace(/[^\w.\-]/g, "_");
-          const storageRef = st.ref(st.storage, `bgmart_banners/${Date.now()}_${safeName}`);
+          const safeName = (file.name || "promo-banner.jpg").replace(/[^\w.\-]/g, "_");
+          const storageRef = st.ref(st.storage, `${isSeasonal ? "seasonal_banners" : "bgmart_banners"}/${Date.now()}_${safeName}`);
           await st.uploadBytes(storageRef, file);
           const url = await st.getDownloadURL(storageRef);
           await savePromoBanner(url);
@@ -2028,9 +2042,9 @@
         if (!Number.isFinite(price) || price < 0) return toast.error("Enter valid price.");
         setSaving(true);
         try {
-          await onAdd({ name, cat: quickCat, unit: quickUnit || "pc", basePrice: roundPrice(price), price: roundPrice(price), img: quickImage.trim(), stock: true, autoPriceEnabled: true, source: "bg_mart" });
+          await onAdd({ name, cat: quickCat, unit: quickUnit || "pc", basePrice: roundPrice(price), price: roundPrice(price), img: quickImage.trim(), stock: true, autoPriceEnabled: true, source: sourceKey });
           setQuickName(""); setQuickPrice(""); setQuickImage("");
-          toast.success("BG Mart listing added.");
+          toast.success(`${itemLabel} listing added.`);
         } catch (err) {
           toast.error("Failed: " + (err.message || "unknown"));
         } finally {
@@ -2041,10 +2055,10 @@
       const saveEdit = async (data) => {
         setModalSaving(true);
         try {
-          if (editProd?.id) await onUpdate(editProd.id, { ...data, source: "bg_mart" });
+          if (editProd?.id) await onUpdate(editProd.id, { ...data, source: sourceKey });
           setShowModal(false);
           setEditProd(null);
-          toast.success("BG Mart listing updated.");
+          toast.success(`${itemLabel} listing updated.`);
         } catch (err) {
           toast.error("Save failed: " + (err.message || "unknown"));
         } finally {
@@ -2062,14 +2076,14 @@
       return (
         <div style={{ padding: "20px 24px", paddingBottom: 90 }}>
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 10, flexWrap: "wrap", marginBottom: 14 }}>
-            <h2 style={{ fontSize: 18, fontWeight: 800 }}>BG Mart Listings</h2>
+            <h2 style={{ fontSize: 18, fontWeight: 800 }}>{panelTitle}</h2>
             <span className="status-badge" style={{ background: "#DCFCE7", color: "#166534" }}>{bgMartProducts.length} active listing{bgMartProducts.length !== 1 ? "s" : ""}</span>
           </div>
 
           <div className="card" style={{ marginBottom: 14 }}>
-            <div style={{ fontSize: 13, fontWeight: 800, color: "var(--brand)", marginBottom: 8 }}><Ic n="image" style={{ marginRight: 6 }} />Promotional Banner</div>
+            <div style={{ fontSize: 13, fontWeight: 800, color: "var(--brand)", marginBottom: 8 }}><Ic n="image" style={{ marginRight: 6 }} />{bannerTitle}</div>
             {promoBannerUrl
-              ? <img src={promoBannerUrl} alt="BG Mart promotional banner" style={{ width: "100%", maxHeight: 190, objectFit: "cover", borderRadius: 12, border: "1px solid var(--border)" }} />
+              ? <img src={promoBannerUrl} alt={`${itemLabel} promotional banner`} style={{ width: "100%", maxHeight: 190, objectFit: "cover", borderRadius: 12, border: "1px solid var(--border)" }} />
               : <div style={{ border: "1.5px dashed var(--border)", borderRadius: 12, padding: "16px 12px", fontSize: 12, color: "var(--text-muted)", textAlign: "center" }}>No promotional banner yet.</div>}
             <div style={{ display: "flex", gap: 8, marginTop: 10, flexWrap: "wrap" }}>
               <label className="btn btn-outline" style={{ fontSize: 12, padding: "8px 12px", cursor: bannerUploading || bannerSaving ? "not-allowed" : "pointer", opacity: bannerUploading || bannerSaving ? 0.65 : 1 }}>
@@ -2080,8 +2094,11 @@
               <button onClick={() => savePromoBanner("")} disabled={!promoBannerUrl || bannerUploading || bannerSaving} className="btn btn-danger" style={{ fontSize: 12, padding: "8px 12px" }}>
                 {bannerSaving ? "Saving..." : "Remove Banner"}
               </button>
+              <button onClick={() => savePromoBanner(promoBannerUrl, !bannerEnabled)} disabled={!promoBannerUrl || bannerUploading || bannerSaving} className="btn btn-outline" style={{ fontSize: 12, padding: "8px 12px" }}>
+                {bannerEnabled ? "Hide Banner" : "Show Banner"}
+              </button>
             </div>
-            <div style={{ fontSize: 11, color: "var(--text-muted)", marginTop: 8 }}>This image appears on the BG Mart tab in the user app. If none is uploaded, nothing is shown.</div>
+            <div style={{ fontSize: 11, color: "var(--text-muted)", marginTop: 8 }}>This image appears on the {itemLabel} area in the user app. If none is uploaded, nothing is shown.</div>
           </div>
 
           <div className="card" style={{ marginBottom: 14 }}>
@@ -2095,13 +2112,13 @@
               <input value={quickUnit} onChange={e => setQuickUnit(e.target.value)} placeholder="Unit" className="input" />
               <input value={quickImage} onChange={e => setQuickImage(e.target.value)} placeholder="Image URL (optional)" className="input" />
             </div>
-            <button onClick={addListing} disabled={saving} className="btn btn-brand" style={{ width: "100%", padding: 11 }}>{saving ? "Saving..." : "Add BG Mart Listing"}</button>
-            <div style={{ fontSize: 11, color: "var(--text-muted)", marginTop: 8 }}>Listings added here appear in the BG Mart tab in the user app.</div>
+            <button onClick={addListing} disabled={saving} className="btn btn-brand" style={{ width: "100%", padding: 11 }}>{saving ? "Saving..." : `Add ${itemLabel} Listing`}</button>
+            <div style={{ fontSize: 11, color: "var(--text-muted)", marginTop: 8 }}>Listings added here appear in the {itemLabel} page in the user app.</div>
           </div>
 
           <div className="card">
-            <div style={{ fontSize: 13, fontWeight: 800, marginBottom: 10 }}>Current BG Mart Catalog</div>
-            {bgMartProducts.length === 0 && <div style={{ fontSize: 12, color: "var(--text-muted)" }}>No BG Mart listings yet.</div>}
+            <div style={{ fontSize: 13, fontWeight: 800, marginBottom: 10 }}>Current {itemLabel} Catalog</div>
+            {bgMartProducts.length === 0 && <div style={{ fontSize: 12, color: "var(--text-muted)" }}>No {itemLabel} listings yet.</div>}
             <div style={{ display: "grid", gap: 8 }}>
               {bgMartProducts.map((p) => (
                 <div key={p.id} style={{ border: "1px solid var(--border)", borderRadius: 12, padding: "10px 12px", display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8 }}>
@@ -2132,7 +2149,7 @@
       const [stock, setStock] = useState(product?.stock !== false);
       const [autoPriceEnabled, setAutoPriceEnabled] = useState(product?.autoPriceEnabled !== false);
       const [imageUploading, setImageUploading] = useState(false);
-      const categoryOptions = product?.source === "bg_mart" ? BG_MART_CATEGORIES : CATEGORIES;
+      const categoryOptions = (product?.source === "bg_mart" || product?.source === "seasonal_listing") ? BG_MART_CATEGORIES : CATEGORIES;
 
       const uploadProductImage = async (file) => {
         if (!file || !String(file.type || "").startsWith("image/")) return toast.error("Please upload an image file.");
@@ -2154,7 +2171,7 @@
         if (!cleanName) return toast.error("Product name is required.");
         const parsedPrice = Number(basePrice);
         if (!Number.isFinite(parsedPrice) || parsedPrice < 0) return toast.error("Enter a valid base price.");
-        await onSave({ name: cleanName, cat, unit: unit.trim() || "kg", basePrice: roundPrice(parsedPrice), price: roundPrice(parsedPrice), img: img.trim(), stock, autoPriceEnabled, source: product?.source === "bg_mart" ? "bg_mart" : "market" });
+        await onSave({ name: cleanName, cat, unit: unit.trim() || "kg", basePrice: roundPrice(parsedPrice), price: roundPrice(parsedPrice), img: img.trim(), stock, autoPriceEnabled, source: (product?.source === "bg_mart" || product?.source === "seasonal_listing") ? product.source : "market" });
       };
 
       return (
@@ -2427,7 +2444,7 @@
     /* ══════════════════ ADMIN DASHBOARD (Main Shell) ══════════════════ */
     function AdminDashboard({ user, onLogout, orders, onUpdateStatus, onBroadcast, products, onAddProduct, onUpdateProduct, onDeleteProduct, marketPricing, onUpdateMarketPricing, vouchers, onAddVoucher, onUpdateVoucher, onDeleteVoucher, refunds, onCreateRefund, appUsageStats, appUsageMap, partnerApplications, partnerMerchants, partnerStoreRecords, onDecidePartnerApplication, onToggleFeaturedPartnerMerchant, onModeratePartnerMerchant, authzError, partnerDataLoaded }) {
       const getInitialTab = () => {
-        const validTabs = new Set(["dashboard", "orders", "grocery", "products", "bgmart", "data", "partners", "vouchers", "refunds", "settings"]);
+        const validTabs = new Set(["dashboard", "orders", "grocery", "products", "bgmart", "seasonal", "data", "partners", "vouchers", "refunds", "settings"]);
         try { const hash = (window.location.hash || "").replace("#", "").toLowerCase(); if (validTabs.has(hash)) return hash; } catch {}
         return "dashboard";
       };
@@ -2757,6 +2774,7 @@
             {tab === "partners" && <PartnersPanel applications={partnerApplications} merchants={partnerMerchants} storeRecords={partnerStoreRecords} onDecide={onDecidePartnerApplication} onToggleFeatured={onToggleFeaturedPartnerMerchant} onModerateMerchant={onModeratePartnerMerchant} dataLoaded={partnerDataLoaded} authzError={authzError} adminUid={user?.uid} />}
             {tab === "products" && <ProductsPanel products={products} onAdd={onAddProduct} onUpdate={onUpdateProduct} onDelete={onDeleteProduct} marketPricing={marketPricing} onUpdateMarketPricing={onUpdateMarketPricing} />}
             {tab === "bgmart" && <BGMartPanel products={products} onAdd={onAddProduct} onUpdate={onUpdateProduct} onDelete={onDeleteProduct} />}
+            {tab === "seasonal" && <BGMartPanel mode="seasonal" products={products} onAdd={onAddProduct} onUpdate={onUpdateProduct} onDelete={onDeleteProduct} />}
             {tab === "data" && <DataTab orders={orders} />}
             {tab === "vouchers" && <VouchersPanel vouchers={vouchers} onAdd={onAddVoucher} onUpdate={onUpdateVoucher} onDelete={onDeleteVoucher} />}
             {tab === "refunds" && <RefundsPanel refunds={refunds} orders={orders} onCreateRefund={onCreateRefund} />}
