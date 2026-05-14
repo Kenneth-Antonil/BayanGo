@@ -2714,14 +2714,26 @@
             const [bannerIndex, setBannerIndex] = [seasonalBannerIndex, setSeasonalBannerIndex];
             const activeBanner = bannerImages[bannerIndex % bannerImages.length];
             return (
-              <div style={{ padding:"2px 20px 10px" }}>
+              <div style={{ padding:"2px 20px 12px" }}>
                 <button onClick={() => setActivePage("seasonal")} style={{
-                  width:"100%", border:"1px solid #E2E8F0", borderRadius:22, overflow:"hidden", padding:0,
-                  background:"#0F172A", display:"block", aspectRatio:"1783 / 680",
-                  boxShadow:"0 16px 30px rgba(15,23,42,.18)", position:"relative", textAlign:"left"
+                  width:"100%", border:"1px solid #DDE4EE", borderRadius:26, overflow:"hidden", padding:0,
+                  background:"#0B1220", display:"block", aspectRatio:"1783 / 680",
+                  boxShadow:"0 18px 38px rgba(15,23,42,.22)", position:"relative", textAlign:"left",
+                  transform:"translateZ(0)"
                 }}>
+                  <div style={{ position:"absolute", left:-30, right:-30, top:20, bottom:20, borderRadius:26, zIndex:0, background:"rgba(15,23,42,.24)", filter:"blur(18px)", transform:"scale(.94)" }} />
                   <img src={activeBanner} alt="Seasonal listings banner" style={{ width:"100%", height:"100%", objectFit:"cover", display:"block" }} />
-                  <div style={{ position:"absolute", inset:0, background:"linear-gradient(180deg, rgba(15,23,42,.04) 12%, rgba(15,23,42,.78) 100%)" }} />
+                  <div style={{ position:"absolute", inset:0, background:"linear-gradient(180deg, rgba(15,23,42,.02) 10%, rgba(15,23,42,.82) 100%)" }} />
+                  {bannerImages.length > 1 && (
+                    <>
+                      <button type="button" onClick={(e) => { e.stopPropagation(); setSeasonalBannerIndex((bannerIndex - 1 + bannerImages.length) % bannerImages.length); }} style={{ position:"absolute", top:"50%", left:10, transform:"translateY(-50%)", width:32, height:32, borderRadius:999, border:"1px solid rgba(255,255,255,.35)", background:"rgba(2,6,23,.34)", color:"#fff", display:"flex", alignItems:"center", justifyContent:"center", backdropFilter:"blur(6px)" }}>
+                        <Ic n="arrow-left" size={11} />
+                      </button>
+                      <button type="button" onClick={(e) => { e.stopPropagation(); setSeasonalBannerIndex((bannerIndex + 1) % bannerImages.length); }} style={{ position:"absolute", top:"50%", right:10, transform:"translateY(-50%)", width:32, height:32, borderRadius:999, border:"1px solid rgba(255,255,255,.35)", background:"rgba(2,6,23,.34)", color:"#fff", display:"flex", alignItems:"center", justifyContent:"center", backdropFilter:"blur(6px)" }}>
+                        <Ic n="arrow-right" size={11} />
+                      </button>
+                    </>
+                  )}
                   <div style={{ position:"absolute", left:16, right:16, bottom:14, display:"flex", justifyContent:"space-between", alignItems:"flex-end", gap:12 }}>
                     <div>
                       <div style={{ display:"inline-flex", alignItems:"center", gap:6, fontSize:10, fontWeight:800, letterSpacing:".05em", textTransform:"uppercase", color:"#FDE68A", background:"rgba(15,23,42,.46)", padding:"4px 8px", borderRadius:999, border:"1px solid rgba(253,230,138,.35)", marginBottom:8 }}>
@@ -2736,9 +2748,9 @@
                   </div>
                 </button>
                 {bannerImages.length > 1 && (
-                  <div style={{ display:"flex", justifyContent:"center", gap:7, marginTop:10 }}>
+                  <div style={{ display:"flex", justifyContent:"center", gap:8, marginTop:11 }}>
                     {bannerImages.map((_, idx) => (
-                      <button key={idx} onClick={() => setSeasonalBannerIndex(idx)} style={{ width: idx === (bannerIndex % bannerImages.length) ? 18 : 8, height:8, borderRadius:999, background: idx === (bannerIndex % bannerImages.length) ? "#0F172A" : "#CBD5E1", border:"none", padding:0, transition:"all .2s ease" }} />
+                      <button key={idx} onClick={() => setSeasonalBannerIndex(idx)} style={{ width: idx === (bannerIndex % bannerImages.length) ? 22 : 8, height:8, borderRadius:999, background: idx === (bannerIndex % bannerImages.length) ? "#0F172A" : "#CBD5E1", border:"none", padding:0, transition:"all .24s ease", boxShadow: idx === (bannerIndex % bannerImages.length) ? "0 2px 8px rgba(15,23,42,.3)" : "none" }} />
                     ))}
                   </div>
                 )}
@@ -3854,18 +3866,29 @@
                 const activeBanner = bannerImages[bannerIndex % bannerImages.length];
                 return (
                   <div style={{ marginBottom:14 }}>
-                    <div style={{ width:"100%", border:"1px solid #E2E8F0", borderRadius:22, overflow:"hidden", background:"#0F172A", aspectRatio:"1783 / 680", position:"relative", boxShadow:"0 16px 30px rgba(15,23,42,.16)" }}>
+                    <div style={{ width:"100%", border:"1px solid #DDE4EE", borderRadius:26, overflow:"hidden", background:"#0B1220", aspectRatio:"1783 / 680", position:"relative", boxShadow:"0 18px 38px rgba(15,23,42,.2)" }}>
+                      <div style={{ position:"absolute", left:-30, right:-30, top:20, bottom:20, borderRadius:26, zIndex:0, background:"rgba(15,23,42,.24)", filter:"blur(18px)", transform:"scale(.94)" }} />
                       <img src={activeBanner} alt="Seasonal listings banner" style={{ width:"100%", height:"100%", objectFit:"cover", display:"block" }} />
-                      <div style={{ position:"absolute", inset:0, background:"linear-gradient(180deg, rgba(15,23,42,.04) 12%, rgba(15,23,42,.78) 100%)" }} />
+                      <div style={{ position:"absolute", inset:0, background:"linear-gradient(180deg, rgba(15,23,42,.02) 10%, rgba(15,23,42,.82) 100%)" }} />
+                      {bannerImages.length > 1 && (
+                        <>
+                          <button type="button" onClick={() => setSeasonalBannerIndex((bannerIndex - 1 + bannerImages.length) % bannerImages.length)} style={{ position:"absolute", top:"50%", left:10, transform:"translateY(-50%)", width:32, height:32, borderRadius:999, border:"1px solid rgba(255,255,255,.35)", background:"rgba(2,6,23,.34)", color:"#fff", display:"flex", alignItems:"center", justifyContent:"center", backdropFilter:"blur(6px)" }}>
+                            <Ic n="arrow-left" size={11} />
+                          </button>
+                          <button type="button" onClick={() => setSeasonalBannerIndex((bannerIndex + 1) % bannerImages.length)} style={{ position:"absolute", top:"50%", right:10, transform:"translateY(-50%)", width:32, height:32, borderRadius:999, border:"1px solid rgba(255,255,255,.35)", background:"rgba(2,6,23,.34)", color:"#fff", display:"flex", alignItems:"center", justifyContent:"center", backdropFilter:"blur(6px)" }}>
+                            <Ic n="arrow-right" size={11} />
+                          </button>
+                        </>
+                      )}
                       <div style={{ position:"absolute", left:16, right:16, bottom:14 }}>
                         <div style={{ fontSize:18, fontWeight:800, lineHeight:1.15, color:"#FFFFFF", textShadow:"0 3px 10px rgba(0,0,0,.35)" }}>Seasonal Hero Deals</div>
                         <div style={{ fontSize:12, color:"rgba(255,255,255,.9)", marginTop:3 }}>Limited-time listings curated by admin.</div>
                       </div>
                     </div>
                     {bannerImages.length > 1 && (
-                      <div style={{ display:"flex", justifyContent:"center", gap:7, marginTop:10 }}>
+                      <div style={{ display:"flex", justifyContent:"center", gap:8, marginTop:11 }}>
                         {bannerImages.map((_, idx) => (
-                          <button key={idx} onClick={() => setSeasonalBannerIndex(idx)} style={{ width: idx === (bannerIndex % bannerImages.length) ? 18 : 8, height:8, borderRadius:999, background: idx === (bannerIndex % bannerImages.length) ? "#0F172A" : "#CBD5E1", border:"none", padding:0, transition:"all .2s ease" }} />
+                          <button key={idx} onClick={() => setSeasonalBannerIndex(idx)} style={{ width: idx === (bannerIndex % bannerImages.length) ? 22 : 8, height:8, borderRadius:999, background: idx === (bannerIndex % bannerImages.length) ? "#0F172A" : "#CBD5E1", border:"none", padding:0, transition:"all .24s ease", boxShadow: idx === (bannerIndex % bannerImages.length) ? "0 2px 8px rgba(15,23,42,.3)" : "none" }} />
                         ))}
                       </div>
                     )}
