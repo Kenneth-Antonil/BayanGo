@@ -2714,43 +2714,14 @@
             const [bannerIndex, setBannerIndex] = [seasonalBannerIndex, setSeasonalBannerIndex];
             const activeBanner = bannerImages[bannerIndex % bannerImages.length];
             return (
-              <div style={{ padding:"2px 20px 12px" }}>
-                <button onClick={() => setActivePage("seasonal")} style={{
-                  width:"100%", border:"1px solid #DDE4EE", borderRadius:26, overflow:"hidden", padding:0,
-                  background:"#0B1220", display:"block", aspectRatio:"1783 / 680",
-                  boxShadow:"0 18px 38px rgba(15,23,42,.22)", position:"relative", textAlign:"left",
-                  transform:"translateZ(0)"
-                }}>
-                  <div style={{ position:"absolute", left:-30, right:-30, top:20, bottom:20, borderRadius:26, zIndex:0, background:"rgba(15,23,42,.24)", filter:"blur(18px)", transform:"scale(.94)" }} />
+              <div style={{ padding:"0 20px 8px" }}>
+                <button onClick={() => setActivePage("seasonal")} style={{ width:"100%", border:"1px solid #FCD34D", borderRadius:14, overflow:"hidden", padding:0, background:"#FFFBEB", display:"block", aspectRatio:"1783 / 567" }}>
                   <img src={activeBanner} alt="Seasonal listings banner" style={{ width:"100%", height:"100%", objectFit:"cover", display:"block" }} />
-                  <div style={{ position:"absolute", inset:0, background:"linear-gradient(180deg, rgba(15,23,42,.02) 10%, rgba(15,23,42,.82) 100%)" }} />
-                  {bannerImages.length > 1 && (
-                    <>
-                      <button type="button" onClick={(e) => { e.stopPropagation(); setSeasonalBannerIndex((bannerIndex - 1 + bannerImages.length) % bannerImages.length); }} style={{ position:"absolute", top:"50%", left:10, transform:"translateY(-50%)", width:32, height:32, borderRadius:999, border:"1px solid rgba(255,255,255,.35)", background:"rgba(2,6,23,.34)", color:"#fff", display:"flex", alignItems:"center", justifyContent:"center", backdropFilter:"blur(6px)" }}>
-                        <Ic n="arrow-left" size={11} />
-                      </button>
-                      <button type="button" onClick={(e) => { e.stopPropagation(); setSeasonalBannerIndex((bannerIndex + 1) % bannerImages.length); }} style={{ position:"absolute", top:"50%", right:10, transform:"translateY(-50%)", width:32, height:32, borderRadius:999, border:"1px solid rgba(255,255,255,.35)", background:"rgba(2,6,23,.34)", color:"#fff", display:"flex", alignItems:"center", justifyContent:"center", backdropFilter:"blur(6px)" }}>
-                        <Ic n="arrow-right" size={11} />
-                      </button>
-                    </>
-                  )}
-                  <div style={{ position:"absolute", left:16, right:16, bottom:14, display:"flex", justifyContent:"space-between", alignItems:"flex-end", gap:12 }}>
-                    <div>
-                      <div style={{ display:"inline-flex", alignItems:"center", gap:6, fontSize:10, fontWeight:800, letterSpacing:".05em", textTransform:"uppercase", color:"#FDE68A", background:"rgba(15,23,42,.46)", padding:"4px 8px", borderRadius:999, border:"1px solid rgba(253,230,138,.35)", marginBottom:8 }}>
-                        <Ic n="sparkles" size={10} /> Limited Time
-                      </div>
-                      <div style={{ fontSize:18, fontWeight:800, lineHeight:1.15, color:"#FFFFFF", textShadow:"0 3px 10px rgba(0,0,0,.35)" }}>Seasonal Hero Deals</div>
-                      <div style={{ fontSize:12, color:"rgba(255,255,255,.9)", marginTop:3 }}>Tap to browse curated picks</div>
-                    </div>
-                    <div style={{ width:36, height:36, borderRadius:999, background:"rgba(255,255,255,.2)", border:"1px solid rgba(255,255,255,.45)", display:"flex", alignItems:"center", justifyContent:"center", color:"#fff", flexShrink:0 }}>
-                      <Ic n="arrow-right" size={12} />
-                    </div>
-                  </div>
                 </button>
                 {bannerImages.length > 1 && (
-                  <div style={{ display:"flex", justifyContent:"center", gap:8, marginTop:11 }}>
+                  <div style={{ display:"flex", justifyContent:"center", gap:6, marginTop:8 }}>
                     {bannerImages.map((_, idx) => (
-                      <button key={idx} onClick={() => setSeasonalBannerIndex(idx)} style={{ width: idx === (bannerIndex % bannerImages.length) ? 22 : 8, height:8, borderRadius:999, background: idx === (bannerIndex % bannerImages.length) ? "#0F172A" : "#CBD5E1", border:"none", padding:0, transition:"all .24s ease", boxShadow: idx === (bannerIndex % bannerImages.length) ? "0 2px 8px rgba(15,23,42,.3)" : "none" }} />
+                      <button key={idx} onClick={() => setSeasonalBannerIndex(idx)} style={{ width:8, height:8, borderRadius:"50%", background: idx === (bannerIndex % bannerImages.length) ? "#F59E0B" : "#FDE68A", border:"none", padding:0 }} />
                     ))}
                   </div>
                 )}
@@ -3860,43 +3831,6 @@
               </button>
               <div style={{ fontSize:18, fontWeight:800, color:"#111827", marginBottom:4 }}>Seasonal Listings</div>
               <div style={{ fontSize:12, color:"#6B7280", marginBottom:12 }}>Limited-time items curated by admin.</div>
-              {seasonalBanner?.enabled && (seasonalBanner?.carouselImages?.length || seasonalBanner?.imageUrl) && (() => {
-                const bannerImages = (seasonalBanner?.carouselImages?.length ? seasonalBanner.carouselImages : [seasonalBanner.imageUrl]).filter(Boolean);
-                const [bannerIndex] = [seasonalBannerIndex];
-                const activeBanner = bannerImages[bannerIndex % bannerImages.length];
-                const leftBanner = bannerImages[(bannerIndex - 1 + bannerImages.length) % bannerImages.length] || activeBanner;
-                const rightBanner = bannerImages[(bannerIndex + 1) % bannerImages.length] || activeBanner;
-                return (
-                  <div style={{ marginBottom:14 }}>
-                    <div style={{ width:"100%", border:"1px solid #DDE4EE", borderRadius:26, overflow:"hidden", background:"radial-gradient(circle at top, #1E3A8A 0%, #0B1220 72%)", position:"relative", boxShadow:"0 18px 38px rgba(15,23,42,.2)", padding:"14px 12px 16px" }}>
-                      <div style={{ display:"grid", gridTemplateColumns:"1fr 1.35fr 1fr", gap:10, alignItems:"center" }}>
-                        {[leftBanner, activeBanner, rightBanner].map((img, idx) => {
-                          const isCenter = idx === 1;
-                          return (
-                            <div key={`${img}-${idx}`} style={{ borderRadius:14, overflow:"hidden", aspectRatio:"4 / 3", position:"relative", opacity:isCenter ? 1 : .68, transform:isCenter ? "scale(1)" : "scale(.9)", transition:"all .22s ease", boxShadow:isCenter ? "0 10px 26px rgba(15,23,42,.35)" : "none" }}>
-                              <img src={img} alt="Seasonal listings banner" style={{ width:"100%", height:"100%", objectFit:"cover", display:"block" }} />
-                              <div style={{ position:"absolute", inset:0, background:isCenter ? "linear-gradient(180deg, rgba(15,23,42,.04) 30%, rgba(15,23,42,.55) 100%)" : "linear-gradient(180deg, rgba(15,23,42,.2) 10%, rgba(15,23,42,.75) 100%)" }} />
-                            </div>
-                          );
-                        })}
-                      </div>
-                      <div style={{ marginTop:10, display:"flex", justifyContent:"center", alignItems:"center", gap:16 }}>
-                        <button type="button" onClick={() => setSeasonalBannerIndex((bannerIndex - 1 + bannerImages.length) % bannerImages.length)} style={{ width:28, height:28, borderRadius:999, border:"1px solid rgba(148,163,184,.45)", background:"rgba(15,23,42,.35)", color:"#93C5FD", display:"flex", alignItems:"center", justifyContent:"center" }}>
-                          <Ic n="arrow-left" size={10} />
-                        </button>
-                        <div style={{ display:"flex", gap:8 }}>
-                          {bannerImages.map((_, idx) => (
-                            <button key={idx} onClick={() => setSeasonalBannerIndex(idx)} style={{ width: idx === (bannerIndex % bannerImages.length) ? 34 : 14, height:4, borderRadius:999, background: idx === (bannerIndex % bannerImages.length) ? "#60A5FA" : "rgba(148,163,184,.4)", border:"none", padding:0, transition:"all .24s ease" }} />
-                          ))}
-                        </div>
-                        <button type="button" onClick={() => setSeasonalBannerIndex((bannerIndex + 1) % bannerImages.length)} style={{ width:28, height:28, borderRadius:999, border:"1px solid rgba(148,163,184,.45)", background:"rgba(15,23,42,.35)", color:"#93C5FD", display:"flex", alignItems:"center", justifyContent:"center" }}>
-                          <Ic n="arrow-right" size={10} />
-                        </button>
-                      </div>
-                    </div>
-                  </div>
-                );
-              })()}
               <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:12 }}>
                 {seasonalProducts.map((p, i) => (
                   <ProductCard key={p.id} p={p} cart={cart} add={add} rem={rem} cartWeightUnit={cartWeightUnit} setCartWeightUnit={setCartWeightUnit} openStoreProfile={openStoreProfile} catColor={activeCatMeta.color} catIcon={activeCatMeta.icon} animDelay={`${i*.05}s`} />
