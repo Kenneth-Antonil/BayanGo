@@ -482,7 +482,7 @@
               const list = [];
               snap.forEach(c => {
                 const v = c.val() || {};
-                list.push({ id: c.key, name: typeof v.name === "string" ? v.name : "", cat: typeof v.cat === "string" ? v.cat : "isda", price: Number.isFinite(Number(v.price)) ? Number(v.price) : 0, basePrice: Number.isFinite(Number(v.basePrice)) ? Number(v.basePrice) : (Number.isFinite(Number(v.price)) ? Number(v.price) : 0), autoPriceEnabled: v.autoPriceEnabled !== false, unit: typeof v.unit === "string" && v.unit ? v.unit : "kg", stock: v.stock !== false, img: typeof v.img === "string" ? v.img : "", source: v.source === "bg_mart" ? "bg_mart" : "market", createdAt: Number(v.createdAt || 0) });
+                list.push({ id: c.key, name: typeof v.name === "string" ? v.name : "", cat: typeof v.cat === "string" ? v.cat : "isda", price: Number.isFinite(Number(v.price)) ? Number(v.price) : 0, basePrice: Number.isFinite(Number(v.basePrice)) ? Number(v.basePrice) : (Number.isFinite(Number(v.price)) ? Number(v.price) : 0), autoPriceEnabled: v.autoPriceEnabled !== false, unit: typeof v.unit === "string" && v.unit ? v.unit : "kg", stock: v.stock !== false, img: typeof v.img === "string" ? v.img : "", source: (v.source === "bg_mart" || v.source === "seasonal_listing") ? v.source : "market", createdAt: Number(v.createdAt || 0) });
               });
               setProducts(list);
             }, err => console.error("Products error:", err));
@@ -2096,7 +2096,7 @@
         try {
           const st = await initStorage();
           const safeName = (file.name || "seasonal-product.jpg").replace(/[^\w.\-]/g, "_");
-          const storageRef = st.ref(st.storage, `${isSeasonal ? "seasonal_listing_images" : "bgmart_listing_images"}/${Date.now()}_${safeName}`);
+          const storageRef = st.ref(st.storage, `product_images/${isSeasonal ? "seasonal" : "bgmart"}/${Date.now()}_${safeName}`);
           await st.uploadBytes(storageRef, file);
           setQuickImage(await st.getDownloadURL(storageRef));
           toast.success("Image uploaded.");

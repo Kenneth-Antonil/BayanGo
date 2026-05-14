@@ -933,7 +933,7 @@
         const refreshMergedProducts = () => {
           const regularProducts = baseProductsRaw.map((entry) => ({
             ...entry,
-            source: entry?.source === "bg_mart" ? "bg_mart" : "market",
+            source: (entry?.source === "bg_mart" || entry?.source === "seasonal_listing") ? entry.source : "market",
           }));
           const partnerProducts = partnerListingsRaw
             .map((entry) => {
