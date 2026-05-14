@@ -34,6 +34,11 @@ service firebase.storage {
       allow write: if isSignedIn() || isImageUpload(5 * 1024 * 1024);
     }
 
+    match /product_ribbons/{allPaths=**} {
+      allow read: if true;
+      allow write: if isSignedIn() || isImageUpload(5 * 1024 * 1024);
+    }
+
     match /order_proofs/{allPaths=**} {
       allow read: if isSignedIn();
       allow write: if isSignedIn();
