@@ -482,7 +482,7 @@
               const list = [];
               snap.forEach(c => {
                 const v = c.val() || {};
-                list.push({ id: c.key, name: typeof v.name === "string" ? v.name : "", cat: typeof v.cat === "string" ? v.cat : "isda", price: Number.isFinite(Number(v.price)) ? Number(v.price) : 0, basePrice: Number.isFinite(Number(v.basePrice)) ? Number(v.basePrice) : (Number.isFinite(Number(v.price)) ? Number(v.price) : 0), autoPriceEnabled: v.autoPriceEnabled !== false, unit: typeof v.unit === "string" && v.unit ? v.unit : "kg", stock: v.stock !== false, img: typeof v.img === "string" ? v.img : "", promoRibbon: typeof v.promoRibbon === "string" ? v.promoRibbon : "", source: (v.source === "bg_mart" || v.source === "seasonal_listing") ? v.source : "market", createdAt: Number(v.createdAt || 0) });
+                list.push({ id: c.key, name: typeof v.name === "string" ? v.name : "", cat: typeof v.cat === "string" ? v.cat : "isda", price: Number.isFinite(Number(v.price)) ? Number(v.price) : 0, basePrice: Number.isFinite(Number(v.basePrice)) ? Number(v.basePrice) : (Number.isFinite(Number(v.price)) ? Number(v.price) : 0), autoPriceEnabled: v.autoPriceEnabled !== false, unit: typeof v.unit === "string" && v.unit ? v.unit : "kg", stock: v.stock !== false, img: typeof v.img === "string" ? v.img : "", promoRibbon: typeof v.promoRibbon === "string" ? v.promoRibbon : "", promoRibbonPlacement: typeof v.promoRibbonPlacement === "string" ? v.promoRibbonPlacement : "top-right", source: (v.source === "bg_mart" || v.source === "seasonal_listing") ? v.source : "market", createdAt: Number(v.createdAt || 0) });
               });
               setProducts(list);
             }, err => console.error("Products error:", err));
@@ -1967,6 +1967,7 @@
       const [quickPrice, setQuickPrice] = useState("");
       const [quickImage, setQuickImage] = useState("");
       const [quickRibbon, setQuickRibbon] = useState("");
+      const [quickRibbonPlacement, setQuickRibbonPlacement] = useState("top-right");
       const [quickImageUploading, setQuickImageUploading] = useState(false);
       const [quickRibbonUploading, setQuickRibbonUploading] = useState(false);
       const [seasonalPageTitle, setSeasonalPageTitle] = useState("Seasonal Listings");
@@ -1980,6 +1981,15 @@
       const [bannerEnabled, setBannerEnabled] = useState(false);
       const [bannerSaving, setBannerSaving] = useState(false);
       const [bannerUploading, setBannerUploading] = useState(false);
+      const savedRibbons = useMemo(() => {
+        const unique = new Set();
+        products.forEach((p) => {
+          if (p.source !== sourceKey) return;
+          const url = typeof p.promoRibbon === "string" ? p.promoRibbon.trim() : "";
+          if (url) unique.add(url);
+        });
+        return Array.from(unique);
+      }, [products, sourceKey]);
 
       useEffect(() => {
         let active = true;
@@ -2081,8 +2091,8 @@
         if (!Number.isFinite(price) || price < 0) return toast.error("Enter valid price.");
         setSaving(true);
         try {
-          await onAdd({ name, cat: quickCat, unit: quickUnit || "pc", basePrice: roundPrice(price), price: roundPrice(price), img: quickImage.trim(), promoRibbon: quickRibbon.trim(), stock: true, autoPriceEnabled: true, source: sourceKey });
-          setQuickName(""); setQuickPrice(""); setQuickImage(""); setQuickRibbon("");
+          await onAdd({ name, cat: quickCat, unit: quickUnit || "pc", basePrice: roundPrice(price), price: roundPrice(price), img: quickImage.trim(), promoRibbon: quickRibbon.trim(), promoRibbonPlacement: quickRibbonPlacement, stock: true, autoPriceEnabled: true, source: sourceKey });
+          setQuickName(""); setQuickPrice(""); setQuickImage(""); setQuickRibbon(""); setQuickRibbonPlacement("top-right");
           toast.success(`${itemLabel} listing added.`);
         } catch (err) {
           toast.error("Failed: " + (err.message || "unknown"));
@@ -2236,7 +2246,13 @@
                 </label>
               </div>
             </div>
-                        <div style={{ display: "grid", gridTemplateColumns: "1fr", gap: 8, marginBottom: 10 }}>
+            <div style={{ display: "grid", gridTemplateColumns: "1fr", gap: 8, marginBottom: 10 }}>
+              {savedRibbons.length > 0 && (
+                <select value={quickRibbon} onChange={e => setQuickRibbon(e.target.value)} className="input">
+                  <option value="">Choose saved promo ribbon</option>
+                  {savedRibbons.map((url, idx) => <option key={`${idx}-${url}`} value={url}>Saved ribbon {idx + 1}</option>)}
+                </select>
+              )}
               <div style={{ border: "1px solid var(--border)", borderRadius: 10, padding: 8, display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8 }}>
                 <div style={{ minWidth: 0, fontSize: 11, color: quickRibbon ? "var(--text-secondary)" : "var(--text-muted)", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
                   {quickRibbon ? "Promo ribbon uploaded" : "No promo ribbon uploaded"}
@@ -2247,6 +2263,12 @@
                   <input type="file" accept="image/*" style={{ display: "none" }} disabled={quickRibbonUploading} onChange={e => { if (e.target.files?.[0]) uploadQuickRibbon(e.target.files[0]); e.target.value = ""; }} />
                 </label>
               </div>
+              <select value={quickRibbonPlacement} onChange={e => setQuickRibbonPlacement(e.target.value)} className="input">
+                <option value="top-right">Ribbon: Top right</option>
+                <option value="top-left">Ribbon: Top left</option>
+                <option value="bottom-right">Ribbon: Bottom right</option>
+                <option value="bottom-left">Ribbon: Bottom left</option>
+              </select>
             </div>
             <button onClick={addListing} disabled={saving || quickRibbonUploading} className="btn btn-brand" style={{ width: "100%", padding: 11 }}>{saving ? "Saving..." : `Add ${itemLabel} Listing`}</button>
             <div style={{ fontSize: 11, color: "var(--text-muted)", marginTop: 8 }}>Listings added here appear in the {itemLabel} page in the user app.</div>
@@ -2271,18 +2293,19 @@
             </div>
           </div>
 
-          {showModal && <ProductModal product={editProd} onSave={saveEdit} onClose={() => { if (!modalSaving) { setShowModal(false); setEditProd(null); } }} saving={modalSaving} />}
+          {showModal && <ProductModal product={editProd} onSave={saveEdit} onClose={() => { if (!modalSaving) { setShowModal(false); setEditProd(null); } }} saving={modalSaving} savedRibbons={savedRibbons} />}
         </div>
       );
     }
 
-    function ProductModal({ product, onSave, onClose, saving }) {
+    function ProductModal({ product, onSave, onClose, saving, savedRibbons = [] }) {
       const [name, setName] = useState(product?.name || "");
       const [cat, setCat] = useState(product?.cat || "isda");
       const [unit, setUnit] = useState(product?.unit || "kg");
       const [basePrice, setBasePrice] = useState(Number.isFinite(Number(product?.basePrice)) ? String(Number(product.basePrice)) : Number.isFinite(Number(product?.price)) ? String(Number(product.price)) : "");
       const [img, setImg] = useState(product?.img || "");
       const [promoRibbon, setPromoRibbon] = useState(product?.promoRibbon || "");
+      const [promoRibbonPlacement, setPromoRibbonPlacement] = useState(product?.promoRibbonPlacement || "top-right");
       const [stock, setStock] = useState(product?.stock !== false);
       const [autoPriceEnabled, setAutoPriceEnabled] = useState(product?.autoPriceEnabled !== false);
       const [imageUploading, setImageUploading] = useState(false);
@@ -2325,7 +2348,7 @@
         if (!cleanName) return toast.error("Product name is required.");
         const parsedPrice = Number(basePrice);
         if (!Number.isFinite(parsedPrice) || parsedPrice < 0) return toast.error("Enter a valid base price.");
-        await onSave({ name: cleanName, cat, unit: unit.trim() || "kg", basePrice: roundPrice(parsedPrice), price: roundPrice(parsedPrice), img: img.trim(), promoRibbon: promoRibbon.trim(), stock, autoPriceEnabled, source: (product?.source === "bg_mart" || product?.source === "seasonal_listing") ? product.source : "market" });
+        await onSave({ name: cleanName, cat, unit: unit.trim() || "kg", basePrice: roundPrice(parsedPrice), price: roundPrice(parsedPrice), img: img.trim(), promoRibbon: promoRibbon.trim(), promoRibbonPlacement, stock, autoPriceEnabled, source: (product?.source === "bg_mart" || product?.source === "seasonal_listing") ? product.source : "market" });
       };
 
       return (
@@ -2354,11 +2377,23 @@
                 {promoRibbon ? <img src={promoRibbon} alt="Promo ribbon" style={{ width: "100%", maxHeight: 90, objectFit: "contain", borderRadius: 10, background: "#fff", border: "1px solid var(--border)", padding: 6 }} /> : null}
                 <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
                   <input value={promoRibbon} onChange={e => setPromoRibbon(e.target.value)} placeholder="Promo ribbon image URL" className="input" />
+                  {savedRibbons.length > 0 && (
+                    <select value={promoRibbon} onChange={e => setPromoRibbon(e.target.value)} className="input" style={{ minWidth: 170 }}>
+                      <option value="">Choose saved ribbon</option>
+                      {savedRibbons.map((url, idx) => <option key={`${idx}-${url}`} value={url}>Saved ribbon {idx + 1}</option>)}
+                    </select>
+                  )}
                   <label style={{ display: "inline-flex", alignItems: "center", gap: 6, padding: "8px 12px", borderRadius: 8, border: "1px solid var(--border)", cursor: ribbonUploading ? "default" : "pointer", fontSize: 12, fontWeight: 700, background: "var(--surface)" }}>
                     <Ic n="image" size={13} />{ribbonUploading ? "Uploading..." : (promoRibbon ? "Replace Ribbon" : "Upload Ribbon")}
                     <input type="file" accept="image/*" style={{ display: "none" }} disabled={ribbonUploading} onChange={e => { if (e.target.files?.[0]) uploadPromoRibbon(e.target.files[0]); e.target.value = ""; }} />
                   </label>
                 </div>
+                <select value={promoRibbonPlacement} onChange={e => setPromoRibbonPlacement(e.target.value)} className="input">
+                  <option value="top-right">Ribbon placement: Top right</option>
+                  <option value="top-left">Ribbon placement: Top left</option>
+                  <option value="bottom-right">Ribbon placement: Bottom right</option>
+                  <option value="bottom-left">Ribbon placement: Bottom left</option>
+                </select>
               </label>
 
               <label style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 13 }}><input type="checkbox" checked={autoPriceEnabled} onChange={e => setAutoPriceEnabled(e.target.checked)} /> Auto pricing (base x market factor)</label>
