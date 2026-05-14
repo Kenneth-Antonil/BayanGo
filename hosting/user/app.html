@@ -3831,6 +3831,25 @@
               </button>
               <div style={{ fontSize:18, fontWeight:800, color:"#111827", marginBottom:4 }}>Seasonal Listings</div>
               <div style={{ fontSize:12, color:"#6B7280", marginBottom:12 }}>Limited-time items curated by admin.</div>
+              {seasonalBanner?.enabled && (seasonalBanner?.carouselImages?.length || seasonalBanner?.imageUrl) && (() => {
+                const bannerImages = (seasonalBanner?.carouselImages?.length ? seasonalBanner.carouselImages : [seasonalBanner.imageUrl]).filter(Boolean);
+                const [bannerIndex] = [seasonalBannerIndex];
+                const activeBanner = bannerImages[bannerIndex % bannerImages.length];
+                return (
+                  <div style={{ marginBottom:14 }}>
+                    <div style={{ width:"100%", border:"1px solid #FCD34D", borderRadius:14, overflow:"hidden", background:"#FFFBEB", aspectRatio:"1783 / 567" }}>
+                      <img src={activeBanner} alt="Seasonal listings banner" style={{ width:"100%", height:"100%", objectFit:"cover", display:"block" }} />
+                    </div>
+                    {bannerImages.length > 1 && (
+                      <div style={{ display:"flex", justifyContent:"center", gap:5, marginTop:6 }}>
+                        {bannerImages.map((_, idx) => (
+                          <button key={idx} onClick={() => setSeasonalBannerIndex(idx)} style={{ width:8, height:8, borderRadius:"50%", background: idx === (bannerIndex % bannerImages.length) ? "#F59E0B" : "#FDE68A", border:"none", padding:0 }} />
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                );
+              })()}
               <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:12 }}>
                 {seasonalProducts.map((p, i) => (
                   <ProductCard key={p.id} p={p} cart={cart} add={add} rem={rem} cartWeightUnit={cartWeightUnit} setCartWeightUnit={setCartWeightUnit} openStoreProfile={openStoreProfile} catColor={activeCatMeta.color} catIcon={activeCatMeta.icon} animDelay={`${i*.05}s`} />
