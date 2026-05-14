@@ -482,7 +482,7 @@
               const list = [];
               snap.forEach(c => {
                 const v = c.val() || {};
-                list.push({ id: c.key, name: typeof v.name === "string" ? v.name : "", cat: typeof v.cat === "string" ? v.cat : "isda", price: Number.isFinite(Number(v.price)) ? Number(v.price) : 0, basePrice: Number.isFinite(Number(v.basePrice)) ? Number(v.basePrice) : (Number.isFinite(Number(v.price)) ? Number(v.price) : 0), autoPriceEnabled: v.autoPriceEnabled !== false, unit: typeof v.unit === "string" && v.unit ? v.unit : "kg", stock: v.stock !== false, img: typeof v.img === "string" ? v.img : "", source: (v.source === "bg_mart" || v.source === "seasonal_listing") ? v.source : "market", createdAt: Number(v.createdAt || 0) });
+                list.push({ id: c.key, name: typeof v.name === "string" ? v.name : "", cat: typeof v.cat === "string" ? v.cat : "isda", price: Number.isFinite(Number(v.price)) ? Number(v.price) : 0, basePrice: Number.isFinite(Number(v.basePrice)) ? Number(v.basePrice) : (Number.isFinite(Number(v.price)) ? Number(v.price) : 0), autoPriceEnabled: v.autoPriceEnabled !== false, unit: typeof v.unit === "string" && v.unit ? v.unit : "kg", stock: v.stock !== false, img: typeof v.img === "string" ? v.img : "", promoRibbon: typeof v.promoRibbon === "string" ? v.promoRibbon : "", source: (v.source === "bg_mart" || v.source === "seasonal_listing") ? v.source : "market", createdAt: Number(v.createdAt || 0) });
               });
               setProducts(list);
             }, err => console.error("Products error:", err));
@@ -1966,7 +1966,9 @@
       const [quickUnit, setQuickUnit] = useState("pc");
       const [quickPrice, setQuickPrice] = useState("");
       const [quickImage, setQuickImage] = useState("");
+      const [quickRibbon, setQuickRibbon] = useState("");
       const [quickImageUploading, setQuickImageUploading] = useState(false);
+      const [quickRibbonUploading, setQuickRibbonUploading] = useState(false);
       const [seasonalPageTitle, setSeasonalPageTitle] = useState("Seasonal Listings");
       const [seasonalTitleSaving, setSeasonalTitleSaving] = useState(false);
       const [saving, setSaving] = useState(false);
@@ -2079,8 +2081,8 @@
         if (!Number.isFinite(price) || price < 0) return toast.error("Enter valid price.");
         setSaving(true);
         try {
-          await onAdd({ name, cat: quickCat, unit: quickUnit || "pc", basePrice: roundPrice(price), price: roundPrice(price), img: quickImage.trim(), stock: true, autoPriceEnabled: true, source: sourceKey });
-          setQuickName(""); setQuickPrice(""); setQuickImage("");
+          await onAdd({ name, cat: quickCat, unit: quickUnit || "pc", basePrice: roundPrice(price), price: roundPrice(price), img: quickImage.trim(), promoRibbon: quickRibbon.trim(), stock: true, autoPriceEnabled: true, source: sourceKey });
+          setQuickName(""); setQuickPrice(""); setQuickImage(""); setQuickRibbon("");
           toast.success(`${itemLabel} listing added.`);
         } catch (err) {
           toast.error("Failed: " + (err.message || "unknown"));
@@ -2104,6 +2106,25 @@
           toast.error("Upload failed: " + (err.message || err));
         } finally {
           setQuickImageUploading(false);
+        }
+      };
+
+
+      const uploadQuickRibbon = async (file) => {
+        if (!file || !String(file.type || "").startsWith("image/")) return toast.error("Please upload an image file.");
+        if (file.size > 5 * 1024 * 1024) return toast.error("Image must be < 5MB.");
+        setQuickRibbonUploading(true);
+        try {
+          const st = await initStorage();
+          const safeName = (file.name || "promo-ribbon.jpg").replace(/[^\w.\-]/g, "_");
+          const storageRef = st.ref(st.storage, `product_ribbons/${isSeasonal ? "seasonal" : "bgmart"}/${Date.now()}_${safeName}`);
+          await st.uploadBytes(storageRef, file);
+          setQuickRibbon(await st.getDownloadURL(storageRef));
+          toast.success("Promo ribbon uploaded.");
+        } catch (err) {
+          toast.error("Ribbon upload failed: " + (err.message || err));
+        } finally {
+          setQuickRibbonUploading(false);
         }
       };
 
@@ -2215,7 +2236,19 @@
                 </label>
               </div>
             </div>
-            <button onClick={addListing} disabled={saving} className="btn btn-brand" style={{ width: "100%", padding: 11 }}>{saving ? "Saving..." : `Add ${itemLabel} Listing`}</button>
+                        <div style={{ display: "grid", gridTemplateColumns: "1fr", gap: 8, marginBottom: 10 }}>
+              <div style={{ border: "1px solid var(--border)", borderRadius: 10, padding: 8, display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8 }}>
+                <div style={{ minWidth: 0, fontSize: 11, color: quickRibbon ? "var(--text-secondary)" : "var(--text-muted)", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
+                  {quickRibbon ? "Promo ribbon uploaded" : "No promo ribbon uploaded"}
+                </div>
+                <label className="btn btn-outline" style={{ fontSize: 11, padding: "6px 10px", cursor: quickRibbonUploading ? "not-allowed" : "pointer", opacity: quickRibbonUploading ? 0.65 : 1 }}>
+                  <Ic n={quickRibbonUploading ? "spinner" : "image"} className={quickRibbonUploading ? "spin" : ""} />
+                  {quickRibbonUploading ? "Uploading..." : (quickRibbon ? "Replace Ribbon" : "Upload Ribbon")}
+                  <input type="file" accept="image/*" style={{ display: "none" }} disabled={quickRibbonUploading} onChange={e => { if (e.target.files?.[0]) uploadQuickRibbon(e.target.files[0]); e.target.value = ""; }} />
+                </label>
+              </div>
+            </div>
+            <button onClick={addListing} disabled={saving || quickRibbonUploading} className="btn btn-brand" style={{ width: "100%", padding: 11 }}>{saving ? "Saving..." : `Add ${itemLabel} Listing`}</button>
             <div style={{ fontSize: 11, color: "var(--text-muted)", marginTop: 8 }}>Listings added here appear in the {itemLabel} page in the user app.</div>
           </div>
 
@@ -2249,9 +2282,11 @@
       const [unit, setUnit] = useState(product?.unit || "kg");
       const [basePrice, setBasePrice] = useState(Number.isFinite(Number(product?.basePrice)) ? String(Number(product.basePrice)) : Number.isFinite(Number(product?.price)) ? String(Number(product.price)) : "");
       const [img, setImg] = useState(product?.img || "");
+      const [promoRibbon, setPromoRibbon] = useState(product?.promoRibbon || "");
       const [stock, setStock] = useState(product?.stock !== false);
       const [autoPriceEnabled, setAutoPriceEnabled] = useState(product?.autoPriceEnabled !== false);
       const [imageUploading, setImageUploading] = useState(false);
+      const [ribbonUploading, setRibbonUploading] = useState(false);
       const categoryOptions = (product?.source === "bg_mart" || product?.source === "seasonal_listing") ? BG_MART_CATEGORIES : CATEGORIES;
 
       const uploadProductImage = async (file) => {
@@ -2268,17 +2303,33 @@
         finally { setImageUploading(false); }
       };
 
+
+
+      const uploadPromoRibbon = async (file) => {
+        if (!file || !String(file.type || "").startsWith("image/")) return toast.error("Please upload an image file.");
+        if (file.size > 5 * 1024 * 1024) return toast.error("Image must be < 5MB.");
+        setRibbonUploading(true);
+        try {
+          const st = await initStorage();
+          const safeName = (file.name || "promo-ribbon.jpg").replace(/[^\w.\-]/g, "_");
+          const storageRef = st.ref(st.storage, `product_ribbons/${Date.now()}_${safeName}`);
+          await st.uploadBytes(storageRef, file);
+          setPromoRibbon(await st.getDownloadURL(storageRef));
+        } catch (err) { toast.error("Promo ribbon upload failed: " + (err.message || err)); }
+        finally { setRibbonUploading(false); }
+      };
+
       const handleSubmit = async (e) => {
         e?.preventDefault?.();
         const cleanName = name.trim();
         if (!cleanName) return toast.error("Product name is required.");
         const parsedPrice = Number(basePrice);
         if (!Number.isFinite(parsedPrice) || parsedPrice < 0) return toast.error("Enter a valid base price.");
-        await onSave({ name: cleanName, cat, unit: unit.trim() || "kg", basePrice: roundPrice(parsedPrice), price: roundPrice(parsedPrice), img: img.trim(), stock, autoPriceEnabled, source: (product?.source === "bg_mart" || product?.source === "seasonal_listing") ? product.source : "market" });
+        await onSave({ name: cleanName, cat, unit: unit.trim() || "kg", basePrice: roundPrice(parsedPrice), price: roundPrice(parsedPrice), img: img.trim(), promoRibbon: promoRibbon.trim(), stock, autoPriceEnabled, source: (product?.source === "bg_mart" || product?.source === "seasonal_listing") ? product.source : "market" });
       };
 
       return (
-        <div style={{ position: "fixed", inset: 0, zIndex: 450, background: "rgba(0,0,0,.5)", backdropFilter: "blur(4px)", display: "flex", alignItems: "center", justifyContent: "center", padding: 20 }} onClick={() => !saving && !imageUploading && onClose?.()}>
+        <div style={{ position: "fixed", inset: 0, zIndex: 450, background: "rgba(0,0,0,.5)", backdropFilter: "blur(4px)", display: "flex", alignItems: "center", justifyContent: "center", padding: 20 }} onClick={() => !saving && !imageUploading && !ribbonUploading && onClose?.()}>
           <form className="pop" onClick={e => e.stopPropagation()} onSubmit={handleSubmit} style={{ width: "100%", maxWidth: 480, background: "var(--surface)", borderRadius: 20, padding: "22px 20px", border: "1px solid var(--border)" }}>
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}>
               <h3 style={{ fontSize: 17, fontWeight: 800 }}>{product ? "Edit Product" : "Add Product"}</h3>
@@ -2298,12 +2349,24 @@
                   <input type="file" accept="image/*" style={{ display: "none" }} disabled={imageUploading} onChange={e => { if (e.target.files?.[0]) uploadProductImage(e.target.files[0]); e.target.value = ""; }} />
                 </label>
               </div>
+              <label style={{ display: "flex", flexDirection: "column", gap: 6, fontSize: 12, color: "var(--text-muted)" }}>
+                Promo ribbon image (optional)
+                {promoRibbon ? <img src={promoRibbon} alt="Promo ribbon" style={{ width: "100%", maxHeight: 90, objectFit: "contain", borderRadius: 10, background: "#fff", border: "1px solid var(--border)", padding: 6 }} /> : null}
+                <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
+                  <input value={promoRibbon} onChange={e => setPromoRibbon(e.target.value)} placeholder="Promo ribbon image URL" className="input" />
+                  <label style={{ display: "inline-flex", alignItems: "center", gap: 6, padding: "8px 12px", borderRadius: 8, border: "1px solid var(--border)", cursor: ribbonUploading ? "default" : "pointer", fontSize: 12, fontWeight: 700, background: "var(--surface)" }}>
+                    <Ic n="image" size={13} />{ribbonUploading ? "Uploading..." : (promoRibbon ? "Replace Ribbon" : "Upload Ribbon")}
+                    <input type="file" accept="image/*" style={{ display: "none" }} disabled={ribbonUploading} onChange={e => { if (e.target.files?.[0]) uploadPromoRibbon(e.target.files[0]); e.target.value = ""; }} />
+                  </label>
+                </div>
+              </label>
+
               <label style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 13 }}><input type="checkbox" checked={autoPriceEnabled} onChange={e => setAutoPriceEnabled(e.target.checked)} /> Auto pricing (base x market factor)</label>
               <label style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 13 }}><input type="checkbox" checked={stock} onChange={e => setStock(e.target.checked)} /> In stock</label>
             </div>
             <div style={{ marginTop: 16, display: "flex", gap: 10 }}>
               <button type="button" onClick={() => !saving && onClose?.()} disabled={saving} className="btn btn-outline" style={{ flex: 1, padding: 12 }}>Cancel</button>
-              <button type="submit" disabled={saving || imageUploading} className="btn btn-brand" style={{ flex: 1, padding: 12 }}>{saving ? "Saving..." : "Save Product"}</button>
+              <button type="submit" disabled={saving || imageUploading || ribbonUploading} className="btn btn-brand" style={{ flex: 1, padding: 12 }}>{saving ? "Saving..." : "Save Product"}</button>
             </div>
           </form>
         </div>
