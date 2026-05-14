@@ -1958,7 +1958,7 @@
       const sourceKey = isSeasonal ? "seasonal_listing" : "bg_mart";
       const settingsPath = isSeasonal ? "settings/seasonalBanner" : "settings/bgMartPromoBanner";
       const panelTitle = isSeasonal ? "Seasonal Listings" : "BG Mart Listings";
-      const bannerTitle = isSeasonal ? "Seasonal Banner (320x50)" : "Promotional Banner";
+      const bannerTitle = isSeasonal ? "Seasonal Banner (1783x567)" : "Promotional Banner";
       const itemLabel = isSeasonal ? "Seasonal" : "BG Mart";
       const bgMartProducts = useMemo(() => products.filter((p) => p.source === sourceKey), [products, sourceKey]);
       const [quickName, setQuickName] = useState("");
@@ -1971,6 +1971,7 @@
       const [editProd, setEditProd] = useState(null);
       const [modalSaving, setModalSaving] = useState(false);
       const [promoBannerUrl, setPromoBannerUrl] = useState("");
+      const [seasonalCarousel, setSeasonalCarousel] = useState([]);
       const [bannerEnabled, setBannerEnabled] = useState(false);
       const [bannerSaving, setBannerSaving] = useState(false);
       const [bannerUploading, setBannerUploading] = useState(false);
@@ -1984,6 +1985,7 @@
             const raw = snap.val() || {};
             if (active) {
               setPromoBannerUrl(typeof raw.imageUrl === "string" ? raw.imageUrl : "");
+              setSeasonalCarousel(Array.isArray(raw.carouselImages) ? raw.carouselImages.filter((u) => typeof u === "string" && u.trim()) : []);
               setBannerEnabled(raw.enabled === true);
             }
           } catch (err) {
@@ -1993,7 +1995,7 @@
         return () => { active = false; };
       }, [settingsPath]);
 
-      const savePromoBanner = async (nextUrl, enabled = true) => {
+      const savePromoBanner = async (nextUrl, enabled = true, carouselOverride = null) => {
         setBannerSaving(true);
         try {
           const { db, fns } = await initFirebase();
@@ -2002,6 +2004,7 @@
             await fns.update(fns.ref(db, settingsPath), {
               imageUrl: cleanUrl,
               enabled: enabled === true,
+              ...(isSeasonal ? { carouselImages: Array.isArray(carouselOverride) ? carouselOverride : seasonalCarousel } : {}),
               updatedAt: Date.now(),
             });
           } else {
@@ -2027,11 +2030,37 @@
           const storageRef = st.ref(st.storage, `${isSeasonal ? "seasonal_banners" : "bgmart_banners"}/${Date.now()}_${safeName}`);
           await st.uploadBytes(storageRef, file);
           const url = await st.getDownloadURL(storageRef);
-          await savePromoBanner(url);
+          const nextCarousel = isSeasonal ? [...seasonalCarousel, url] : null;
+          if (isSeasonal) setSeasonalCarousel(nextCarousel);
+          await savePromoBanner(url, true, nextCarousel);
         } catch (err) {
           toast.error("Upload failed: " + (err.message || "unknown"));
         } finally {
           setBannerUploading(false);
+        }
+      };
+
+
+
+      const removeCarouselImage = async (url) => {
+        if (!isSeasonal) return;
+        const nextCarousel = seasonalCarousel.filter((item) => item !== url);
+        setSeasonalCarousel(nextCarousel);
+        setBannerSaving(true);
+        try {
+          const { db, fns } = await initFirebase();
+          await fns.update(fns.ref(db, settingsPath), {
+            imageUrl: nextCarousel[0] || promoBannerUrl || "",
+            carouselImages: nextCarousel,
+            enabled: nextCarousel.length > 0 ? bannerEnabled : false,
+            updatedAt: Date.now(),
+          });
+          if (!nextCarousel.length) setPromoBannerUrl("");
+          toast.success("Carousel image removed.");
+        } catch (err) {
+          toast.error("Failed to remove image: " + (err.message || "unknown"));
+        } finally {
+          setBannerSaving(false);
         }
       };
 
@@ -2098,6 +2127,20 @@
                 {bannerEnabled ? "Hide Banner" : "Show Banner"}
               </button>
             </div>
+
+            {isSeasonal && seasonalCarousel.length > 0 && (
+              <div style={{ marginTop: 10 }}>
+                <div style={{ fontSize: 11, fontWeight: 700, color: "var(--text-muted)", marginBottom: 6 }}>Carousel images ({seasonalCarousel.length})</div>
+                <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill,minmax(110px,1fr))", gap: 8 }}>
+                  {seasonalCarousel.map((url, idx) => (
+                    <div key={`${url}_${idx}`} style={{ border: "1px solid var(--border)", borderRadius: 10, overflow: "hidden", background: "#fff" }}>
+                      <img src={url} alt={`Seasonal carousel ${idx + 1}`} style={{ width: "100%", height: 70, objectFit: "cover", display: "block" }} />
+                      <button onClick={() => removeCarouselImage(url)} disabled={bannerSaving || bannerUploading} className="btn btn-danger" style={{ width: "100%", borderRadius: 0, fontSize: 11, padding: "6px 8px" }}>Remove</button>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
             <div style={{ fontSize: 11, color: "var(--text-muted)", marginTop: 8 }}>This image appears on the {itemLabel} area in the user app. If none is uploaded, nothing is shown.</div>
           </div>
 

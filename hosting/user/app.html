@@ -876,7 +876,7 @@
       const [pushError, setPushError] = useState("");
       const [gcashSettings, setGcashSettings] = useState({ number:"09618280589", name:"Kenneth Antonil", qrUrl:"" });
       const [bgMartPromoBannerUrl, setBgMartPromoBannerUrl] = useState("");
-      const [seasonalBanner, setSeasonalBanner] = useState({ imageUrl: "", enabled: false });
+      const [seasonalBanner, setSeasonalBanner] = useState({ imageUrl: "", enabled: false, carouselImages: [] });
       const [appAvailability, setAppAvailability] = useState({ userAppEnabled: true, userAppMessage: "" });
       const [openLegalDoc, setOpenLegalDoc] = useState(null);
 
@@ -1072,7 +1072,9 @@
             const raw = snap.val() || {};
             const imageUrlRaw = typeof raw.imageUrl === "string" ? raw.imageUrl.trim() : "";
             const imageUrl = await normalizeStorageDownloadUrl(imageUrlRaw);
-            setSeasonalBanner({ imageUrl, enabled: raw.enabled === true && !!imageUrl });
+            const carouselRaw = Array.isArray(raw.carouselImages) ? raw.carouselImages : [];
+            const normalizedCarousel = (await Promise.all(carouselRaw.map((entry) => normalizeStorageDownloadUrl(String(entry || "").trim())))).filter(Boolean);
+            setSeasonalBanner({ imageUrl, enabled: raw.enabled === true && (!!imageUrl || normalizedCarousel.length > 0), carouselImages: normalizedCarousel });
           });
         };
 
@@ -1788,6 +1790,7 @@
       const [activePage,     setActivePage]     = useState(getInitialPage);
       const [activeService,  setActiveService]  = useState("pabili");
       const [hideBatchTimer, setHideBatchTimer] = useState(false);
+      const [seasonalBannerIndex, setSeasonalBannerIndex] = useState(0);
       const [showUserMenu,   setShowUserMenu]   = useState(false);
       const [customItems,    setCustomItems]    = useState(() => {
         try { const v = localStorage.getItem(`bayango_bag_custom_${user?.uid || "anon"}`); return v ? JSON.parse(v) : []; } catch { return []; }
@@ -2067,6 +2070,14 @@
         });
       }, [activeCat, activeService, catalogProducts, featuredMerchantId, searchQ]);
       const seasonalProducts = useMemo(() => products.filter((p) => p.source === "seasonal_listing"), [products]);
+
+      useEffect(() => {
+        const images = (seasonalBanner?.carouselImages?.length ? seasonalBanner.carouselImages : seasonalBanner?.imageUrl ? [seasonalBanner.imageUrl] : []).filter(Boolean);
+        if (images.length <= 1) return;
+        const id = setInterval(() => setSeasonalBannerIndex((prev) => (prev + 1) % images.length), 3500);
+        return () => clearInterval(id);
+      }, [seasonalBanner]);
+
       useEffect(() => {
         if (activeShopCategories.some((cat) => cat.id === activeCat)) return;
         setActiveCat("all");
@@ -2698,13 +2709,25 @@
                 {searchQ && <button onClick={() => setSearchQ("")} style={{ opacity:.45, color:"#64748B", fontSize:16 }}><Ic n="xmark" /></button>}
             </div>
           </div>
-          {activeService === "pabili" && seasonalBanner?.enabled && seasonalBanner?.imageUrl && (
-            <div style={{ padding:"0 20px 8px" }}>
-              <button onClick={() => setActivePage("seasonal")} style={{ width:"100%", border:"1px solid #FCD34D", borderRadius:10, overflow:"hidden", padding:0, background:"#FFFBEB", display:"block" }}>
-                <img src={seasonalBanner.imageUrl} alt="Seasonal listings banner" style={{ width:320, maxWidth:"100%", height:50, objectFit:"cover", display:"block", margin:"0 auto" }} />
-              </button>
-            </div>
-          )}
+          {activeService === "pabili" && seasonalBanner?.enabled && (seasonalBanner?.carouselImages?.length || seasonalBanner?.imageUrl) && (() => {
+            const bannerImages = (seasonalBanner?.carouselImages?.length ? seasonalBanner.carouselImages : [seasonalBanner.imageUrl]).filter(Boolean);
+            const [bannerIndex, setBannerIndex] = [seasonalBannerIndex, setSeasonalBannerIndex];
+            const activeBanner = bannerImages[bannerIndex % bannerImages.length];
+            return (
+              <div style={{ padding:"0 20px 8px" }}>
+                <button onClick={() => setActivePage("seasonal")} style={{ width:"100%", border:"1px solid #FCD34D", borderRadius:14, overflow:"hidden", padding:0, background:"#FFFBEB", display:"block", aspectRatio:"1783 / 567" }}>
+                  <img src={activeBanner} alt="Seasonal listings banner" style={{ width:"100%", height:"100%", objectFit:"cover", display:"block" }} />
+                </button>
+                {bannerImages.length > 1 && (
+                  <div style={{ display:"flex", justifyContent:"center", gap:6, marginTop:8 }}>
+                    {bannerImages.map((_, idx) => (
+                      <button key={idx} onClick={() => setSeasonalBannerIndex(idx)} style={{ width:8, height:8, borderRadius:"50%", background: idx === (bannerIndex % bannerImages.length) ? "#F59E0B" : "#FDE68A", border:"none", padding:0 }} />
+                    ))}
+                  </div>
+                )}
+              </div>
+            );
+          })()}
 
           {/* ── Batch Timer ── */}
           {activeService !== "bgmart" && <BatchTimerBanner hidden={hideBatchTimer} onDismiss={() => setHideBatchTimer(true)} />}
