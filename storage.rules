@@ -67,6 +67,12 @@ service firebase.storage {
       allow write: if isSignedIn() || isImageUpload(5 * 1024 * 1024);
     }
 
+    match /seasonal_banners/{allPaths=**} {
+      allow read: if true;
+      allow write: if isSignedIn() || isImageUpload(5 * 1024 * 1024);
+    }
+
+
     match /rider_profiles/{allPaths=**} {
       allow read: if true;
       allow write: if isSignedIn() && isImageUpload(5 * 1024 * 1024);
