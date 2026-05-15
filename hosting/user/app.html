@@ -1655,43 +1655,36 @@
               borderRadius:6, zIndex:2, letterSpacing:".06em"
             }}>SOLD OUT</div>
           )}
-          
+          {p.promoRibbon && String(p.promoRibbon).startsWith("http") && (() => {
+            const placement = String(p.promoRibbonPlacement || "top-right");
+            const ribbonPosition = {
+              top: placement.startsWith("top") ? 0 : "auto",
+              bottom: placement.startsWith("bottom") ? 0 : "auto",
+              left: placement.endsWith("left") ? 0 : "auto",
+              right: placement.endsWith("right") ? 0 : "auto",
+            };
+            return (
+              <img
+                src={p.promoRibbon}
+                alt={`${p.name || "Product"} promo`}
+                style={{
+                  position:"absolute",
+                  ...ribbonPosition,
+                  width:74,
+                  height:74,
+                  objectFit:"contain",
+                  zIndex:3,
+                  pointerEvents:"none"
+                }}
+                onError={e => { e.currentTarget.style.display = "none"; }}
+              />
+            );
+          })()}
           <div style={{
             width:"100%", aspectRatio:"1 / 1", position:"relative", overflow:"hidden",
             background:`linear-gradient(135deg,${color}18,${color}07)`,
             display:"flex", alignItems:"center", justifyContent:"center"
           }}>
-            {p.promoRibbon && String(p.promoRibbon).startsWith("http") && (() => {
-              const placement = String(p.promoRibbonPlacement || "top-right").toLowerCase();
-              const isTop = placement.startsWith("top");
-              const isLeft = placement.endsWith("left");
-              return (
-                <div style={{
-                  position:"absolute",
-                  top: isTop ? 0 : "auto",
-                  bottom: isTop ? "auto" : 0,
-                  left: isLeft ? 0 : "auto",
-                  right: isLeft ? "auto" : 0,
-                  width:"72%",
-                  height:28,
-                  overflow:"hidden",
-                  borderRadius: isTop
-                    ? (isLeft ? "0 0 10px 0" : "0 0 0 10px")
-                    : (isLeft ? "0 10px 0 0" : "10px 0 0 0"),
-                  boxShadow:"0 8px 18px rgba(0,0,0,.2)",
-                  border:"1px solid rgba(255,255,255,.78)",
-                  zIndex:4,
-                  pointerEvents:"none"
-                }}>
-                  <img
-                    src={p.promoRibbon}
-                    alt={`${p.name || "Product"} promo`}
-                    style={{ width:"100%", height:"100%", objectFit:"cover", objectPosition:"center" }}
-                    onError={e => { e.currentTarget.parentElement.style.display = "none"; }}
-                  />
-                </div>
-              );
-            })()}
             {p.merchantLogo && (
               <div style={{
                 position:"absolute", top:8, left:8, width:26, height:26, borderRadius:"50%",
