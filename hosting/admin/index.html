@@ -2322,6 +2322,20 @@
       const [variation, setVariation] = useState(product?.variation || "");
       const [preOrder, setPreOrder] = useState(Boolean(product?.preOrder));
       const [receiveBy, setReceiveBy] = useState(product?.receiveBy || "");
+      useEffect(() => {
+        setName(product?.name || "");
+        setCat(product?.cat || "isda");
+        setUnit(product?.unit || "kg");
+        setBasePrice(Number.isFinite(Number(product?.basePrice)) ? String(Number(product.basePrice)) : Number.isFinite(Number(product?.price)) ? String(Number(product.price)) : "");
+        setImg(product?.img || "");
+        setPromoRibbon(product?.promoRibbon || "");
+        setPromoRibbonPlacement(product?.promoRibbonPlacement || "top-right");
+        setStock(product?.stock !== false);
+        setAutoPriceEnabled(product?.autoPriceEnabled !== false);
+        setVariation(product?.variation || "");
+        setPreOrder(Boolean(product?.preOrder));
+        setReceiveBy(product?.receiveBy || "");
+      }, [product]);
       const [imageUploading, setImageUploading] = useState(false);
       const [ribbonUploading, setRibbonUploading] = useState(false);
       const categoryOptions = (product?.source === "bg_mart" || product?.source === "seasonal_listing") ? BG_MART_CATEGORIES : CATEGORIES;
