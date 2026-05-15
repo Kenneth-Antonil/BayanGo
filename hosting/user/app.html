@@ -1846,6 +1846,9 @@
       const [cartWeightUnit, setCartWeightUnit] = useState(() => {
         try { const v = localStorage.getItem(`bayango_bag_weight_${user?.uid || "anon"}`); return v ? JSON.parse(v) : {}; } catch { return {}; }
       });
+      const [cartItemOptions, setCartItemOptions] = useState(() => {
+        try { const v = localStorage.getItem(`bayango_bag_options_${user?.uid || "anon"}`); return v ? JSON.parse(v) : {}; } catch { return {}; }
+      });
       const [paymentMethod,  setPaymentMethod]  = useState("COD");
       const [qrPhModal, setQrPhModal] = useState(null); // { orderId, total }
       const [showAddressEditor, setShowAddressEditor] = useState(false);
@@ -1899,6 +1902,9 @@
       useEffect(() => {
         try { localStorage.setItem(bagStorageKey("custom"), JSON.stringify(customItems)); } catch {}
       }, [customItems, bagStorageKey]);
+      useEffect(() => {
+        try { localStorage.setItem(bagStorageKey("options"), JSON.stringify(cartItemOptions)); } catch {}
+      }, [cartItemOptions, bagStorageKey]);
 
       useEffect(() => {
         if (!user?.uid) {
@@ -1961,7 +1967,8 @@
         .map(([id,qty]) => {
           const prod = products.find(p => p.id === id || p.id === +id);
           const weightUnit = prod?.unit === "kg" ? (cartWeightUnit[id] || 1) : 1;
-          return { ...prod, qty, weightUnit };
+          const itemOptions = cartItemOptions[id] || {};
+          return { ...prod, qty, weightUnit, selectedVariation: itemOptions.variation || "", isPreOrder: Boolean(itemOptions.preOrder) };
         })
         .filter(i => i.name);
 
@@ -2027,7 +2034,16 @@
       const add = id => setCart(c => ({ ...c, [id]:(c[id]||0)+1 }));
       const rem = id => setCart(c => {
         const n = { ...c };
-        if (n[id] > 1) n[id]--; else delete n[id];
+        if (n[id] > 1) n[id]--;
+        else {
+          delete n[id];
+          setCartItemOptions(prev => {
+            if (!prev[id]) return prev;
+            const next = { ...prev };
+            delete next[id];
+            return next;
+          });
+        }
         return n;
       });
 
@@ -2374,6 +2390,8 @@
               } : {}),
               // Preserve partner item source so merchant/admin flows can identify them correctly.
               source: i.source || "market",
+              selectedVariation: i.selectedVariation || "",
+              isPreOrder: Boolean(i.isPreOrder),
             };
           }),
           ...customItems.map(i => ({ ...i, price: i.estPrice })),
@@ -2424,6 +2442,7 @@
           }
           setUseLoyaltyPoints(false);
           setCart({});
+          setCartItemOptions({});
           setCartWeightUnit({});
           setCustomItems([]);
           setVoucherCode("");
@@ -3105,6 +3124,38 @@
                             : `${fmt(i.price)} each`}
                         </div>
                         <div style={{ fontSize:12, fontWeight:800, color:"#166534", marginTop:3 }}>{fmt(i.price * i.weightUnit * i.qty)}</div>
+                        {(i.variation || i.preOrder) && (
+                          <div style={{ marginTop:6, display:"grid", gap:6 }}>
+                            {i.variation && (() => {
+                              const variationOptions = String(i.variation)
+                                .split(/[,/|]/g)
+                                .map(v => v.trim())
+                                .filter(Boolean);
+                              return variationOptions.length > 1 ? (
+                                <select
+                                  value={i.selectedVariation || ""}
+                                  onChange={e => setCartItemOptions(prev => ({ ...prev, [i.id]: { ...(prev[i.id] || {}), variation: e.target.value } }))}
+                                  style={{ width:"100%", fontSize:11, padding:"6px 8px", borderRadius:8, border:"1px solid #D1D5DB", background:"#fff" }}
+                                >
+                                  <option value="">Select variation</option>
+                                  {variationOptions.map(opt => <option key={opt} value={opt}>{opt}</option>)}
+                                </select>
+                              ) : (
+                                <div style={{ fontSize:11, color:"#4B5563" }}>Variation: <strong>{variationOptions[0]}</strong></div>
+                              );
+                            })()}
+                            {i.preOrder && (
+                              <label style={{ display:"inline-flex", alignItems:"center", gap:6, fontSize:11, fontWeight:700, color:"#4F46E5" }}>
+                                <input
+                                  type="checkbox"
+                                  checked={Boolean(i.isPreOrder)}
+                                  onChange={e => setCartItemOptions(prev => ({ ...prev, [i.id]: { ...(prev[i.id] || {}), preOrder: e.target.checked } }))}
+                                />
+                                Mark this item as pre-order
+                              </label>
+                            )}
+                          </div>
+                        )}
                       </div>
                       <div style={{ display:"flex", alignItems:"center", gap:6, background:"#F8FAFC", border:"1px solid #E5E7EB", borderRadius:999, padding:"3px 4px", flexShrink:0 }}>
                         <button type="button" onClick={() => rem(i.id)} style={{ width:26, height:26, borderRadius:"50%", background:"#fff", border:"1px solid #E5E7EB", color:"#166534", display:"flex", alignItems:"center", justifyContent:"center", fontSize:11, cursor:"pointer" }}>
