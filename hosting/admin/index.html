@@ -234,6 +234,23 @@
     const DEFAULT_MARKET_FACTOR = 1;
     const fmt = n => "\u20B1" + Number(n).toLocaleString("en-PH", { minimumFractionDigits:0 });
     const roundPrice = (n) => Math.max(0, Math.round(Number(n) || 0));
+    const normalizeVariationText = (value) => {
+      if (Array.isArray(value)) return value.map(v => String(v || "").trim()).filter(Boolean).join(" / ");
+      if (value == null) return "";
+      return String(value).trim();
+    };
+    const normalizePreOrderFlag = (valueOrObject) => {
+      const raw = valueOrObject && typeof valueOrObject === "object"
+        ? (valueOrObject.preOrder ?? valueOrObject.preorder ?? valueOrObject.pre_order ?? valueOrObject.isPreOrder)
+        : valueOrObject;
+      if (typeof raw === "string") {
+        const v = raw.trim().toLowerCase();
+        if (!v) return false;
+        if (["false", "0", "no", "off"].includes(v)) return false;
+        if (["true", "1", "yes", "on"].includes(v)) return true;
+      }
+      return Boolean(raw);
+    };
     const computeLivePrice = (product, marketPricing = {}) => {
       const manualPrice = Number(product?.basePrice ?? product?.price ?? 0);
       if (product?.autoPriceEnabled === false) return roundPrice(manualPrice);
@@ -2319,8 +2336,8 @@
       const [promoRibbonPlacement, setPromoRibbonPlacement] = useState(product?.promoRibbonPlacement || "top-right");
       const [stock, setStock] = useState(product?.stock !== false);
       const [autoPriceEnabled, setAutoPriceEnabled] = useState(product?.autoPriceEnabled !== false);
-      const [variation, setVariation] = useState(product?.variation || "");
-      const [preOrder, setPreOrder] = useState(Boolean(product?.preOrder));
+      const [variation, setVariation] = useState(normalizeVariationText(product?.variation));
+      const [preOrder, setPreOrder] = useState(normalizePreOrderFlag(product));
       const [receiveBy, setReceiveBy] = useState(product?.receiveBy || "");
       useEffect(() => {
         setName(product?.name || "");
@@ -2332,8 +2349,8 @@
         setPromoRibbonPlacement(product?.promoRibbonPlacement || "top-right");
         setStock(product?.stock !== false);
         setAutoPriceEnabled(product?.autoPriceEnabled !== false);
-        setVariation(product?.variation || "");
-        setPreOrder(Boolean(product?.preOrder));
+        setVariation(normalizeVariationText(product?.variation));
+        setPreOrder(normalizePreOrderFlag(product));
         setReceiveBy(product?.receiveBy || "");
       }, [product]);
       const [imageUploading, setImageUploading] = useState(false);
@@ -2376,7 +2393,7 @@
         if (!cleanName) return toast.error("Product name is required.");
         const parsedPrice = Number(basePrice);
         if (!Number.isFinite(parsedPrice) || parsedPrice < 0) return toast.error("Enter a valid base price.");
-        await onSave({ name: cleanName, cat, unit: unit.trim() || "kg", basePrice: roundPrice(parsedPrice), price: roundPrice(parsedPrice), img: img.trim(), promoRibbon: promoRibbon.trim(), promoRibbonPlacement, variation: variation.trim(), preOrder: Boolean(preOrder), receiveBy: preOrder ? receiveBy.trim() : "", stock, autoPriceEnabled, source: (product?.source === "bg_mart" || product?.source === "seasonal_listing") ? product.source : "market" });
+        await onSave({ name: cleanName, cat, unit: unit.trim() || "kg", basePrice: roundPrice(parsedPrice), price: roundPrice(parsedPrice), img: img.trim(), promoRibbon: promoRibbon.trim(), promoRibbonPlacement, variation: normalizeVariationText(variation), preOrder: normalizePreOrderFlag(preOrder), receiveBy: preOrder ? receiveBy.trim() : "", stock, autoPriceEnabled, source: (product?.source === "bg_mart" || product?.source === "seasonal_listing") ? product.source : "market" });
       };
 
       return (
