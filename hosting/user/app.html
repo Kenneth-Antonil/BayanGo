@@ -1664,8 +1664,8 @@
             {p.promoRibbon && String(p.promoRibbon).startsWith("http") && (() => {
               const placement = String(p.promoRibbonPlacement || "top-right");
               const ribbonPosition = {
-                top: placement.startsWith("top") ? 0 : "auto",
-                bottom: placement.startsWith("bottom") ? 0 : "auto",
+                top: "auto",
+                bottom: 0,
                 left: placement.endsWith("left") ? 0 : "auto",
                 right: placement.endsWith("right") ? 0 : "auto",
               };
@@ -1676,8 +1676,8 @@
                   style={{
                     position:"absolute",
                     ...ribbonPosition,
-                    width:74,
-                    height:74,
+                    width:96,
+                    height:96,
                     objectFit:"contain",
                     zIndex:4,
                     pointerEvents:"none"
