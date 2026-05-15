@@ -1655,31 +1655,25 @@
               borderRadius:6, zIndex:2, letterSpacing:".06em"
             }}>SOLD OUT</div>
           )}
-          {p.promoRibbon && String(p.promoRibbon).startsWith("http") && (() => {
-            const placement = String(p.promoRibbonPlacement || "top-right");
-            const ribbonPosition = {
-              top: placement.startsWith("top") ? 0 : "auto",
-              bottom: placement.startsWith("bottom") ? 0 : "auto",
-              left: placement.endsWith("left") ? 0 : "auto",
-              right: placement.endsWith("right") ? 0 : "auto",
-            };
-            return (
+
+          {p.promoStripVisible === true && p.promoStripImage && String(p.promoStripImage).startsWith("http") && (
+            <div style={{
+              position:"absolute",
+              left:0,
+              right:0,
+              top:0,
+              height:34,
+              zIndex:3,
+              pointerEvents:"none"
+            }}>
               <img
-                src={p.promoRibbon}
-                alt={`${p.name || "Product"} promo`}
-                style={{
-                  position:"absolute",
-                  ...ribbonPosition,
-                  width:74,
-                  height:74,
-                  objectFit:"contain",
-                  zIndex:3,
-                  pointerEvents:"none"
-                }}
+                src={p.promoStripImage}
+                alt={`${p.name || "Product"} promo strip`}
+                style={{ width:"100%", height:"100%", objectFit:"cover" }}
                 onError={e => { e.currentTarget.style.display = "none"; }}
               />
-            );
-          })()}
+            </div>
+          )}
           <div style={{
             width:"100%", aspectRatio:"1 / 1", position:"relative", overflow:"hidden",
             background:`linear-gradient(135deg,${color}18,${color}07)`,
