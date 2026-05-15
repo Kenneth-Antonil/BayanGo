@@ -1661,31 +1661,25 @@
             background:`linear-gradient(135deg,${color}18,${color}07)`,
             display:"flex", alignItems:"center", justifyContent:"center"
           }}>
-            {p.promoRibbon && String(p.promoRibbon).startsWith("http") && (() => {
-              const placement = String(p.promoRibbonPlacement || "top-right");
-              const ribbonPosition = {
-                top: "auto",
-                bottom: 0,
-                left: placement.endsWith("left") ? 0 : "auto",
-                right: placement.endsWith("right") ? 0 : "auto",
-              };
-              return (
-                <img
-                  src={p.promoRibbon}
-                  alt={`${p.name || "Product"} promo`}
-                  style={{
-                    position:"absolute",
-                    ...ribbonPosition,
-                    width:96,
-                    height:96,
-                    objectFit:"contain",
-                    zIndex:4,
-                    pointerEvents:"none"
-                  }}
-                  onError={e => { e.currentTarget.style.display = "none"; }}
-                />
-              );
-            })()}
+            {p.promoRibbon && String(p.promoRibbon).startsWith("http") && (
+              <img
+                src={p.promoRibbon}
+                alt={`${p.name || "Product"} promo`}
+                style={{
+                  position:"absolute",
+                  left:0,
+                  right:0,
+                  bottom:0,
+                  width:"100%",
+                  height:"18%",
+                  objectFit:"cover",
+                  objectPosition:"center",
+                  zIndex:4,
+                  pointerEvents:"none"
+                }}
+                onError={e => { e.currentTarget.style.display = "none"; }}
+              />
+            )}
             {p.merchantLogo && (
               <div style={{
                 position:"absolute", top:8, left:8, width:26, height:26, borderRadius:"50%",
