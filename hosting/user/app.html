@@ -1676,7 +1676,7 @@
                   onError={e => { e.target.remove(); }} />
               : <Ic n={icon} size={36} style={{color, opacity:.3}} />
             }
-            {p.promoStripVisible === true && p.promoStripImage && String(p.promoStripImage).startsWith("http") ? (
+            {p.promoStripVisible === true && p.promoStripImage && String(p.promoStripImage).startsWith("http") && (
               <div style={{
                 position:"absolute",
                 left:0,
@@ -1694,33 +1694,6 @@
                   style={{ width:"100%", height:"100%", objectFit:"cover" }}
                   onError={e => { e.currentTarget.style.display = "none"; }}
                 />
-              </div>
-            ) : (
-              <div style={{
-                position:"absolute",
-                left:0,
-                right:0,
-                bottom:0,
-                height:"15%",
-                minHeight:34,
-                background:"linear-gradient(90deg, rgba(2,132,199,.95) 0%, rgba(14,116,144,.95) 100%)",
-                color:"#fff",
-                display:"flex",
-                alignItems:"center",
-                justifyContent:"space-between",
-                padding:"0 10px",
-                zIndex:2,
-                boxShadow:"0 -3px 10px rgba(0,0,0,.22)"
-              }}>
-                <div style={{ display:"flex", alignItems:"center", gap:6, minWidth:0 }}>
-                  <Ic n="credit-card" size={11} style={{ opacity:.95, flexShrink:0 }} />
-                  <span style={{ fontSize:10, fontWeight:800, letterSpacing:".02em", whiteSpace:"nowrap", overflow:"hidden", textOverflow:"ellipsis" }}>
-                    Pay via GCash · Secure Checkout
-                  </span>
-                </div>
-                <span style={{ fontSize:9, fontWeight:900, background:"rgba(255,255,255,.2)", border:"1px solid rgba(255,255,255,.35)", borderRadius:999, padding:"2px 7px", flexShrink:0 }}>
-                  PROMO
-                </span>
               </div>
             )}
           </div>
