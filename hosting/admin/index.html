@@ -1970,6 +1970,7 @@
       const [quickRibbonPlacement, setQuickRibbonPlacement] = useState("top-right");
       const [quickVariation, setQuickVariation] = useState("");
       const [quickPreOrder, setQuickPreOrder] = useState(false);
+      const [quickReceiveBy, setQuickReceiveBy] = useState("");
       const [quickImageUploading, setQuickImageUploading] = useState(false);
       const [quickRibbonUploading, setQuickRibbonUploading] = useState(false);
       const [seasonalPageTitle, setSeasonalPageTitle] = useState("Seasonal Listings");
@@ -2093,8 +2094,8 @@
         if (!Number.isFinite(price) || price < 0) return toast.error("Enter valid price.");
         setSaving(true);
         try {
-          await onAdd({ name, cat: quickCat, unit: quickUnit || "pc", basePrice: roundPrice(price), price: roundPrice(price), img: quickImage.trim(), promoRibbon: quickRibbon.trim(), promoRibbonPlacement: quickRibbonPlacement, variation: quickVariation.trim(), preOrder: Boolean(quickPreOrder), stock: true, autoPriceEnabled: true, source: sourceKey });
-          setQuickName(""); setQuickPrice(""); setQuickImage(""); setQuickRibbon(""); setQuickRibbonPlacement("top-right"); setQuickVariation(""); setQuickPreOrder(false);
+          await onAdd({ name, cat: quickCat, unit: quickUnit || "pc", basePrice: roundPrice(price), price: roundPrice(price), img: quickImage.trim(), promoRibbon: quickRibbon.trim(), promoRibbonPlacement: quickRibbonPlacement, variation: quickVariation.trim(), preOrder: Boolean(quickPreOrder), receiveBy: quickPreOrder ? quickReceiveBy.trim() : "", stock: true, autoPriceEnabled: true, source: sourceKey });
+          setQuickName(""); setQuickPrice(""); setQuickImage(""); setQuickRibbon(""); setQuickRibbonPlacement("top-right"); setQuickVariation(""); setQuickPreOrder(false); setQuickReceiveBy("");
           toast.success(`${itemLabel} listing added.`);
         } catch (err) {
           toast.error("Failed: " + (err.message || "unknown"));
@@ -2278,6 +2279,7 @@
                 <input type="checkbox" checked={quickPreOrder} onChange={e => setQuickPreOrder(e.target.checked)} />
                 Pre-order item
               </label>
+              {quickPreOrder && <input value={quickReceiveBy} onChange={e => setQuickReceiveBy(e.target.value)} placeholder="Receive by (e.g. 2-3 days)" className="input" />}
             </div>
             <button onClick={addListing} disabled={saving || quickRibbonUploading} className="btn btn-brand" style={{ width: "100%", padding: 11 }}>{saving ? "Saving..." : `Add ${itemLabel} Listing`}</button>
             <div style={{ fontSize: 11, color: "var(--text-muted)", marginTop: 8 }}>Listings added here appear in the {itemLabel} page in the user app.</div>
@@ -2319,6 +2321,7 @@
       const [autoPriceEnabled, setAutoPriceEnabled] = useState(product?.autoPriceEnabled !== false);
       const [variation, setVariation] = useState(product?.variation || "");
       const [preOrder, setPreOrder] = useState(Boolean(product?.preOrder));
+      const [receiveBy, setReceiveBy] = useState(product?.receiveBy || "");
       const [imageUploading, setImageUploading] = useState(false);
       const [ribbonUploading, setRibbonUploading] = useState(false);
       const categoryOptions = (product?.source === "bg_mart" || product?.source === "seasonal_listing") ? BG_MART_CATEGORIES : CATEGORIES;
@@ -2359,7 +2362,7 @@
         if (!cleanName) return toast.error("Product name is required.");
         const parsedPrice = Number(basePrice);
         if (!Number.isFinite(parsedPrice) || parsedPrice < 0) return toast.error("Enter a valid base price.");
-        await onSave({ name: cleanName, cat, unit: unit.trim() || "kg", basePrice: roundPrice(parsedPrice), price: roundPrice(parsedPrice), img: img.trim(), promoRibbon: promoRibbon.trim(), promoRibbonPlacement, variation: variation.trim(), preOrder: Boolean(preOrder), stock, autoPriceEnabled, source: (product?.source === "bg_mart" || product?.source === "seasonal_listing") ? product.source : "market" });
+        await onSave({ name: cleanName, cat, unit: unit.trim() || "kg", basePrice: roundPrice(parsedPrice), price: roundPrice(parsedPrice), img: img.trim(), promoRibbon: promoRibbon.trim(), promoRibbonPlacement, variation: variation.trim(), preOrder: Boolean(preOrder), receiveBy: preOrder ? receiveBy.trim() : "", stock, autoPriceEnabled, source: (product?.source === "bg_mart" || product?.source === "seasonal_listing") ? product.source : "market" });
       };
 
       return (
@@ -2409,6 +2412,7 @@
 
               <input value={variation} onChange={e => setVariation(e.target.value)} placeholder="Variation (optional, e.g. 500ml / 1L)" className="input" />
               <label style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 13 }}><input type="checkbox" checked={preOrder} onChange={e => setPreOrder(e.target.checked)} /> Pre-order item</label>
+              {preOrder && <input value={receiveBy} onChange={e => setReceiveBy(e.target.value)} placeholder="Receive by (e.g. 2-3 days)" className="input" />}
               <label style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 13 }}><input type="checkbox" checked={autoPriceEnabled} onChange={e => setAutoPriceEnabled(e.target.checked)} /> Auto pricing (base x market factor)</label>
               <label style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 13 }}><input type="checkbox" checked={stock} onChange={e => setStock(e.target.checked)} /> In stock</label>
             </div>
