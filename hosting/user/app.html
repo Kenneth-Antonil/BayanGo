@@ -2112,10 +2112,8 @@
             String(p.storeName || "").toLowerCase().includes(q)
           );
         });
-        if (activeService === "bgmart" || !featuredMerchantId) return list;
-        const featuredProducts = list.filter((p) => p.merchantId === featuredMerchantId);
-        const hasBuySignal = featuredProducts.some((p) => getProductBuyScore(p) > 0);
-        if (!hasBuySignal) return list;
+        const shouldPrioritizeFeatured = activeService !== "bgmart" && activeCat === "all" && featuredMerchantId;
+        if (!shouldPrioritizeFeatured) return list;
 
         return [...list].sort((a, b) => {
           const aFeatured = a.merchantId === featuredMerchantId;
