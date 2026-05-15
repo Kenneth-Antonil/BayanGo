@@ -1636,6 +1636,16 @@
             background:`linear-gradient(135deg,${color}18,${color}07)`,
             display:"flex", alignItems:"center", justifyContent:"center"
           }}>
+            {p.promoStripVisible === true && String(p.promoStripImage || "").startsWith("http") && (
+              <img
+                src={p.promoStripImage}
+                alt={`${p.name} promo strip`}
+                style={{
+                  position:"absolute", top:8, right:8, width:"58%", maxWidth:110,
+                  height:"auto", objectFit:"contain", zIndex:4, filter:"drop-shadow(0 3px 8px rgba(0,0,0,.25))"
+                }}
+              />
+            )}
             {p.merchantLogo && (
               <div style={{
                 position:"absolute", top:8, left:8, width:26, height:26, borderRadius:"50%",
