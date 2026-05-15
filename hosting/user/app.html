@@ -1628,7 +1628,7 @@
 
     /* ══════════════════ USER APP ══════════════════ */
     /* ══════════════════ PRODUCT CARD ══════════════════ */
-    function ProductCard({ p, cart, add, rem, cartWeightUnit, setCartWeightUnit, openStoreProfile, catColor, catIcon, animDelay }) {
+    function ProductCard({ p, cart, add, rem, cartWeightUnit, setCartWeightUnit, openStoreProfile, catColor, catIcon, animDelay, onOpenDetails }) {
       const isStoreClosed = p.source === "partner" && p.storeOpen === false;
       const color = catColor || "#94A3B8";
       const icon  = catIcon  || "tag";
@@ -1656,7 +1656,7 @@
             }}>SOLD OUT</div>
           )}
 
-          <div style={{
+          <button onClick={() => onOpenDetails && onOpenDetails(p)} style={{
             width:"100%", aspectRatio:"1 / 1", position:"relative", overflow:"hidden",
             background:`linear-gradient(135deg,${color}18,${color}07)`,
             display:"flex", alignItems:"center", justifyContent:"center"
@@ -1686,9 +1686,9 @@
                   onError={e => { e.target.remove(); }} />
               : <Ic n={icon} size={36} style={{color, opacity:.3}} />
             }
-          </div>
+          </button>
           <div style={{ padding:"10px 12px 12px", flex:1, display:"flex", flexDirection:"column" }}>
-            <div style={{ fontSize:13, fontWeight:700, color:"#111", lineHeight:1.3, marginBottom:3 }}>{p.name}</div>
+            <button onClick={() => onOpenDetails && onOpenDetails(p)} style={{ fontSize:13, fontWeight:700, color:"#111", lineHeight:1.3, marginBottom:3, textAlign:"left" }}>{p.name}</button>
             <div style={{ fontSize:10, color:"#9CA3AF", marginBottom:8 }}>per {p.unit}</div>
             {(p.variation || p.preOrder) && (
               <div style={{ display:"flex", flexWrap:"wrap", gap:6, marginBottom:8 }}>
@@ -1841,6 +1841,9 @@
       const [cartItemOptions, setCartItemOptions] = useState(() => {
         try { const v = localStorage.getItem(`bayango_bag_options_${user?.uid || "anon"}`); return v ? JSON.parse(v) : {}; } catch { return {}; }
       });
+      const [selectedProduct, setSelectedProduct] = useState(null);
+      const [detailPhotoIndex, setDetailPhotoIndex] = useState(0);
+      const [pendingVariation, setPendingVariation] = useState("");
       const [paymentMethod,  setPaymentMethod]  = useState("COD");
       const [qrPhModal, setQrPhModal] = useState(null); // { orderId, total }
       const [showAddressEditor, setShowAddressEditor] = useState(false);
@@ -2038,6 +2041,28 @@
         }
         return n;
       });
+      const parseVariationOptions = (variation = "") => String(variation).split(/[,/|]/g).map(v => v.trim()).filter(Boolean);
+      const parseDetailPhotos = (product = {}) => {
+        const list = [];
+        if (String(product.img || "").startsWith("http")) list.push(product.img);
+        const raw = product.detailPhotos;
+        const parsed = Array.isArray(raw) ? raw : String(raw || "").split(/[\n,]/g).map(v => v.trim()).filter(Boolean);
+        parsed.forEach((url) => { if (String(url).startsWith("http") && !list.includes(url)) list.push(url); });
+        return list;
+      };
+      const openProductDetails = (product) => {
+        setSelectedProduct(product);
+        setDetailPhotoIndex(0);
+        const options = parseVariationOptions(product?.variation);
+        const cartVariation = cartItemOptions[product?.id]?.variation || "";
+        setPendingVariation(cartVariation || (options.length === 1 ? options[0] : ""));
+      };
+      const addFromDetails = (productId) => {
+        add(productId);
+        if (pendingVariation) {
+          setCartItemOptions(prev => ({ ...prev, [productId]: { ...(prev[productId] || {}), variation: pendingVariation } }));
+        }
+      };
 
       const addCustom = () => {
         if (!newItemName.trim()) return;
@@ -2954,6 +2979,7 @@
                   cartWeightUnit={cartWeightUnit}
                   setCartWeightUnit={setCartWeightUnit}
                   openStoreProfile={openStoreProfile}
+                  onOpenDetails={openProductDetails}
                   catColor={activeShopCategories.find(c=>c.id===p.cat)?.color}
                   catIcon={activeShopCategories.find(c=>c.id===p.cat)?.icon}
                   animDelay={`${i*.05}s`}
@@ -2967,6 +2993,36 @@
               </div>
             )}
           </div>
+          {selectedProduct && (() => {
+            const variationOptions = parseVariationOptions(selectedProduct.variation);
+            const photos = parseDetailPhotos(selectedProduct);
+            return (
+              <div style={{ position:"fixed", inset:0, zIndex:260, background:"rgba(0,0,0,.6)", padding:14, display:"flex", alignItems:"center", justifyContent:"center" }} onClick={() => setSelectedProduct(null)}>
+                <div onClick={(e) => e.stopPropagation()} style={{ width:"100%", maxWidth:430, maxHeight:"90vh", overflowY:"auto", borderRadius:18, background:"#fff" }}>
+                  <div style={{ position:"relative", aspectRatio:"1/1", background:"#F1F5F9" }}>
+                    {photos[detailPhotoIndex] ? <img src={photos[detailPhotoIndex]} alt={selectedProduct.name} style={{ width:"100%", height:"100%", objectFit:"cover" }} /> : <div style={{ width:"100%", height:"100%", display:"flex", alignItems:"center", justifyContent:"center", color:"#94A3B8" }}><Ic n="image" size={36} /></div>}
+                    <button onClick={() => setSelectedProduct(null)} style={{ position:"absolute", top:8, right:8, width:32, height:32, borderRadius:999, background:"rgba(0,0,0,.55)", color:"#fff" }}><Ic n="xmark" /></button>
+                  </div>
+                  {photos.length > 1 && <div style={{ display:"flex", gap:8, padding:"10px 12px 0", overflowX:"auto" }}>{photos.map((photo, idx) => <button key={photo+idx} onClick={() => setDetailPhotoIndex(idx)} style={{ width:60, height:60, borderRadius:10, overflow:"hidden", border: idx===detailPhotoIndex?"2px solid #16A34A":"1px solid #CBD5E1", flexShrink:0 }}><img src={photo} alt="" style={{ width:"100%", height:"100%", objectFit:"cover" }} /></button>)}</div>}
+                  <div style={{ padding:14 }}>
+                    <div style={{ fontWeight:800, fontSize:17 }}>{selectedProduct.name}</div>
+                    <div style={{ color:"#6B7280", fontSize:12, marginTop:4 }}>{selectedProduct.description || "No additional details yet."}</div>
+                    <div style={{ fontWeight:900, color:"#166534", fontSize:20, marginTop:10 }}>{fmt(selectedProduct.price)}</div>
+                    {variationOptions.length > 0 && (
+                      <div style={{ marginTop:12 }}>
+                        <div style={{ fontSize:12, fontWeight:700, marginBottom:6 }}>Variation</div>
+                        <select value={pendingVariation} onChange={e => setPendingVariation(e.target.value)} style={{ width:"100%", border:"1px solid #D1D5DB", borderRadius:10, padding:"9px 10px", fontSize:13 }}>
+                          <option value="">Select variation</option>
+                          {variationOptions.map(opt => <option key={opt} value={opt}>{opt}</option>)}
+                        </select>
+                      </div>
+                    )}
+                    <button onClick={() => addFromDetails(selectedProduct.id)} style={{ width:"100%", marginTop:14, borderRadius:12, padding:"12px", background:"#16A34A", color:"#fff", fontWeight:800 }}>Add to Bag</button>
+                  </div>
+                </div>
+              </div>
+            );
+          })()}
 
           {/* ── Custom List Drawer ── */}
           {showCustomList && (

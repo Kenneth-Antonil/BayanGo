@@ -305,7 +305,7 @@ function App(){
   const [expandedOrder,setExpandedOrder]=React.useState(null);
 
   // Menu/Listings
-  const [form,setForm]=React.useState({name:"",cat:DEFAULT_LISTING_CATEGORY,price:"",unit:"pc",stock:"",img:"",menuTime:"all",description:"",variation:"",preOrder:false,receiveBy:""});
+  const [form,setForm]=React.useState({name:"",cat:DEFAULT_LISTING_CATEGORY,price:"",unit:"pc",stock:"",img:"",detailPhotos:"",menuTime:"all",description:"",variation:"",preOrder:false,receiveBy:""});
   const [listingImageFile,setListingImageFile]=React.useState(null);
   const [savingListing,setSavingListing]=React.useState(false);
   const [editingId,setEditingId]=React.useState(null);
@@ -725,7 +725,7 @@ function App(){
         await ref.put(listingImageFile);
         img=await ref.getDownloadURL();
       }
-      const payload={name,cat:ensureValidCategory(form.cat),img,price,unit:form.unit||"pc",stock,basePrice:price,autoPriceEnabled:false,merchantId:user.uid,merchantLogo:merchant?.logoUrl||"",storeName:merchant?.storeName||"",active:true,approved:true,menuTime:form.menuTime||"all",description:(form.description||"").trim(),variation:normalizeListingVariation(form.variation),preOrder:normalizePreOrderFlag(form),receiveBy:(form.receiveBy||"").trim(),updatedAt:Date.now()};
+      const payload={name,cat:ensureValidCategory(form.cat),img,detailPhotos:(form.detailPhotos||"").trim(),price,unit:form.unit||"pc",stock,basePrice:price,autoPriceEnabled:false,merchantId:user.uid,merchantLogo:merchant?.logoUrl||"",storeName:merchant?.storeName||"",active:true,approved:true,menuTime:form.menuTime||"all",description:(form.description||"").trim(),variation:normalizeListingVariation(form.variation),preOrder:normalizePreOrderFlag(form),receiveBy:(form.receiveBy||"").trim(),updatedAt:Date.now()};
       if(editingId){
         await db.ref("merchant_listings/"+user.uid+"/"+editingId).update(payload);
         toast("Listing updated.","ok");
@@ -733,7 +733,7 @@ function App(){
         await db.ref("merchant_listings/"+user.uid).push({...payload,createdAt:Date.now(),soldOut:false});
         toast("Listing added to your menu.","ok");
       }
-      setForm({name:"",cat:DEFAULT_LISTING_CATEGORY,price:"",unit:"pc",stock:"",img:"",menuTime:"all",description:"",variation:"",preOrder:false,receiveBy:""});
+      setForm({name:"",cat:DEFAULT_LISTING_CATEGORY,price:"",unit:"pc",stock:"",img:"",detailPhotos:"",menuTime:"all",description:"",variation:"",preOrder:false,receiveBy:""});
       setListingImageFile(null);setEditingId(null);
     }catch(e){toast("Save failed: "+(e?.message||"Unknown"),"err");}
     finally{setSavingListing(false);}
@@ -741,7 +741,7 @@ function App(){
 
   const editListing=(l)=>{
     setEditingId(l.id);setListingImageFile(null);
-    setForm({name:l.name||"",cat:ensureValidCategory(l.cat||DEFAULT_LISTING_CATEGORY),price:String(l.price??""),unit:l.unit||"pc",stock:String(l.stock??""),img:l.img||"",menuTime:l.menuTime||"all",description:l.description||"",variation:normalizeListingVariation(l.variation),preOrder:normalizePreOrderFlag(l),receiveBy:l.receiveBy||""});
+    setForm({name:l.name||"",cat:ensureValidCategory(l.cat||DEFAULT_LISTING_CATEGORY),price:String(l.price??""),unit:l.unit||"pc",stock:String(l.stock??""),img:l.img||"",detailPhotos:l.detailPhotos||"",menuTime:l.menuTime||"all",description:l.description||"",variation:normalizeListingVariation(l.variation),preOrder:normalizePreOrderFlag(l),receiveBy:l.receiveBy||""});
     setActiveSection("menu");
   };
 
@@ -750,7 +750,7 @@ function App(){
     if(!window.confirm("Delete this listing?"))return;
     try{
       await db.ref("merchant_listings/"+user.uid+"/"+id).remove();
-      if(editingId===id){setEditingId(null);setForm({name:"",cat:DEFAULT_LISTING_CATEGORY,price:"",unit:"pc",stock:"",img:"",menuTime:"all",description:"",variation:"",preOrder:false,receiveBy:""});setListingImageFile(null);}
+      if(editingId===id){setEditingId(null);setForm({name:"",cat:DEFAULT_LISTING_CATEGORY,price:"",unit:"pc",stock:"",img:"",detailPhotos:"",menuTime:"all",description:"",variation:"",preOrder:false,receiveBy:""});setListingImageFile(null);}
       toast("Listing removed.","ok");
     }catch(e){toast("Could not delete listing: "+(e?.message||"Unknown"),"err");}
   };
@@ -1271,6 +1271,7 @@ function App(){
           </select>
         </div>
         <textarea placeholder="Item description (optional)" value={form.description} onChange={e=>setForm(f=>({...f,description:e.target.value}))} rows={2}/>
+        <textarea placeholder="Detail photo URLs (optional, comma or new line separated)" value={form.detailPhotos} onChange={e=>setForm(f=>({...f,detailPhotos:e.target.value}))} rows={2}/>
         <div className="grid-2">
           <input placeholder="Variation (optional, e.g. Large / Spicy)" value={form.variation} onChange={e=>setForm(f=>({...f,variation:e.target.value}))}/>
           <input placeholder="Receive by (optional, e.g. 2-3 days)" value={form.receiveBy} onChange={e=>setForm(f=>({...f,receiveBy:e.target.value}))}/>
@@ -1290,7 +1291,7 @@ function App(){
         </div>
         <div className="btn-group">
           <button className="btn-primary" onClick={saveListing} disabled={savingListing}>{savingListing?"Saving...":(editingId?"Update Listing":"Save Listing")}</button>
-          {editingId && <button className="btn-muted" onClick={()=>{setEditingId(null);setListingImageFile(null);setForm({name:"",cat:DEFAULT_LISTING_CATEGORY,price:"",unit:"pc",stock:"",img:"",menuTime:"all",description:"",variation:"",preOrder:false,receiveBy:""});}}>Cancel</button>}
+          {editingId && <button className="btn-muted" onClick={()=>{setEditingId(null);setListingImageFile(null);setForm({name:"",cat:DEFAULT_LISTING_CATEGORY,price:"",unit:"pc",stock:"",img:"",detailPhotos:"",menuTime:"all",description:"",variation:"",preOrder:false,receiveBy:""});}}>Cancel</button>}
         </div>
       </div>
 
