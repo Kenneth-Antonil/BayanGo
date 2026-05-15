@@ -5402,8 +5402,8 @@
         const orderStatuses = getOrderStatuses(o);
         const idx = orderStatuses.findIndex(s => s.key === o.status);
         const canTrackRider = o.status === "buying" || o.status === "pickup" || o.status === "otw" || o.status === "in_boat";
-        const hasQrPhBanner = o.paymentMethod === "QRPH" && o.status !== "delivered" && o.status !== "cancelled";
-        const hasBottomAttachment = canTrackRider || hasQrPhBanner;
+        const hasCustomItemsStrip = !!(o.hasCustomItems || (o.items || []).some(i => i.isCustom));
+        const hasBottomAttachment = canTrackRider || hasCustomItemsStrip;
         return (
           <div style={{ marginBottom:12 }}>
             <button onClick={() => onTrack(o)} style={{
@@ -5467,15 +5467,11 @@
               )}
             </button>
 
-            {/* QR PH payment banner for QRPH orders */}
-            {o.paymentMethod === "QRPH" && o.status !== "delivered" && o.status !== "cancelled" && (
-              (o.gcashPaymentConfirmed || o.paymentStatus === "paid")
-                ? <div style={{ padding:"10px 14px", background:"#DCFCE7", color:"#166534", fontSize:12, fontWeight:700, display:"flex", alignItems:"center", gap:6, borderTop:"1px solid #BBF7D0" }}>
-                    <img src="https://i.imgur.com/AsLCstJ.png" alt="QR Ph" style={{width:16,height:16,objectFit:"contain",borderRadius:3}} /> QR PH Payment Confirmed — Handa na!
-                  </div>
-                : <div onClick={() => onPayQrPh?.(o.id)} style={{ padding:"10px 14px", background:"#EFF6FF", color:"#1D4ED8", fontSize:12, fontWeight:700, display:"flex", alignItems:"center", gap:6, borderTop:"1px solid #BFDBFE", cursor:"pointer" }}>
-                    <img src="https://i.imgur.com/AsLCstJ.png" alt="QR Ph" style={{width:16,height:16,objectFit:"contain",borderRadius:3}} /> Bayad via QR PH — Pindutin para magbayad
-                  </div>
+            {/* Custom items strip */}
+            {hasCustomItemsStrip && (
+              <div style={{ padding:"10px 14px", background:"#FFF7ED", color:"#C2410C", fontSize:12, fontWeight:700, display:"flex", alignItems:"center", gap:6, borderTop:"1px solid #FED7AA" }}>
+                <Ic n="triangle-exclamation" /> May custom item/s ang order na ito.
+              </div>
             )}
 
             {/* Track Rider button */}
