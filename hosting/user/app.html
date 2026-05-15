@@ -1665,25 +1665,23 @@
               const placement = String(p.promoRibbonPlacement || "top-right").toLowerCase();
               const isTop = placement.startsWith("top");
               const isLeft = placement.endsWith("left");
-              const cornerStyle = {
-                top: isTop ? 10 : "auto",
-                bottom: isTop ? "auto" : 10,
-                left: isLeft ? -36 : "auto",
-                right: isLeft ? "auto" : -36,
-                transform: `rotate(${isTop ? (isLeft ? -35 : 35) : (isLeft ? 35 : -35)}deg)`
-              };
               return (
                 <div style={{
                   position:"absolute",
-                  width:128,
-                  height:30,
+                  top: isTop ? 0 : "auto",
+                  bottom: isTop ? "auto" : 0,
+                  left: isLeft ? 0 : "auto",
+                  right: isLeft ? "auto" : 0,
+                  width:"72%",
+                  height:28,
                   overflow:"hidden",
-                  borderRadius:10,
-                  boxShadow:"0 8px 18px rgba(0,0,0,.22)",
-                  border:"1px solid rgba(255,255,255,.75)",
+                  borderRadius: isTop
+                    ? (isLeft ? "0 0 10px 0" : "0 0 0 10px")
+                    : (isLeft ? "0 10px 0 0" : "10px 0 0 0"),
+                  boxShadow:"0 8px 18px rgba(0,0,0,.2)",
+                  border:"1px solid rgba(255,255,255,.78)",
                   zIndex:4,
-                  pointerEvents:"none",
-                  ...cornerStyle
+                  pointerEvents:"none"
                 }}>
                   <img
                     src={p.promoRibbon}
