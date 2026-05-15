@@ -261,6 +261,23 @@ function getStatusBadge(s){
   return {cls:map[s]||"badge-new",label:labels[s]||s};
 }
 
+const normalizeListingVariation=(value)=>{
+  if(Array.isArray(value))return value.map(v=>String(v||"").trim()).filter(Boolean).join(" / ");
+  if(value==null)return "";
+  return String(value).trim();
+};
+
+const normalizePreOrderFlag=(listing={})=>{
+  const raw=listing?.preOrder ?? listing?.preorder ?? listing?.pre_order ?? listing?.isPreOrder;
+  if(typeof raw==="string"){
+    const v=raw.trim().toLowerCase();
+    if(!v)return false;
+    if(["false","0","no","off"].includes(v))return false;
+    if(["true","1","yes","on"].includes(v))return true;
+  }
+  return Boolean(raw);
+};
+
 function App(){
   const [user,setUser]=React.useState(null);
   const [authReady,setAuthReady]=React.useState(false);
@@ -416,7 +433,7 @@ function App(){
     const listRef=db.ref("merchant_listings/"+uid);
     listRef.on("value",s=>{
       const a=[];
-      s.forEach(c=>{const v=c.val();if(v&&typeof v==="object")a.push({id:c.key,...v});});
+      s.forEach(c=>{const v=c.val();if(v&&typeof v==="object")a.push({id:c.key,...v,variation:normalizeListingVariation(v.variation),preOrder:normalizePreOrderFlag(v)});});
       a.sort((x,y)=>(y.updatedAt||y.createdAt||0)-(x.updatedAt||x.createdAt||0));
       setListings(a);
     });
@@ -708,7 +725,7 @@ function App(){
         await ref.put(listingImageFile);
         img=await ref.getDownloadURL();
       }
-      const payload={name,cat:ensureValidCategory(form.cat),img,price,unit:form.unit||"pc",stock,basePrice:price,autoPriceEnabled:false,merchantId:user.uid,merchantLogo:merchant?.logoUrl||"",storeName:merchant?.storeName||"",active:true,approved:true,menuTime:form.menuTime||"all",description:(form.description||"").trim(),variation:(form.variation||"").trim(),preOrder:Boolean(form.preOrder),receiveBy:(form.receiveBy||"").trim(),updatedAt:Date.now()};
+      const payload={name,cat:ensureValidCategory(form.cat),img,price,unit:form.unit||"pc",stock,basePrice:price,autoPriceEnabled:false,merchantId:user.uid,merchantLogo:merchant?.logoUrl||"",storeName:merchant?.storeName||"",active:true,approved:true,menuTime:form.menuTime||"all",description:(form.description||"").trim(),variation:normalizeListingVariation(form.variation),preOrder:normalizePreOrderFlag(form),receiveBy:(form.receiveBy||"").trim(),updatedAt:Date.now()};
       if(editingId){
         await db.ref("merchant_listings/"+user.uid+"/"+editingId).update(payload);
         toast("Listing updated.","ok");
@@ -724,7 +741,7 @@ function App(){
 
   const editListing=(l)=>{
     setEditingId(l.id);setListingImageFile(null);
-    setForm({name:l.name||"",cat:ensureValidCategory(l.cat||DEFAULT_LISTING_CATEGORY),price:String(l.price??""),unit:l.unit||"pc",stock:String(l.stock??""),img:l.img||"",menuTime:l.menuTime||"all",description:l.description||"",variation:l.variation||"",preOrder:Boolean(l.preOrder),receiveBy:l.receiveBy||""});
+    setForm({name:l.name||"",cat:ensureValidCategory(l.cat||DEFAULT_LISTING_CATEGORY),price:String(l.price??""),unit:l.unit||"pc",stock:String(l.stock??""),img:l.img||"",menuTime:l.menuTime||"all",description:l.description||"",variation:normalizeListingVariation(l.variation),preOrder:normalizePreOrderFlag(l),receiveBy:l.receiveBy||""});
     setActiveSection("menu");
   };
 
