@@ -2316,6 +2316,7 @@
       const [stock, setStock] = useState(product?.stock !== false);
       const [autoPriceEnabled, setAutoPriceEnabled] = useState(product?.autoPriceEnabled !== false);
       const [variation, setVariation] = useState(normalizeVariationText(product?.variation));
+      const [detailPhotos, setDetailPhotos] = useState(product?.detailPhotos || "");
       const [preOrder, setPreOrder] = useState(normalizePreOrderFlag(product));
       const [receiveBy, setReceiveBy] = useState(product?.receiveBy || "");
       useEffect(() => {
@@ -2329,6 +2330,7 @@
         setStock(product?.stock !== false);
         setAutoPriceEnabled(product?.autoPriceEnabled !== false);
         setVariation(normalizeVariationText(product?.variation));
+        setDetailPhotos(product?.detailPhotos || "");
         setPreOrder(normalizePreOrderFlag(product));
         setReceiveBy(product?.receiveBy || "");
       }, [product]);
@@ -2372,7 +2374,7 @@
         if (!cleanName) return toast.error("Product name is required.");
         const parsedPrice = Number(basePrice);
         if (!Number.isFinite(parsedPrice) || parsedPrice < 0) return toast.error("Enter a valid base price.");
-        await onSave({ name: cleanName, cat, unit: unit.trim() || "kg", basePrice: roundPrice(parsedPrice), price: roundPrice(parsedPrice), img: img.trim(), promoStripImage: promoStripImage.trim(), promoStripVisible: Boolean(promoStripVisible), variation: normalizeVariationText(variation), preOrder: normalizePreOrderFlag(preOrder), receiveBy: preOrder ? receiveBy.trim() : "", stock, autoPriceEnabled, source: (product?.source === "bg_mart" || product?.source === "seasonal_listing") ? product.source : "market" });
+        await onSave({ name: cleanName, cat, unit: unit.trim() || "kg", basePrice: roundPrice(parsedPrice), price: roundPrice(parsedPrice), img: img.trim(), promoStripImage: promoStripImage.trim(), promoStripVisible: Boolean(promoStripVisible), detailPhotos: detailPhotos.trim(), variation: normalizeVariationText(variation), preOrder: normalizePreOrderFlag(preOrder), receiveBy: preOrder ? receiveBy.trim() : "", stock, autoPriceEnabled, source: (product?.source === "bg_mart" || product?.source === "seasonal_listing") ? product.source : "market" });
       };
 
       return (
@@ -2410,6 +2412,7 @@
               </label>
 
               <input value={variation} onChange={e => setVariation(e.target.value)} placeholder="Variation (optional, e.g. 500ml / 1L)" className="input" />
+              <textarea value={detailPhotos} onChange={e => setDetailPhotos(e.target.value)} placeholder="Detail photo URLs (optional, comma or new line separated)" className="input" rows={2} />
               <label style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 13 }}><input type="checkbox" checked={preOrder} onChange={e => setPreOrder(e.target.checked)} /> Pre-order item</label>
               {preOrder && <input value={receiveBy} onChange={e => setReceiveBy(e.target.value)} placeholder="Receive by (e.g. 2-3 days)" className="input" />}
               <label style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 13 }}><input type="checkbox" checked={autoPriceEnabled} onChange={e => setAutoPriceEnabled(e.target.checked)} /> Auto pricing (base x market factor)</label>
