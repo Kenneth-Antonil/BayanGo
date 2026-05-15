@@ -939,7 +939,6 @@
           {/* KPI Cards */}
           <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))", gap: 12, marginBottom: 20 }}>
             {[
-              { label: "Total Sales", value: fmt(totalSales), icon: "coins", iconBg: "#DCFCE7", iconColor: "#166534", delta: todaySales > 0 ? `${fmt(todaySales)} today` : null, deltaType: "success" },
               { label: "Service Revenue", value: fmt(totalServiceRevenue), icon: "peso-sign", iconBg: "#EDE9FE", iconColor: "#7C3AED" },
               { label: "Today's Orders", value: todayOrders.length, icon: "calendar-day", iconBg: "#DBEAFE", iconColor: "#1D4ED8", delta: orderDelta !== 0 ? `${orderDelta > 0 ? "+" : ""}${orderDelta} vs yesterday` : null, deltaType: orderDelta >= 0 ? "success" : "warning" },
               { label: "Active Orders", value: activeOrders.length, icon: "clock", iconBg: "#FEF3C7", iconColor: "#D97706" },
@@ -1186,7 +1185,6 @@
               { label: "Delivered", value: delivered.length, color: "var(--brand)" },
               { label: "Cancelled", value: cancelled.length, color: "var(--red)" },
               { label: "Pending", value: pending.length, color: "#D97706" },
-              { label: "Total Sales", value: fmt(totalSales), color: "var(--brand)" },
               { label: "Avg Order", value: fmt(avgOrder), color: "var(--blue)" },
             ].map(m => (
               <div key={m.label} className="card" style={{ textAlign: "center", padding: "14px 10px" }}>
