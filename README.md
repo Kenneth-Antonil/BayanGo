@@ -67,3 +67,37 @@ firebase deploy --only hosting:user-demo --project bayango-315c6
 ```
 
 If you intentionally use a different project, update `.firebaserc` target mapping for `user-demo` to a site that exists in that project.
+
+### `Failed to make request ... /.settings/rules.json?dryRun=true`
+
+If Realtime Database rules deploy fails with:
+
+`Failed to make request to https://bayango-315c6-default-rtdb.asia-southeast1.firebasedatabase.app/.settings/rules.json?dryRun=true`
+
+the issue is usually one of these:
+
+1. **Wrong Firebase project selected in CLI** (most common).
+2. **Realtime Database instance is missing/renamed** in that project.
+3. **Your account lacks Realtime Database Admin permission** for that project.
+
+Run these checks:
+
+```bash
+firebase use
+firebase projects:list
+firebase database:instances:list --project bayango-315c6
+```
+
+Expected instance name for this repo is typically `bayango-315c6-default-rtdb` in region `asia-southeast1`.
+
+Then verify auth and deploy rules explicitly to the correct project:
+
+```bash
+firebase login
+firebase deploy --only database --project bayango-315c6 --debug
+```
+
+If the instance list does not include `bayango-315c6-default-rtdb`, either:
+
+- create a Realtime Database instance in `asia-southeast1`, or
+- update all `databaseURL` values in the repo to match the actual instance URL before deploying.
