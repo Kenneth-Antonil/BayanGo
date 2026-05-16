@@ -57,6 +57,7 @@ import com.bayango.usernative.data.UserProfile
 import com.bayango.usernative.ui.UserViewModel
 
 private data class TabItem(val label: String, val icon: ImageVector)
+private enum class AuthMode { SignIn, SignUp }
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -71,7 +72,12 @@ fun BayanGoUserApp(vm: UserViewModel = viewModel()) {
     val state by vm.state.collectAsState()
 
     if (state.session == null) {
-        LoginScreen(loading = state.loading, error = state.error, onSignIn = vm::signIn)
+        LoginScreen(
+            loading = state.loading,
+            error = state.error,
+            onSignIn = vm::signIn,
+            onSignUp = vm::signUp
+        )
         return
     }
 
@@ -107,9 +113,19 @@ fun BayanGoUserApp(vm: UserViewModel = viewModel()) {
 }
 
 @Composable
-private fun LoginScreen(loading: Boolean, error: String?, onSignIn: (String, String) -> Unit) {
+private fun LoginScreen(
+    loading: Boolean,
+    error: String?,
+    onSignIn: (String, String) -> Unit,
+    onSignUp: (String, String) -> Unit
+) {
     var email by remember { mutableStateOf("") }
     var password by remember { mutableStateOf("") }
+    var confirmPassword by remember { mutableStateOf("") }
+    var authMode by remember { mutableStateOf(AuthMode.SignIn) }
+
+    val canSubmit = !loading && email.isNotBlank() && password.isNotBlank() &&
+        (authMode == AuthMode.SignIn || confirmPassword == password)
 
     Box(
         modifier = Modifier
@@ -127,8 +143,12 @@ private fun LoginScreen(loading: Boolean, error: String?, onSignIn: (String, Str
                 modifier = Modifier.padding(20.dp),
                 verticalArrangement = Arrangement.spacedBy(12.dp)
             ) {
-                Text("Welcome back", style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.primary)
-                Text("Sign in to BayanGo", style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold)
+                Text("Welcome", style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.primary)
+                Text(
+                    if (authMode == AuthMode.SignIn) "Sign in to BayanGo" else "Create your BayanGo account",
+                    style = MaterialTheme.typography.headlineSmall,
+                    fontWeight = FontWeight.Bold
+                )
                 Text("Track orders and browse nearby merchants.", style = MaterialTheme.typography.bodyMedium)
 
                 OutlinedTextField(
@@ -157,13 +177,36 @@ private fun LoginScreen(loading: Boolean, error: String?, onSignIn: (String, Str
                     )
                 )
 
+                if (authMode == AuthMode.SignUp) {
+                    OutlinedTextField(
+                        value = confirmPassword,
+                        onValueChange = { confirmPassword = it },
+                        modifier = Modifier.fillMaxWidth(),
+                        label = { Text("Confirm Password") },
+                        singleLine = true,
+                        leadingIcon = { Icon(Icons.Default.Lock, contentDescription = null) },
+                        visualTransformation = PasswordVisualTransformation(),
+                        colors = OutlinedTextFieldDefaults.colors(
+                            focusedBorderColor = MaterialTheme.colorScheme.primary,
+                            focusedLeadingIconColor = MaterialTheme.colorScheme.primary
+                        )
+                    )
+                }
+
                 if (error != null) {
                     Text(error, color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodySmall)
                 }
 
+                if (authMode == AuthMode.SignUp && confirmPassword != password) {
+                    Text("Passwords do not match.", color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodySmall)
+                }
+
                 Button(
-                    onClick = { onSignIn(email.trim(), password) },
-                    enabled = !loading,
+                    onClick = {
+                        if (authMode == AuthMode.SignIn) onSignIn(email.trim(), password)
+                        else onSignUp(email.trim(), password)
+                    },
+                    enabled = canSubmit,
                     modifier = Modifier
                         .fillMaxWidth()
                         .clip(MaterialTheme.shapes.large),
@@ -172,11 +215,21 @@ private fun LoginScreen(loading: Boolean, error: String?, onSignIn: (String, Str
                     if (loading) {
                         CircularProgressIndicator(strokeWidth = 2.dp)
                     } else {
-                        Text("Sign In")
+                        Text(if (authMode == AuthMode.SignIn) "Sign In" else "Sign Up")
                     }
                 }
+
+                Button(
+                    onClick = {
+                        authMode = if (authMode == AuthMode.SignIn) AuthMode.SignUp else AuthMode.SignIn
+                    },
+                    enabled = !loading,
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Text(if (authMode == AuthMode.SignIn) "Create account" else "I already have an account")
+                }
                 Text(
-                    "Demo mode: use any email + password with at least 6 characters.",
+                    "Same flow as PWA: puwede Sign In or Sign Up gamit email/password.",
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )

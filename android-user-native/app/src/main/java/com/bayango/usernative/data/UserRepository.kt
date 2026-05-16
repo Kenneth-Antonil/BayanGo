@@ -4,6 +4,7 @@ import kotlinx.coroutines.delay
 
 interface UserRepository {
     suspend fun signIn(email: String, password: String): Result<UserSession>
+    suspend fun signUp(email: String, password: String): Result<UserSession>
     fun merchants(): List<Merchant>
     fun orders(): List<Order>
     fun profile(email: String): UserProfile
@@ -11,6 +12,15 @@ interface UserRepository {
 
 class DemoUserRepository : UserRepository {
     override suspend fun signIn(email: String, password: String): Result<UserSession> {
+        delay(400)
+        return if (!email.contains('@') || password.length < 6) {
+            Result.failure(IllegalArgumentException("Invalid credentials. Use a valid email and 6+ character password."))
+        } else {
+            Result.success(UserSession(email.trim()))
+        }
+    }
+
+    override suspend fun signUp(email: String, password: String): Result<UserSession> {
         delay(400)
         return if (!email.contains('@') || password.length < 6) {
             Result.failure(IllegalArgumentException("Invalid credentials. Use a valid email and 6+ character password."))
