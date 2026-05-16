@@ -1636,17 +1636,6 @@
             background:`linear-gradient(135deg,${color}18,${color}07)`,
             display:"flex", alignItems:"center", justifyContent:"center"
           }}>
-            {p.promoStripVisible === true && String(p.promoStripImage || "").startsWith("http") && (
-              <img
-                src={p.promoStripImage}
-                alt={`${p.name} promo strip`}
-                style={{
-                  position:"absolute", left:0, bottom:0, width:"100%", height:"15%",
-                  objectFit:"cover", objectPosition:"center",
-                  zIndex:4, filter:"drop-shadow(0 -2px 8px rgba(0,0,0,.2))"
-                }}
-              />
-            )}
             {p.merchantLogo && (
               <div style={{
                 position:"absolute", top:8, left:8, width:26, height:26, borderRadius:"50%",
@@ -1662,6 +1651,16 @@
                   onError={e => { e.target.remove(); }} />
               : <Ic n={icon} size={36} style={{color, opacity:.3}} />
             }
+            {p.promoStripVisible === true && String(p.promoStripImage || "").startsWith("http") && (
+              <img
+                src={p.promoStripImage}
+                alt={`${p.name} promo strip`}
+                style={{
+                  position:"absolute", bottom:0, left:0, width:"60%", height:"auto",
+                  objectFit:"contain", zIndex:4
+                }}
+              />
+            )}
           </div>
           <div style={{ padding:"10px 12px 12px", flex:1, display:"flex", flexDirection:"column" }}>
             <div style={{ fontSize:13, fontWeight:700, color:"#111", lineHeight:1.3, marginBottom:3 }}>{p.name}</div>
