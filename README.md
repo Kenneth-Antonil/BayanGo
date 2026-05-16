@@ -67,3 +67,34 @@ firebase deploy --only hosting:user-demo --project bayango-315c6
 ```
 
 If you intentionally use a different project, update `.firebaserc` target mapping for `user-demo` to a site that exists in that project.
+
+## Android Native App (Kotlin)
+A new improved-native Android scaffold is available at `android-user-native/`.
+See `ANDROID_NATIVE_PLAN.md` for migration scope and milestones.
+
+## Android Native Quick Start
+1. Open `android-user-native/` in Android Studio.
+2. Set Gradle JDK to **17**.
+3. Run `app` on emulator/device.
+4. Demo login accepts any valid email + password (6+ chars).
+
+5. To connect real backend next, implement a new `UserRepository` (e.g. FirebaseUserRepository) and inject it into `UserViewModel`.
+
+
+## Firebase Integration (Auth + Firestore)
+- `FirebaseUserRepository` is implemented in `android-user-native` and ready to use.
+- Add your `google-services.json` to `android-user-native/app/`.
+- Set `USE_FIREBASE_REPOSITORY` to `true` in `app/build.gradle.kts` after wiring your Firebase project.
+- Default collection names expected:
+  - `merchants` (`name`, `etaMinutes`, `tags`)
+  - `orders` (`userEmail`, `status`, `detail`)
+  - `users` (`email`, `name`, `address`, `payment`)
+
+
+### Live Firebase Checklist
+- Replace `android-user-native/app/google-services.json` placeholder values with your actual Firebase config file.
+- `USE_FIREBASE_REPOSITORY` is now set to `true` by default in `android-user-native/app/build.gradle.kts`.
+- Firestore collections must exist with these fields:
+  - `merchants`: `name` (string), `etaMinutes` (number), `tags` (array of strings)
+  - `orders`: `userEmail` (string), `status` (string), `detail` (string)
+  - `users`: `email` (string), `name` (string), `address` (string), `payment` (string)
