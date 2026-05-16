@@ -21,9 +21,17 @@ class UserViewModel(
     val state: StateFlow<AppState> = _state.asStateFlow()
 
     fun signIn(email: String, password: String) {
+        runAuth { repo.signIn(email, password) }
+    }
+
+    fun signUp(email: String, password: String) {
+        runAuth { repo.signUp(email, password) }
+    }
+
+    private fun runAuth(block: suspend () -> Result<com.bayango.usernative.data.UserSession>) {
         viewModelScope.launch {
             _state.update { it.copy(loading = true, error = null) }
-            val result = repo.signIn(email, password)
+            val result = block()
             result.onSuccess { session ->
                 _state.update {
                     it.copy(
