@@ -16,6 +16,13 @@ class FirebaseUserRepository(
         UserSession(result.user?.email ?: email.trim())
     }
 
+    override suspend fun signUp(email: String, password: String): Result<UserSession> = runCatching {
+        require(email.contains('@')) { "Invalid email." }
+        require(password.length >= 6) { "Password must be at least 6 characters." }
+        val result = auth.createUserWithEmailAndPassword(email.trim(), password).await()
+        UserSession(result.user?.email ?: email.trim())
+    }
+
     override fun merchants(): List<Merchant> = emptyList()
     override fun orders(): List<Order> = emptyList()
     override fun profile(email: String): UserProfile = UserProfile(email.substringBefore('@'), "", "")
