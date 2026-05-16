@@ -1989,6 +1989,8 @@
       const [quickImageUploading, setQuickImageUploading] = useState(false);
       const [quickPromoStripUploading, setQuickPromoStripUploading] = useState(false);
       const [seasonalPageTitle, setSeasonalPageTitle] = useState("Seasonal Listings");
+      const [seasonalHeadline, setSeasonalHeadline] = useState("Back-to-School Deals");
+      const [seasonalSubheadline, setSeasonalSubheadline] = useState("School supplies from ₱15");
       const [seasonalTitleSaving, setSeasonalTitleSaving] = useState(false);
       const [saving, setSaving] = useState(false);
       const [showModal, setShowModal] = useState(false);
@@ -2016,7 +2018,11 @@
             if (isSeasonal) {
               const titleSnap = await fns.get(fns.ref(db, "settings/seasonalPage"));
               const titleRaw = titleSnap.val() || {};
-              if (active) setSeasonalPageTitle(typeof titleRaw.title === "string" && titleRaw.title.trim() ? titleRaw.title.trim() : "Seasonal Listings");
+              if (active) {
+                setSeasonalPageTitle(typeof titleRaw.title === "string" && titleRaw.title.trim() ? titleRaw.title.trim() : "Seasonal Listings");
+                setSeasonalHeadline(typeof titleRaw.headline === "string" && titleRaw.headline.trim() ? titleRaw.headline.trim() : "Back-to-School Deals");
+                setSeasonalSubheadline(typeof titleRaw.subheadline === "string" && titleRaw.subheadline.trim() ? titleRaw.subheadline.trim() : "School supplies from ₱15");
+              }
             }
           } catch (err) {
             console.error("Failed to load promo banner:", err);
@@ -2151,11 +2157,15 @@
       const saveSeasonalTitle = async () => {
         if (!isSeasonal) return;
         const cleanTitle = seasonalPageTitle.trim() || "Seasonal Listings";
+        const cleanHeadline = seasonalHeadline.trim() || "Back-to-School Deals";
+        const cleanSubheadline = seasonalSubheadline.trim() || "School supplies from ₱15";
         setSeasonalTitleSaving(true);
         try {
           const { db, fns } = await initFirebase();
-          await fns.update(fns.ref(db, "settings/seasonalPage"), { title: cleanTitle, updatedAt: Date.now() });
+          await fns.update(fns.ref(db, "settings/seasonalPage"), { title: cleanTitle, headline: cleanHeadline, subheadline: cleanSubheadline, updatedAt: Date.now() });
           setSeasonalPageTitle(cleanTitle);
+          setSeasonalHeadline(cleanHeadline);
+          setSeasonalSubheadline(cleanSubheadline);
           toast.success("Seasonal page title updated.");
         } catch (err) {
           toast.error("Failed to save title: " + (err.message || "unknown"));
@@ -2234,6 +2244,10 @@
                 <div style={{ display: "grid", gridTemplateColumns: "1fr auto", gap: 8 }}>
                   <input value={seasonalPageTitle} onChange={e => setSeasonalPageTitle(e.target.value)} placeholder="Seasonal Listings" className="input" />
                   <button onClick={saveSeasonalTitle} disabled={seasonalTitleSaving} className="btn btn-outline" style={{ padding: "8px 12px", fontSize: 12 }}>{seasonalTitleSaving ? "Saving..." : "Save Title"}</button>
+                </div>
+                <div style={{ display: "grid", gridTemplateColumns: "1fr", gap: 8, marginTop: 8 }}>
+                  <input value={seasonalHeadline} onChange={e => setSeasonalHeadline(e.target.value)} placeholder="Back-to-School Deals" className="input" />
+                  <input value={seasonalSubheadline} onChange={e => setSeasonalSubheadline(e.target.value)} placeholder="School supplies from ₱15" className="input" />
                 </div>
               </div>
             )}

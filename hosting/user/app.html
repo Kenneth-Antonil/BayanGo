@@ -878,6 +878,8 @@
       const [bgMartPromoBannerUrl, setBgMartPromoBannerUrl] = useState("");
       const [seasonalBanner, setSeasonalBanner] = useState({ imageUrl: "", enabled: false, carouselImages: [] });
       const [seasonalPageTitle, setSeasonalPageTitle] = useState("Seasonal Listings");
+      const [seasonalPageHeadline, setSeasonalPageHeadline] = useState("Back-to-School Deals");
+      const [seasonalPageSubheadline, setSeasonalPageSubheadline] = useState("School supplies from ₱15");
       const [appAvailability, setAppAvailability] = useState({ userAppEnabled: true, userAppMessage: "" });
       const [openLegalDoc, setOpenLegalDoc] = useState(null);
 
@@ -1083,7 +1085,11 @@
           _fbDb.ref("settings/seasonalPage").on("value", snap => {
             const raw = snap.val() || {};
             const cleanTitle = typeof raw.title === "string" && raw.title.trim() ? raw.title.trim() : "Seasonal Listings";
+            const cleanHeadline = typeof raw.headline === "string" && raw.headline.trim() ? raw.headline.trim() : "Back-to-School Deals";
+            const cleanSubheadline = typeof raw.subheadline === "string" && raw.subheadline.trim() ? raw.subheadline.trim() : "School supplies from ₱15";
             setSeasonalPageTitle(cleanTitle);
+            setSeasonalPageHeadline(cleanHeadline);
+            setSeasonalPageSubheadline(cleanSubheadline);
           });
         };
 
@@ -1524,7 +1530,7 @@
 
       return (
         <>
-          <UserApp products={products} orders={orders} refunds={refunds} onOrder={addOrder} user={user} onLogout={handleLogout} gcashSettings={gcashSettings} bgMartPromoBannerUrl={bgMartPromoBannerUrl} seasonalBanner={seasonalBanner} seasonalPageTitle={seasonalPageTitle} appAvailability={appAvailability} onOpenLegal={setOpenLegalDoc} />
+          <UserApp products={products} orders={orders} refunds={refunds} onOrder={addOrder} user={user} onLogout={handleLogout} gcashSettings={gcashSettings} bgMartPromoBannerUrl={bgMartPromoBannerUrl} seasonalBanner={seasonalBanner} seasonalPageTitle={seasonalPageTitle} seasonalPageHeadline={seasonalPageHeadline} seasonalPageSubheadline={seasonalPageSubheadline} appAvailability={appAvailability} onOpenLegal={setOpenLegalDoc} />
           {syncError && (
             <div className="pop" style={{
               position:"fixed", top:"calc(env(safe-area-inset-top,0px) + 16px)", left:20, right:20, zIndex:9999,
@@ -1630,6 +1636,9 @@
     /* ══════════════════ PRODUCT CARD ══════════════════ */
     function ProductCard({ p, cart, add, rem, cartWeightUnit, setCartWeightUnit, openStoreProfile, catColor, catIcon, animDelay, onOpenDetails }) {
       const isStoreClosed = p.source === "partner" && p.storeOpen === false;
+      const soldCount = Math.max(0, getProductBuyScore(p));
+      const rating = soldCount >= 120 ? 4.9 : soldCount >= 60 ? 4.8 : soldCount >= 20 ? 4.7 : 4.6;
+      const isBestSeller = soldCount >= 100;
       const color = catColor || "#94A3B8";
       const icon  = catIcon  || "tag";
       return (
@@ -1690,12 +1699,14 @@
           <div style={{ padding:"10px 12px 12px", flex:1, display:"flex", flexDirection:"column" }}>
             <button onClick={() => onOpenDetails && onOpenDetails(p)} style={{ fontSize:13, fontWeight:700, color:"#111", lineHeight:1.3, marginBottom:3, textAlign:"left" }}>{p.name}</button>
             <div style={{ fontSize:10, color:"#9CA3AF", marginBottom:8 }}>per {p.unit}</div>
-            {(p.variation || p.preOrder) && (
+            {(p.variation || p.preOrder || isBestSeller) && (
               <div style={{ display:"flex", flexWrap:"wrap", gap:6, marginBottom:8 }}>
-                {p.variation && <span style={{ fontSize:10, fontWeight:700, color:"#1D4ED8", background:"#DBEAFE", border:"1px solid #BFDBFE", borderRadius:999, padding:"2px 8px" }}>May Variation</span>}
+                {p.variation && <span style={{ fontSize:10, fontWeight:700, color:"#1D4ED8", background:"#DBEAFE", border:"1px solid #BFDBFE", borderRadius:999, padding:"2px 8px" }}>Many Variation</span>}
                 {p.preOrder && <span style={{ fontSize:10, fontWeight:700, color:"#6D28D9", background:"#EDE9FE", border:"1px solid #DDD6FE", borderRadius:999, padding:"2px 8px" }}>Pre-order</span>}
+                {isBestSeller && <span style={{ fontSize:10, fontWeight:700, color:"#B45309", background:"#FEF3C7", border:"1px solid #FDE68A", borderRadius:999, padding:"2px 8px" }}>Best Seller</span>}
               </div>
             )}
+            <div style={{ fontSize:10, fontWeight:700, color:"#64748B", marginTop:-3, marginBottom:8 }}>⭐ {rating.toFixed(1)} | {soldCount} sold</div>
             {p.unit === "kg" && (
               <div style={{ display:"flex", gap:3, marginBottom:8 }}>
                 {[{w:0.25,l:"¼kg"},{w:0.5,l:"½kg"},{w:1,l:"1kg"}].map(({w,l}) => {
@@ -1761,7 +1772,7 @@
       );
     }
 
-    function UserApp({ products, orders, refunds, onOrder, user, onLogout, gcashSettings, bgMartPromoBannerUrl, seasonalBanner, seasonalPageTitle, appAvailability, onOpenLegal }) {
+    function UserApp({ products, orders, refunds, onOrder, user, onLogout, gcashSettings, bgMartPromoBannerUrl, seasonalBanner, seasonalPageTitle, seasonalPageHeadline, seasonalPageSubheadline, appAvailability, onOpenLegal }) {
       const [activeCat,      setActiveCat]      = useState("all");
       const bagStorageKey = useCallback((key) => `bayango_bag_${key}_${user?.uid || "anon"}`, [user?.uid]);
       const [cart,           setCart]           = useState(() => {
@@ -2138,6 +2149,28 @@
         });
       }, [activeCat, activeService, catalogProducts, featuredMerchantId, searchQ]);
       const seasonalProducts = useMemo(() => products.filter((p) => p.source === "seasonal_listing"), [products]);
+      const [seasonalSearchQ, setSeasonalSearchQ] = useState("");
+      const [seasonalActiveCategory, setSeasonalActiveCategory] = useState("all");
+      const seasonalCategories = useMemo(() => ([
+        { id: "all", label: "All", keywords: [] },
+        { id: "notebooks", label: "Notebooks", keywords: ["notebook"] },
+        { id: "pens", label: "Pens", keywords: ["pen"] },
+        { id: "paper", label: "Paper", keywords: ["paper"] },
+        { id: "bags", label: "Bags", keywords: ["bag"] },
+        { id: "uniforms", label: "Uniforms", keywords: ["uniform"] },
+      ]), []);
+      const seasonalFilteredProducts = useMemo(() => {
+        const q = seasonalSearchQ.trim().toLowerCase();
+        return seasonalProducts.filter((p) => {
+          const name = String(p?.name || "").toLowerCase();
+          const categoryMatch = seasonalActiveCategory === "all"
+            ? true
+            : seasonalCategories.find((c) => c.id === seasonalActiveCategory)?.keywords?.some((keyword) => name.includes(keyword));
+          if (!categoryMatch) return false;
+          if (!q) return true;
+          return name.includes(q);
+        });
+      }, [seasonalActiveCategory, seasonalCategories, seasonalProducts, seasonalSearchQ]);
 
       useEffect(() => {
         const images = (seasonalBanner?.carouselImages?.length ? seasonalBanner.carouselImages : seasonalBanner?.imageUrl ? [seasonalBanner.imageUrl] : []).filter(Boolean);
@@ -3017,6 +3050,7 @@
                         </select>
                       </div>
                     )}
+                    {selectedProduct.preOrder && <div style={{ marginTop:10, fontSize:11, fontWeight:700, color:"#6D28D9", background:"#F5F3FF", border:"1px solid #DDD6FE", borderRadius:9, padding:"8px 10px" }}>Ships in 3–5 days</div>}
                     <button onClick={() => addFromDetails(selectedProduct.id)} style={{ width:"100%", marginTop:14, borderRadius:12, padding:"12px", background:"#16A34A", color:"#fff", fontWeight:800 }}>Add to Bag</button>
                   </div>
                 </div>
@@ -3954,18 +3988,36 @@
           })()}
 
           {activePage === "seasonal" && (
-            <div style={{ padding:"16px 20px 90px" }}>
+            <div style={{ padding:"12px 16px 90px", background:"#F8FAFC" }}>
               <button onClick={() => setActivePage("shop")} style={{ fontSize:12, fontWeight:700, color:"#166534", background:"#ECFDF5", border:"1px solid #BBF7D0", borderRadius:999, padding:"6px 12px", marginBottom:12 }}>
                 <Ic n="arrow-left" size={10} style={{ marginRight:6 }} /> Back to shop
               </button>
               <div style={{ fontSize:18, fontWeight:800, color:"#111827", marginBottom:4 }}>{seasonalPageTitle || "Seasonal Listings"}</div>
               <div style={{ fontSize:12, color:"#6B7280", marginBottom:12 }}>Limited-time items curated by admin.</div>
+              <div style={{ borderRadius:18, overflow:"hidden", position:"relative", marginBottom:12, boxShadow:"0 14px 30px rgba(15,23,42,.16)" }}>
+                {((seasonalBanner?.carouselImages?.length ? seasonalBanner.carouselImages : [seasonalBanner?.imageUrl]).filter(Boolean)[0]) ? (
+                  <img src={(seasonalBanner?.carouselImages?.length ? seasonalBanner.carouselImages : [seasonalBanner?.imageUrl]).filter(Boolean)[0]} alt="Back to school banner" style={{ width:"100%", aspectRatio:"16/7", objectFit:"cover", display:"block" }} />
+                ) : <div style={{ width:"100%", aspectRatio:"16/7", background:"linear-gradient(135deg,#22c55e,#f59e0b)" }} />}
+                <div style={{ position:"absolute", inset:0, background:"linear-gradient(90deg, rgba(17,24,39,.65), rgba(17,24,39,.15))", color:"#fff", padding:"14px 16px", display:"flex", flexDirection:"column", justifyContent:"flex-end" }}>
+                  <div style={{ fontSize:20, fontWeight:900, lineHeight:1.1 }}>{seasonalPageHeadline || "Back-to-School Deals"}</div>
+                  <div style={{ fontSize:12, fontWeight:600, opacity:.95 }}>{seasonalPageSubheadline || "School supplies from ₱15"}</div>
+                </div>
+              </div>
+              <div style={{ background:"#F1F5F9", borderRadius:999, display:"flex", alignItems:"center", padding:"10px 12px", marginBottom:10 }}>
+                <Ic n="magnifying-glass" style={{ color:"#94A3B8", marginRight:8 }} />
+                <input placeholder="Search school supplies..." value={seasonalSearchQ} onChange={e => setSeasonalSearchQ(e.target.value)} style={{ flex:1, border:"none", outline:"none", background:"transparent", fontSize:13, color:"#0F172A" }} />
+              </div>
+              <div style={{ display:"flex", gap:8, overflowX:"auto", paddingBottom:8, marginBottom:10 }}>
+                {seasonalCategories.map(cat => (
+                  <button key={cat.id} onClick={() => setSeasonalActiveCategory(cat.id)} style={{ borderRadius:999, padding:"8px 12px", fontSize:12, fontWeight:700, border:"1px solid", borderColor: seasonalActiveCategory===cat.id ? "#16A34A" : "#E2E8F0", background: seasonalActiveCategory===cat.id ? "#16A34A" : "#fff", color: seasonalActiveCategory===cat.id ? "#fff" : "#334155", whiteSpace:"nowrap" }}>{cat.label}</button>
+                ))}
+              </div>
               <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:12 }}>
-                {seasonalProducts.map((p, i) => (
+                {seasonalFilteredProducts.map((p, i) => (
                   <ProductCard key={p.id} p={p} cart={cart} add={add} rem={rem} cartWeightUnit={cartWeightUnit} setCartWeightUnit={setCartWeightUnit} openStoreProfile={openStoreProfile} catColor={activeCatMeta.color} catIcon={activeCatMeta.icon} animDelay={`${i*.05}s`} />
                 ))}
               </div>
-              {seasonalProducts.length === 0 && <div style={{ fontSize:12, color:"#94A3B8", textAlign:"center", padding:"32px 0" }}>No seasonal listings yet.</div>}
+              {seasonalFilteredProducts.length === 0 && <div style={{ fontSize:12, color:"#94A3B8", textAlign:"center", padding:"32px 0" }}>No seasonal listings yet.</div>}
             </div>
           )}
 
