@@ -1,219 +1,997 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
-  <title>BayanGo Support App</title>
-  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;700;800;900&display=swap" rel="stylesheet" />
-  <style>
-    :root{--bg:#f0f5f0;--card:#fff;--primary:#166534;--primary-2:#22c55e;--text:#0f172a;--muted:#64748b;--border:#dbe3ef;--ok:#16a34a;--danger:#dc2626}
-    *{box-sizing:border-box}
-    body{margin:0;font-family:'Plus Jakarta Sans',system-ui,-apple-system,sans-serif;background:var(--bg);color:var(--text)}
-    .app{max-width:430px;margin:0 auto;min-height:100vh;background:#fff}
-    .hero{background:linear-gradient(160deg,#052e16 0%,#166534 55%,#22c55e 130%);padding:24px 18px 22px;color:#fff}
-    .hero h1{margin:0;font-size:21px;font-weight:900;letter-spacing:-.2px}
-    .hero p{margin:8px 0 0;font-size:12px;opacity:.9;line-height:1.6}
-    .top-actions{display:flex;gap:8px;margin-top:14px;flex-wrap:wrap}
-    .container{padding:14px}
-    .pill{padding:6px 10px;border-radius:999px;background:#e6fffb;color:#115e59;font-weight:800;font-size:11px;display:inline-block}
-    .grid{display:grid;gap:10px}.kpi{grid-template-columns:1fr 1fr;margin-top:10px}
-    .card{background:var(--card);border:1px solid var(--border);border-radius:16px;padding:12px;box-shadow:0 2px 10px rgba(0,0,0,.05)}
-    h2,h3{margin:0 0 6px} p{margin:0;color:var(--muted);font-size:12px}
-    .num{font-size:21px;font-weight:900}
-    .two{grid-template-columns:1fr; margin-top:10px}
-    table{width:100%;border-collapse:collapse;font-size:12px} th,td{padding:7px 6px;border-bottom:1px solid #edf2f7;text-align:left;vertical-align:top}
-    .btn{background:var(--primary);color:#fff;border:0;padding:10px 12px;border-radius:12px;font-weight:800;cursor:pointer;font-family:inherit;font-size:12px}
-    .btn.alt{background:#334155}.btn.ok{background:var(--ok)} .btn.danger{background:var(--danger)} .btn.google{background:#fff;color:#111827;border:1px solid #d1d5db}
-    .row{display:flex;gap:8px;flex-wrap:wrap}
-    input,select{width:100%;padding:10px;border-radius:12px;border:1px solid var(--border);font-family:inherit;font-size:14px}
-    label{font-size:11px;color:var(--muted);font-weight:800}
-    .tag{font-size:11px;padding:4px 8px;border-radius:999px;background:#f1f5f9;display:inline-block}
-    .auth{display:grid;grid-template-columns:1fr;gap:8px}.muted{font-size:12px;color:var(--muted)} .hidden{display:none!important}
-    .auth-cta{display:grid;grid-template-columns:1fr;gap:8px}
-    @media(min-width:900px){.app{max-width:1100px}.container{padding:16px}.kpi{grid-template-columns:repeat(3,1fr)}.two{grid-template-columns:1.1fr .9fr}}
-  </style>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1.0,maximum-scale=1.0,user-scalable=no"/>
+<title>BayanGo Support — Command Center</title>
+<link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700;800;900&family=Manrope:wght@300;400;500;600;700&display=swap" rel="stylesheet"/>
+<style>
+:root{
+  --bg:#080f0a;--surface:#0e1a11;--card:#121f15;--card2:#16271a;
+  --border:#1e3024;--border2:#253d2b;
+  --green:#22c55e;--green2:#16a34a;--green3:#4ade80;--green-dim:#22c55e22;
+  --amber:#f59e0b;--amber-dim:#f59e0b22;
+  --red:#ef4444;--red-dim:#ef444422;
+  --blue:#38bdf8;--blue-dim:#38bdf822;
+  --text:#e8f5eb;--muted:#6b8f72;--muted2:#4a6b52;
+  --radius:14px;--radius-sm:8px;
+  --font-display:'Outfit',sans-serif;
+  --font-body:'Manrope',sans-serif;
+  --sidebar:220px;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:var(--font-body);background:var(--bg);color:var(--text);min-height:100vh;overflow-x:hidden}
+
+/* ── SCROLLBAR ── */
+::-webkit-scrollbar{width:4px;height:4px}
+::-webkit-scrollbar-track{background:var(--surface)}
+::-webkit-scrollbar-thumb{background:var(--border2);border-radius:4px}
+
+/* ── NOISE TEXTURE OVERLAY ── */
+body::before{
+  content:'';position:fixed;inset:0;
+  background-image:url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.65' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='.03'/%3E%3C/svg%3E");
+  pointer-events:none;z-index:9999;opacity:.4
+}
+
+/* ══════════════ AUTH ══════════════ */
+.auth-screen{
+  display:flex;align-items:center;justify-content:center;
+  min-height:100vh;padding:20px;
+}
+.auth-box{
+  width:100%;max-width:400px;
+  background:var(--card);border:1px solid var(--border2);
+  border-radius:24px;padding:36px 32px;
+  box-shadow:0 0 0 1px #22c55e18, 0 40px 80px rgba(0,0,0,.6);
+  animation:slideUp .4s ease
+}
+@keyframes slideUp{from{opacity:0;transform:translateY(24px)}to{opacity:1;transform:translateY(0)}}
+.auth-logo{display:flex;align-items:center;gap:10px;margin-bottom:28px}
+.auth-logo-icon{
+  width:40px;height:40px;border-radius:10px;
+  display:flex;align-items:center;justify-content:center;font-size:20px
+}
+.auth-logo h1{font-family:var(--font-display);font-size:18px;font-weight:800;letter-spacing:-.3px}
+.auth-logo span{font-size:11px;color:var(--muted);display:block;font-weight:400}
+.auth-tabs{display:flex;gap:4px;background:var(--surface);border-radius:10px;padding:4px;margin-bottom:24px}
+.auth-tab{flex:1;padding:8px;border-radius:7px;border:0;background:transparent;color:var(--muted);font-family:var(--font-body);font-size:13px;font-weight:500;cursor:pointer;transition:.2s}
+.auth-tab.active{background:var(--card2);color:var(--text)}
+.field{margin-bottom:14px}
+.field label{display:block;font-size:11px;font-weight:600;color:var(--muted);letter-spacing:.5px;text-transform:uppercase;margin-bottom:6px}
+.field input{
+  width:100%;padding:11px 14px;
+  background:var(--surface);border:1px solid var(--border2);
+  border-radius:10px;color:var(--text);font-family:var(--font-body);font-size:14px;
+  outline:none;transition:.2s
+}
+.field input:focus{border-color:var(--green2);box-shadow:0 0 0 3px var(--green-dim)}
+.btn{
+  width:100%;padding:12px;border:0;border-radius:10px;
+  font-family:var(--font-display);font-size:13px;font-weight:700;
+  cursor:pointer;transition:.15s;letter-spacing:.2px
+}
+.btn-primary{background:var(--green2);color:#fff}
+.btn-primary:hover{background:var(--green3);color:#000}
+.btn-ghost{background:var(--surface);color:var(--text);border:1px solid var(--border2);margin-top:8px}
+.btn-ghost:hover{border-color:var(--green2)}
+.btn-google{
+  background:var(--surface);color:var(--text);border:1px solid var(--border2);
+  margin-top:8px;display:flex;align-items:center;justify-content:center;gap:8px
+}
+.btn-google:hover{border-color:var(--blue)}
+.divider{display:flex;align-items:center;gap:10px;margin:16px 0;font-size:11px;color:var(--muted)}
+.divider::before,.divider::after{content:'';flex:1;height:1px;background:var(--border)}
+.auth-status{
+  margin-top:14px;padding:10px 14px;border-radius:8px;font-size:12px;
+  background:var(--surface);color:var(--muted);text-align:center;
+  border:1px solid var(--border)
+}
+.auth-status.error{background:var(--red-dim);color:#fca5a5;border-color:#ef444444}
+.auth-status.ok{background:var(--green-dim);color:#86efac;border-color:#22c55e44}
+
+/* ══════════════ LAYOUT ══════════════ */
+.app{display:flex;min-height:100vh}
+.sidebar{
+  width:var(--sidebar);background:var(--surface);border-right:1px solid var(--border);
+  display:flex;flex-direction:column;position:fixed;top:0;left:0;bottom:0;
+  z-index:100;transition:.3s;overflow:hidden
+}
+.sidebar-logo{padding:20px 16px 14px;border-bottom:1px solid var(--border)}
+.sidebar-logo h2{font-family:var(--font-display);font-size:15px;font-weight:800;letter-spacing:-.2px}
+.sidebar-logo span{font-size:10px;color:var(--muted);display:block;margin-top:2px}
+.sidebar-logo .logo-mark{
+  width:32px;height:32px;border-radius:8px;
+  display:flex;align-items:center;justify-content:center;font-size:16px;margin-bottom:8px
+}
+.nav-section{padding:8px 8px 4px;font-size:10px;font-weight:700;color:var(--muted2);letter-spacing:1px;text-transform:uppercase;margin-top:8px}
+.nav-item{
+  display:flex;align-items:center;gap:10px;padding:9px 12px;margin:1px 8px;
+  border-radius:9px;cursor:pointer;font-size:13px;font-weight:500;
+  color:var(--muted);transition:.15s;position:relative
+}
+.nav-item:hover{background:var(--card);color:var(--text)}
+.nav-item.active{background:var(--green-dim);color:var(--green3)}
+.nav-item .icon{font-size:15px;width:20px;text-align:center;flex-shrink:0}
+.nav-badge{
+  margin-left:auto;background:var(--green2);color:#fff;
+  border-radius:999px;padding:1px 6px;font-size:10px;font-weight:700
+}
+.nav-badge.red{background:var(--red)}
+.nav-badge.amber{background:var(--amber);color:#000}
+.sidebar-footer{margin-top:auto;padding:12px;border-top:1px solid var(--border)}
+.agent-chip{display:flex;align-items:center;gap:8px}
+.avatar{
+  width:30px;height:30px;border-radius:50%;
+  background:linear-gradient(135deg,var(--green2),var(--blue));
+  display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:700;flex-shrink:0;
+  color:#fff
+}
+.agent-info{flex:1;min-width:0}
+.agent-name{font-size:12px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.agent-role{font-size:10px;color:var(--muted)}
+.btn-logout{
+  margin-top:8px;width:100%;padding:8px;background:transparent;border:1px solid var(--border2);
+  border-radius:8px;color:var(--muted);font-family:var(--font-body);font-size:11px;
+  cursor:pointer;transition:.15s;font-weight:500
+}
+.btn-logout:hover{border-color:var(--red);color:var(--red)}
+
+.main{margin-left:var(--sidebar);flex:1;display:flex;flex-direction:column;min-height:100vh}
+.topbar{
+  height:56px;background:var(--surface);border-bottom:1px solid var(--border);
+  display:flex;align-items:center;padding:0 20px;gap:12px;position:sticky;top:0;z-index:50
+}
+.topbar-title{font-family:var(--font-display);font-size:15px;font-weight:700;flex:1}
+.topbar-actions{display:flex;align-items:center;gap:8px}
+.icon-btn{
+  width:34px;height:34px;border-radius:8px;background:var(--card);border:1px solid var(--border);
+  display:flex;align-items:center;justify-content:center;font-size:16px;cursor:pointer;transition:.15s;position:relative
+}
+.icon-btn:hover{border-color:var(--green2)}
+.notif-dot{
+  position:absolute;top:4px;right:4px;width:7px;height:7px;
+  background:var(--red);border-radius:50%;border:1px solid var(--surface)
+}
+.page{padding:20px;flex:1;display:none}
+.page.active{display:block}
+
+/* ══════════════ CARDS & KPIs ══════════════ */
+.kpi-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px;margin-bottom:20px}
+.kpi-card{
+  background:var(--card);border:1px solid var(--border);border-radius:var(--radius);
+  padding:16px;position:relative;overflow:hidden;transition:.2s
+}
+.kpi-card::before{
+  content:'';position:absolute;top:-20px;right:-20px;
+  width:70px;height:70px;border-radius:50%;opacity:.07
+}
+.kpi-card.green::before{background:var(--green3)}
+.kpi-card.amber::before{background:var(--amber)}
+.kpi-card.red::before{background:var(--red)}
+.kpi-card.blue::before{background:var(--blue)}
+.kpi-card:hover{border-color:var(--border2);transform:translateY(-1px)}
+.kpi-label{font-size:10px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.6px;margin-bottom:8px}
+.kpi-val{font-family:var(--font-display);font-size:26px;font-weight:800;line-height:1}
+.kpi-sub{font-size:11px;color:var(--muted);margin-top:4px}
+.kpi-icon{position:absolute;top:14px;right:14px;font-size:20px;opacity:.5}
+
+.grid-2{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+.grid-3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:14px}
+.card{background:var(--card);border:1px solid var(--border);border-radius:var(--radius);padding:16px}
+.card-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:14px}
+.card-title{font-family:var(--font-display);font-size:14px;font-weight:700}
+.card-sub{font-size:11px;color:var(--muted);margin-top:2px}
+.badge{
+  padding:3px 8px;border-radius:999px;font-size:10px;font-weight:700;
+  letter-spacing:.3px;text-transform:uppercase
+}
+.badge-green{background:var(--green-dim);color:var(--green3)}
+.badge-amber{background:var(--amber-dim);color:var(--amber)}
+.badge-red{background:var(--red-dim);color:#fca5a5}
+.badge-blue{background:var(--blue-dim);color:var(--blue)}
+.badge-muted{background:var(--surface);color:var(--muted)}
+
+/* ══════════════ TABLE ══════════════ */
+.table-wrap{overflow-x:auto;margin:0 -16px}
+table{width:100%;border-collapse:collapse;font-size:12px}
+th{
+  padding:8px 16px;text-align:left;font-size:10px;font-weight:700;color:var(--muted2);
+  text-transform:uppercase;letter-spacing:.6px;border-bottom:1px solid var(--border);
+  white-space:nowrap;background:var(--surface)
+}
+td{padding:11px 16px;border-bottom:1px solid var(--border);vertical-align:middle;color:var(--text)}
+tr:last-child td{border-bottom:none}
+tr:hover td{background:var(--card2)}
+.td-name{font-weight:600;font-size:13px}
+.td-sub{font-size:11px;color:var(--muted);margin-top:2px}
+.td-actions{display:flex;gap:6px;align-items:center}
+.action-btn{
+  padding:5px 10px;border-radius:6px;border:0;font-family:var(--font-body);
+  font-size:11px;font-weight:600;cursor:pointer;transition:.15s
+}
+.action-btn.green{background:var(--green-dim);color:var(--green3)}
+.action-btn.green:hover{background:var(--green2);color:#fff}
+.action-btn.red{background:var(--red-dim);color:#fca5a5}
+.action-btn.red:hover{background:var(--red);color:#fff}
+.action-btn.blue{background:var(--blue-dim);color:var(--blue)}
+.action-btn.blue:hover{background:var(--blue);color:#000}
+.action-btn.amber{background:var(--amber-dim);color:var(--amber)}
+.action-btn.amber:hover{background:var(--amber);color:#000}
+
+/* ══════════════ TICKET PANEL ══════════════ */
+.tickets-layout{display:grid;grid-template-columns:1fr 340px;gap:14px;align-items:start}
+.ticket-list-item{
+  padding:12px 14px;border-radius:10px;border:1px solid var(--border);
+  background:var(--card);margin-bottom:8px;cursor:pointer;transition:.15s;
+  display:flex;align-items:flex-start;gap:10px
+}
+.ticket-list-item:hover,.ticket-list-item.selected{border-color:var(--green2);background:var(--card2)}
+.ticket-avi{
+  width:32px;height:32px;border-radius:50%;flex-shrink:0;
+  background:linear-gradient(135deg,#166534,#38bdf8);
+  display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:700;color:#fff
+}
+.ticket-meta{flex:1;min-width:0}
+.ticket-user{font-weight:600;font-size:13px}
+.ticket-preview{font-size:11px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-top:2px}
+.ticket-time{font-size:10px;color:var(--muted2);flex-shrink:0;margin-top:2px}
+.ticket-detail{
+  background:var(--card);border:1px solid var(--border);border-radius:var(--radius);
+  display:flex;flex-direction:column;position:sticky;top:70px
+}
+.ticket-detail-header{padding:14px 16px;border-bottom:1px solid var(--border)}
+.ticket-messages{padding:14px;flex:1;overflow-y:auto;max-height:360px;display:flex;flex-direction:column;gap:10px}
+.msg-bubble{
+  padding:10px 14px;border-radius:12px;max-width:88%;font-size:13px;line-height:1.55
+}
+.msg-bubble.from-user{background:var(--surface);align-self:flex-start;border-bottom-left-radius:4px}
+.msg-bubble.from-agent{background:var(--green2);color:#fff;align-self:flex-end;border-bottom-right-radius:4px}
+.msg-sender{font-size:10px;color:var(--muted);margin-bottom:4px}
+.reply-box{padding:10px 14px;border-top:1px solid var(--border);display:flex;gap:8px;align-items:center}
+.reply-input{
+  flex:1;padding:9px 12px;background:var(--surface);border:1px solid var(--border2);
+  border-radius:8px;color:var(--text);font-family:var(--font-body);font-size:13px;outline:none;resize:none
+}
+.reply-input:focus{border-color:var(--green2)}
+.send-btn{
+  width:36px;height:36px;border-radius:8px;background:var(--green2);border:0;
+  color:#fff;font-size:16px;cursor:pointer;flex-shrink:0;transition:.15s
+}
+.send-btn:hover{background:var(--green3);color:#000}
+
+/* ══════════════ REFERRALS ══════════════ */
+.referral-agent-card{
+  background:var(--card);border:1px solid var(--border);border-radius:var(--radius);
+  padding:16px;display:flex;align-items:flex-start;gap:12px;transition:.15s
+}
+.referral-agent-card:hover{border-color:var(--border2)}
+.ref-av{
+  width:42px;height:42px;border-radius:12px;flex-shrink:0;
+  background:linear-gradient(135deg,var(--green2),var(--blue));
+  display:flex;align-items:center;justify-content:center;font-size:17px;font-weight:700;color:#fff
+}
+.ref-name{font-weight:700;font-size:14px}
+.ref-email{font-size:11px;color:var(--muted)}
+.ref-link{font-size:10px;color:var(--green3);margin-top:4px;word-break:break-all}
+.ref-stats{display:flex;gap:14px;margin-top:10px;flex-wrap:wrap}
+.ref-stat{text-align:center}
+.ref-stat-val{font-family:var(--font-display);font-size:18px;font-weight:800}
+.ref-stat-label{font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:.4px}
+.commission-pill{
+  margin-top:10px;padding:6px 12px;border-radius:8px;
+  background:var(--green-dim);color:var(--green3);font-size:12px;font-weight:700;
+  display:inline-flex;align-items:center;gap:6px
+}
+.ref-input-row{display:flex;gap:8px;align-items:flex-end;flex-wrap:wrap;margin-top:10px;padding-top:10px;border-top:1px solid var(--border)}
+.ref-field{flex:1;min-width:100px}
+.ref-field label{font-size:10px;font-weight:700;color:var(--muted);letter-spacing:.4px;text-transform:uppercase;display:block;margin-bottom:4px}
+.ref-field input{width:100%;padding:8px 10px;background:var(--surface);border:1px solid var(--border2);border-radius:8px;color:var(--text);font-family:var(--font-body);font-size:13px;outline:none}
+.ref-field input:focus{border-color:var(--green2)}
+.save-btn{
+  padding:9px 16px;background:var(--green2);color:#fff;border:0;border-radius:8px;
+  font-family:var(--font-display);font-size:12px;font-weight:700;cursor:pointer;transition:.15s;align-self:flex-end
+}
+.save-btn:hover{background:var(--green3);color:#000}
+
+/* ══════════════ FORM ELEMENTS ══════════════ */
+.form-row{display:flex;gap:10px;flex-wrap:wrap;align-items:flex-end}
+.form-field{flex:1;min-width:140px}
+.form-field label{display:block;font-size:10px;font-weight:700;color:var(--muted);letter-spacing:.5px;text-transform:uppercase;margin-bottom:5px}
+.form-field input,.form-field select,.form-field textarea{
+  width:100%;padding:9px 12px;background:var(--surface);border:1px solid var(--border2);
+  border-radius:8px;color:var(--text);font-family:var(--font-body);font-size:13px;outline:none
+}
+.form-field input:focus,.form-field select:focus,.form-field textarea:focus{border-color:var(--green2);box-shadow:0 0 0 3px var(--green-dim)}
+.form-field select option{background:var(--card)}
+.form-action-btn{
+  padding:9px 16px;border:0;border-radius:8px;
+  font-family:var(--font-display);font-size:12px;font-weight:700;cursor:pointer;transition:.15s
+}
+.form-action-btn.primary{background:var(--green2);color:#fff}
+.form-action-btn.primary:hover{background:var(--green3);color:#000}
+.form-action-btn.danger{background:var(--red-dim);color:#fca5a5;border:1px solid #ef444444}
+.form-action-btn.danger:hover{background:var(--red);color:#fff}
+
+/* ══════════════ SEARCH ══════════════ */
+.search-wrap{position:relative;margin-bottom:14px}
+.search-wrap input{padding-left:34px}
+.search-icon{position:absolute;left:10px;top:50%;transform:translateY(-50%);color:var(--muted);font-size:14px;pointer-events:none}
+
+/* ══════════════ EMPTY STATE ══════════════ */
+.empty{
+  padding:40px 20px;text-align:center;color:var(--muted);
+}
+.empty-icon{font-size:40px;margin-bottom:10px;display:block}
+.empty-title{font-size:14px;font-weight:600;color:var(--text);margin-bottom:4px}
+.empty-sub{font-size:12px}
+
+/* ══════════════ TOAST ══════════════ */
+#toast{
+  position:fixed;bottom:20px;right:20px;z-index:9000;
+  background:var(--card);border:1px solid var(--border2);border-radius:10px;
+  padding:12px 16px;font-size:13px;font-weight:500;
+  box-shadow:0 10px 40px rgba(0,0,0,.5);
+  transform:translateY(20px);opacity:0;transition:.3s;pointer-events:none;max-width:320px
+}
+#toast.show{transform:translateY(0);opacity:1}
+#toast.success{border-color:#22c55e44;color:var(--green3)}
+#toast.error{border-color:#ef444444;color:#fca5a5}
+
+/* ══════════════ KB ARTICLE ══════════════ */
+.kb-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:12px}
+.kb-card{
+  background:var(--card);border:1px solid var(--border);border-radius:var(--radius);
+  padding:16px;cursor:pointer;transition:.2s
+}
+.kb-card:hover{border-color:var(--green2);transform:translateY(-2px)}
+.kb-cat{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.6px;color:var(--muted);margin-bottom:8px}
+.kb-title{font-family:var(--font-display);font-size:14px;font-weight:700;line-height:1.35;margin-bottom:6px}
+.kb-preview{font-size:11px;color:var(--muted);line-height:1.55}
+
+/* ══════════════ PENDING BADGE PULSE ══════════════ */
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.5}}
+.pulse{animation:pulse 2s infinite}
+
+/* ══════════════ RESPONSIVE ══════════════ */
+@media(max-width:768px){
+  .sidebar{width:60px}
+  .sidebar .sidebar-logo h2,.sidebar .nav-item span:not(.icon),.sidebar-footer .agent-info,.sidebar-footer .btn-logout{display:none}
+  .sidebar .nav-item{justify-content:center;padding:10px}
+  .sidebar .nav-badge{display:none}
+  .main{margin-left:60px}
+  .grid-2,.grid-3{grid-template-columns:1fr}
+  .tickets-layout{grid-template-columns:1fr}
+  .ticket-detail{position:relative;top:0}
+  .kpi-grid{grid-template-columns:1fr 1fr}
+}
+@media(max-width:480px){
+  .kpi-grid{grid-template-columns:1fr 1fr}
+  .kpi-val{font-size:20px}
+}
+
+/* ══════════════ ADMIN ONLY ══════════════ */
+.admin-only{display:none}
+body.is-admin .admin-only{display:block}
+body.is-admin .admin-only-flex{display:flex}
+.admin-only-flex{display:none}
+</style>
 </head>
 <body>
-<div class="app">
-  <div class="hero">
-    <h1>support.bayango.store</h1>
-    <p>Real-time Support App + Admin Approval + Referral Incentive Tracking</p>
-    <div class="top-actions row">
-      <button id="supportViewBtn" class="btn alt">Support View</button>
-      <button id="adminViewBtn" class="btn">Admin Dashboard</button>
-      <button id="logoutBtn" class="btn danger hidden">Logout</button>
-    </div>
-  </div>
 
-  <div class="container">
-    <div id="authCard" class="card">
-      <h3>Support Agent Login / Sign Up</h3>
-      <p>Mobile-first secure access para sa support team.</p>
-      <div class="auth" style="margin-top:10px">
-        <div><label>Email</label><input id="authEmail" type="email" placeholder="agent@bayango.store" autocomplete="email"></div>
-        <div><label>Password</label><input id="authPassword" type="password" placeholder="Minimum 6 characters" autocomplete="current-password"></div>
-        <div class="auth-cta">
-          <button id="loginBtn" class="btn">Login</button>
-          <button id="signupBtn" class="btn ok">Sign Up</button>
-          <button id="googleBtn" class="btn google">Continue with Google</button>
-        </div>
-        <p id="authStatus" class="muted">Not logged in.</p>
+<!-- ── TOAST ── -->
+<div id="toast"></div>
+
+<!-- ══════════════ AUTH SCREEN ══════════════ -->
+<div class="auth-screen" id="authScreen">
+  <div class="auth-box">
+    <div class="auth-logo">
+      <div class="auth-logo-icon"><img src="https://i.imgur.com/wL8wcBB.jpeg" style="width:28px;height:28px;object-fit:contain;border-radius:6px"/></div>
+      <div>
+        <h1>BayanGo Support</h1>
+        <span>support.bayango.store</span>
       </div>
     </div>
-
-    <div id="appContent" class="hidden">
-      <div id="roleTag" class="pill" style="margin-top:10px">Current: Support Agent</div>
-      <div class="grid kpi" id="kpis"></div>
-
-      <div class="grid two">
-        <div class="card">
-          <h3>Support Messages (from user app)</h3>
-          <p>Lahat ng support concern mula user app ay pupunta dito.</p>
-          <table><thead><tr><th>User</th><th>Message</th><th>Status</th></tr></thead><tbody id="msgRows"></tbody></table>
-        </div>
-        <div class="card" id="adminCard">
-          <h3>Admin: Agent Approval</h3>
-          <p>I-approve muna ng admin bago maka-login sa support app.</p>
-          <table><thead><tr><th>Agent</th><th>Referral Link</th><th>Action</th></tr></thead><tbody id="agentRows"></tbody></table>
-        </div>
-      </div>
-
-      <div class="card" style="margin-top:12px">
-        <h3>Referral / Incentives Tracker</h3>
-        <p>Rules: download = 0, successful order = ₱50, successful partner merchant invite = ₱1,000, weekly quota bonus (10 successful orders) = ₱1,000.</p>
-        <div class="row" style="margin-top:10px">
-          <div style="flex:1;min-width:180px"><label>Agent</label><select id="agentSelect"></select></div>
-          <div style="width:140px"><label>Downloads</label><input id="inDownloads" type="number" min="0" value="0"></div>
-          <div style="width:140px"><label>Orders</label><input id="inOrders" type="number" min="0" value="0"></div>
-          <div style="width:170px"><label>Partner Merchant</label><input id="inMerchants" type="number" min="0" value="0"></div>
-          <div style="align-self:end"><button id="saveProgressBtn" class="btn ok">Save Progress</button></div>
-        </div>
-        <p id="calc" style="margin-top:10px" class="tag"></p>
-      </div>
+    <div class="auth-tabs">
+      <button class="auth-tab active" id="tabLogin" onclick="switchAuthTab('login')">Login</button>
+      <button class="auth-tab" id="tabSignup" onclick="switchAuthTab('signup')">Sign Up</button>
     </div>
+    <div id="loginForm">
+      <div class="field"><label>Email</label><input id="authEmail" type="email" placeholder="agent@bayango.store" autocomplete="email"/></div>
+      <div class="field"><label>Password</label><input id="authPassword" type="password" placeholder="Enter your password" autocomplete="current-password"/></div>
+      <button class="btn btn-primary" id="loginBtn">Login to Dashboard</button>
+    </div>
+    <div id="signupForm" style="display:none">
+      <div class="field"><label>Full Name</label><input id="signupName" type="text" placeholder="Juan dela Cruz"/></div>
+      <div class="field"><label>Email</label><input id="signupEmail" type="email" placeholder="agent@bayango.store" autocomplete="email"/></div>
+      <div class="field"><label>Password</label><input id="signupPassword" type="password" placeholder="Min. 6 characters" autocomplete="new-password"/></div>
+      <button class="btn btn-primary" id="signupBtn">Create Account</button>
+    </div>
+    <div class="divider">or</div>
+    <button class="btn btn-google" id="googleBtn">
+      <svg width="16" height="16" viewBox="0 0 24 24"><path fill="#4285f4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/><path fill="#34a853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/><path fill="#fbbc05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l3.66-2.84z"/><path fill="#ea4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/></svg>
+      Continue with Google
+    </button>
+    <div class="auth-status" id="authStatus">Mag-login para makapasok sa support dashboard.</div>
   </div>
 </div>
+
+<!-- ══════════════ MAIN APP ══════════════ -->
+<div class="app" id="mainApp" style="display:none">
+
+  <!-- SIDEBAR -->
+  <aside class="sidebar">
+    <div class="sidebar-logo">
+      <div class="logo-mark"><img src="https://i.imgur.com/wL8wcBB.jpeg" style="width:22px;height:22px;object-fit:contain;border-radius:4px"/></div>
+      <h2>BayanGo</h2>
+      <span>Support Center</span>
+    </div>
+    <div class="nav-section">Support</div>
+    <div class="nav-item active" onclick="showPage('dashboard')"><span class="icon">📊</span><span>Dashboard</span></div>
+    <div class="nav-item" onclick="showPage('tickets')" id="navTickets"><span class="icon">🎫</span><span>Tickets</span><span class="nav-badge red pulse" id="badgeTickets" style="display:none">0</span></div>
+    <div class="nav-item" onclick="showPage('kb')"><span class="icon">📚</span><span>Knowledge Base</span></div>
+    <div class="nav-section admin-only">Admin</div>
+    <div class="nav-item admin-only" onclick="showPage('agents')" id="navAgents"><span class="icon">👥</span><span>Agents</span><span class="nav-badge amber" id="badgeAgents" style="display:none">0</span></div>
+    <div class="nav-item admin-only" onclick="showPage('referrals')"><span class="icon">💸</span><span>Referrals</span></div>
+    <div class="nav-item admin-only" onclick="showPage('settings')"><span class="icon">⚙️</span><span>Settings</span></div>
+    <div class="sidebar-footer">
+      <div class="agent-chip">
+        <div class="avatar" id="sideAvatar">?</div>
+        <div class="agent-info">
+          <div class="agent-name" id="sideName">Agent</div>
+          <div class="agent-role" id="sideRole">Support Agent</div>
+        </div>
+      </div>
+      <button class="btn-logout" id="logoutBtn">← Sign Out</button>
+    </div>
+  </aside>
+
+  <!-- MAIN CONTENT -->
+  <main class="main">
+    <div class="topbar">
+      <div class="topbar-title" id="topbarTitle">Dashboard</div>
+      <div class="topbar-actions">
+        <div class="icon-btn" title="Notifications" onclick="showPage('tickets')">🔔<div class="notif-dot" id="notifDot" style="display:none"></div></div>
+        <div class="icon-btn" title="Help">❓</div>
+      </div>
+    </div>
+
+    <!-- ═══ DASHBOARD PAGE ═══ -->
+    <div class="page active" id="page-dashboard">
+      <div class="kpi-grid" id="kpiGrid"></div>
+      <div class="grid-2" style="margin-bottom:14px">
+        <div class="card">
+          <div class="card-header">
+            <div><div class="card-title">Recent Tickets</div><div class="card-sub">Pinakabagong support messages</div></div>
+            <span class="badge badge-green" id="openCount">0 Open</span>
+          </div>
+          <div id="recentTickets"></div>
+        </div>
+        <div class="card">
+          <div class="card-header"><div><div class="card-title">Agent Performance</div><div class="card-sub">Top agents this week</div></div></div>
+          <div id="agentPerf"></div>
+        </div>
+      </div>
+      <div class="card admin-only">
+        <div class="card-header">
+          <div><div class="card-title">Pending Agent Approvals</div><div class="card-sub">Mga nagre-request na agents</div></div>
+          <span class="badge badge-amber" id="pendingCount">0 Pending</span>
+        </div>
+        <div id="pendingApprovals"></div>
+      </div>
+    </div>
+
+    <!-- ═══ TICKETS PAGE ═══ -->
+    <div class="page" id="page-tickets">
+      <div class="search-wrap"><span class="search-icon">🔍</span><input id="ticketSearch" type="search" placeholder="Search tickets by user, message..." oninput="renderTickets()"/></div>
+      <div class="form-row" style="margin-bottom:14px">
+        <div class="form-field" style="max-width:140px">
+          <label>Status Filter</label>
+          <select id="filterStatus" onchange="renderTickets()">
+            <option value="">All Status</option>
+            <option value="Open">Open</option>
+            <option value="In Progress">In Progress</option>
+            <option value="Resolved">Resolved</option>
+          </select>
+        </div>
+        <div class="form-field" style="max-width:160px">
+          <label>Priority</label>
+          <select id="filterPriority" onchange="renderTickets()">
+            <option value="">All Priority</option>
+            <option value="High">High</option>
+            <option value="Medium">Medium</option>
+            <option value="Low">Low</option>
+          </select>
+        </div>
+      </div>
+      <div class="tickets-layout">
+        <div>
+          <div id="ticketListItems"></div>
+        </div>
+        <div class="ticket-detail" id="ticketDetail">
+          <div id="ticketDetailContent">
+            <div class="empty"><span class="empty-icon">🎫</span><div class="empty-title">Walang napiling ticket</div><div class="empty-sub">Pumili ng ticket sa kaliwang lista</div></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ═══ KNOWLEDGE BASE ═══ -->
+    <div class="page" id="page-kb">
+      <div class="card-header" style="margin-bottom:14px">
+        <div><div class="card-title" style="font-size:17px">Knowledge Base</div><div class="card-sub">Quick answers para sa mga common na tanong</div></div>
+        <button class="form-action-btn primary admin-only" onclick="openAddArticle()">+ Add Article</button>
+      </div>
+      <div class="search-wrap"><span class="search-icon">🔍</span><input id="kbSearch" type="search" placeholder="Search articles…" oninput="renderKB()"/></div>
+      <div class="kb-grid" id="kbGrid"></div>
+    </div>
+
+    <!-- ═══ AGENTS PAGE (ADMIN) ═══ -->
+    <div class="page admin-only" id="page-agents">
+      <div class="card">
+        <div class="card-header">
+          <div><div class="card-title">Agent Management</div><div class="card-sub">I-approve o i-reject ang mga support agent</div></div>
+        </div>
+        <div class="search-wrap"><span class="search-icon">🔍</span><input id="agentSearch" type="search" placeholder="Search agents…" oninput="renderAgents()"/></div>
+        <div class="table-wrap">
+          <table>
+            <thead><tr><th>Agent</th><th>Auth Method</th><th>Downloads</th><th>Orders</th><th>Merchants</th><th>Commission</th><th>Status</th><th>Actions</th></tr></thead>
+            <tbody id="agentTableBody"></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- ═══ REFERRALS PAGE (ADMIN) ═══ -->
+    <div class="page admin-only" id="page-referrals">
+      <div class="kpi-grid" id="refKpiGrid" style="margin-bottom:18px"></div>
+      <div class="card-header" style="margin-bottom:14px">
+        <div><div class="card-title" style="font-size:17px">Referral & Incentive Tracker</div><div class="card-sub">Rules: Download = ₱0 · Successful Order = ₱50 · Partner Merchant Invite = ₱1,000 · Weekly Quota (10 orders) Bonus = ₱1,000</div></div>
+      </div>
+      <div id="refAgentCards"></div>
+    </div>
+
+    <!-- ═══ SETTINGS PAGE (ADMIN) ═══ -->
+    <div class="page admin-only" id="page-settings">
+      <div class="grid-2">
+        <div class="card">
+          <div class="card-header"><div><div class="card-title">App Settings</div><div class="card-sub">System configuration</div></div></div>
+          <div style="display:flex;flex-direction:column;gap:14px;margin-top:4px">
+            <div class="form-field"><label>Support Email</label><input type="email" value="support@bayango.store"/></div>
+            <div class="form-field"><label>App Name</label><input type="text" value="BayanGo Support"/></div>
+            <div class="form-field"><label>Timezone</label>
+              <select><option>Asia/Manila (GMT+8)</option></select>
+            </div>
+            <button class="form-action-btn primary" style="align-self:flex-start" onclick="showToast('Settings saved!','success')">Save Settings</button>
+          </div>
+        </div>
+        <div class="card">
+          <div class="card-header"><div><div class="card-title">Incentive Rules</div><div class="card-sub">Configure commission rates</div></div></div>
+          <div style="display:flex;flex-direction:column;gap:14px;margin-top:4px">
+            <div class="form-field"><label>Per Successful Order</label><input type="number" value="50" id="ruleOrder"/></div>
+            <div class="form-field"><label>Per Partner Merchant Invite</label><input type="number" value="1000" id="ruleMerchant"/></div>
+            <div class="form-field"><label>Weekly Quota Threshold (orders)</label><input type="number" value="10" id="ruleQuota"/></div>
+            <div class="form-field"><label>Weekly Quota Bonus</label><input type="number" value="1000" id="ruleBonus"/></div>
+            <button class="form-action-btn primary" style="align-self:flex-start" onclick="showToast('Rules updated!','success')">Update Rules</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+  </main>
+</div>
+
 <script type="module">
 import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.13.2/firebase-app.js';
-import { getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword, onAuthStateChanged, signOut, GoogleAuthProvider, signInWithPopup, signInWithRedirect } from 'https://www.gstatic.com/firebasejs/10.13.2/firebase-auth.js';
-import { getDatabase, ref, get, onValue, set, update } from 'https://www.gstatic.com/firebasejs/10.13.2/firebase-database.js';
+import { getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword, onAuthStateChanged, signOut, GoogleAuthProvider, signInWithPopup, signInWithRedirect, updateProfile } from 'https://www.gstatic.com/firebasejs/10.13.2/firebase-auth.js';
+import { getDatabase, ref, get, onValue, set, update, push, serverTimestamp } from 'https://www.gstatic.com/firebasejs/10.13.2/firebase-database.js';
 
-const firebaseConfig = { apiKey: 'AIzaSyC0AQ3rkH-fhxlThobjDDtrvxttAfFLXTE', authDomain: 'bayango-315c6.firebaseapp.com', databaseURL: 'https://bayango-315c6-default-rtdb.asia-southeast1.firebasedatabase.app', projectId: 'bayango-315c6', storageBucket: 'bayango-315c6.firebasestorage.app', messagingSenderId: '199013441811', appId: '1:199013441811:web:315a38f03ddc9b676e3ae6' };
+const FC = { apiKey:'AIzaSyC0AQ3rkH-fhxlThobjDDtrvxttAfFLXTE', authDomain:'bayango-315c6.firebaseapp.com', databaseURL:'https://bayango-315c6-default-rtdb.asia-southeast1.firebasedatabase.app', projectId:'bayango-315c6', storageBucket:'bayango-315c6.firebasestorage.app', messagingSenderId:'199013441811', appId:'1:199013441811:web:315a38f03ddc9b676e3ae6' };
+const fbApp = initializeApp(FC);
+const auth = getAuth(fbApp);
+const db = getDatabase(fbApp);
+const gProvider = new GoogleAuthProvider();
 
-const app = initializeApp(firebaseConfig);
-const auth = getAuth(app);
-const db = getDatabase(app);
-const provider = new GoogleAuthProvider();
-const state = { role: 'support', messages: [], agents: [], me: null };
+// ── STATE ──
+const state = { me:null, role:'support', agents:[], messages:[], selectedTicketId:null, kbArticles:KB_DEFAULT() };
 
+// ── HELPERS ──
+const $=id=>document.getElementById(id);
 const peso=n=>new Intl.NumberFormat('en-PH',{style:'currency',currency:'PHP',maximumFractionDigits:0}).format(n);
 const linkFor=a=>`https://bayango.store/app?ref=${a.id}`;
-const commission=a=>{const order=(a.orders||0)*50,merchant=(a.merchants||0)*1000,bonus=(a.orders||0)>=10?1000:0;return {order,merchant,bonus,total:order+merchant+bonus}};
-const byId = (id) => document.getElementById(id);
+const initials=s=>((s||'?').split(/\s+/).map(w=>w[0]).join('').toUpperCase().slice(0,2));
+const commission=(a,rules)=>{const r=rules||{order:50,merchant:1000,quota:10,bonus:1000};const o=(a.orders||0)*r.order,m=(a.merchants||0)*r.merchant,b=(a.orders||0)>=r.quota?r.bonus:0;return{order:o,merchant:m,bonus:b,total:o+m+b}};
+const getStatusBadge=s=>{const map={Open:'badge-red',In_Progress:'badge-amber','In Progress':'badge-amber',Resolved:'badge-green'};return map[s?.replace(' ','_')]||'badge-muted'};
+const getPriorityBadge=p=>{const map={High:'badge-red',Medium:'badge-amber',Low:'badge-green'};return map[p]||'badge-muted'};
+const timeAgo=ts=>{if(!ts)return '';const d=Date.now()-ts;if(d<60000)return 'just now';if(d<3600000)return Math.floor(d/60000)+'m ago';if(d<86400000)return Math.floor(d/3600000)+'h ago';return Math.floor(d/86400000)+'d ago'};
 
-function setAuthStatus(msg, isError=false){ byId('authStatus').textContent = msg; byId('authStatus').style.color = isError ? '#dc2626' : '#64748b'; }
-function getCredentials(){ return { email: byId('authEmail').value.trim(), password: byId('authPassword').value }; }
-function validateCredentials(){
-  const { email, password } = getCredentials();
-  if(!email) throw new Error('Email is required.');
-  if(!password || password.length < 6) throw new Error('Password must be at least 6 characters.');
-  return { email, password };
-}
-
-async function upsertSupportAgent(user){
-  const agentRef = ref(db, `supportAgents/${user.uid}`);
-  const snap = await get(agentRef);
-  if(!snap.exists()){
-    await set(agentRef, { id: user.uid, email: user.email || '', name: (user.displayName || user.email || 'agent').split('@')[0], approved: false, downloads:0, orders:0, merchants:0, createdAt:Date.now(), authProvider: user.providerData?.[0]?.providerId || 'password' });
-  }
-}
-
-function isDbPermissionError(err){
-  const msg = (err?.message || '').toLowerCase();
-  return msg.includes('permission denied') || msg.includes('permission_denied');
-}
-
-function explainAuthError(err){
-  if(isDbPermissionError(err)){
-    return 'Database access denied. Ask admin to update Firebase Realtime Database rules for supportAgents/{uid}.';
-  }
-  return err?.message || 'Unknown error.';
-}
-
-function render() { /* unchanged rendering */
-  byId('roleTag').textContent = `Current: ${state.role==='admin'?'Admin Dashboard':'Support Agent'}`;
-  const approved = state.agents.filter(a=>a.approved).length;
-  const totals = state.agents.reduce((x,a)=>{const c=commission(a);x.downloads+=(a.downloads||0);x.orders+=(a.orders||0);x.merchants+=(a.merchants||0);x.commission+=c.total;return x},{downloads:0,orders:0,merchants:0,commission:0});
-  byId('kpis').innerHTML = `<div class='card'><div class='num'>${state.messages.length}</div><p>Support Messages</p></div><div class='card'><div class='num'>${approved}/${state.agents.length}</div><p>Approved Agents</p></div><div class='card'><div class='num'>${totals.downloads}</div><p>Total Downloads via Links</p></div><div class='card'><div class='num'>${totals.orders}</div><p>Successful Orders via Links</p></div><div class='card'><div class='num'>${totals.merchants}</div><p>Successful Merchant Invites</p></div><div class='card'><div class='num'>${peso(totals.commission)}</div><p>Total Incentives</p></div>`;
-  byId('msgRows').innerHTML = state.messages.map(m=>`<tr><td>${m.user||'-'}</td><td>${m.msg||m.message||'-'}</td><td><span class='tag'>${m.status||'Open'}</span></td></tr>`).join('') || `<tr><td colspan="3">No messages yet.</td></tr>`;
-  byId('agentRows').innerHTML = state.agents.map((a)=>`<tr><td>${a.name||a.email||a.id}<br><small>${a.approved?'Approved':'Pending'}</small></td><td><small>${linkFor(a)}</small></td><td>${a.approved?'<span class="tag">Approved</span>':`<button class='btn' data-approve='${a.id}'>Approve</button>`}</td></tr>`).join('') || `<tr><td colspan="3">No agents yet.</td></tr>`;
-  byId('adminCard').style.display = state.role==='admin' ? 'block' : 'none';
-  byId('agentSelect').innerHTML = state.agents.filter(a=>a.approved).map(a=>`<option value='${a.id}'>${a.name||a.email||a.id}</option>`).join('');
-  updateCalc();
-}
-function updateCalc(){const id=byId('agentSelect').value;const a=state.agents.find(agent=>agent.id===id);if(!a){byId('calc').textContent='No approved agent selected.';return;}const c=commission(a);byId('calc').textContent=`${a.name||a.email||a.id} • Downloads: ${a.downloads||0} • Orders: ${a.orders||0} • Merchant Invites: ${a.merchants||0} • Commission: ${peso(c.total)} (Orders ${peso(c.order)} + Merchant ${peso(c.merchant)} + Weekly Bonus ${peso(c.bonus)})`;byId('inDownloads').value=a.downloads||0;byId('inOrders').value=a.orders||0;byId('inMerchants').value=a.merchants||0;}
-async function saveProgress(){const id=byId('agentSelect').value;if(!id)return;await update(ref(db,`supportAgents/${id}`),{downloads:Math.max(0,+byId('inDownloads').value||0),orders:Math.max(0,+byId('inOrders').value||0),merchants:Math.max(0,+byId('inMerchants').value||0)});} 
-async function approve(agentId){ await update(ref(db, `supportAgents/${agentId}`), { approved: true }); }
-
-byId('supportViewBtn').onclick = () => { state.role='support'; render(); };
-byId('adminViewBtn').onclick = () => { state.role='admin'; render(); };
-byId('saveProgressBtn').onclick = saveProgress;
-byId('logoutBtn').onclick = async () => { await signOut(auth); };
-byId('agentRows').addEventListener('click', (e)=>{ const id=e.target.dataset.approve; if(id) approve(id); });
-['agentSelect','inDownloads','inOrders','inMerchants'].forEach(id=>byId(id).addEventListener('change', updateCalc));
-
-byId('loginBtn').onclick = async () => { try { const { email, password } = validateCredentials(); await signInWithEmailAndPassword(auth, email, password); } catch (err) { setAuthStatus(`Login failed: ${err.message}`, true); } };
-byId('signupBtn').onclick = async () => {
-  try {
-    const { email, password } = validateCredentials();
-    const cred = await createUserWithEmailAndPassword(auth, email, password);
-    await upsertSupportAgent(cred.user);
-    setAuthStatus('Sign up successful. Waiting for admin approval.');
-  } catch (err) { setAuthStatus(`Sign up failed: ${explainAuthError(err)}`, true); }
+window.showToast = function(msg,type='success'){
+  const t=$('toast'); t.textContent=msg; t.className='show '+type;
+  setTimeout(()=>t.className='',2800);
 };
-byId('googleBtn').onclick = async () => {
-  try {
-    if(window.matchMedia('(max-width: 768px)').matches){
-      await signInWithRedirect(auth, provider);
+
+// ── AUTH TAB ──
+window.switchAuthTab = function(tab){
+  $('tabLogin').className='auth-tab'+(tab==='login'?' active':'');
+  $('tabSignup').className='auth-tab'+(tab==='signup'?' active':'');
+  $('loginForm').style.display=tab==='login'?'block':'none';
+  $('signupForm').style.display=tab==='signup'?'block':'none';
+};
+
+function setStatus(msg,type=''){
+  const el=$('authStatus');el.textContent=msg;
+  el.className='auth-status'+(type?' '+type:'');
+}
+
+async function upsertAgent(user){
+  const r=ref(db,`supportAgents/${user.uid}`);
+  const snap=await get(r);
+  if(!snap.exists()){
+    await set(r,{id:user.uid,email:user.email||'',name:user.displayName||(user.email||'agent').split('@')[0],approved:false,downloads:0,orders:0,merchants:0,createdAt:Date.now(),authProvider:user.providerData?.[0]?.providerId||'password'});
+  }
+}
+
+async function handleAuth(user){
+  if(!user){$('authScreen').style.display='flex';$('mainApp').style.display='none';return;}
+  try{ await upsertAgent(user); }catch(e){ setStatus('DB access denied. Contact admin.','error'); return; }
+  const snap=await get(ref(db,`supportAgents/${user.uid}`));
+  const me=snap.val();
+  if(!me?.approved){ $('authScreen').style.display='flex'; $('mainApp').style.display='none'; setStatus('Logged in — pending admin approval. Hintayin mo lang.',''); $('logoutBtn').style.display='block'; return; }
+  $('authScreen').style.display='none';
+  $('mainApp').style.display='flex';
+  state.me=me;
+  // admin check by email convention or flag
+  const isAdmin = me.isAdmin===true || (me.email||'').includes('admin') || user.email==='admin@bayango.store';
+  state.role=isAdmin?'admin':'support';
+  if(isAdmin) document.body.classList.add('is-admin');
+  $('sideAvatar').textContent=initials(me.name||me.email);
+  $('sideName').textContent=me.name||me.email||'Agent';
+  $('sideRole').textContent=isAdmin?'Admin':'Support Agent';
+  $('logoutBtn').addEventListener('click',()=>signOut(auth));
+  // live data
+  onValue(ref(db,'supportMessages'),snap=>{ state.messages=Object.entries(snap.val()||{}).map(([id,v])=>({id,...v})); renderAll(); });
+  onValue(ref(db,'supportAgents'),snap=>{ state.agents=Object.entries(snap.val()||{}).map(([id,v])=>({id,...v})); renderAll(); });
+}
+
+onAuthStateChanged(auth, handleAuth);
+
+// ── LOGIN ──
+$('loginBtn').onclick=async()=>{
+  const e=$('authEmail').value.trim(),p=$('authPassword').value;
+  if(!e||!p){setStatus('Email at password required.','error');return;}
+  try{await signInWithEmailAndPassword(auth,e,p);}catch(err){setStatus(err.message,'error');}
+};
+$('signupBtn').onclick=async()=>{
+  const n=$('signupName').value.trim(),e=$('signupEmail').value.trim(),p=$('signupPassword').value;
+  if(!n||!e||!p){setStatus('Kumpletuhin mo lahat ng fields.','error');return;}
+  if(p.length<6){setStatus('Password dapat 6+ characters.','error');return;}
+  try{
+    const cred=await createUserWithEmailAndPassword(auth,e,p);
+    await updateProfile(cred.user,{displayName:n});
+    await upsertAgent({...cred.user,displayName:n});
+    setStatus('Account created! Waiting for admin approval. 🎉','ok');
+  }catch(err){setStatus(err.message,'error');}
+};
+$('googleBtn').onclick=async()=>{
+  try{
+    if(window.innerWidth<=768){await signInWithRedirect(auth,gProvider);return;}
+    await signInWithPopup(auth,gProvider);
+  }catch(err){
+    if(['auth/popup-blocked','auth/cancelled-popup-request','auth/popup-closed-by-user'].includes(err.code)){
+      try{await signInWithRedirect(auth,gProvider);}catch(e){setStatus(e.message,'error');}
       return;
     }
-    await signInWithPopup(auth, provider);
-  } catch (err) {
-    const code = err?.code || '';
-    const popupBlocked = code === 'auth/popup-blocked' || code === 'auth/cancelled-popup-request' || code === 'auth/popup-closed-by-user';
-    if(popupBlocked){
-      try {
-        setAuthStatus('Popup login was blocked/closed. Redirecting to Google sign-in...');
-        await signInWithRedirect(auth, provider);
-        return;
-      } catch (redirectErr) {
-        setAuthStatus(`Google login failed: ${explainAuthError(redirectErr)}`, true);
-        return;
-      }
-    }
-    setAuthStatus(`Google login failed: ${explainAuthError(err)}`, true);
+    setStatus(err.message,'error');
   }
 };
 
-onAuthStateChanged(auth, async (user) => {
-  if(!user){ byId('authCard').classList.remove('hidden'); byId('appContent').classList.add('hidden'); byId('logoutBtn').classList.add('hidden'); setAuthStatus('Not logged in.'); return; }
-  state.me = user;
-  try {
-    await upsertSupportAgent(user);
-  } catch (err) {
-    byId('authCard').classList.remove('hidden');
-    byId('appContent').classList.add('hidden');
-    byId('logoutBtn').classList.remove('hidden');
-    setAuthStatus(`Login blocked: ${explainAuthError(err)}`, true);
-    return;
-  }
-  const me = (await get(ref(db, `supportAgents/${user.uid}`))).val();
-  if(!me.approved){ byId('authCard').classList.remove('hidden'); byId('appContent').classList.add('hidden'); byId('logoutBtn').classList.remove('hidden'); setAuthStatus('Logged in, but pending admin approval.'); return; }
-  byId('authCard').classList.add('hidden'); byId('appContent').classList.remove('hidden'); byId('logoutBtn').classList.remove('hidden');
-  setAuthStatus(`Logged in as ${user.email || user.displayName}`);
-  onValue(ref(db, 'supportMessages'), (snap)=>{ state.messages=Object.values(snap.val()||{}); render(); });
-  onValue(ref(db, 'supportAgents'), (snap)=>{ state.agents=Object.values(snap.val()||{}); render(); });
-});
+// ── NAV ──
+window.showPage = function(name){
+  document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
+  document.querySelectorAll('.nav-item').forEach(n=>n.classList.remove('active'));
+  const pg=$('page-'+name); if(pg) pg.classList.add('active');
+  const nv=document.querySelector(`.nav-item[onclick*="${name}"]`); if(nv) nv.classList.add('active');
+  const titles={dashboard:'Dashboard',tickets:'Support Tickets',kb:'Knowledge Base',agents:'Agent Management',referrals:'Referral & Incentives',settings:'Settings'};
+  $('topbarTitle').textContent=titles[name]||name;
+};
+
+// ── RENDER ALL ──
+function renderAll(){renderDashboard();renderTickets();renderAgents();renderReferrals();}
+
+// ── DASHBOARD ──
+function renderDashboard(){
+  const open=state.messages.filter(m=>!m.status||m.status==='Open').length;
+  const inProg=state.messages.filter(m=>m.status==='In Progress').length;
+  const resolved=state.messages.filter(m=>m.status==='Resolved').length;
+  const pending=state.agents.filter(a=>!a.approved).length;
+  const approved=state.agents.filter(a=>a.approved).length;
+  const totComm=state.agents.reduce((x,a)=>{return x+commission(a).total},0);
+
+  // Notification dot
+  if(open>0){$('notifDot').style.display='block';}else{$('notifDot').style.display='none';}
+  // Badge
+  $('badgeTickets').textContent=open; $('badgeTickets').style.display=open>0?'':'none';
+  $('badgeAgents').textContent=pending; $('badgeAgents').style.display=pending>0?'':'none';
+  $('openCount').textContent=open+' Open';
+  $('pendingCount').textContent=pending+' Pending';
+
+  $('kpiGrid').innerHTML=[
+    {label:'Open Tickets',val:open,sub:`${inProg} In Progress`,icon:'🎫',cls:'red'},
+    {label:'Resolved Today',val:resolved,sub:'Tickets closed',icon:'✅',cls:'green'},
+    {label:'Approved Agents',val:approved,sub:`${pending} pending`,icon:'👥',cls:'blue'},
+    {label:'Total Incentives',val:peso(totComm),sub:'All agents',icon:'💰',cls:'amber'},
+    {label:'Total Messages',val:state.messages.length,sub:'All time',icon:'💬',cls:'green'},
+    {label:'Merchant Invites',val:state.agents.reduce((x,a)=>x+(a.merchants||0),0),sub:'By all agents',icon:'🤝',cls:'blue'},
+  ].map(k=>`<div class="kpi-card ${k.cls}"><div class="kpi-icon">${k.icon}</div><div class="kpi-label">${k.label}</div><div class="kpi-val">${k.val}</div><div class="kpi-sub">${k.sub}</div></div>`).join('');
+
+  // Recent tickets
+  const recent=state.messages.slice(-5).reverse();
+  $('recentTickets').innerHTML=recent.length?recent.map(m=>`
+    <div class="ticket-list-item" onclick="showPage('tickets');selectTicket('${m.id}')">
+      <div class="ticket-avi">${initials(m.user||'?')}</div>
+      <div class="ticket-meta">
+        <div class="ticket-user">${m.user||'Unknown User'}</div>
+        <div class="ticket-preview">${m.msg||m.message||'—'}</div>
+      </div>
+      <div style="flex-shrink:0"><span class="badge ${getStatusBadge(m.status)}">${m.status||'Open'}</span></div>
+    </div>`).join(''):'<div class="empty"><span class="empty-icon">🎫</span><div class="empty-title">Walang tickets pa</div></div>';
+
+  // Agent perf
+  const top=[...state.agents].filter(a=>a.approved).sort((a,b)=>(b.orders||0)-(a.orders||0)).slice(0,5);
+  $('agentPerf').innerHTML=top.length?top.map((a,i)=>`
+    <div style="display:flex;align-items:center;gap:10px;padding:9px 0;border-bottom:1px solid var(--border)">
+      <div style="width:20px;text-align:center;font-size:11px;color:var(--muted);font-weight:700">${i+1}</div>
+      <div class="ref-av" style="width:32px;height:32px;font-size:13px">${initials(a.name||a.email)}</div>
+      <div style="flex:1;min-width:0">
+        <div style="font-size:13px;font-weight:600">${a.name||a.email||a.id}</div>
+        <div style="font-size:11px;color:var(--muted)">${a.orders||0} orders · ${a.merchants||0} merchants</div>
+      </div>
+      <div style="text-align:right;font-size:12px;font-weight:700;color:var(--green3)">${peso(commission(a).total)}</div>
+    </div>`).join(''):'<div class="empty"><span class="empty-icon">👥</span><div class="empty-title">Walang agents pa</div></div>';
+
+  // Pending approvals (admin)
+  const pend=state.agents.filter(a=>!a.approved);
+  $('pendingApprovals').innerHTML=pend.length?`<div class="table-wrap"><table><thead><tr><th>Agent</th><th>Email</th><th>Auth</th><th>Registered</th><th>Actions</th></tr></thead><tbody>${
+    pend.map(a=>`<tr><td><div class="td-name">${a.name||a.id}</div></td><td>${a.email||'—'}</td><td><span class="badge badge-muted">${a.authProvider||'password'}</span></td><td>${a.createdAt?new Date(a.createdAt).toLocaleDateString('en-PH'):'—'}</td><td class="td-actions"><button class="action-btn green" onclick="approveAgent('${a.id}')">Approve</button><button class="action-btn red" onclick="rejectAgent('${a.id}')">Reject</button></td></tr>`).join('')
+  }</tbody></table></div>`:'<div class="empty"><span class="empty-icon">✅</span><div class="empty-title">Lahat approved na</div></div>';
+}
+
+// ── TICKETS ──
+window.renderTickets = function(){
+  const q=($('ticketSearch').value||'').toLowerCase();
+  const sf=($('filterStatus').value||'');
+  const pf=($('filterPriority').value||'');
+  let msgs=[...state.messages];
+  if(q) msgs=msgs.filter(m=>(m.user||'').toLowerCase().includes(q)||(m.msg||m.message||'').toLowerCase().includes(q));
+  if(sf) msgs=msgs.filter(m=>(m.status||'Open')===sf);
+  if(pf) msgs=msgs.filter(m=>(m.priority||'Medium')===pf);
+  msgs=msgs.slice().reverse();
+  $('ticketListItems').innerHTML=msgs.length?msgs.map(m=>`
+    <div class="ticket-list-item${state.selectedTicketId===m.id?' selected':''}" onclick="selectTicket('${m.id}')">
+      <div class="ticket-avi">${initials(m.user||'?')}</div>
+      <div class="ticket-meta">
+        <div style="display:flex;align-items:center;gap:6px"><span class="ticket-user">${m.user||'Unknown'}</span><span class="badge ${getPriorityBadge(m.priority||'Medium')}" style="font-size:9px">${m.priority||'Medium'}</span></div>
+        <div class="ticket-preview">${m.msg||m.message||'—'}</div>
+      </div>
+      <div style="text-align:right;flex-shrink:0">
+        <div style="margin-bottom:4px"><span class="badge ${getStatusBadge(m.status)}">${m.status||'Open'}</span></div>
+        <div class="ticket-time">${timeAgo(m.createdAt||m.timestamp)}</div>
+      </div>
+    </div>`).join(''):'<div class="empty"><span class="empty-icon">🎫</span><div class="empty-title">Walang matching tickets</div></div>';
+};
+
+window.selectTicket = function(id){
+  state.selectedTicketId=id;
+  renderTickets();
+  const m=state.messages.find(x=>x.id===id);
+  if(!m){$('ticketDetailContent').innerHTML='';return;}
+  const replies=Object.values(m.replies||{});
+  $('ticketDetailContent').innerHTML=`
+    <div class="ticket-detail-header">
+      <div style="display:flex;align-items:center;gap:10px">
+        <div class="ticket-avi">${initials(m.user||'?')}</div>
+        <div>
+          <div style="font-weight:700;font-size:14px">${m.user||'Unknown User'}</div>
+          <div style="font-size:11px;color:var(--muted)">${m.email||''} · ${timeAgo(m.createdAt||m.timestamp)}</div>
+        </div>
+      </div>
+      <div style="display:flex;gap:6px;margin-top:10px;flex-wrap:wrap">
+        <span class="badge ${getStatusBadge(m.status)}">${m.status||'Open'}</span>
+        <span class="badge ${getPriorityBadge(m.priority||'Medium')}">${m.priority||'Medium'}</span>
+        <select style="padding:3px 6px;border-radius:6px;border:1px solid var(--border2);background:var(--surface);color:var(--text);font-size:11px" onchange="updateTicketStatus('${id}',this.value)">
+          <option ${(!m.status||m.status==='Open')?'selected':''}>Open</option>
+          <option ${ m.status==='In Progress'?'selected':''}>In Progress</option>
+          <option ${ m.status==='Resolved'?'selected':''}>Resolved</option>
+        </select>
+        <select style="padding:3px 6px;border-radius:6px;border:1px solid var(--border2);background:var(--surface);color:var(--text);font-size:11px" onchange="updateTicketPriority('${id}',this.value)">
+          <option ${ m.priority==='High'?'selected':''}>High</option>
+          <option ${ (!m.priority||m.priority==='Medium')?'selected':''}>Medium</option>
+          <option ${ m.priority==='Low'?'selected':''}>Low</option>
+        </select>
+      </div>
+    </div>
+    <div class="ticket-messages" id="msgThread">
+      <div><div class="msg-sender">👤 ${m.user||'User'}</div><div class="msg-bubble from-user">${m.msg||m.message||'—'}</div></div>
+      ${replies.map(r=>`<div><div class="msg-sender" style="text-align:right">🧑‍💼 ${r.agent||'Agent'}</div><div class="msg-bubble from-agent">${r.text}</div></div>`).join('')}
+    </div>
+    <div class="reply-box">
+      <textarea class="reply-input" id="replyInput" rows="1" placeholder="Type your reply…"></textarea>
+      <button class="send-btn" onclick="sendReply('${id}')">➤</button>
+    </div>`;
+  // scroll to bottom
+  setTimeout(()=>{const t=$('msgThread');if(t)t.scrollTop=t.scrollHeight;},50);
+};
+
+window.updateTicketStatus = async function(id,val){
+  await update(ref(db,`supportMessages/${id}`),{status:val});
+  showToast('Status updated to '+val,'success');
+};
+window.updateTicketPriority = async function(id,val){
+  await update(ref(db,`supportMessages/${id}`),{priority:val});
+  showToast('Priority set to '+val,'success');
+};
+window.sendReply = async function(ticketId){
+  const inp=$('replyInput'); const txt=inp.value.trim(); if(!txt) return;
+  const agentName=state.me?.name||state.me?.email||'Agent';
+  await push(ref(db,`supportMessages/${ticketId}/replies`),{text:txt,agent:agentName,timestamp:Date.now()});
+  await update(ref(db,`supportMessages/${ticketId}`),{status:'In Progress'});
+  inp.value='';
+  showToast('Reply sent ✓','success');
+  // re-select to refresh
+  setTimeout(()=>selectTicket(ticketId),300);
+};
+
+// ── AGENTS ──
+window.renderAgents = function(){
+  const q=($('agentSearch')?.value||'').toLowerCase();
+  let ags=[...state.agents];
+  if(q) ags=ags.filter(a=>(a.name||'').toLowerCase().includes(q)||(a.email||'').toLowerCase().includes(q));
+  $('agentTableBody').innerHTML=ags.length?ags.map(a=>{
+    const c=commission(a);
+    return `<tr>
+      <td><div class="td-name">${a.name||a.id}</div><div class="td-sub">${a.email||'—'}</div></td>
+      <td><span class="badge badge-muted">${a.authProvider||'email'}</span></td>
+      <td>${a.downloads||0}</td>
+      <td>${a.orders||0}</td>
+      <td>${a.merchants||0}</td>
+      <td style="font-weight:700;color:var(--green3)">${peso(c.total)}</td>
+      <td><span class="badge ${a.approved?'badge-green':'badge-amber'}">${a.approved?'Approved':'Pending'}</span></td>
+      <td class="td-actions">${a.approved
+        ?`<button class="action-btn red" onclick="rejectAgent('${a.id}')">Revoke</button>`
+        :`<button class="action-btn green" onclick="approveAgent('${a.id}')">Approve</button><button class="action-btn red" onclick="rejectAgent('${a.id}')">Reject</button>`
+      }</td></tr>`;
+  }).join(''):'<tr><td colspan="8"><div class="empty" style="padding:20px">Walang agents.</div></td></tr>';
+};
+
+window.approveAgent = async function(id){
+  await update(ref(db,`supportAgents/${id}`),{approved:true});
+  showToast('Agent approved! ✓','success');
+};
+window.rejectAgent = async function(id){
+  if(!confirm('Are you sure you want to revoke/reject this agent?')) return;
+  await update(ref(db,`supportAgents/${id}`),{approved:false});
+  showToast('Agent access revoked.','error');
+};
+
+// ── REFERRALS ──
+function renderReferrals(){
+  const appr=state.agents.filter(a=>a.approved);
+  const totDL=appr.reduce((x,a)=>x+(a.downloads||0),0);
+  const totO=appr.reduce((x,a)=>x+(a.orders||0),0);
+  const totM=appr.reduce((x,a)=>x+(a.merchants||0),0);
+  const totC=appr.reduce((x,a)=>x+commission(a).total,0);
+  const rk=$('refKpiGrid');
+  if(rk) rk.innerHTML=[
+    {label:'Total Downloads',val:totDL,icon:'📥',cls:'blue'},
+    {label:'Successful Orders',val:totO,icon:'🛒',cls:'green'},
+    {label:'Merchant Invites',val:totM,icon:'🤝',cls:'amber'},
+    {label:'Total Commissions',val:peso(totC),icon:'💰',cls:'green'},
+  ].map(k=>`<div class="kpi-card ${k.cls}"><div class="kpi-icon">${k.icon}</div><div class="kpi-label">${k.label}</div><div class="kpi-val">${k.val}</div></div>`).join('');
+  const rc=$('refAgentCards');
+  if(!rc) return;
+  rc.innerHTML=appr.length?appr.map(a=>{
+    const c=commission(a);
+    return `<div class="referral-agent-card" style="margin-bottom:12px">
+      <div class="ref-av">${initials(a.name||a.email)}</div>
+      <div style="flex:1">
+        <div class="ref-name">${a.name||a.id}</div>
+        <div class="ref-email">${a.email||'—'}</div>
+        <div class="ref-link">🔗 ${linkFor(a)}</div>
+        <div class="ref-stats">
+          <div class="ref-stat"><div class="ref-stat-val">${a.downloads||0}</div><div class="ref-stat-label">Downloads</div></div>
+          <div class="ref-stat"><div class="ref-stat-val">${a.orders||0}</div><div class="ref-stat-label">Orders</div></div>
+          <div class="ref-stat"><div class="ref-stat-val">${a.merchants||0}</div><div class="ref-stat-label">Merchants</div></div>
+        </div>
+        <div class="commission-pill">💰 ${peso(c.total)} total &nbsp;·&nbsp; Orders ${peso(c.order)} &nbsp;·&nbsp; Merchants ${peso(c.merchant)} &nbsp;·&nbsp; Bonus ${peso(c.bonus)}</div>
+        <div class="ref-input-row">
+          <div class="ref-field"><label>Downloads</label><input type="number" id="dl_${a.id}" value="${a.downloads||0}" min="0"/></div>
+          <div class="ref-field"><label>Orders</label><input type="number" id="or_${a.id}" value="${a.orders||0}" min="0"/></div>
+          <div class="ref-field"><label>Merchants</label><input type="number" id="me_${a.id}" value="${a.merchants||0}" min="0"/></div>
+          <button class="save-btn" onclick="saveRef('${a.id}')">Save</button>
+        </div>
+      </div>
+    </div>`;
+  }).join(''):'<div class="empty"><span class="empty-icon">💸</span><div class="empty-title">Walang approved agents pa</div></div>';
+}
+
+window.saveRef = async function(id){
+  const dl=Math.max(0,+($('dl_'+id)?.value||0));
+  const or=Math.max(0,+($('or_'+id)?.value||0));
+  const me=Math.max(0,+($('me_'+id)?.value||0));
+  await update(ref(db,`supportAgents/${id}`),{downloads:dl,orders:or,merchants:me});
+  showToast('Progress saved ✓','success');
+};
+
+// ── KNOWLEDGE BASE ──
+function KB_DEFAULT(){return[
+  {id:'kb1',cat:'Orders',title:'Paano i-track ang order?',body:'Pumunta sa Aking Orders sa app. Doon makikita ang real-time status ng iyong order kasama ang estimated delivery time.'},
+  {id:'kb2',cat:'Orders',title:'Ano ang gagawin kung late ang delivery?',body:'Hintayin muna ng 30 minutos. Kung wala pa, i-contact ang rider sa in-app chat. Kung hindi pa rin, mag-file ng support ticket.'},
+  {id:'kb3',cat:'Payments',title:'Anong payment methods ang tinatanggap?',body:'GCash, Maya, cash on delivery, at major credit/debit cards. Available din ang installment via BillEase para sa orders na ₱1,000+.'},
+  {id:'kb4',cat:'Payments',title:'Paano mag-request ng refund?',body:'Mag-file ng refund request sa loob ng 24 hours mula delivery. I-upload ang proof (larawan ng item). Processing time: 3-5 business days.'},
+  {id:'kb5',cat:'Merchants',title:'Paano maging partner merchant?',body:'I-fill out ang Partner Merchant Application sa app. Requirements: valid business permit, at least 1 year operation. Approval within 5-7 business days.'},
+  {id:'kb6',cat:'Account',title:'Nalimutan ko ang password ko',body:'I-click ang "Forgot Password" sa login screen. Magpadala kami ng reset link sa iyong registered email. Valid ang link for 24 hours.'},
+  {id:'kb7',cat:'Referrals',title:'Paano gumagana ang referral system?',body:'Ibahagi ang iyong unique referral link. Kapag nag-download at nag-order ang iyong referral, may komisyon kang matatanggap ayon sa incentive rules.'},
+  {id:'kb8',cat:'Technical',title:'Hindi gumagana ang app',body:'I-try muna i-clear cache. Kung hindi pa rin, i-uninstall at i-reinstall. Siguraduhin na latest version. Kung may problem pa, mag-submit ng support ticket.'},
+]}
+
+window.renderKB = function(){
+  const q=($('kbSearch')?.value||'').toLowerCase();
+  let arts=state.kbArticles;
+  if(q) arts=arts.filter(a=>a.title.toLowerCase().includes(q)||a.body.toLowerCase().includes(q)||a.cat.toLowerCase().includes(q));
+  const cats=[...new Set(arts.map(a=>a.cat))];
+  $('kbGrid').innerHTML=arts.length?arts.map(a=>`
+    <div class="kb-card" onclick="viewArticle('${a.id}')">
+      <div class="kb-cat">${a.cat}</div>
+      <div class="kb-title">${a.title}</div>
+      <div class="kb-preview">${a.body.slice(0,80)}…</div>
+    </div>`).join(''):'<div class="empty" style="grid-column:1/-1"><span class="empty-icon">📚</span><div class="empty-title">Walang matching articles</div></div>';
+};
+
+window.viewArticle = function(id){
+  const a=state.kbArticles.find(x=>x.id===id);
+  if(!a) return;
+  const d=document.createElement('div');
+  d.style.cssText='position:fixed;inset:0;background:rgba(0,0,0,.7);z-index:5000;display:flex;align-items:center;justify-content:center;padding:20px';
+  d.innerHTML=`<div style="background:var(--card);border:1px solid var(--border2);border-radius:18px;padding:28px;max-width:480px;width:100%;box-shadow:0 40px 80px rgba(0,0,0,.5)">
+    <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:16px">
+      <div><span class="badge badge-blue" style="margin-bottom:8px">${a.cat}</span><div style="font-family:var(--font-display);font-size:18px;font-weight:800">${a.title}</div></div>
+      <button onclick="this.closest('div[style]').remove()" style="background:none;border:none;color:var(--muted);font-size:20px;cursor:pointer;margin-left:12px">×</button>
+    </div>
+    <div style="font-size:14px;line-height:1.7;color:var(--muted)">${a.body}</div>
+    <button onclick="this.closest('div[style]').remove()" style="margin-top:20px;padding:10px 20px;background:var(--green2);color:#fff;border:none;border-radius:8px;font-family:var(--font-display);font-weight:700;cursor:pointer">Got it 👍</button>
+  </div>`;
+  document.body.appendChild(d);
+};
+
+window.openAddArticle = function(){
+  const d=document.createElement('div');
+  d.style.cssText='position:fixed;inset:0;background:rgba(0,0,0,.7);z-index:5000;display:flex;align-items:center;justify-content:center;padding:20px';
+  d.innerHTML=`<div style="background:var(--card);border:1px solid var(--border2);border-radius:18px;padding:28px;max-width:480px;width:100%">
+    <div style="font-family:var(--font-display);font-size:17px;font-weight:800;margin-bottom:18px">Add KB Article</div>
+    <div class="field"><label>Category</label><input id="newCat" placeholder="e.g. Orders"/></div>
+    <div class="field"><label>Title</label><input id="newTitle" placeholder="Paano mag-..."/></div>
+    <div class="field"><label>Body</label><textarea id="newBody" rows="4" style="width:100%;padding:10px;background:var(--surface);border:1px solid var(--border2);border-radius:8px;color:var(--text);font-family:var(--font-body);font-size:13px;outline:none;resize:vertical"></textarea></div>
+    <div style="display:flex;gap:8px;margin-top:8px">
+      <button onclick="saveArticle()" style="flex:1;padding:10px;background:var(--green2);color:#fff;border:none;border-radius:8px;font-family:var(--font-display);font-weight:700;cursor:pointer">Save Article</button>
+      <button onclick="this.closest('div[style]').remove()" style="padding:10px 16px;background:var(--surface);border:1px solid var(--border2);border-radius:8px;color:var(--muted);cursor:pointer">Cancel</button>
+    </div>
+  </div>`;
+  document.body.appendChild(d);
+};
+
+window.saveArticle = function(){
+  const cat=$('newCat')?.value.trim();
+  const title=$('newTitle')?.value.trim();
+  const body=$('newBody')?.value.trim();
+  if(!cat||!title||!body){showToast('Kumpletuhin mo lahat ng fields.','error');return;}
+  state.kbArticles.push({id:'kb'+Date.now(),cat,title,body});
+  renderKB();
+  document.querySelector('div[style*="position:fixed"]')?.remove();
+  showToast('Article added ✓','success');
+};
+
+// init KB render
+renderKB();
 </script>
 </body>
 </html>
