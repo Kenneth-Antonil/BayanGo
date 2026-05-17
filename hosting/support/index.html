@@ -2,154 +2,146 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
   <title>BayanGo Support App</title>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;700;800;900&display=swap" rel="stylesheet" />
   <style>
-    :root{--bg:#f5f7fb;--card:#fff;--primary:#0f766e;--text:#0f172a;--muted:#64748b;--border:#dbe3ef;--ok:#16a34a;--warn:#d97706;--danger:#dc2626}
-    *{box-sizing:border-box} body{margin:0;font-family:Inter,system-ui,-apple-system,sans-serif;background:var(--bg);color:var(--text)}
-    .app{max-width:1100px;margin:auto;padding:14px}.top{display:flex;gap:8px;flex-wrap:wrap;align-items:center;justify-content:space-between}
-    .pill{padding:8px 12px;border-radius:999px;background:#e6fffb;color:#115e59;font-weight:700;font-size:12px}
-    .grid{display:grid;gap:12px}.kpi{grid-template-columns:repeat(auto-fit,minmax(160px,1fr));margin-top:12px}
-    .card{background:var(--card);border:1px solid var(--border);border-radius:14px;padding:12px;box-shadow:0 1px 4px rgba(0,0,0,.04)}
-    h1,h2,h3{margin:0 0 8px} p{margin:0;color:var(--muted)} .num{font-size:24px;font-weight:800}
-    .two{grid-template-columns:1fr; margin-top:12px} @media(min-width:900px){.two{grid-template-columns:1.1fr .9fr}}
-    table{width:100%;border-collapse:collapse;font-size:13px} th,td{padding:8px;border-bottom:1px solid #edf2f7;text-align:left}
-    .btn{background:var(--primary);color:#fff;border:0;padding:8px 12px;border-radius:10px;font-weight:700;cursor:pointer}
-    .btn.alt{background:#334155}.btn.ok{background:var(--ok)} .btn.danger{background:var(--danger)} .row{display:flex;gap:8px;flex-wrap:wrap}
-    input,select{width:100%;padding:8px;border-radius:10px;border:1px solid var(--border)} label{font-size:12px;color:var(--muted);font-weight:700}
+    :root{--bg:#f0f5f0;--card:#fff;--primary:#166534;--primary-2:#22c55e;--text:#0f172a;--muted:#64748b;--border:#dbe3ef;--ok:#16a34a;--danger:#dc2626}
+    *{box-sizing:border-box}
+    body{margin:0;font-family:'Plus Jakarta Sans',system-ui,-apple-system,sans-serif;background:var(--bg);color:var(--text)}
+    .app{max-width:430px;margin:0 auto;min-height:100vh;background:#fff}
+    .hero{background:linear-gradient(160deg,#052e16 0%,#166534 55%,#22c55e 130%);padding:24px 18px 22px;color:#fff}
+    .hero h1{margin:0;font-size:21px;font-weight:900;letter-spacing:-.2px}
+    .hero p{margin:8px 0 0;font-size:12px;opacity:.9;line-height:1.6}
+    .top-actions{display:flex;gap:8px;margin-top:14px;flex-wrap:wrap}
+    .container{padding:14px}
+    .pill{padding:6px 10px;border-radius:999px;background:#e6fffb;color:#115e59;font-weight:800;font-size:11px;display:inline-block}
+    .grid{display:grid;gap:10px}.kpi{grid-template-columns:1fr 1fr;margin-top:10px}
+    .card{background:var(--card);border:1px solid var(--border);border-radius:16px;padding:12px;box-shadow:0 2px 10px rgba(0,0,0,.05)}
+    h2,h3{margin:0 0 6px} p{margin:0;color:var(--muted);font-size:12px}
+    .num{font-size:21px;font-weight:900}
+    .two{grid-template-columns:1fr; margin-top:10px}
+    table{width:100%;border-collapse:collapse;font-size:12px} th,td{padding:7px 6px;border-bottom:1px solid #edf2f7;text-align:left;vertical-align:top}
+    .btn{background:var(--primary);color:#fff;border:0;padding:10px 12px;border-radius:12px;font-weight:800;cursor:pointer;font-family:inherit;font-size:12px}
+    .btn.alt{background:#334155}.btn.ok{background:var(--ok)} .btn.danger{background:var(--danger)} .btn.google{background:#fff;color:#111827;border:1px solid #d1d5db}
+    .row{display:flex;gap:8px;flex-wrap:wrap}
+    input,select{width:100%;padding:10px;border-radius:12px;border:1px solid var(--border);font-family:inherit;font-size:14px}
+    label{font-size:11px;color:var(--muted);font-weight:800}
     .tag{font-size:11px;padding:4px 8px;border-radius:999px;background:#f1f5f9;display:inline-block}
-    .auth{display:grid;grid-template-columns:1fr;gap:8px;max-width:400px}.muted{font-size:12px;color:var(--muted)} .hidden{display:none!important}
+    .auth{display:grid;grid-template-columns:1fr;gap:8px}.muted{font-size:12px;color:var(--muted)} .hidden{display:none!important}
+    .auth-cta{display:grid;grid-template-columns:1fr;gap:8px}
+    @media(min-width:900px){.app{max-width:1100px}.container{padding:16px}.kpi{grid-template-columns:repeat(3,1fr)}.two{grid-template-columns:1.1fr .9fr}}
   </style>
 </head>
 <body>
 <div class="app">
-  <div class="top">
-    <div>
-      <h1>support.bayango.store</h1>
-      <p>Real-time Support App + Admin Approval + Referral Incentive Tracking</p>
-    </div>
-    <div class="row">
+  <div class="hero">
+    <h1>support.bayango.store</h1>
+    <p>Real-time Support App + Admin Approval + Referral Incentive Tracking</p>
+    <div class="top-actions row">
       <button id="supportViewBtn" class="btn alt">Support View</button>
-      <button id="adminViewBtn" class="btn">Admin Dashboard View</button>
+      <button id="adminViewBtn" class="btn">Admin Dashboard</button>
       <button id="logoutBtn" class="btn danger hidden">Logout</button>
     </div>
   </div>
 
-  <div id="authCard" class="card" style="margin-top:12px">
-    <h3>Support Agent Login / Sign Up</h3>
-    <p>Gumamit ng real account para pumasok sa support system.</p>
-    <div class="auth" style="margin-top:10px">
-      <div><label>Email</label><input id="authEmail" type="email" placeholder="agent@bayango.store"></div>
-      <div><label>Password</label><input id="authPassword" type="password" placeholder="Minimum 6 characters"></div>
-      <div class="row">
-        <button id="loginBtn" class="btn">Login</button>
-        <button id="signupBtn" class="btn ok">Sign Up</button>
-      </div>
-      <p id="authStatus" class="muted">Not logged in.</p>
-    </div>
-  </div>
-
-  <div id="appContent" class="hidden">
-    <div id="roleTag" class="pill" style="margin-top:10px">Current: Support Agent</div>
-    <div class="grid kpi" id="kpis"></div>
-
-    <div class="grid two">
-      <div class="card">
-        <h3>Support Messages (from user app)</h3>
-        <p>Lahat ng support concern mula user app ay pupunta dito.</p>
-        <table><thead><tr><th>User</th><th>Message</th><th>Status</th></tr></thead><tbody id="msgRows"></tbody></table>
-      </div>
-      <div class="card" id="adminCard">
-        <h3>Admin: Agent Approval</h3>
-        <p>I-approve muna ng admin bago maka-login sa support app.</p>
-        <table><thead><tr><th>Agent</th><th>Referral Link</th><th>Action</th></tr></thead><tbody id="agentRows"></tbody></table>
+  <div class="container">
+    <div id="authCard" class="card">
+      <h3>Support Agent Login / Sign Up</h3>
+      <p>Mobile-first secure access para sa support team.</p>
+      <div class="auth" style="margin-top:10px">
+        <div><label>Email</label><input id="authEmail" type="email" placeholder="agent@bayango.store" autocomplete="email"></div>
+        <div><label>Password</label><input id="authPassword" type="password" placeholder="Minimum 6 characters" autocomplete="current-password"></div>
+        <div class="auth-cta">
+          <button id="loginBtn" class="btn">Login</button>
+          <button id="signupBtn" class="btn ok">Sign Up</button>
+          <button id="googleBtn" class="btn google">Continue with Google</button>
+        </div>
+        <p id="authStatus" class="muted">Not logged in.</p>
       </div>
     </div>
 
-    <div class="card" style="margin-top:12px">
-      <h3>Referral / Incentives Tracker</h3>
-      <p>Rules: download = 0, successful order = ₱50, successful partner merchant invite = ₱1,000, weekly quota bonus (10 successful orders) = ₱1,000.</p>
-      <div class="row" style="margin-top:10px">
-        <div style="flex:1;min-width:180px"><label>Agent</label><select id="agentSelect"></select></div>
-        <div style="width:140px"><label>Downloads</label><input id="inDownloads" type="number" min="0" value="0"></div>
-        <div style="width:140px"><label>Orders</label><input id="inOrders" type="number" min="0" value="0"></div>
-        <div style="width:170px"><label>Partner Merchant</label><input id="inMerchants" type="number" min="0" value="0"></div>
-        <div style="align-self:end"><button id="saveProgressBtn" class="btn ok">Save Progress</button></div>
+    <div id="appContent" class="hidden">
+      <div id="roleTag" class="pill" style="margin-top:10px">Current: Support Agent</div>
+      <div class="grid kpi" id="kpis"></div>
+
+      <div class="grid two">
+        <div class="card">
+          <h3>Support Messages (from user app)</h3>
+          <p>Lahat ng support concern mula user app ay pupunta dito.</p>
+          <table><thead><tr><th>User</th><th>Message</th><th>Status</th></tr></thead><tbody id="msgRows"></tbody></table>
+        </div>
+        <div class="card" id="adminCard">
+          <h3>Admin: Agent Approval</h3>
+          <p>I-approve muna ng admin bago maka-login sa support app.</p>
+          <table><thead><tr><th>Agent</th><th>Referral Link</th><th>Action</th></tr></thead><tbody id="agentRows"></tbody></table>
+        </div>
       </div>
-      <p id="calc" style="margin-top:10px" class="tag"></p>
+
+      <div class="card" style="margin-top:12px">
+        <h3>Referral / Incentives Tracker</h3>
+        <p>Rules: download = 0, successful order = ₱50, successful partner merchant invite = ₱1,000, weekly quota bonus (10 successful orders) = ₱1,000.</p>
+        <div class="row" style="margin-top:10px">
+          <div style="flex:1;min-width:180px"><label>Agent</label><select id="agentSelect"></select></div>
+          <div style="width:140px"><label>Downloads</label><input id="inDownloads" type="number" min="0" value="0"></div>
+          <div style="width:140px"><label>Orders</label><input id="inOrders" type="number" min="0" value="0"></div>
+          <div style="width:170px"><label>Partner Merchant</label><input id="inMerchants" type="number" min="0" value="0"></div>
+          <div style="align-self:end"><button id="saveProgressBtn" class="btn ok">Save Progress</button></div>
+        </div>
+        <p id="calc" style="margin-top:10px" class="tag"></p>
+      </div>
     </div>
   </div>
 </div>
 <script type="module">
 import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.13.2/firebase-app.js';
-import { getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword, onAuthStateChanged, signOut } from 'https://www.gstatic.com/firebasejs/10.13.2/firebase-auth.js';
+import { getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword, onAuthStateChanged, signOut, GoogleAuthProvider, signInWithPopup, signInWithRedirect } from 'https://www.gstatic.com/firebasejs/10.13.2/firebase-auth.js';
 import { getDatabase, ref, get, onValue, set, update } from 'https://www.gstatic.com/firebasejs/10.13.2/firebase-database.js';
 
-const firebaseConfig = {
-  apiKey: 'AIzaSyC0AQ3rkH-fhxlThobjDDtrvxttAfFLXTE',
-  authDomain: 'auth.bayango.store',
-  databaseURL: 'https://bayango-315c6-default-rtdb.asia-southeast1.firebasedatabase.app',
-  projectId: 'bayango-315c6',
-  storageBucket: 'bayango-315c6.firebasestorage.app',
-  messagingSenderId: '199013441811',
-  appId: '1:199013441811:web:315a38f03ddc9b676e3ae6',
-};
+const firebaseConfig = { apiKey: 'AIzaSyC0AQ3rkH-fhxlThobjDDtrvxttAfFLXTE', authDomain: 'auth.bayango.store', databaseURL: 'https://bayango-315c6-default-rtdb.asia-southeast1.firebasedatabase.app', projectId: 'bayango-315c6', storageBucket: 'bayango-315c6.firebasestorage.app', messagingSenderId: '199013441811', appId: '1:199013441811:web:315a38f03ddc9b676e3ae6' };
 
 const app = initializeApp(firebaseConfig);
 const auth = getAuth(app);
 const db = getDatabase(app);
+const provider = new GoogleAuthProvider();
 const state = { role: 'support', messages: [], agents: [], me: null };
 
 const peso=n=>new Intl.NumberFormat('en-PH',{style:'currency',currency:'PHP',maximumFractionDigits:0}).format(n);
 const linkFor=a=>`https://bayango.store/app?ref=${a.id}`;
 const commission=a=>{const order=(a.orders||0)*50,merchant=(a.merchants||0)*1000,bonus=(a.orders||0)>=10?1000:0;return {order,merchant,bonus,total:order+merchant+bonus}};
-
 const byId = (id) => document.getElementById(id);
-function setAuthStatus(msg){ byId('authStatus').textContent = msg; }
 
-function render() {
+function setAuthStatus(msg, isError=false){ byId('authStatus').textContent = msg; byId('authStatus').style.color = isError ? '#dc2626' : '#64748b'; }
+function getCredentials(){ return { email: byId('authEmail').value.trim(), password: byId('authPassword').value }; }
+function validateCredentials(){
+  const { email, password } = getCredentials();
+  if(!email) throw new Error('Email is required.');
+  if(!password || password.length < 6) throw new Error('Password must be at least 6 characters.');
+  return { email, password };
+}
+
+async function upsertSupportAgent(user){
+  const agentRef = ref(db, `supportAgents/${user.uid}`);
+  const snap = await get(agentRef);
+  if(!snap.exists()){
+    await set(agentRef, { id: user.uid, email: user.email || '', name: (user.displayName || user.email || 'agent').split('@')[0], approved: false, downloads:0, orders:0, merchants:0, createdAt:Date.now(), authProvider: user.providerData?.[0]?.providerId || 'password' });
+  }
+}
+
+function render() { /* unchanged rendering */
   byId('roleTag').textContent = `Current: ${state.role==='admin'?'Admin Dashboard':'Support Agent'}`;
   const approved = state.agents.filter(a=>a.approved).length;
   const totals = state.agents.reduce((x,a)=>{const c=commission(a);x.downloads+=(a.downloads||0);x.orders+=(a.orders||0);x.merchants+=(a.merchants||0);x.commission+=c.total;return x},{downloads:0,orders:0,merchants:0,commission:0});
-  byId('kpis').innerHTML = `
-   <div class='card'><div class='num'>${state.messages.length}</div><p>Support Messages</p></div>
-   <div class='card'><div class='num'>${approved}/${state.agents.length}</div><p>Approved Agents</p></div>
-   <div class='card'><div class='num'>${totals.downloads}</div><p>Total Downloads via Links</p></div>
-   <div class='card'><div class='num'>${totals.orders}</div><p>Successful Orders via Links</p></div>
-   <div class='card'><div class='num'>${totals.merchants}</div><p>Successful Merchant Invites</p></div>
-   <div class='card'><div class='num'>${peso(totals.commission)}</div><p>Total Incentives</p></div>`;
-
+  byId('kpis').innerHTML = `<div class='card'><div class='num'>${state.messages.length}</div><p>Support Messages</p></div><div class='card'><div class='num'>${approved}/${state.agents.length}</div><p>Approved Agents</p></div><div class='card'><div class='num'>${totals.downloads}</div><p>Total Downloads via Links</p></div><div class='card'><div class='num'>${totals.orders}</div><p>Successful Orders via Links</p></div><div class='card'><div class='num'>${totals.merchants}</div><p>Successful Merchant Invites</p></div><div class='card'><div class='num'>${peso(totals.commission)}</div><p>Total Incentives</p></div>`;
   byId('msgRows').innerHTML = state.messages.map(m=>`<tr><td>${m.user||'-'}</td><td>${m.msg||m.message||'-'}</td><td><span class='tag'>${m.status||'Open'}</span></td></tr>`).join('') || `<tr><td colspan="3">No messages yet.</td></tr>`;
   byId('agentRows').innerHTML = state.agents.map((a)=>`<tr><td>${a.name||a.email||a.id}<br><small>${a.approved?'Approved':'Pending'}</small></td><td><small>${linkFor(a)}</small></td><td>${a.approved?'<span class="tag">Approved</span>':`<button class='btn' data-approve='${a.id}'>Approve</button>`}</td></tr>`).join('') || `<tr><td colspan="3">No agents yet.</td></tr>`;
   byId('adminCard').style.display = state.role==='admin' ? 'block' : 'none';
-
   byId('agentSelect').innerHTML = state.agents.filter(a=>a.approved).map(a=>`<option value='${a.id}'>${a.name||a.email||a.id}</option>`).join('');
   updateCalc();
 }
-
-function updateCalc(){
-  const id = byId('agentSelect').value;
-  const a = state.agents.find(agent => agent.id === id);
-  if(!a){byId('calc').textContent='No approved agent selected.'; return;}
-  const c=commission(a);
-  byId('calc').textContent=`${a.name||a.email||a.id} • Downloads: ${a.downloads||0} • Orders: ${a.orders||0} • Merchant Invites: ${a.merchants||0} • Commission: ${peso(c.total)} (Orders ${peso(c.order)} + Merchant ${peso(c.merchant)} + Weekly Bonus ${peso(c.bonus)})`;
-  byId('inDownloads').value=a.downloads||0; byId('inOrders').value=a.orders||0; byId('inMerchants').value=a.merchants||0;
-}
-
-async function saveProgress(){
-  const id = byId('agentSelect').value;
-  if(!id) return;
-  const payload = {
-    downloads: Math.max(0, +byId('inDownloads').value || 0),
-    orders: Math.max(0, +byId('inOrders').value || 0),
-    merchants: Math.max(0, +byId('inMerchants').value || 0),
-  };
-  await update(ref(db, `supportAgents/${id}`), payload);
-}
-
-async function approve(agentId){
-  await update(ref(db, `supportAgents/${agentId}`), { approved: true });
-}
+function updateCalc(){const id=byId('agentSelect').value;const a=state.agents.find(agent=>agent.id===id);if(!a){byId('calc').textContent='No approved agent selected.';return;}const c=commission(a);byId('calc').textContent=`${a.name||a.email||a.id} • Downloads: ${a.downloads||0} • Orders: ${a.orders||0} • Merchant Invites: ${a.merchants||0} • Commission: ${peso(c.total)} (Orders ${peso(c.order)} + Merchant ${peso(c.merchant)} + Weekly Bonus ${peso(c.bonus)})`;byId('inDownloads').value=a.downloads||0;byId('inOrders').value=a.orders||0;byId('inMerchants').value=a.merchants||0;}
+async function saveProgress(){const id=byId('agentSelect').value;if(!id)return;await update(ref(db,`supportAgents/${id}`),{downloads:Math.max(0,+byId('inDownloads').value||0),orders:Math.max(0,+byId('inOrders').value||0),merchants:Math.max(0,+byId('inMerchants').value||0)});} 
+async function approve(agentId){ await update(ref(db, `supportAgents/${agentId}`), { approved: true }); }
 
 byId('supportViewBtn').onclick = () => { state.role='support'; render(); };
 byId('adminViewBtn').onclick = () => { state.role='admin'; render(); };
@@ -158,42 +150,35 @@ byId('logoutBtn').onclick = async () => { await signOut(auth); };
 byId('agentRows').addEventListener('click', (e)=>{ const id=e.target.dataset.approve; if(id) approve(id); });
 ['agentSelect','inDownloads','inOrders','inMerchants'].forEach(id=>byId(id).addEventListener('change', updateCalc));
 
-byId('loginBtn').onclick = async () => {
-  try { await signInWithEmailAndPassword(auth, byId('authEmail').value.trim(), byId('authPassword').value); }
-  catch (err) { setAuthStatus(`Login failed: ${err.message}`); }
-};
+byId('loginBtn').onclick = async () => { try { const { email, password } = validateCredentials(); await signInWithEmailAndPassword(auth, email, password); } catch (err) { setAuthStatus(`Login failed: ${err.message}`, true); } };
 byId('signupBtn').onclick = async () => {
   try {
-    const email = byId('authEmail').value.trim();
-    const password = byId('authPassword').value;
+    const { email, password } = validateCredentials();
     const cred = await createUserWithEmailAndPassword(auth, email, password);
-    await set(ref(db, `supportAgents/${cred.user.uid}`), { id: cred.user.uid, email, name: email.split('@')[0], approved: false, downloads: 0, orders: 0, merchants: 0, createdAt: Date.now() });
+    await upsertSupportAgent(cred.user);
     setAuthStatus('Sign up successful. Waiting for admin approval.');
-  } catch (err) { setAuthStatus(`Sign up failed: ${err.message}`); }
+  } catch (err) { setAuthStatus(`Sign up failed: ${err.message}`, true); }
+};
+byId('googleBtn').onclick = async () => {
+  try {
+    if(window.matchMedia('(max-width: 768px)').matches){
+      await signInWithRedirect(auth, provider);
+      return;
+    }
+    await signInWithPopup(auth, provider);
+  } catch (err) { setAuthStatus(`Google login failed: ${err.message}`, true); }
 };
 
 onAuthStateChanged(auth, async (user) => {
-  if(!user){
-    byId('authCard').classList.remove('hidden'); byId('appContent').classList.add('hidden'); byId('logoutBtn').classList.add('hidden');
-    setAuthStatus('Not logged in.');
-    return;
-  }
+  if(!user){ byId('authCard').classList.remove('hidden'); byId('appContent').classList.add('hidden'); byId('logoutBtn').classList.add('hidden'); setAuthStatus('Not logged in.'); return; }
   state.me = user;
-  const meSnap = await get(ref(db, `supportAgents/${user.uid}`));
-  if(!meSnap.exists()) {
-    await set(ref(db, `supportAgents/${user.uid}`), { id: user.uid, email: user.email || '', name: (user.email||'agent').split('@')[0], approved: false, downloads:0, orders:0, merchants:0, createdAt:Date.now() });
-  }
+  await upsertSupportAgent(user);
   const me = (await get(ref(db, `supportAgents/${user.uid}`))).val();
-  if(!me.approved){
-    byId('authCard').classList.remove('hidden'); byId('appContent').classList.add('hidden'); byId('logoutBtn').classList.remove('hidden');
-    setAuthStatus('Logged in, but pending admin approval.');
-    return;
-  }
+  if(!me.approved){ byId('authCard').classList.remove('hidden'); byId('appContent').classList.add('hidden'); byId('logoutBtn').classList.remove('hidden'); setAuthStatus('Logged in, but pending admin approval.'); return; }
   byId('authCard').classList.add('hidden'); byId('appContent').classList.remove('hidden'); byId('logoutBtn').classList.remove('hidden');
-  setAuthStatus(`Logged in as ${user.email}`);
-
-  onValue(ref(db, 'supportMessages'), (snap)=>{ const val=snap.val()||{}; state.messages=Object.values(val); render(); });
-  onValue(ref(db, 'supportAgents'), (snap)=>{ const val=snap.val()||{}; state.agents=Object.values(val); render(); });
+  setAuthStatus(`Logged in as ${user.email || user.displayName}`);
+  onValue(ref(db, 'supportMessages'), (snap)=>{ state.messages=Object.values(snap.val()||{}); render(); });
+  onValue(ref(db, 'supportAgents'), (snap)=>{ state.agents=Object.values(snap.val()||{}); render(); });
 });
 </script>
 </body>
