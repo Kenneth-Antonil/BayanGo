@@ -4,7 +4,7 @@ import { getMessaging, isSupported } from 'firebase/messaging';
 
 export const firebaseConfig = {
   apiKey: 'AIzaSyC0AQ3rkH-fhxlThobjDDtrvxttAfFLXTE',
-  authDomain: 'auth.bayango.store',
+  authDomain: 'bayango-315c6.firebaseapp.com',
   databaseURL: 'https://bayango-315c6-default-rtdb.asia-southeast1.firebasedatabase.app',
   projectId: 'bayango-315c6',
   storageBucket: 'bayango-315c6.firebasestorage.app',
