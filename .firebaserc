@@ -19,6 +19,9 @@
         ],
         "user-demo": [
           "bayango-user-demo"
+        ],
+        "support": [
+          "bayango-support"
         ]
       }
     }

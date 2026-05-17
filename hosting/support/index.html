@@ -1,0 +1,102 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>BayanGo Support App</title>
+  <style>
+    :root{--bg:#f5f7fb;--card:#fff;--primary:#0f766e;--text:#0f172a;--muted:#64748b;--border:#dbe3ef;--ok:#16a34a;--warn:#d97706}
+    *{box-sizing:border-box} body{margin:0;font-family:Inter,system-ui,-apple-system,sans-serif;background:var(--bg);color:var(--text)}
+    .app{max-width:1100px;margin:auto;padding:14px}.top{display:flex;gap:8px;flex-wrap:wrap;align-items:center;justify-content:space-between}
+    .pill{padding:8px 12px;border-radius:999px;background:#e6fffb;color:#115e59;font-weight:700;font-size:12px}
+    .grid{display:grid;gap:12px}.kpi{grid-template-columns:repeat(auto-fit,minmax(160px,1fr));margin-top:12px}
+    .card{background:var(--card);border:1px solid var(--border);border-radius:14px;padding:12px;box-shadow:0 1px 4px rgba(0,0,0,.04)}
+    h1,h2,h3{margin:0 0 8px} p{margin:0;color:var(--muted)} .num{font-size:24px;font-weight:800}
+    .two{grid-template-columns:1fr; margin-top:12px} @media(min-width:900px){.two{grid-template-columns:1.1fr .9fr}}
+    table{width:100%;border-collapse:collapse;font-size:13px} th,td{padding:8px;border-bottom:1px solid #edf2f7;text-align:left}
+    .btn{background:var(--primary);color:#fff;border:0;padding:8px 12px;border-radius:10px;font-weight:700;cursor:pointer}
+    .btn.alt{background:#334155}.btn.ok{background:var(--ok)} .row{display:flex;gap:8px;flex-wrap:wrap}
+    input,select{width:100%;padding:8px;border-radius:10px;border:1px solid var(--border)} label{font-size:12px;color:var(--muted);font-weight:700}
+    .tag{font-size:11px;padding:4px 8px;border-radius:999px;background:#f1f5f9;display:inline-block}
+  </style>
+</head>
+<body>
+<div class="app">
+  <div class="top">
+    <div>
+      <h1>support.bayango.store</h1>
+      <p>Mobile-first Support App + Admin Approval + Referral Incentive Tracking</p>
+    </div>
+    <div class="row">
+      <button class="btn alt" onclick="setRole('support')">Support View</button>
+      <button class="btn" onclick="setRole('admin')">Admin Dashboard View</button>
+    </div>
+  </div>
+  <div id="roleTag" class="pill" style="margin-top:10px">Current: Support Agent</div>
+
+  <div class="grid kpi" id="kpis"></div>
+
+  <div class="grid two">
+    <div class="card">
+      <h3>Support Messages (from user app)</h3>
+      <p>Lahat ng support concern mula user app ay pupunta dito.</p>
+      <table><thead><tr><th>User</th><th>Message</th><th>Status</th></tr></thead><tbody id="msgRows"></tbody></table>
+    </div>
+    <div class="card" id="adminCard">
+      <h3>Admin: Agent Approval</h3>
+      <p>I-approve muna ng admin bago maka-login sa support app.</p>
+      <table><thead><tr><th>Agent</th><th>Referral Link</th><th>Action</th></tr></thead><tbody id="agentRows"></tbody></table>
+    </div>
+  </div>
+
+  <div class="card" style="margin-top:12px">
+    <h3>Referral / Incentives Tracker</h3>
+    <p>Rules: download = 0, successful order = ₱50, successful partner merchant invite = ₱1,000, weekly quota bonus (10 successful orders) = ₱1,000.</p>
+    <div class="row" style="margin-top:10px">
+      <div style="flex:1;min-width:180px"><label>Agent</label><select id="agentSelect"></select></div>
+      <div style="width:140px"><label>Downloads</label><input id="inDownloads" type="number" min="0" value="0"></div>
+      <div style="width:140px"><label>Orders</label><input id="inOrders" type="number" min="0" value="0"></div>
+      <div style="width:170px"><label>Partner Merchant</label><input id="inMerchants" type="number" min="0" value="0"></div>
+      <div style="align-self:end"><button class="btn ok" onclick="saveProgress()">Save Progress</button></div>
+    </div>
+    <p id="calc" style="margin-top:10px" class="tag"></p>
+  </div>
+</div>
+<script>
+const state={role:'support',messages:[
+  {user:'Ana D.',msg:'Hindi ko ma-track ang order ko.',status:'Open'},
+  {user:'JM Cruz',msg:'Wrong item delivered.',status:'Escalated'},
+  {user:'Paolo S.',msg:'Paano mag apply as partner merchant?',status:'Resolved'}
+],agents:[
+  {id:'ag-001',name:'Maria Santos',approved:true,downloads:34,orders:11,merchants:1},
+  {id:'ag-002',name:'John dela Cruz',approved:false,downloads:0,orders:0,merchants:0}
+]};
+const peso=n=>new Intl.NumberFormat('en-PH',{style:'currency',currency:'PHP',maximumFractionDigits:0}).format(n);
+const linkFor=a=>`https://bayango.store/app?ref=${a.id}`;
+function commission(a){const order=a.orders*50,merchant=a.merchants*1000,bonus=a.orders>=10?1000:0;return {order,merchant,bonus,total:order+merchant+bonus}}
+function render(){
+  document.getElementById('roleTag').textContent=`Current: ${state.role==='admin'?'Admin Dashboard':'Support Agent'}`;
+  const approved=state.agents.filter(a=>a.approved).length;
+  const totals=state.agents.reduce((x,a)=>{const c=commission(a);x.downloads+=a.downloads;x.orders+=a.orders;x.merchants+=a.merchants;x.commission+=c.total;return x},{downloads:0,orders:0,merchants:0,commission:0});
+  document.getElementById('kpis').innerHTML=`
+   <div class='card'><div class='num'>${state.messages.length}</div><p>Support Messages</p></div>
+   <div class='card'><div class='num'>${approved}/${state.agents.length}</div><p>Approved Agents</p></div>
+   <div class='card'><div class='num'>${totals.downloads}</div><p>Total Downloads via Links</p></div>
+   <div class='card'><div class='num'>${totals.orders}</div><p>Successful Orders via Links</p></div>
+   <div class='card'><div class='num'>${totals.merchants}</div><p>Successful Merchant Invites</p></div>
+   <div class='card'><div class='num'>${peso(totals.commission)}</div><p>Total Incentives</p></div>`;
+  document.getElementById('msgRows').innerHTML=state.messages.map(m=>`<tr><td>${m.user}</td><td>${m.msg}</td><td><span class='tag'>${m.status}</span></td></tr>`).join('');
+  document.getElementById('agentRows').innerHTML=state.agents.map((a,i)=>`<tr><td>${a.name}<br><small>${a.approved?'Approved':'Pending'}</small></td><td><small>${linkFor(a)}</small></td><td>${a.approved?'<span class="tag">Approved</span>':`<button class='btn' onclick='approve(${i})'>Approve</button>`}</td></tr>`).join('');
+  document.getElementById('adminCard').style.display=state.role==='admin'?'block':'none';
+  document.getElementById('agentSelect').innerHTML=state.agents.filter(a=>a.approved).map((a,i)=>`<option value='${state.agents.indexOf(a)}'>${a.name}</option>`).join('');
+  updateCalc();
+}
+function approve(i){state.agents[i].approved=true;render()}
+function setRole(r){state.role=r;render()}
+function updateCalc(){const idx=+document.getElementById('agentSelect').value||0;const a=state.agents[idx];if(!a)return;const c=commission(a);document.getElementById('calc').textContent=`${a.name} • Downloads: ${a.downloads} • Orders: ${a.orders} • Merchant Invites: ${a.merchants} • Commission: ${peso(c.total)} (Orders ${peso(c.order)} + Merchant ${peso(c.merchant)} + Weekly Bonus ${peso(c.bonus)})`;document.getElementById('inDownloads').value=a.downloads;document.getElementById('inOrders').value=a.orders;document.getElementById('inMerchants').value=a.merchants;}
+function saveProgress(){const idx=+document.getElementById('agentSelect').value||0;state.agents[idx].downloads=Math.max(0,+document.getElementById('inDownloads').value||0);state.agents[idx].orders=Math.max(0,+document.getElementById('inOrders').value||0);state.agents[idx].merchants=Math.max(0,+document.getElementById('inMerchants').value||0);render()}
+['agentSelect','inDownloads','inOrders','inMerchants'].forEach(id=>document.addEventListener('change',e=>{if(e.target.id===id)updateCalc()}));
+render();
+</script>
+</body>
+</html>
