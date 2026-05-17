@@ -128,6 +128,18 @@ async function upsertSupportAgent(user){
   }
 }
 
+function isDbPermissionError(err){
+  const msg = (err?.message || '').toLowerCase();
+  return msg.includes('permission denied') || msg.includes('permission_denied');
+}
+
+function explainAuthError(err){
+  if(isDbPermissionError(err)){
+    return 'Database access denied. Ask admin to update Firebase Realtime Database rules for supportAgents/{uid}.';
+  }
+  return err?.message || 'Unknown error.';
+}
+
 function render() { /* unchanged rendering */
   byId('roleTag').textContent = `Current: ${state.role==='admin'?'Admin Dashboard':'Support Agent'}`;
   const approved = state.agents.filter(a=>a.approved).length;
@@ -157,7 +169,7 @@ byId('signupBtn').onclick = async () => {
     const cred = await createUserWithEmailAndPassword(auth, email, password);
     await upsertSupportAgent(cred.user);
     setAuthStatus('Sign up successful. Waiting for admin approval.');
-  } catch (err) { setAuthStatus(`Sign up failed: ${err.message}`, true); }
+  } catch (err) { setAuthStatus(`Sign up failed: ${explainAuthError(err)}`, true); }
 };
 byId('googleBtn').onclick = async () => {
   try {
@@ -166,13 +178,35 @@ byId('googleBtn').onclick = async () => {
       return;
     }
     await signInWithPopup(auth, provider);
-  } catch (err) { setAuthStatus(`Google login failed: ${err.message}`, true); }
+  } catch (err) {
+    const code = err?.code || '';
+    const popupBlocked = code === 'auth/popup-blocked' || code === 'auth/cancelled-popup-request' || code === 'auth/popup-closed-by-user';
+    if(popupBlocked){
+      try {
+        setAuthStatus('Popup login was blocked/closed. Redirecting to Google sign-in...');
+        await signInWithRedirect(auth, provider);
+        return;
+      } catch (redirectErr) {
+        setAuthStatus(`Google login failed: ${explainAuthError(redirectErr)}`, true);
+        return;
+      }
+    }
+    setAuthStatus(`Google login failed: ${explainAuthError(err)}`, true);
+  }
 };
 
 onAuthStateChanged(auth, async (user) => {
   if(!user){ byId('authCard').classList.remove('hidden'); byId('appContent').classList.add('hidden'); byId('logoutBtn').classList.add('hidden'); setAuthStatus('Not logged in.'); return; }
   state.me = user;
-  await upsertSupportAgent(user);
+  try {
+    await upsertSupportAgent(user);
+  } catch (err) {
+    byId('authCard').classList.remove('hidden');
+    byId('appContent').classList.add('hidden');
+    byId('logoutBtn').classList.remove('hidden');
+    setAuthStatus(`Login blocked: ${explainAuthError(err)}`, true);
+    return;
+  }
   const me = (await get(ref(db, `supportAgents/${user.uid}`))).val();
   if(!me.approved){ byId('authCard').classList.remove('hidden'); byId('appContent').classList.add('hidden'); byId('logoutBtn').classList.remove('hidden'); setAuthStatus('Logged in, but pending admin approval.'); return; }
   byId('authCard').classList.add('hidden'); byId('appContent').classList.remove('hidden'); byId('logoutBtn').classList.remove('hidden');
