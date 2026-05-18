@@ -2881,19 +2881,51 @@
             const { db, fns } = await initFirebase();
             const tRef = fns.ref(db, "support_tickets");
             const aRef = fns.ref(db, "supportAgents");
+            const aLegacyRef = fns.ref(db, "support_agents");
             const onTickets = fns.onValue(tRef, snap => {
               const rows = [];
               snap.forEach(c => rows.push({ id: c.key, ...(c.val() || {}) }));
               rows.sort((a, b) => Number(b.updatedAt || b.createdAt || 0) - Number(a.updatedAt || a.createdAt || 0));
               setSupportTickets(rows);
             });
-            const onAgents = fns.onValue(aRef, snap => {
+
+            let agentsFromPrimary = [];
+            let agentsFromLegacy = [];
+            const normalizeSupportAgentRows = (snap) => {
               const rows = [];
-              snap.forEach(c => rows.push({ id: c.key, ...(c.val() || {}) }));
+              snap.forEach(c => {
+                const raw = c.val() || {};
+                const profile = raw?.profile && typeof raw.profile === "object" ? raw.profile : null;
+                rows.push({ id: c.key, ...raw, ...(profile || {}) });
+              });
+              return rows;
+            };
+            const syncSupportAgents = () => {
+              const merged = new Map();
+              [...agentsFromPrimary, ...agentsFromLegacy].forEach(agent => {
+                const uid = String(agent.uid || agent.id || "").trim();
+                if (!uid) return;
+                const prev = merged.get(uid) || {};
+                merged.set(uid, { ...prev, ...agent, id: uid, uid });
+              });
+              const rows = Array.from(merged.values());
               rows.sort((a, b) => String(a.name || a.displayName || "").localeCompare(String(b.name || b.displayName || "")));
               setSupportAgents(rows);
+            };
+
+            const onAgents = fns.onValue(aRef, snap => {
+              agentsFromPrimary = normalizeSupportAgentRows(snap);
+              syncSupportAgents();
             });
-            cleanup = () => { fns.off(tRef, "value", onTickets); fns.off(aRef, "value", onAgents); };
+            const onLegacyAgents = fns.onValue(aLegacyRef, snap => {
+              agentsFromLegacy = normalizeSupportAgentRows(snap);
+              syncSupportAgents();
+            });
+            cleanup = () => {
+              fns.off(tRef, "value", onTickets);
+              fns.off(aRef, "value", onAgents);
+              fns.off(aLegacyRef, "value", onLegacyAgents);
+            };
           } catch (err) {
             console.error("Support ops load failed:", err);
           }
