@@ -19,23 +19,29 @@
   --font-display:'Outfit',sans-serif;
   --font-body:'Manrope',sans-serif;
   --sidebar:220px;
+  --phone-shell:560px;
 }
 *{box-sizing:border-box;margin:0;padding:0}
-body{font-family:var(--font-body);background:var(--bg);color:var(--text);min-height:100vh;overflow-x:hidden}
+body{
+  font-family:var(--font-body);color:var(--text);min-height:100vh;overflow-x:hidden;
+  background:
+    radial-gradient(circle at top,#dcfce722 0,transparent 38%),
+    linear-gradient(180deg,#f8fbff 0%,#eef4fb 48%,#f6f9fc 100%)
+}
 
-/* ── SCROLLBAR ── */
+/* -- SCROLLBAR -- */
 ::-webkit-scrollbar{width:4px;height:4px}
 ::-webkit-scrollbar-track{background:var(--surface)}
 ::-webkit-scrollbar-thumb{background:var(--border2);border-radius:4px}
 
-/* ── NOISE TEXTURE OVERLAY ── */
+/* -- NOISE TEXTURE OVERLAY -- */
 body::before{
   content:'';position:fixed;inset:0;
   background-image:url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.65' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='.03'/%3E%3C/svg%3E");
   pointer-events:none;z-index:9999;opacity:.08
 }
 
-/* ══════════════ AUTH ══════════════ */
+/* -------------- AUTH -------------- */
 .auth-screen{
   display:flex;align-items:center;justify-content:center;
   min-height:100vh;padding:0;
@@ -95,7 +101,7 @@ body::before{
 .auth-status.error{background:var(--red-dim);color:#fca5a5;border-color:#ef444444}
 .auth-status.ok{background:var(--green-dim);color:#86efac;border-color:#22c55e44}
 
-/* ══════════════ LAYOUT ══════════════ */
+/* -------------- LAYOUT -------------- */
 .app{display:flex;min-height:100vh}
 .sidebar{
   width:var(--sidebar);background:var(--surface);border-right:1px solid var(--border);
@@ -161,8 +167,27 @@ body::before{
 }
 .page{padding:20px;flex:1;display:none}
 .page.active{display:block}
+.page-stack{display:flex;flex-direction:column;gap:14px}
+.section-hero{
+  position:relative;overflow:hidden;border-radius:24px;padding:18px;
+  background:
+    linear-gradient(145deg,rgba(255,255,255,.96),rgba(248,251,255,.88)),
+    radial-gradient(circle at top right,rgba(34,197,94,.18),transparent 48%);
+  border:1px solid rgba(219,229,240,.9);
+  box-shadow:0 14px 36px rgba(15,23,42,.08)
+}
+.section-hero::after{
+  content:'';position:absolute;inset:auto -16px -34px auto;width:110px;height:110px;border-radius:50%;
+  background:linear-gradient(135deg,rgba(56,189,248,.2),rgba(34,197,94,.08))
+}
+.section-kicker{
+  display:inline-flex;align-items:center;gap:6px;padding:6px 10px;border-radius:999px;
+  background:var(--green-dim);color:var(--green2);font-size:10px;font-weight:800;letter-spacing:.45px;text-transform:uppercase
+}
+.section-title{position:relative;z-index:1;font-family:var(--font-display);font-size:24px;font-weight:800;line-height:1.05;letter-spacing:-.6px;margin-top:12px;max-width:280px}
+.section-copy{position:relative;z-index:1;font-size:12px;line-height:1.65;color:var(--muted);margin-top:8px;max-width:360px}
 
-/* ══════════════ CARDS & KPIs ══════════════ */
+/* -------------- CARDS & KPIs -------------- */
 .kpi-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px;margin-bottom:20px}
 .kpi-card{
   background:var(--card);border:1px solid var(--border);border-radius:var(--radius);
@@ -198,7 +223,7 @@ body::before{
 .badge-blue{background:var(--blue-dim);color:var(--blue)}
 .badge-muted{background:var(--surface);color:var(--muted)}
 
-/* ══════════════ TABLE ══════════════ */
+/* -------------- TABLE -------------- */
 .table-wrap{overflow-x:auto;margin:0 -16px}
 table{width:100%;border-collapse:collapse;font-size:12px}
 th{
@@ -225,7 +250,7 @@ tr:hover td{background:var(--card2)}
 .action-btn.amber{background:var(--amber-dim);color:var(--amber)}
 .action-btn.amber:hover{background:var(--amber);color:#000}
 
-/* ══════════════ TICKET PANEL ══════════════ */
+/* -------------- TICKET PANEL -------------- */
 .tickets-layout{display:grid;grid-template-columns:1fr 340px;gap:14px;align-items:start}
 .ticket-list-item{
   padding:12px 14px;border-radius:10px;border:1px solid var(--border);
@@ -266,7 +291,7 @@ tr:hover td{background:var(--card2)}
 }
 .send-btn:hover{background:var(--green3);color:#000}
 
-/* ══════════════ REFERRALS ══════════════ */
+/* -------------- REFERRALS -------------- */
 .referral-agent-card{
   background:var(--card);border:1px solid var(--border);border-radius:var(--radius);
   padding:16px;display:flex;align-items:flex-start;gap:12px;transition:.15s
@@ -300,7 +325,7 @@ tr:hover td{background:var(--card2)}
 }
 .save-btn:hover{background:var(--green3);color:#000}
 
-/* ══════════════ FORM ELEMENTS ══════════════ */
+/* -------------- FORM ELEMENTS -------------- */
 .form-row{display:flex;gap:10px;flex-wrap:wrap;align-items:flex-end}
 .form-field{flex:1;min-width:140px}
 .form-field label{display:block;font-size:10px;font-weight:700;color:var(--muted);letter-spacing:.5px;text-transform:uppercase;margin-bottom:5px}
@@ -319,12 +344,19 @@ tr:hover td{background:var(--card2)}
 .form-action-btn.danger{background:var(--red-dim);color:#fca5a5;border:1px solid #ef444444}
 .form-action-btn.danger:hover{background:var(--red);color:#fff}
 
-/* ══════════════ SEARCH ══════════════ */
+/* -------------- SEARCH -------------- */
 .search-wrap{position:relative;margin-bottom:14px}
 .search-wrap input{padding-left:34px}
 .search-icon{position:absolute;left:10px;top:50%;transform:translateY(-50%);color:var(--muted);font-size:14px;pointer-events:none}
+.mobile-panel{
+  background:linear-gradient(180deg,rgba(255,255,255,.96),rgba(246,250,255,.92));
+  border:1px solid rgba(219,229,240,.95);border-radius:22px;padding:14px;
+  box-shadow:0 16px 40px rgba(15,23,42,.08)
+}
+.ticket-filter-panel{margin-bottom:14px}
+.ticket-list-shell{display:flex;flex-direction:column}
 
-/* ══════════════ EMPTY STATE ══════════════ */
+/* -------------- EMPTY STATE -------------- */
 .empty{
   padding:40px 20px;text-align:center;color:var(--muted);
 }
@@ -332,7 +364,7 @@ tr:hover td{background:var(--card2)}
 .empty-title{font-size:14px;font-weight:600;color:var(--text);margin-bottom:4px}
 .empty-sub{font-size:12px}
 
-/* ══════════════ TOAST ══════════════ */
+/* -------------- TOAST -------------- */
 #toast{
   position:fixed;bottom:20px;right:20px;z-index:9000;
   background:var(--card);border:1px solid var(--border2);border-radius:10px;
@@ -344,7 +376,7 @@ tr:hover td{background:var(--card2)}
 #toast.success{border-color:#22c55e44;color:var(--green3)}
 #toast.error{border-color:#ef444444;color:#fca5a5}
 
-/* ══════════════ KB ARTICLE ══════════════ */
+/* -------------- KB ARTICLE -------------- */
 .kb-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:12px}
 .kb-card{
   background:var(--card);border:1px solid var(--border);border-radius:var(--radius);
@@ -355,11 +387,11 @@ tr:hover td{background:var(--card2)}
 .kb-title{font-family:var(--font-display);font-size:14px;font-weight:700;line-height:1.35;margin-bottom:6px}
 .kb-preview{font-size:11px;color:var(--muted);line-height:1.55}
 
-/* ══════════════ PENDING BADGE PULSE ══════════════ */
+/* -------------- PENDING BADGE PULSE -------------- */
 @keyframes pulse{0%,100%{opacity:1}50%{opacity:.5}}
 .pulse{animation:pulse 2s infinite}
 
-/* ══════════════ RESPONSIVE ══════════════ */
+/* -------------- RESPONSIVE -------------- */
 @media(max-width:768px){
   .sidebar{width:60px}
   .sidebar .sidebar-logo h2,.sidebar .nav-item span:not(.icon),.sidebar-footer .agent-info,.sidebar-footer .btn-logout{display:none}
@@ -376,7 +408,7 @@ tr:hover td{background:var(--card2)}
   .kpi-val{font-size:20px}
 }
 
-/* ══════════════ ADMIN ONLY ══════════════ */
+/* -------------- ADMIN ONLY -------------- */
 .mobile-only{display:flex}
 .desktop-only{display:none}
 .shell-backdrop{
@@ -404,15 +436,29 @@ tr:hover td{background:var(--card2)}
 .agent-name{font-size:13px}
 .agent-role{font-size:11px}
 .btn-logout{padding:12px;border-radius:12px;font-size:12px}
-.main{margin-left:0;min-width:0;padding-bottom:calc(88px + env(safe-area-inset-bottom))}
-.topbar{height:64px;padding:0 14px;background:rgba(255,255,255,.9);backdrop-filter:blur(18px)}
+.app{justify-content:center}
+.main{
+  width:100%;max-width:var(--phone-shell);margin-left:0;min-width:0;
+  padding-bottom:calc(104px + env(safe-area-inset-bottom));
+  background:linear-gradient(180deg,rgba(255,255,255,.92),rgba(246,250,255,.94))
+}
+.topbar{
+  height:72px;padding:0 16px;background:rgba(255,255,255,.84);backdrop-filter:blur(18px);
+  box-shadow:0 12px 28px rgba(15,23,42,.06)
+}
 .topbar-title{font-size:18px;letter-spacing:-.3px}
-.page{padding:14px}
+.topbar-actions{gap:8px;justify-content:flex-end}
+.icon-btn{border-radius:12px}
+.page{padding:16px}
 .kpi-grid{grid-template-columns:1fr 1fr;gap:10px}
 .kpi-card{padding:14px;border-radius:18px}
 .kpi-val{font-size:22px}
 .grid-2,.grid-3,.kb-grid,.tickets-layout{grid-template-columns:1fr}
-.card{padding:14px;border-radius:18px}
+.card{
+  padding:16px;border-radius:22px;
+  background:linear-gradient(180deg,rgba(255,255,255,.96),rgba(247,250,255,.92));
+  box-shadow:0 16px 38px rgba(15,23,42,.08)
+}
 .card-header{align-items:flex-start;gap:10px;flex-direction:column}
 .card-title{font-size:16px}
 .card-sub{font-size:12px}
@@ -429,12 +475,21 @@ th,td{padding-left:14px;padding-right:14px}
 .ticket-avi{width:38px;height:38px;font-size:14px}
 .ticket-user{font-size:14px}
 .ticket-preview{font-size:12px;white-space:normal;line-height:1.45}
-.ticket-detail{display:none;position:fixed;inset:0;top:0;z-index:120;border-radius:0;border:0;background:var(--surface)}
+.ticket-detail{
+  display:none;position:fixed;inset:0;top:0;z-index:120;border-radius:0;border:0;
+  background:linear-gradient(180deg,rgba(255,255,255,.98),rgba(245,249,255,.96))
+}
 .ticket-detail.mobile-open{display:flex}
-.ticket-detail-header{padding:14px 14px 12px;position:sticky;top:0;background:var(--surface);z-index:2}
+.ticket-detail-header{
+  padding:16px 16px 12px;position:sticky;top:0;background:rgba(255,255,255,.94);z-index:2;
+  backdrop-filter:blur(16px)
+}
 .ticket-messages{padding:14px;max-height:none;min-height:0;flex:1}
 .msg-bubble{max-width:92%;font-size:14px}
-.reply-box{padding:12px 14px calc(12px + env(safe-area-inset-bottom));background:var(--surface)}
+.reply-box{
+  padding:12px 14px calc(12px + env(safe-area-inset-bottom));background:rgba(255,255,255,.94);
+  backdrop-filter:blur(16px)
+}
 .send-btn{width:44px;height:44px;border-radius:14px}
 .referral-agent-card{padding:14px;gap:10px;flex-direction:column}
 .ref-av{width:44px;height:44px}
@@ -442,9 +497,10 @@ th,td{padding-left:14px;padding-right:14px}
 .ref-field{width:100%}
 .empty{padding:28px 16px}
 .mobile-dock{
-  position:fixed;left:0;right:0;bottom:0;z-index:90;display:grid;grid-template-columns:repeat(auto-fit,minmax(0,1fr));
-  gap:8px;padding:10px 12px calc(10px + env(safe-area-inset-bottom));background:rgba(255,255,255,.94);
-  border-top:1px solid var(--border);backdrop-filter:blur(18px)
+  position:fixed;left:12px;right:12px;bottom:12px;z-index:90;display:grid;grid-template-columns:repeat(auto-fit,minmax(0,1fr));
+  gap:8px;padding:10px 12px calc(10px + env(safe-area-inset-bottom));background:rgba(255,255,255,.92);
+  border:1px solid rgba(219,229,240,.92);border-radius:24px;backdrop-filter:blur(18px);
+  box-shadow:0 16px 36px rgba(15,23,42,.12)
 }
 .dock-item{
   border:0;background:transparent;border-radius:16px;padding:10px 6px;color:var(--muted);
@@ -453,40 +509,81 @@ th,td{padding-left:14px;padding-right:14px}
 }
 .dock-item .material-symbols-rounded{font-size:20px}
 .dock-item.active{background:var(--green-dim);color:var(--green2)}
+.table-wrap table,
+.table-wrap thead,
+.table-wrap tbody,
+.table-wrap tr,
+.table-wrap th,
+.table-wrap td{width:100%}
+.table-wrap thead{display:none}
+.table-wrap tbody{display:flex;flex-direction:column;gap:12px;padding:0 14px 2px}
+.table-wrap tr{
+  display:block;border:1px solid var(--border);border-radius:18px;background:linear-gradient(180deg,#fff,#f7fbff);
+  box-shadow:0 14px 32px rgba(15,23,42,.08);padding:10px 0
+}
+.table-wrap td{
+  display:block;border:0;padding:8px 14px 0;color:var(--text)
+}
+.table-wrap td:last-child{padding-bottom:8px}
+.table-wrap td::before{
+  content:attr(data-label);display:block;font-size:10px;font-weight:800;letter-spacing:.45px;
+  text-transform:uppercase;color:var(--muted);margin-bottom:5px
+}
+#page-agents .table-wrap td:nth-child(1)::before{content:'Agent'}
+#page-agents .table-wrap td:nth-child(2)::before{content:'Auth Method'}
+#page-agents .table-wrap td:nth-child(3)::before{content:'Downloads'}
+#page-agents .table-wrap td:nth-child(4)::before{content:'Orders'}
+#page-agents .table-wrap td:nth-child(5)::before{content:'Merchants'}
+#page-agents .table-wrap td:nth-child(6)::before{content:'Commission'}
+#page-agents .table-wrap td:nth-child(7)::before{content:'Status'}
+#page-agents .table-wrap td:nth-child(8)::before{content:'Actions'}
+#pendingApprovals .table-wrap td:nth-child(1)::before{content:'Agent'}
+#pendingApprovals .table-wrap td:nth-child(2)::before{content:'Email'}
+#pendingApprovals .table-wrap td:nth-child(3)::before{content:'Auth'}
+#pendingApprovals .table-wrap td:nth-child(4)::before{content:'Registered'}
+#pendingApprovals .table-wrap td:nth-child(5)::before{content:'Actions'}
 .mobile-menu-btn{display:flex}
 body.nav-open .sidebar{transform:translateX(0)}
 body.nav-open .shell-backdrop,body.ticket-open .shell-backdrop{opacity:1;pointer-events:auto}
 body.nav-open,body.ticket-open{overflow:hidden}
 
 @media (min-width: 960px){
-  .mobile-only{display:none}
-  .desktop-only{display:flex}
-  .shell-backdrop{display:none}
+  .mobile-only{display:flex}
+  .desktop-only{display:none}
+  .shell-backdrop{display:block}
   .sidebar{
-    width:var(--sidebar);max-width:none;transform:none;border-right:1px solid var(--border);
-    box-shadow:none
+    width:min(86vw,320px);max-width:320px;transform:translateX(-100%);
+    border-right:0;box-shadow:0 20px 60px rgba(15,23,42,.22);overflow-y:auto
   }
-  .nav-section{padding:8px 8px 4px}
-  .nav-item{margin:1px 8px;padding:9px 12px;border-radius:9px;font-size:13px;font-weight:500}
-  .sidebar-footer{padding:12px}
-  .main{margin-left:var(--sidebar);padding-bottom:0}
-  .topbar{height:56px;padding:0 20px}
-  .topbar-title{font-size:15px}
-  .page{padding:20px}
+  .nav-section{padding:10px 16px 4px}
+  .nav-item{margin:0 12px 6px;padding:14px 14px;border-radius:14px;font-size:14px;font-weight:700}
+  .sidebar-footer{padding:14px 16px calc(22px + env(safe-area-inset-bottom))}
+  .main{
+    margin:22px auto;padding-bottom:calc(108px + env(safe-area-inset-bottom));
+    border-radius:34px;overflow:hidden;border:1px solid rgba(219,229,240,.9);
+    box-shadow:0 28px 70px rgba(15,23,42,.12)
+  }
+  .topbar{height:72px;padding:0 20px}
+  .topbar-title{font-size:18px}
+  .page{padding:18px}
   .grid-2{grid-template-columns:1fr 1fr}
   .grid-3{grid-template-columns:1fr 1fr 1fr}
   .kpi-grid{grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px}
   .kpi-card{padding:16px;border-radius:var(--radius)}
   .card{padding:16px;border-radius:var(--radius)}
   .card-header{flex-direction:row;align-items:center}
-  .tickets-layout{grid-template-columns:minmax(0,1fr) 340px}
-  .ticket-detail{display:flex;position:sticky;inset:auto;top:70px;z-index:1;border:1px solid var(--border);border-radius:var(--radius)}
+  .tickets-layout{grid-template-columns:1fr}
+  .ticket-detail{display:none;position:fixed;inset:0;top:0;z-index:120;border:0;border-radius:0}
   .ticket-detail.mobile-open{display:flex}
-  .ticket-messages{max-height:360px}
-  .ticket-preview{white-space:nowrap}
+  .ticket-messages{max-height:none}
+  .ticket-preview{white-space:normal}
   .referral-agent-card{flex-direction:row}
   .ref-input-row{flex-direction:row;align-items:flex-end}
-  .mobile-dock,.mobile-menu-btn,.sidebar-close{display:none}
+  .mobile-dock{
+    left:50%;right:auto;bottom:22px;width:min(calc(var(--phone-shell) - 24px),calc(100vw - 44px));
+    transform:translateX(-50%)
+  }
+  .mobile-menu-btn,.sidebar-close{display:flex}
 }
 
 .admin-only{display:none}
@@ -498,11 +595,11 @@ body.is-admin .dock-item.admin-only{display:flex}
 </head>
 <body>
 
-<!-- ── TOAST ── -->
+<!-- -- TOAST -- -->
 <div id="toast"></div>
 <div class="shell-backdrop" id="shellBackdrop" onclick="closeShellPanels()"></div>
 
-<!-- ══════════════ AUTH SCREEN ══════════════ -->
+<!-- -------------- AUTH SCREEN -------------- -->
 <div class="auth-screen" id="authScreen">
   <div class="auth-box">
     <div class="auth-logo">
@@ -536,7 +633,7 @@ body.is-admin .dock-item.admin-only{display:flex}
   </div>
 </div>
 
-<!-- ══════════════ MAIN APP ══════════════ -->
+<!-- -------------- MAIN APP -------------- -->
 <div class="app" id="mainApp" style="display:none">
 
   <!-- SIDEBAR -->
@@ -563,7 +660,7 @@ body.is-admin .dock-item.admin-only{display:flex}
           <div class="agent-role" id="sideRole">Support Agent</div>
         </div>
       </div>
-      <button class="btn-logout" id="logoutBtn">← Sign Out</button>
+      <button class="btn-logout" id="logoutBtn">? Sign Out</button>
     </div>
   </aside>
 
@@ -578,67 +675,83 @@ body.is-admin .dock-item.admin-only{display:flex}
       </div>
     </div>
 
-    <!-- ═══ DASHBOARD PAGE ═══ -->
+    <!-- --- DASHBOARD PAGE --- -->
     <div class="page active" id="page-dashboard">
-      <div class="kpi-grid" id="kpiGrid"></div>
-      <div class="grid-2" style="margin-bottom:14px">
-        <div class="card">
+      <div class="page-stack">
+        <section class="section-hero">
+          <div class="section-kicker"><span class="material-symbols-rounded" style="font-size:14px">phone_iphone</span>Mobile Support</div>
+          <div class="section-title">Command center na pang-phone talaga.</div>
+          <div class="section-copy">Quick scan ng tickets, performance, at approvals sa mas compact na support flow.</div>
+        </section>
+        <div class="kpi-grid" id="kpiGrid"></div>
+        <div class="grid-2" style="margin-bottom:14px">
+          <div class="card">
+            <div class="card-header">
+              <div><div class="card-title">Recent Tickets</div><div class="card-sub">Pinakabagong support messages</div></div>
+              <span class="badge badge-green" id="openCount">0 Open</span>
+            </div>
+            <div id="recentTickets"></div>
+          </div>
+          <div class="card">
+            <div class="card-header"><div><div class="card-title">Agent Performance</div><div class="card-sub">Top agents this week</div></div></div>
+            <div id="agentPerf"></div>
+          </div>
+        </div>
+        <div class="card admin-only">
           <div class="card-header">
-            <div><div class="card-title">Recent Tickets</div><div class="card-sub">Pinakabagong support messages</div></div>
-            <span class="badge badge-green" id="openCount">0 Open</span>
+            <div><div class="card-title">Pending Agent Approvals</div><div class="card-sub">Mga nagre-request na agents</div></div>
+            <span class="badge badge-amber" id="pendingCount">0 Pending</span>
           </div>
-          <div id="recentTickets"></div>
+          <div id="pendingApprovals"></div>
         </div>
-        <div class="card">
-          <div class="card-header"><div><div class="card-title">Agent Performance</div><div class="card-sub">Top agents this week</div></div></div>
-          <div id="agentPerf"></div>
-        </div>
-      </div>
-      <div class="card admin-only">
-        <div class="card-header">
-          <div><div class="card-title">Pending Agent Approvals</div><div class="card-sub">Mga nagre-request na agents</div></div>
-          <span class="badge badge-amber" id="pendingCount">0 Pending</span>
-        </div>
-        <div id="pendingApprovals"></div>
       </div>
     </div>
 
-    <!-- ═══ TICKETS PAGE ═══ -->
+    <!-- --- TICKETS PAGE --- -->
     <div class="page" id="page-tickets">
-      <div class="search-wrap"><span class="search-icon material-symbols-rounded">search</span><input id="ticketSearch" type="search" placeholder="Search tickets by user, message..." oninput="renderTickets()"/></div>
-      <div class="form-row" style="margin-bottom:14px">
-        <div class="form-field" style="max-width:140px">
-          <label>Status Filter</label>
-          <select id="filterStatus" onchange="renderTickets()">
-            <option value="">All Status</option>
-            <option value="Open">Open</option>
-            <option value="In Progress">In Progress</option>
-            <option value="Resolved">Resolved</option>
-          </select>
+      <div class="page-stack">
+        <section class="section-hero">
+          <div class="section-kicker"><span class="material-symbols-rounded" style="font-size:14px">sms</span>Inbox</div>
+          <div class="section-title">Reply faster habang naka-mobile ka.</div>
+          <div class="section-copy">Search, filter, at thread detail na mas natural gamitin sa maliit na screen.</div>
+        </section>
+        <div class="mobile-panel ticket-filter-panel">
+          <div class="search-wrap"><span class="search-icon material-symbols-rounded">search</span><input id="ticketSearch" type="search" placeholder="Search tickets by user, message..." oninput="renderTickets()"/></div>
+          <div class="form-row" style="margin-bottom:0">
+            <div class="form-field" style="max-width:140px">
+              <label>Status Filter</label>
+              <select id="filterStatus" onchange="renderTickets()">
+                <option value="">All Status</option>
+                <option value="Open">Open</option>
+                <option value="In Progress">In Progress</option>
+                <option value="Resolved">Resolved</option>
+              </select>
+            </div>
+            <div class="form-field" style="max-width:160px">
+              <label>Priority</label>
+              <select id="filterPriority" onchange="renderTickets()">
+                <option value="">All Priority</option>
+                <option value="High">High</option>
+                <option value="Medium">Medium</option>
+                <option value="Low">Low</option>
+              </select>
+            </div>
+          </div>
         </div>
-        <div class="form-field" style="max-width:160px">
-          <label>Priority</label>
-          <select id="filterPriority" onchange="renderTickets()">
-            <option value="">All Priority</option>
-            <option value="High">High</option>
-            <option value="Medium">Medium</option>
-            <option value="Low">Low</option>
-          </select>
-        </div>
-      </div>
-      <div class="tickets-layout">
-        <div>
-          <div id="ticketListItems"></div>
-        </div>
-        <div class="ticket-detail" id="ticketDetail">
-          <div id="ticketDetailContent">
-            <div class="empty"><span class="empty-icon material-symbols-rounded">confirmation_number</span><div class="empty-title">Walang napiling ticket</div><div class="empty-sub">Pumili ng ticket sa kaliwang lista</div></div>
+        <div class="tickets-layout">
+          <div class="ticket-list-shell">
+            <div id="ticketListItems"></div>
+          </div>
+          <div class="ticket-detail" id="ticketDetail">
+            <div id="ticketDetailContent">
+              <div class="empty"><span class="empty-icon material-symbols-rounded">confirmation_number</span><div class="empty-title">Walang napiling ticket</div><div class="empty-sub">Pumili ng ticket sa listahan para mabuksan ang buong conversation.</div></div>
+            </div>
           </div>
         </div>
       </div>
     </div>
 
-    <!-- ═══ KNOWLEDGE BASE ═══ -->
+    <!-- --- KNOWLEDGE BASE --- -->
     <div class="page" id="page-kb">
       <div class="card-header" style="margin-bottom:14px">
         <div><div class="card-title" style="font-size:17px">Knowledge Base</div><div class="card-sub">Quick answers para sa mga common na tanong</div></div>
@@ -648,32 +761,39 @@ body.is-admin .dock-item.admin-only{display:flex}
       <div class="kb-grid" id="kbGrid"></div>
     </div>
 
-    <!-- ═══ AGENTS PAGE (ADMIN) ═══ -->
+    <!-- --- AGENTS PAGE (ADMIN) --- -->
     <div class="page admin-only" id="page-agents">
-      <div class="card">
-        <div class="card-header">
-          <div><div class="card-title">Agent Management</div><div class="card-sub">I-approve o i-reject ang mga support agent</div></div>
-        </div>
-        <div class="search-wrap"><span class="search-icon material-symbols-rounded">search</span><input id="agentSearch" type="search" placeholder="Search agents…" oninput="renderAgents()"/></div>
-        <div class="table-wrap">
-          <table>
-            <thead><tr><th>Agent</th><th>Auth Method</th><th>Downloads</th><th>Orders</th><th>Merchants</th><th>Commission</th><th>Status</th><th>Actions</th></tr></thead>
-            <tbody id="agentTableBody"></tbody>
-          </table>
+      <div class="page-stack">
+        <section class="section-hero">
+          <div class="section-kicker"><span class="material-symbols-rounded" style="font-size:14px">groups</span>Agents</div>
+          <div class="section-title">Review at approvals na bagay sa phone.</div>
+          <div class="section-copy">Scrollable cards ang dating ng table rows para hindi masikip sa admin view.</div>
+        </section>
+        <div class="card">
+          <div class="card-header">
+            <div><div class="card-title">Agent Management</div><div class="card-sub">I-approve o i-reject ang mga support agent</div></div>
+          </div>
+          <div class="search-wrap"><span class="search-icon material-symbols-rounded">search</span><input id="agentSearch" type="search" placeholder="Search agents…" oninput="renderAgents()"/></div>
+          <div class="table-wrap">
+            <table>
+              <thead><tr><th>Agent</th><th>Auth Method</th><th>Downloads</th><th>Orders</th><th>Merchants</th><th>Commission</th><th>Status</th><th>Actions</th></tr></thead>
+              <tbody id="agentTableBody"></tbody>
+            </table>
+          </div>
         </div>
       </div>
     </div>
 
-    <!-- ═══ REFERRALS PAGE ═══ -->
+    <!-- --- REFERRALS PAGE --- -->
     <div class="page" id="page-referrals">
       <div class="kpi-grid" id="refKpiGrid" style="margin-bottom:18px"></div>
       <div class="card-header" style="margin-bottom:14px">
-        <div><div class="card-title" style="font-size:17px">Referral & Incentive Tracker</div><div class="card-sub">Rules: Download = ₱0 · Successful Order = ₱50 · Partner Merchant Invite = ₱1,000 · Weekly Quota (10 orders) Bonus = ₱1,000</div></div>
+        <div><div class="card-title" style="font-size:17px">Referral & Incentive Tracker</div><div class="card-sub">Rules: Download = ?0 · Successful Order = ?50 · Partner Merchant Invite = ?1,000 · Weekly Quota (10 orders) Bonus = ?1,000</div></div>
       </div>
       <div id="refAgentCards"></div>
     </div>
 
-    <!-- ═══ SETTINGS PAGE (ADMIN) ═══ -->
+    <!-- --- SETTINGS PAGE (ADMIN) --- -->
     <div class="page admin-only" id="page-settings">
       <div class="grid-2">
         <div class="card">
@@ -723,10 +843,10 @@ const gProvider = new GoogleAuthProvider();
 const SUPPORT_AGENT_PATHS = ['supportAgents','support_agents'];
 const SUPPORT_PUSH_VAPID_KEY = 'BMdJvRjBWkB8Ob6OOJNiaFVtKkTG4Ubd1BEM4z8VshMVO0WiGHYUEu3mfm1sQYlK25OloE9jjojJUWB12eMfLfA';
 
-// ── STATE ──
+// -- STATE --
 const state = { me:null, role:'support', agents:[], messages:[], selectedTicketId:null, kbArticles:KB_DEFAULT() };
 
-// ── HELPERS ──
+// -- HELPERS --
 const $=id=>document.getElementById(id);
 const peso=n=>new Intl.NumberFormat('en-PH',{style:'currency',currency:'PHP',maximumFractionDigits:0}).format(n);
 const getAgentReferralCode=a=>String(a?.referralCode || a?.uid || a?.id || '').trim();
@@ -824,7 +944,7 @@ async function enablePushForSupportAgent(user){
   }
 }
 
-// ── AUTH TAB ──
+// -- AUTH TAB --
 window.switchAuthTab = function(tab){
   $('tabLogin').className='auth-tab'+(tab==='login'?' active':'');
   $('tabSignup').className='auth-tab'+(tab==='signup'?' active':'');
@@ -1110,7 +1230,7 @@ showInitialPageFromHash();
   }
 })();
 
-// ── LOGIN ──
+// -- LOGIN --
 $('loginBtn').onclick=async()=>{
   const e=$('authEmail').value.trim(),p=$('authPassword').value;
   if(!e||!p){setStatus('Email at password required.','error');return;}
@@ -1157,7 +1277,7 @@ $('googleBtn').onclick=async()=>{
   }
 };
 
-// ── NAV ──
+// -- NAV --
 window.showPage = function(name){
   document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
   document.querySelectorAll('.nav-item,.dock-item').forEach(n=>n.classList.remove('active'));
@@ -1179,10 +1299,10 @@ function showInitialPageFromHash(){
   if(validPages.has(page)) showPage(page);
 }
 
-// ── RENDER ALL ──
+// -- RENDER ALL --
 function renderAll(){renderDashboard();renderTickets();renderAgents();renderReferrals();}
 
-// ── DASHBOARD ──
+// -- DASHBOARD --
 function renderDashboard(){
   const open=state.messages.filter(m=>!m.status||m.status==='Open').length;
   const inProg=state.messages.filter(m=>m.status==='In Progress').length;
@@ -1245,7 +1365,7 @@ function renderDashboard(){
   }</tbody></table></div>`:'<div class="empty"><span class="empty-icon material-symbols-rounded">task_alt</span><div class="empty-title">Lahat approved na</div></div>';
 }
 
-// ── TICKETS ──
+// -- TICKETS --
 window.renderTickets = function(){
   const q=($('ticketSearch').value||'').toLowerCase();
   const sf=($('filterStatus').value||'');
@@ -1315,11 +1435,11 @@ window.selectTicket = function(id){
     </div>
     <div class="reply-box">
       <textarea class="reply-input" id="replyInput" rows="1" placeholder="Type your reply…"></textarea>
-      <button class="send-btn" onclick="sendReply('${id}')">➤</button>
+      <button class="send-btn" onclick="sendReply('${id}')">?</button>
     </div>`;
   // scroll to bottom
   setTimeout(()=>{const t=$('msgThread');if(t)t.scrollTop=t.scrollHeight;},50);
-  if(isMobileView()) setTicketDetailOpen(true);
+  setTicketDetailOpen(true);
 };
 
 window.updateTicketStatus = async function(id,val){
@@ -1340,12 +1460,12 @@ window.sendReply = async function(ticketId){
   await push(ref(db,`support_messages/${ticketId}`),{text:txt,agent:agentName,senderName:agentName,senderType:'admin',senderUid:state.me?.uid||state.me?.id||auth.currentUser?.uid||'',createdAt:now});
   await update(ref(db,`support_tickets/${ticketId}`),{status:'In Progress',updatedAt:now,lastMessage:txt,...buildAgentClaimPatch(ticket,state.me)});
   inp.value='';
-  showToast('Reply sent ✓','success');
+  showToast('Reply sent ?','success');
   // re-select to refresh
   setTimeout(()=>selectTicket(ticketId),300);
 };
 
-// ── AGENTS ──
+// -- AGENTS --
 window.renderAgents = function(){
   const q=($('agentSearch')?.value||'').toLowerCase();
   let ags=[...state.agents];
@@ -1372,7 +1492,7 @@ window.approveAgent = async function(id){
   await Promise.allSettled(
     SUPPORT_AGENT_PATHS.map(path=>update(ref(db,`${path}/${id}`),{approved:true,status:'approved',approvedAt:Date.now()}))
   );
-  showToast('Agent approved! ✓','success');
+  showToast('Agent approved! ?','success');
 };
 window.rejectAgent = async function(id){
   if(state.role!=='admin'){ showToast('Admin only action.','error'); return; }
@@ -1383,7 +1503,7 @@ window.rejectAgent = async function(id){
   showToast('Agent access revoked.','error');
 };
 
-// ── REFERRALS ──
+// -- REFERRALS --
 function renderReferrals(){
   const appr=state.agents.filter(a=>a.approved);
   const totDL=appr.reduce((x,a)=>x+(a.downloads||0),0);
@@ -1460,14 +1580,14 @@ window.saveRef = async function(id){
   await Promise.allSettled(
     SUPPORT_AGENT_PATHS.map(path=>update(ref(db,`${path}/${id}`),{downloads:dl,orders:or,merchants:me}))
   );
-  showToast('Progress saved ✓','success');
+  showToast('Progress saved ?','success');
 };
 
-// ── KNOWLEDGE BASE ──
+// -- KNOWLEDGE BASE --
 function KB_DEFAULT(){return[
   {id:'kb1',cat:'Orders',title:'Paano i-track ang order?',body:'Pumunta sa Aking Orders sa app. Doon makikita ang real-time status ng iyong order kasama ang estimated delivery time.'},
   {id:'kb2',cat:'Orders',title:'Ano ang gagawin kung late ang delivery?',body:'Hintayin muna ng 30 minutos. Kung wala pa, i-contact ang rider sa in-app chat. Kung hindi pa rin, mag-file ng support ticket.'},
-  {id:'kb3',cat:'Payments',title:'Anong payment methods ang tinatanggap?',body:'GCash, Maya, cash on delivery, at major credit/debit cards. Available din ang installment via BillEase para sa orders na ₱1,000+.'},
+  {id:'kb3',cat:'Payments',title:'Anong payment methods ang tinatanggap?',body:'GCash, Maya, cash on delivery, at major credit/debit cards. Available din ang installment via BillEase para sa orders na ?1,000+.'},
   {id:'kb4',cat:'Payments',title:'Paano mag-request ng refund?',body:'Mag-file ng refund request sa loob ng 24 hours mula delivery. I-upload ang proof (larawan ng item). Processing time: 3-5 business days.'},
   {id:'kb5',cat:'Merchants',title:'Paano maging partner merchant?',body:'I-fill out ang Partner Merchant Application sa app. Requirements: valid business permit, at least 1 year operation. Approval within 5-7 business days.'},
   {id:'kb6',cat:'Account',title:'Nalimutan ko ang password ko',body:'I-click ang "Forgot Password" sa login screen. Magpadala kami ng reset link sa iyong registered email. Valid ang link for 24 hours.'},
@@ -1528,7 +1648,7 @@ window.saveArticle = function(){
   state.kbArticles.push({id:'kb'+Date.now(),cat,title,body});
   renderKB();
   document.querySelector('div[style*="position:fixed"]')?.remove();
-  showToast('Article added ✓','success');
+  showToast('Article added ?','success');
 };
 
 // init KB render
