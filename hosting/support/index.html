@@ -643,16 +643,32 @@ async function upsertAgent(user){
   const primaryRef=ref(db,`supportAgents/${user.uid}`);
   const legacyRef=ref(db,`support_agents/${user.uid}`);
 
-  const [primarySnap, legacySnap] = await Promise.all([get(primaryRef), get(legacyRef)]);
-  if(!primarySnap.exists()) await set(primaryRef,base);
-  if(!legacySnap.exists()) await set(legacyRef,base);
+  const writes=[];
+
+  try{
+    const primarySnap=await get(primaryRef);
+    if(!primarySnap.exists()) writes.push(set(primaryRef,base));
+  }catch(_){}
+
+  try{
+    const legacySnap=await get(legacyRef);
+    if(!legacySnap.exists()) writes.push(set(legacyRef,base));
+  }catch(_){}
+
+  if(!writes.length) return;
+
+  const results=await Promise.allSettled(writes);
+  if(results.every(r=>r.status==='rejected')){
+    throw new Error('No writable support agent paths');
+  }
 }
 
 async function handleAuth(user){
   if(!user){$('authScreen').style.display='flex';$('mainApp').style.display='none';return;}
   try{ await upsertAgent(user); }catch(e){ setStatus('DB access denied. Contact admin.','error'); return; }
-  const snap=await get(ref(db,`supportAgents/${user.uid}`));
-  const me=snap.val();
+  const primarySnap=await get(ref(db,`supportAgents/${user.uid}`)).catch(()=>null);
+  const legacySnap=await get(ref(db,`support_agents/${user.uid}`)).catch(()=>null);
+  const me=primarySnap?.val()||legacySnap?.val();
   if(!me?.approved){ $('authScreen').style.display='flex'; $('mainApp').style.display='none'; setStatus('Logged in — pending admin approval. Hintayin mo lang.',''); $('logoutBtn').style.display='block'; return; }
   $('authScreen').style.display='none';
   $('mainApp').style.display='flex';
