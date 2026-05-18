@@ -713,7 +713,14 @@ function renderDashboard(){
   const inProg=state.messages.filter(m=>m.status==='In Progress').length;
   const resolved=state.messages.filter(m=>m.status==='Resolved').length;
   const pending=state.agents.filter(a=>!a.approved).length;
-  const totComm=state.agents.reduce((x,a)=>{return x+commission(a).total},0);
+  const isAdmin=state.role==='admin';
+  const myAgent=state.me||{};
+  const totComm=isAdmin
+    ? state.agents.reduce((x,a)=>x+commission(a).total,0)
+    : commission(myAgent).total;
+  const merchantInvites=isAdmin
+    ? state.agents.reduce((x,a)=>x+(a.merchants||0),0)
+    : (myAgent.merchants||0);
 
   // Notification dot
   if(open>0){$('notifDot').style.display='block';}else{$('notifDot').style.display='none';}
@@ -726,9 +733,9 @@ function renderDashboard(){
   $('kpiGrid').innerHTML=[
     {label:'Open Tickets',val:open,sub:`${inProg} In Progress`,icon:'confirmation_number',cls:'red'},
     {label:'Resolved Today',val:resolved,sub:'Tickets closed',icon:'task_alt',cls:'green'},
-    {label:'Total Incentives',val:peso(totComm),sub:'All agents',icon:'paid',cls:'amber'},
+    {label:'Total Incentives',val:peso(totComm),sub:isAdmin?'All agents':'Your incentives',icon:'paid',cls:'amber'},
     {label:'Total Messages',val:state.messages.length,sub:'All time',icon:'chat',cls:'green'},
-    {label:'Merchant Invites',val:state.agents.reduce((x,a)=>x+(a.merchants||0),0),sub:'By all agents',icon:'handshake',cls:'blue'},
+    {label:'Merchant Invites',val:merchantInvites,sub:isAdmin?'By all agents':'Your invites',icon:'handshake',cls:'blue'},
   ].map(k=>`<div class="kpi-card ${k.cls}"><div class="kpi-icon material-symbols-rounded">${k.icon}</div><div class="kpi-label">${k.label}</div><div class="kpi-val">${k.val}</div><div class="kpi-sub">${k.sub}</div></div>`).join('');
 
   // Recent tickets
