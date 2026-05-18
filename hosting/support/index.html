@@ -626,11 +626,26 @@ function setStatus(msg,type=''){
 }
 
 async function upsertAgent(user){
-  const r=ref(db,`supportAgents/${user.uid}`);
-  const snap=await get(r);
-  if(!snap.exists()){
-    await set(r,{id:user.uid,email:user.email||'',name:user.displayName||(user.email||'agent').split('@')[0],approved:false,downloads:0,orders:0,merchants:0,createdAt:Date.now(),authProvider:user.providerData?.[0]?.providerId||'password'});
-  }
+  const base={
+    id:user.uid,
+    uid:user.uid,
+    email:user.email||'',
+    name:user.displayName||(user.email||'agent').split('@')[0],
+    approved:false,
+    downloads:0,
+    orders:0,
+    merchants:0,
+    createdAt:Date.now(),
+    authProvider:user.providerData?.[0]?.providerId||'password'
+  };
+
+  // Write to both primary and legacy paths so all admin dashboards can see new signups.
+  const primaryRef=ref(db,`supportAgents/${user.uid}`);
+  const legacyRef=ref(db,`support_agents/${user.uid}`);
+
+  const [primarySnap, legacySnap] = await Promise.all([get(primaryRef), get(legacyRef)]);
+  if(!primarySnap.exists()) await set(primaryRef,base);
+  if(!legacySnap.exists()) await set(legacyRef,base);
 }
 
 async function handleAuth(user){
