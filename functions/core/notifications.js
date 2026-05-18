@@ -135,6 +135,63 @@ async function getAllAdminTokens() {
   });
 }
 
+function isApprovedSupportAgent(value = {}) {
+  const approved = String(value?.approved ?? "").trim().toLowerCase();
+  const status = String(value?.status ?? "").trim().toLowerCase();
+  const role = String(value?.role ?? "").trim().toLowerCase();
+  return value?.approved === true ||
+    value?.approved === 1 ||
+    approved === "true" ||
+    approved === "approved" ||
+    status === "approved" ||
+    value?.isAdmin === true ||
+    role === "admin";
+}
+
+/**
+ * Fetch all FCM tokens for approved support agents.
+ */
+async function getAllSupportAgentTokens() {
+  const db = getDatabase();
+  const [primarySnap, legacySnap, tokensSnap] = await Promise.all([
+    db.ref("supportAgents").get(),
+    db.ref("support_agents").get(),
+    db.ref("push_tokens").get(),
+  ]);
+
+  if (!tokensSnap.exists()) return [];
+
+  const approvedUidSet = new Set();
+  [primarySnap, legacySnap].forEach((snap) => {
+    if (!snap.exists()) return;
+    snap.forEach((agentSnap) => {
+      if (isApprovedSupportAgent(agentSnap.val())) {
+        approvedUidSet.add(agentSnap.key);
+      }
+    });
+  });
+
+  if (!approvedUidSet.size) return [];
+
+  const entries = [];
+  tokensSnap.forEach((userSnap) => {
+    if (!approvedUidSet.has(userSnap.key)) return;
+    userSnap.forEach((tokenSnap) => {
+      const data = tokenSnap.val();
+      if (data?.token && data?.enabled !== false && data?.role !== "rider") {
+        entries.push({ uid: userSnap.key, tokenKey: tokenSnap.key, token: data.token });
+      }
+    });
+  });
+
+  const seen = new Set();
+  return entries.filter((t) => {
+    if (seen.has(t.token)) return false;
+    seen.add(t.token);
+    return true;
+  });
+}
+
 /**
  * Send multicast FCM notification to multiple tokens.
  * Automatically removes invalid/expired tokens from the database.
@@ -273,5 +330,6 @@ module.exports = {
   getUserTokens,
   getAllRiderTokens,
   getAllAdminTokens,
+  getAllSupportAgentTokens,
   sendBatchNotification,
 };

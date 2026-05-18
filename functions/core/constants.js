@@ -4,10 +4,11 @@
  */
 
 const APP_ICON = "https://i.imgur.com/wL8wcBB.jpeg";
-const USER_APP_URL = "https://bayango.store/bayango-user.html";
+const USER_APP_URL = "https://bayango.store/app.html";
 const RIDER_APP_URL = "https://bayango.store/bayango-rider.html";
 const ADMIN_APP_URL = "https://bayango.store/bayango-admin.html";
 const MERCHANT_APP_URL = "https://bayango.store/merchant/";
+const SUPPORT_APP_URL = "https://support.bayango.store/";
 
 const ORDER_STATUS_LABELS = {
   merchant_pending: "Inihahanda ng merchant ang order",
@@ -46,6 +47,7 @@ module.exports = {
   RIDER_APP_URL,
   ADMIN_APP_URL,
   MERCHANT_APP_URL,
+  SUPPORT_APP_URL,
   ORDER_STATUS_LABELS,
   MERCHANT_STATUS_LABELS,
   REFUND_STATUS_LABELS,

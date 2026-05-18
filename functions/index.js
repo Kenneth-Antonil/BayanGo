@@ -14,8 +14,8 @@ const crypto = require("crypto");
 const {
   USER_APP_URL,
   RIDER_APP_URL,
-  ADMIN_APP_URL,
   MERCHANT_APP_URL,
+  SUPPORT_APP_URL,
   ADMIN_ALLOWED_ORIGINS,
   ORDER_STATUS_LABELS,
   MERCHANT_STATUS_LABELS,
@@ -25,7 +25,7 @@ const {
   getAllCustomerTokens,
   getUserTokens,
   getAllRiderTokens,
-  getAllAdminTokens,
+  getAllSupportAgentTokens,
   sendBatchNotification,
 } = require("./core/notifications");
 
@@ -796,17 +796,17 @@ exports.onNewSupportTicket = onValueCreated(
       const ticket = event.data.val();
       if (!ticket) return;
 
-      const adminTokens = await getAllAdminTokens();
-      if (!adminTokens.length) return;
+      const supportTokens = await getAllSupportAgentTokens();
+      if (!supportTokens.length) return;
 
       const customerName = ticket.userName || ticket.name || "Customer";
       const subject = ticket.subject || "No subject";
 
-      const result = await sendBatchNotification(adminTokens, {
+      const result = await sendBatchNotification(supportTokens, {
         title: "New Support Ticket",
         body: `${customerName}: ${subject}`,
         type: "support_ticket_new",
-        link: `${ADMIN_APP_URL}#support`,
+        link: `${SUPPORT_APP_URL}#tickets`,
       });
       console.log(`[onNewSupportTicket ${event.params.ticketId}] Sent:${result.sent} Failed:${result.failed}`);
     } catch (err) {
@@ -829,17 +829,17 @@ exports.onNewSupportMessage = onValueCreated(
       const ticket = ticketSnap.val();
 
       if (message.senderType === "user") {
-        const adminTokens = await getAllAdminTokens();
-        if (!adminTokens.length) return;
+        const supportTokens = await getAllSupportAgentTokens();
+        if (!supportTokens.length) return;
 
         const senderName = message.senderName || ticket.userName || "Customer";
         const preview = message.text.length > 80 ? message.text.slice(0, 80) + "\u2026" : message.text;
 
-        const result = await sendBatchNotification(adminTokens, {
+        const result = await sendBatchNotification(supportTokens, {
           title: `Support: ${ticket.subject || "Ticket"}`,
           body: `${senderName}: ${preview}`,
           type: "support_message_user",
-          link: `${ADMIN_APP_URL}#support`,
+          link: `${SUPPORT_APP_URL}#tickets`,
         });
         console.log(`[onNewSupportMessage user->admin ${ticketId}] Sent:${result.sent} Failed:${result.failed}`);
 

@@ -713,6 +713,7 @@ body.is-admin .dock-item.admin-only{display:flex}
 import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.13.2/firebase-app.js';
 import { getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword, onAuthStateChanged, signOut, GoogleAuthProvider, signInWithRedirect, signInWithPopup, getRedirectResult, updateProfile } from 'https://www.gstatic.com/firebasejs/10.13.2/firebase-auth.js';
 import { getDatabase, ref, get, onValue, set, update, push, serverTimestamp } from 'https://www.gstatic.com/firebasejs/10.13.2/firebase-database.js';
+import { getMessaging, getToken, onMessage, isSupported } from 'https://www.gstatic.com/firebasejs/10.13.2/firebase-messaging.js';
 
 const FC = { apiKey:'AIzaSyC0AQ3rkH-fhxlThobjDDtrvxttAfFLXTE', authDomain:'bayango-315c6.firebaseapp.com', databaseURL:'https://bayango-315c6-default-rtdb.asia-southeast1.firebasedatabase.app', projectId:'bayango-315c6', storageBucket:'bayango-315c6.firebasestorage.app', messagingSenderId:'199013441811', appId:'1:199013441811:web:315a38f03ddc9b676e3ae6' };
 const fbApp = initializeApp(FC);
@@ -720,6 +721,7 @@ const auth = getAuth(fbApp);
 const db = getDatabase(fbApp);
 const gProvider = new GoogleAuthProvider();
 const SUPPORT_AGENT_PATHS = ['supportAgents','support_agents'];
+const SUPPORT_PUSH_VAPID_KEY = 'BMdJvRjBWkB8Ob6OOJNiaFVtKkTG4Ubd1BEM4z8VshMVO0WiGHYUEu3mfm1sQYlK25OloE9jjojJUWB12eMfLfA';
 
 // ── STATE ──
 const state = { me:null, role:'support', agents:[], messages:[], selectedTicketId:null, kbArticles:KB_DEFAULT() };
@@ -729,6 +731,7 @@ const $=id=>document.getElementById(id);
 const peso=n=>new Intl.NumberFormat('en-PH',{style:'currency',currency:'PHP',maximumFractionDigits:0}).format(n);
 const linkFor=a=>`https://bayango.store/app?ref=${a.id}`;
 const initials=s=>((s||'?').split(/\s+/).map(w=>w[0]).join('').toUpperCase().slice(0,2));
+const sanitizeTokenKey = token => encodeURIComponent(String(token || '')).replace(/\./g, '%2E');
 const commission=(a,rules)=>{const r=rules||{order:50,merchant:1000,quota:10,bonus:1000};const o=(a.orders||0)*r.order,m=(a.merchants||0)*r.merchant,b=(a.orders||0)>=r.quota?r.bonus:0;return{order:o,merchant:m,bonus:b,total:o+m+b}};
 const getStatusBadge=s=>{const map={Open:'badge-red',In_Progress:'badge-amber','In Progress':'badge-amber',Resolved:'badge-green'};return map[s?.replace(' ','_')]||'badge-muted'};
 const getPriorityBadge=p=>{const map={High:'badge-red',Medium:'badge-amber',Low:'badge-green'};return map[p]||'badge-muted'};
@@ -761,6 +764,64 @@ window.showToast = function(msg,type='success'){
   const t=$('toast'); t.textContent=msg; t.className='show '+type;
   setTimeout(()=>t.className='',2800);
 };
+
+async function enablePushForSupportAgent(user){
+  if(!user?.uid) return;
+  if(!('serviceWorker' in navigator) || !('Notification' in window)) return;
+
+  let supported=false;
+  try{
+    supported=await isSupported();
+  }catch(_){
+    return;
+  }
+  if(!supported) return;
+
+  let permission=Notification.permission;
+  if(permission!=='granted'){
+    permission=await Notification.requestPermission();
+  }
+  if(permission!=='granted') return;
+
+  const swReg=await navigator.serviceWorker.register('/firebase-messaging-sw.js');
+  await navigator.serviceWorker.ready;
+
+  const messaging=getMessaging(fbApp);
+  let token='';
+  try{
+    token=await getToken(messaging,{ serviceWorkerRegistration: swReg, vapidKey: SUPPORT_PUSH_VAPID_KEY });
+  }catch(err){
+    const vapidErr=String(err?.code||'').includes('vapid') || String(err?.message||'').toLowerCase().includes('vapid');
+    if(!vapidErr) throw err;
+    token=await getToken(messaging,{ serviceWorkerRegistration: swReg });
+  }
+  if(!token) return;
+
+  const tokenKey=sanitizeTokenKey(token);
+  await set(ref(db,`push_tokens/${user.uid}/${tokenKey}`),{
+    token,
+    uid:user.uid,
+    userEmail:user.email||'',
+    userName:user.displayName||state.me?.name||'',
+    role:'support',
+    platform:navigator.userAgent||'web',
+    updatedAt:Date.now(),
+    enabled:true
+  });
+
+  if(!window.__supportOnMessageBound){
+    onMessage(messaging,(payload)=>{
+      const title=payload?.notification?.title || payload?.data?.title || 'BayanGo Support';
+      const body=payload?.notification?.body || payload?.data?.body || 'May bagong support update.';
+      if(document.visibilityState==='visible'){
+        showToast(title,'success');
+      }else if(Notification.permission==='granted'){
+        new Notification(title,{ body });
+      }
+    });
+    window.__supportOnMessageBound=true;
+  }
+}
 
 // ── AUTH TAB ──
 window.switchAuthTab = function(tab){
@@ -934,6 +995,30 @@ function normalizeSupportTicket(ticket,thread){
   };
 }
 
+function getTicketAssignedUid(ticket){
+  return String(ticket?.assignedAgentUid || ticket?.agentUid || '').trim();
+}
+
+function canViewSupportTicket(ticket,user,role){
+  if(role==='admin') return true;
+  const myUid=String(user?.uid || user?.id || '').trim();
+  if(!myUid) return false;
+  const assignedUid=getTicketAssignedUid(ticket);
+  return !assignedUid || assignedUid===myUid;
+}
+
+function buildAgentClaimPatch(ticket,user){
+  if(!ticket || state.role==='admin') return {};
+  const myUid=String(user?.uid || user?.id || auth.currentUser?.uid || '').trim();
+  if(!myUid) return {};
+  const assignedUid=getTicketAssignedUid(ticket);
+  if(assignedUid && assignedUid!==myUid) return {};
+  return {
+    assignedAgentUid: myUid,
+    assignedAgentName: state.me?.name || state.me?.email || 'Agent'
+  };
+}
+
 async function handleAuth(user){
   if(!user){$('authScreen').style.display='flex';$('mainApp').style.display='none';return;}
   try{ await upsertAgent(user); }catch(e){ setStatus('DB access denied. Contact admin.','error'); return; }
@@ -949,17 +1034,13 @@ async function handleAuth(user){
   $('sideName').textContent=me.name||me.email||'Agent';
   $('sideRole').textContent=isAdmin?'Admin':'Support Agent';
   $('logoutBtn').addEventListener('click',()=>signOut(auth));
+  enablePushForSupportAgent(user).catch(err=>console.warn('Support push setup failed:', err));
   let ticketRows=[];
   let ticketThreads={};
   const syncTickets=()=>{
     const rows=ticketRows.map(ticket=>normalizeSupportTicket(ticket,ticketThreads[ticket.id]||{}));
     rows.sort((a,b)=>Number(b.updatedAt||b.lastMessageAt||b.createdAt||0)-Number(a.updatedAt||a.lastMessageAt||a.createdAt||0));
-    state.messages = state.role==='admin'
-      ? rows
-      : rows.filter(m=>{
-        const assignedUid=String(m.assignedAgentUid||m.agentUid||'').trim();
-        return assignedUid===String(me.id||user.uid);
-      });
+    state.messages = rows.filter(m=>canViewSupportTicket(m, me, state.role));
     if(state.selectedTicketId && !state.messages.some(m=>m.id===state.selectedTicketId)){
       state.selectedTicketId=null;
     }
@@ -1012,6 +1093,7 @@ onAuthStateChanged(auth, handleAuth);
 window.addEventListener('resize',syncShellMode);
 window.addEventListener('orientationchange',syncShellMode);
 syncShellMode();
+showInitialPageFromHash();
 
 (async function resolveGoogleRedirect(){
   try{
@@ -1084,9 +1166,19 @@ window.showPage = function(name){
   document.querySelectorAll(`[data-page="${name}"]`).forEach(n=>n.classList.add('active'));
   const titles={dashboard:'Dashboard',tickets:'Support Tickets',kb:'Knowledge Base',agents:'Agent Management',referrals:'Referral & Incentives',settings:'Settings'};
   $('topbarTitle').textContent=titles[name]||name;
+  try{
+    const nextHash=`#${name}`;
+    if(window.location.hash!==nextHash) window.history.replaceState(null,'',nextHash);
+  }catch(_){}
   if(name!=='tickets') setTicketDetailOpen(false);
   setSidebarOpen(false);
 };
+
+function showInitialPageFromHash(){
+  const validPages=new Set(['dashboard','tickets','kb','agents','referrals','settings']);
+  const page=(window.location.hash || '').replace('#','').trim().toLowerCase();
+  if(validPages.has(page)) showPage(page);
+}
 
 // ── RENDER ALL ──
 function renderAll(){renderDashboard();renderTickets();renderAgents();renderReferrals();}
@@ -1199,6 +1291,7 @@ window.selectTicket = function(id){
         <div class="ticket-avi">${initials(m.user||'?')}</div>
         <div>
           <div style="font-weight:700;font-size:14px">${m.user||'Unknown User'}</div>
+          <div style="font-size:11px;color:var(--muted);margin-top:4px">Agent: ${m.assignedAgentName||'Unassigned'}</div>
           <div style="font-size:11px;color:var(--muted)">${m.email||''} · ${timeAgo(m.createdAt||m.timestamp)}</div>
         </div>
       </div>
@@ -1231,19 +1324,22 @@ window.selectTicket = function(id){
 };
 
 window.updateTicketStatus = async function(id,val){
-  await update(ref(db,`support_tickets/${id}`),{status:val,updatedAt:Date.now()});
+  const ticket=state.messages.find(m=>m.id===id);
+  await update(ref(db,`support_tickets/${id}`),{status:val,updatedAt:Date.now(),...buildAgentClaimPatch(ticket,state.me)});
   showToast('Status updated to '+val,'success');
 };
 window.updateTicketPriority = async function(id,val){
-  await update(ref(db,`support_tickets/${id}`),{priority:val,updatedAt:Date.now()});
+  const ticket=state.messages.find(m=>m.id===id);
+  await update(ref(db,`support_tickets/${id}`),{priority:val,updatedAt:Date.now(),...buildAgentClaimPatch(ticket,state.me)});
   showToast('Priority set to '+val,'success');
 };
 window.sendReply = async function(ticketId){
   const inp=$('replyInput'); const txt=inp.value.trim(); if(!txt) return;
   const agentName=state.me?.name||state.me?.email||'Agent';
   const now=Date.now();
+  const ticket=state.messages.find(m=>m.id===ticketId);
   await push(ref(db,`support_messages/${ticketId}`),{text:txt,agent:agentName,senderName:agentName,senderType:'admin',senderUid:state.me?.uid||state.me?.id||auth.currentUser?.uid||'',createdAt:now});
-  await update(ref(db,`support_tickets/${ticketId}`),{status:'In Progress',updatedAt:now,lastMessage:txt,assignedAgentUid:state.me?.uid||state.me?.id||auth.currentUser?.uid||'',assignedAgentName:agentName});
+  await update(ref(db,`support_tickets/${ticketId}`),{status:'In Progress',updatedAt:now,lastMessage:txt,...buildAgentClaimPatch(ticket,state.me)});
   inp.value='';
   showToast('Reply sent ✓','success');
   // re-select to refresh
