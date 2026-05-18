@@ -968,10 +968,16 @@ async function handleAuth(user){
   onValue(ref(db,'support_tickets'),snap=>{
     ticketRows = Object.entries(snap.val()||{}).map(([id,v])=>({id,...v}));
     syncTickets();
+  },err=>{
+    console.error('Support tickets read error:', err);
+    showToast('Walang access sa support tickets. I-check ang database rules.', 'error');
   });
   onValue(ref(db,'support_messages'),snap=>{
     ticketThreads = snap.val()||{};
     syncTickets();
+  },err=>{
+    console.error('Support messages read error:', err);
+    showToast('Walang access sa support messages. I-check ang database rules.', 'error');
   });
   let primaryAgents=[];
   let legacyAgents=[];
