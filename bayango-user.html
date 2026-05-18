@@ -343,6 +343,27 @@
     };
 
     const fmt = n => "₱" + Number(n).toLocaleString("en-PH", { minimumFractionDigits:0 });
+    const getSupportDisplayName = (user, profileName) => profileName || user?.displayName || user?.email || "BayanGo User";
+    const normalizeSupportTicketForUser = (ticket, entries = []) => {
+      const orderedEntries = [...entries].sort((a, b) => Number(a?.createdAt || a?.timestamp || 0) - Number(b?.createdAt || b?.timestamp || 0));
+      const firstUserEntry = orderedEntries.find(entry => String(entry?.senderType || "").toLowerCase() === "user");
+      const lastEntry = orderedEntries[orderedEntries.length - 1] || firstUserEntry || null;
+      const fallbackMessage = ticket?.message || ticket?.msg || ticket?.lastMessage || firstUserEntry?.text || ticket?.subject || "No message yet";
+      return {
+        ...ticket,
+        subject: ticket?.subject || "General Concern",
+        message: ticket?.message || ticket?.msg || firstUserEntry?.text || fallbackMessage,
+        msg: ticket?.msg || ticket?.message || firstUserEntry?.text || fallbackMessage,
+        entries: orderedEntries,
+        lastMessage: lastEntry?.text || ticket?.lastMessage || fallbackMessage,
+        lastMessageAt: Number(lastEntry?.createdAt || lastEntry?.timestamp || ticket?.updatedAt || ticket?.createdAt || 0),
+        createdAt: Number(ticket?.createdAt || firstUserEntry?.createdAt || firstUserEntry?.timestamp || 0),
+        updatedAt: Number(ticket?.updatedAt || lastEntry?.createdAt || lastEntry?.timestamp || ticket?.createdAt || 0),
+        priority: ticket?.priority || "Medium",
+        status: ticket?.status || "Open",
+        lastSenderType: String(lastEntry?.senderType || firstUserEntry?.senderType || "user").toLowerCase(),
+      };
+    };
     const DEFAULT_MARKET_FACTOR = 1;
     const roundPrice = (n) => Math.max(0, Math.round(Number(n) || 0));
     const computeLivePrice = (product, marketPricing = {}) => {
@@ -1771,7 +1792,7 @@
       const [searchQ,        setSearchQ]        = useState("");
       const [shopScrolled,   setShopScrolled]   = useState(false);
       const [orderPlaced,    setOrderPlaced]    = useState(false);
-      const getInitialPage = () => {
+      const resolvePageFromLocation = () => {
         try {
           const url = new URL(window.location.href);
           const section = (url.searchParams.get("section") || "").toLowerCase();
@@ -1782,10 +1803,13 @@
           if (section === "notifications" || hash === "notifications") {
             return "notifications";
           }
+          if (section === "support" || hash === "support") {
+            return "support";
+          }
         } catch {}
         return "shop";
       };
-      const [activePage,     setActivePage]     = useState(getInitialPage);
+      const [activePage,     setActivePage]     = useState(resolvePageFromLocation);
       const [activeService,  setActiveService]  = useState("pabili");
       const [hideBatchTimer, setHideBatchTimer] = useState(false);
       const [showUserMenu,   setShowUserMenu]   = useState(false);
@@ -1814,6 +1838,19 @@
       const [useLoyaltyPoints, setUseLoyaltyPoints] = useState(false);
       const [activeStoreProfile, setActiveStoreProfile] = useState(null);
       const [activeStoreCat, setActiveStoreCat] = useState("all");
+
+      useEffect(() => {
+        const syncPageFromLocation = () => {
+          const nextPage = resolvePageFromLocation();
+          if (nextPage !== "shop") setActivePage(nextPage);
+        };
+        window.addEventListener("hashchange", syncPageFromLocation);
+        window.addEventListener("popstate", syncPageFromLocation);
+        return () => {
+          window.removeEventListener("hashchange", syncPageFromLocation);
+          window.removeEventListener("popstate", syncPageFromLocation);
+        };
+      }, []);
       const [storeSearchQ, setStoreSearchQ] = useState("");
       const [storeCatFilter, setStoreCatFilter] = useState("all");
       const [notifications, setNotifications]  = useState([]);
@@ -3778,11 +3815,16 @@
             <NotificationsPage notifications={notifications} onDelete={deleteNotification} />
           )}
 
+          {activePage === "support" && (
+            <SupportPage user={user} name={name} phone={phone} />
+          )}
+
           {activePage === "account" && (
             <AccountPage user={user} orders={myOrders} name={name} phone={phone} addr={addr}
               setName={setName} setPhone={setPhone} setAddr={setAddr} onLogout={onLogout}
               locationType={locationType} setLocationType={setLocationType}
-              customerLat={customerLat} customerLng={customerLng} onOpenLegal={onOpenLegal} />
+              customerLat={customerLat} customerLng={customerLng} onOpenLegal={onOpenLegal}
+              onOpenSupport={() => setActivePage("support")} />
           )}
 
           {/* ── Order Tracker Modal (global so it opens from any tab) ── */}
@@ -4066,6 +4108,17 @@
                       BG Mart
                     </span>
                     <span style={{ fontSize:11, opacity:.85 }}>Grocery Deals</span>
+                  </button>
+
+                  <div style={{ fontSize:11, fontWeight:800, color:"#64748B", textTransform:"uppercase", letterSpacing:".08em", margin:"14px 0 8px" }}>Quick Access</div>
+                  <button onClick={() => { setActivePage("support"); setShowUserMenu(false); }} style={{ width:"100%", textAlign:"left", border:"1px solid #CCFBF1", background:"#F0FDFA", borderRadius:12, padding:"12px", display:"flex", alignItems:"center", gap:11, marginBottom:8 }}>
+                    <div style={{ width:32, height:32, borderRadius:10, background:"#CCFBF1", color:"#0F766E", display:"flex", alignItems:"center", justifyContent:"center", flexShrink:0 }}>
+                      <Ic n="headset" />
+                    </div>
+                    <div>
+                      <div style={{ fontSize:13, fontWeight:800, color:"#111827" }}>Contact Support</div>
+                      <div style={{ fontSize:11, color:"#6B7280", marginTop:1 }}>Submit ticket o tingnan ang replies</div>
+                    </div>
                   </button>
                 </div>
               </div>
@@ -4757,7 +4810,381 @@
 
 
     /* ══════════════════ ACCOUNT PAGE ══════════════════ */
-    function AccountPage({ user, orders, name, phone, addr, locationType, setName, setPhone, setAddr, setLocationType, onLogout, customerLat, customerLng, onOpenLegal }) {
+    function SupportPage({ user, name, phone }) {
+      const storageKey = `bayango_support_seen_${user?.uid || "anon"}`;
+      const [tickets, setTickets] = useState([]);
+      const [threads, setThreads] = useState({});
+      const [selectedTicketId, setSelectedTicketId] = useState(null);
+      const [lastSeenMap, setLastSeenMap] = useState(() => {
+        try {
+          const raw = localStorage.getItem(storageKey);
+          const parsed = raw ? JSON.parse(raw) : {};
+          return parsed && typeof parsed === "object" ? parsed : {};
+        } catch {
+          return {};
+        }
+      });
+      const [draftSubject, setDraftSubject] = useState("");
+      const [draftPriority, setDraftPriority] = useState("Medium");
+      const [draftMessage, setDraftMessage] = useState("");
+      const [replyText, setReplyText] = useState("");
+      const [creating, setCreating] = useState(false);
+      const [sendingReply, setSendingReply] = useState(false);
+      const [loadError, setLoadError] = useState("");
+
+      useEffect(() => {
+        try {
+          const raw = localStorage.getItem(storageKey);
+          const parsed = raw ? JSON.parse(raw) : {};
+          setLastSeenMap(parsed && typeof parsed === "object" ? parsed : {});
+        } catch {
+          setLastSeenMap({});
+        }
+      }, [storageKey]);
+
+      const markTicketSeen = useCallback((ticketId, seenAt = Date.now()) => {
+        if (!ticketId) return;
+        setLastSeenMap(prev => {
+          const next = { ...prev, [ticketId]: seenAt };
+          try { localStorage.setItem(storageKey, JSON.stringify(next)); } catch {}
+          return next;
+        });
+      }, [storageKey]);
+
+      useEffect(() => {
+        if (!user?.uid || !_fbDb) return;
+        setLoadError("");
+        const ref = _fbDb.ref("support_tickets").orderByChild("uid").equalTo(user.uid);
+        const handler = ref.on("value", snap => {
+          const rows = [];
+          snap.forEach(child => rows.push({ id: child.key, ...child.val() }));
+          rows.sort((a, b) => Number(b.updatedAt || b.createdAt || 0) - Number(a.updatedAt || a.createdAt || 0));
+          setTickets(rows);
+        }, err => {
+          console.error("Support tickets load error:", err);
+          setLoadError("Hindi ma-load ang support inbox ngayon.");
+        });
+        return () => ref.off("value", handler);
+      }, [user?.uid]);
+
+      const ticketIdsKey = useMemo(() => tickets.map(ticket => ticket.id).join("|"), [tickets]);
+
+      useEffect(() => {
+        if (!ticketIdsKey || !_fbDb) {
+          setThreads({});
+          return;
+        }
+        const listeners = tickets.map(ticket => {
+          const ref = _fbDb.ref(`support_messages/${ticket.id}`).orderByChild("createdAt");
+          const handler = ref.on("value", snap => {
+            const entries = [];
+            snap.forEach(child => entries.push({ id: child.key, ...child.val() }));
+            entries.sort((a, b) => Number(a.createdAt || a.timestamp || 0) - Number(b.createdAt || b.timestamp || 0));
+            setThreads(prev => ({ ...prev, [ticket.id]: entries }));
+          }, err => console.error(`Support messages load error (${ticket.id}):`, err));
+          return { ref, handler };
+        });
+        return () => listeners.forEach(listener => listener.ref.off("value", listener.handler));
+      }, [ticketIdsKey, tickets]);
+
+      const normalizedTickets = useMemo(() => (
+        tickets
+          .map(ticket => normalizeSupportTicketForUser(ticket, threads[ticket.id] || []))
+          .sort((a, b) => Number(b.updatedAt || b.lastMessageAt || b.createdAt || 0) - Number(a.updatedAt || a.lastMessageAt || a.createdAt || 0))
+      ), [threads, tickets]);
+
+      useEffect(() => {
+        if (!normalizedTickets.length) {
+          setSelectedTicketId(null);
+          return;
+        }
+        if (!selectedTicketId || !normalizedTickets.some(ticket => ticket.id === selectedTicketId)) {
+          setSelectedTicketId(normalizedTickets[0].id);
+        }
+      }, [normalizedTickets, selectedTicketId]);
+
+      const selectedTicket = normalizedTickets.find(ticket => ticket.id === selectedTicketId) || null;
+      const unreadTicketIds = useMemo(() => (
+        normalizedTickets
+          .filter(ticket => ticket.lastSenderType === "admin" && Number(ticket.lastMessageAt || 0) > Number(lastSeenMap[ticket.id] || 0))
+          .map(ticket => ticket.id)
+      ), [lastSeenMap, normalizedTickets]);
+
+      useEffect(() => {
+        if (!selectedTicket) return;
+        markTicketSeen(selectedTicket.id, Math.max(Number(selectedTicket.lastMessageAt || 0), Date.now()));
+      }, [markTicketSeen, selectedTicket]);
+
+      const supportIdentity = getSupportDisplayName(user, name);
+      const statusTone = {
+        Open: { bg:"#FEF3C7", color:"#92400E" },
+        "In Progress": { bg:"#DBEAFE", color:"#1D4ED8" },
+        Resolved: { bg:"#DCFCE7", color:"#166534" },
+      };
+      const priorityTone = {
+        High: { bg:"#FEE2E2", color:"#B91C1C" },
+        Medium: { bg:"#FEF3C7", color:"#92400E" },
+        Low: { bg:"#E0F2FE", color:"#0369A1" },
+      };
+      const formatSupportTs = (ts) => {
+        if (!ts) return "";
+        const dt = new Date(Number(ts));
+        if (Number.isNaN(dt.getTime())) return "";
+        return dt.toLocaleDateString("en-PH", { month:"short", day:"numeric" }) + " • " + dt.toLocaleTimeString("en-PH", { hour:"2-digit", minute:"2-digit" });
+      };
+
+      const createTicket = async () => {
+        const subject = draftSubject.trim();
+        const message = draftMessage.trim();
+        if (!subject || !message) {
+          setLoadError("Lagyan ng subject at message bago magsumite.");
+          return;
+        }
+        if (!user?.uid || !_fbDb) {
+          setLoadError("Kailangan mong mag-login para makapag-contact ng support.");
+          return;
+        }
+        setCreating(true);
+        setLoadError("");
+        const now = Date.now();
+        const ticketRef = _fbDb.ref("support_tickets").push();
+        const ticketId = ticketRef.key;
+        try {
+          await ticketRef.set({
+            uid: user.uid,
+            userName: supportIdentity,
+            name: supportIdentity,
+            email: user.email || "",
+            phone: phone || "",
+            subject,
+            message,
+            msg: message,
+            priority: draftPriority,
+            status: "Open",
+            createdAt: now,
+            updatedAt: now,
+            lastMessage: message,
+          });
+          await _fbDb.ref(`support_messages/${ticketId}`).push({
+            text: message,
+            senderType: "user",
+            senderUid: user.uid,
+            senderName: supportIdentity,
+            userName: supportIdentity,
+            createdAt: now,
+          });
+          setDraftSubject("");
+          setDraftMessage("");
+          setDraftPriority("Medium");
+          setReplyText("");
+          setSelectedTicketId(ticketId);
+          markTicketSeen(ticketId, now);
+        } catch (err) {
+          console.error("Support ticket create error:", err);
+          setLoadError("Hindi naipadala ang ticket. Pakisubukan ulit.");
+        } finally {
+          setCreating(false);
+        }
+      };
+
+      const sendReply = async () => {
+        const message = replyText.trim();
+        if (!selectedTicketId || !message || !_fbDb || !user?.uid) return;
+        setSendingReply(true);
+        setLoadError("");
+        const now = Date.now();
+        try {
+          await _fbDb.ref(`support_messages/${selectedTicketId}`).push({
+            text: message,
+            senderType: "user",
+            senderUid: user.uid,
+            senderName: supportIdentity,
+            userName: supportIdentity,
+            createdAt: now,
+          });
+          await _fbDb.ref(`support_tickets/${selectedTicketId}`).update({
+            userName: supportIdentity,
+            name: supportIdentity,
+            email: user.email || "",
+            phone: phone || "",
+            lastMessage: message,
+            updatedAt: now,
+          });
+          setReplyText("");
+          markTicketSeen(selectedTicketId, now);
+        } catch (err) {
+          console.error("Support reply error:", err);
+          setLoadError("Hindi naipadala ang reply. Pakisubukan ulit.");
+        } finally {
+          setSendingReply(false);
+        }
+      };
+
+      const threadEntries = selectedTicket
+        ? (selectedTicket.entries?.length
+          ? selectedTicket.entries
+          : [{
+              id: `${selectedTicket.id}-seed`,
+              text: selectedTicket.message || selectedTicket.msg || selectedTicket.subject || "",
+              senderType: "user",
+              senderName: selectedTicket.userName || supportIdentity,
+              createdAt: selectedTicket.createdAt,
+            }])
+        : [];
+
+      return (
+        <div style={{ padding:"16px 16px calc(env(safe-area-inset-bottom,0px) + 96px)", display:"flex", flexDirection:"column", gap:14 }}>
+          <div style={{ background:"#fff", borderRadius:18, padding:18, border:"1px solid #E5E7EB", boxShadow:"0 2px 10px rgba(0,0,0,.04)" }}>
+            <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", gap:10, marginBottom:8 }}>
+              <div>
+                <div style={{ fontSize:18, fontWeight:800, color:"#111827" }}><Ic n="headset" style={{ marginRight:8, color:"#0F766E" }} />Contact Support</div>
+                <div style={{ fontSize:12, color:"#6B7280", marginTop:4, lineHeight:1.55 }}>
+                  Mag-submit ng concern o mag-follow up sa existing ticket. Makakatanggap ka rin ng reply dito sa app.
+                </div>
+              </div>
+              <div style={{ minWidth:82, textAlign:"right" }}>
+                <div style={{ fontSize:24, fontWeight:900, color:"#0F766E" }}>{normalizedTickets.length}</div>
+                <div style={{ fontSize:10, color:"#94A3B8", textTransform:"uppercase", letterSpacing:".08em" }}>Tickets</div>
+              </div>
+            </div>
+            {unreadTicketIds.length > 0 && (
+              <div style={{ marginTop:10, fontSize:12, fontWeight:700, color:"#0F766E", background:"#F0FDFA", border:"1px solid #99F6E4", borderRadius:12, padding:"10px 12px" }}>
+                <Ic n="comment-dots" style={{ marginRight:6 }} />
+                May {unreadTicketIds.length} bagong support repl{unreadTicketIds.length > 1 ? "ies" : "y"}.
+              </div>
+            )}
+            {loadError && (
+              <div style={{ marginTop:10, fontSize:12, fontWeight:700, color:"#B91C1C", background:"#FEF2F2", border:"1px solid #FECACA", borderRadius:12, padding:"10px 12px" }}>
+                {loadError}
+              </div>
+            )}
+          </div>
+
+          <div style={{ background:"#fff", borderRadius:18, padding:16, border:"1px solid #E5E7EB", boxShadow:"0 2px 10px rgba(0,0,0,.04)" }}>
+            <div style={{ fontSize:13, fontWeight:800, color:"#111827", marginBottom:12 }}>
+              <Ic n="ticket" style={{ marginRight:7, color:"#166534" }} />Bagong Ticket
+            </div>
+            <div style={{ display:"grid", gap:10 }}>
+              <input value={draftSubject} onChange={e => setDraftSubject(e.target.value)} placeholder="Subject ng concern" style={{ width:"100%", border:"1px solid #D1D5DB", borderRadius:12, padding:"12px 13px", fontSize:13, outline:"none", background:"#fff" }} />
+              <select value={draftPriority} onChange={e => setDraftPriority(e.target.value)} style={{ width:"100%", border:"1px solid #D1D5DB", borderRadius:12, padding:"12px 13px", fontSize:13, outline:"none", background:"#fff" }}>
+                <option value="High">High Priority</option>
+                <option value="Medium">Medium Priority</option>
+                <option value="Low">Low Priority</option>
+              </select>
+              <textarea value={draftMessage} onChange={e => setDraftMessage(e.target.value)} placeholder="Ilagay dito ang buong concern mo" rows={4} style={{ width:"100%", border:"1px solid #D1D5DB", borderRadius:12, padding:"12px 13px", fontSize:13, outline:"none", background:"#fff", resize:"vertical" }} />
+              <button onClick={createTicket} disabled={creating} style={{ width:"100%", padding:"13px 14px", borderRadius:14, background: creating ? "#A7F3D0" : "linear-gradient(135deg,#0F766E,#14B8A6)", color:"#fff", fontSize:13, fontWeight:800, opacity: creating ? 0.9 : 1 }}>
+                <Ic n={creating ? "spinner" : "paper-plane"} className={creating ? "spin" : ""} style={{ marginRight:8 }} />
+                {creating ? "Ipinapadala..." : "I-submit ang Ticket"}
+              </button>
+            </div>
+          </div>
+
+          <div style={{ display:"grid", gap:12 }}>
+            <div style={{ background:"#fff", borderRadius:18, padding:14, border:"1px solid #E5E7EB", boxShadow:"0 2px 10px rgba(0,0,0,.04)" }}>
+              <div style={{ fontSize:13, fontWeight:800, color:"#111827", marginBottom:12 }}>
+                <Ic n="inbox" style={{ marginRight:7, color:"#166534" }} />My Tickets
+              </div>
+              {normalizedTickets.length === 0 ? (
+                <div style={{ textAlign:"center", padding:"26px 12px", color:"#94A3B8" }}>
+                  <Ic n="life-ring" size={28} style={{ color:"#CBD5E1", marginBottom:8 }} />
+                  <div style={{ fontSize:13, fontWeight:700, color:"#64748B" }}>Wala ka pang support ticket.</div>
+                  <div style={{ fontSize:11, marginTop:4 }}>Kapag may concern ka, gamitin ang form sa itaas.</div>
+                </div>
+              ) : (
+                <div style={{ display:"grid", gap:8 }}>
+                  {normalizedTickets.map(ticket => {
+                    const statusStyle = statusTone[ticket.status] || statusTone.Open;
+                    const priorityStyle = priorityTone[ticket.priority] || priorityTone.Medium;
+                    const isUnread = unreadTicketIds.includes(ticket.id);
+                    return (
+                      <button key={ticket.id} onClick={() => setSelectedTicketId(ticket.id)} style={{ width:"100%", textAlign:"left", padding:"12px 13px", borderRadius:14, border: selectedTicketId === ticket.id ? "1.5px solid #14B8A6" : "1px solid #E5E7EB", background: selectedTicketId === ticket.id ? "#F0FDFA" : "#fff" }}>
+                        <div style={{ display:"flex", alignItems:"flex-start", justifyContent:"space-between", gap:10 }}>
+                          <div style={{ minWidth:0 }}>
+                            <div style={{ display:"flex", alignItems:"center", gap:8 }}>
+                              <div style={{ fontSize:13, fontWeight:800, color:"#111827", whiteSpace:"nowrap", overflow:"hidden", textOverflow:"ellipsis" }}>{ticket.subject}</div>
+                              {isUnread && <span style={{ width:8, height:8, borderRadius:"50%", background:"#14B8A6", flexShrink:0 }} />}
+                            </div>
+                            <div style={{ fontSize:11, color:"#64748B", marginTop:4, lineHeight:1.45, display:"-webkit-box", WebkitLineClamp:2, WebkitBoxOrient:"vertical", overflow:"hidden" }}>{ticket.lastMessage}</div>
+                          </div>
+                          <div style={{ flexShrink:0, textAlign:"right" }}>
+                            <div style={{ fontSize:10, color:"#94A3B8", marginBottom:6 }}>{formatSupportTs(ticket.lastMessageAt || ticket.updatedAt || ticket.createdAt)}</div>
+                            <div style={{ display:"flex", gap:6, justifyContent:"flex-end", flexWrap:"wrap" }}>
+                              <span style={{ fontSize:10, fontWeight:800, color:statusStyle.color, background:statusStyle.bg, borderRadius:999, padding:"4px 8px" }}>{ticket.status}</span>
+                              <span style={{ fontSize:10, fontWeight:800, color:priorityStyle.color, background:priorityStyle.bg, borderRadius:999, padding:"4px 8px" }}>{ticket.priority}</span>
+                            </div>
+                          </div>
+                        </div>
+                      </button>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+
+            <div style={{ background:"#fff", borderRadius:18, padding:14, border:"1px solid #E5E7EB", boxShadow:"0 2px 10px rgba(0,0,0,.04)" }}>
+              <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", gap:12, marginBottom:12 }}>
+                <div>
+                  <div style={{ fontSize:13, fontWeight:800, color:"#111827" }}>
+                    <Ic n="comments" style={{ marginRight:7, color:"#166534" }} />Conversation
+                  </div>
+                  <div style={{ fontSize:11, color:"#94A3B8", marginTop:4 }}>
+                    {selectedTicket ? selectedTicket.subject : "Pumili muna ng ticket"}
+                  </div>
+                </div>
+                {selectedTicket?.assignedAgentName && (
+                  <div style={{ fontSize:11, fontWeight:700, color:"#0F766E", background:"#F0FDFA", border:"1px solid #99F6E4", borderRadius:999, padding:"6px 10px" }}>
+                    Agent: {selectedTicket.assignedAgentName}
+                  </div>
+                )}
+              </div>
+
+              {!selectedTicket ? (
+                <div style={{ textAlign:"center", padding:"28px 14px", color:"#94A3B8" }}>
+                  <Ic n="comment-slash" size={28} style={{ color:"#CBD5E1", marginBottom:8 }} />
+                  <div style={{ fontSize:13, fontWeight:700, color:"#64748B" }}>Walang napiling ticket.</div>
+                </div>
+              ) : (
+                <>
+                  <div style={{ display:"flex", gap:8, flexWrap:"wrap", marginBottom:12 }}>
+                    <span style={{ fontSize:10, fontWeight:800, color:(statusTone[selectedTicket.status] || statusTone.Open).color, background:(statusTone[selectedTicket.status] || statusTone.Open).bg, borderRadius:999, padding:"5px 9px" }}>{selectedTicket.status}</span>
+                    <span style={{ fontSize:10, fontWeight:800, color:(priorityTone[selectedTicket.priority] || priorityTone.Medium).color, background:(priorityTone[selectedTicket.priority] || priorityTone.Medium).bg, borderRadius:999, padding:"5px 9px" }}>{selectedTicket.priority}</span>
+                    <span style={{ fontSize:10, fontWeight:700, color:"#64748B", background:"#F8FAFC", borderRadius:999, padding:"5px 9px" }}>Created {formatSupportTs(selectedTicket.createdAt)}</span>
+                  </div>
+
+                  <div style={{ display:"grid", gap:10, maxHeight:360, overflowY:"auto", paddingRight:2, marginBottom:12 }}>
+                    {threadEntries.map(entry => {
+                      const isAdmin = String(entry.senderType || "").toLowerCase() === "admin";
+                      return (
+                        <div key={entry.id || `${entry.createdAt}-${entry.text}`} style={{ display:"flex", justifyContent:isAdmin ? "flex-end" : "flex-start" }}>
+                          <div style={{ maxWidth:"88%" }}>
+                            <div style={{ fontSize:10, color:"#94A3B8", marginBottom:4, textAlign:isAdmin ? "right" : "left" }}>
+                              {isAdmin ? (entry.agent || entry.senderName || "BayanGo Support") : (entry.senderName || supportIdentity)} • {formatSupportTs(entry.createdAt || entry.timestamp)}
+                            </div>
+                            <div style={{ padding:"11px 12px", borderRadius:16, background:isAdmin ? "#ECFEFF" : "#F0FDF4", border:`1px solid ${isAdmin ? "#A5F3FC" : "#BBF7D0"}`, color:"#0F172A", fontSize:13, lineHeight:1.5, whiteSpace:"pre-wrap" }}>
+                              {entry.text || selectedTicket.message}
+                            </div>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+
+                  <div style={{ display:"grid", gap:10 }}>
+                    <textarea value={replyText} onChange={e => setReplyText(e.target.value)} placeholder="Mag-reply sa support team" rows={3} style={{ width:"100%", border:"1px solid #D1D5DB", borderRadius:12, padding:"12px 13px", fontSize:13, outline:"none", resize:"vertical" }} />
+                    <button onClick={sendReply} disabled={sendingReply || !replyText.trim()} style={{ width:"100%", padding:"13px 14px", borderRadius:14, background: sendingReply || !replyText.trim() ? "#CCFBF1" : "linear-gradient(135deg,#166534,#22C55E)", color: sendingReply || !replyText.trim() ? "#0F766E" : "#fff", fontSize:13, fontWeight:800 }}>
+                      <Ic n={sendingReply ? "spinner" : "paper-plane"} className={sendingReply ? "spin" : ""} style={{ marginRight:8 }} />
+                      {sendingReply ? "Ipinapadala..." : "Send Reply"}
+                    </button>
+                  </div>
+                </>
+              )}
+            </div>
+          </div>
+        </div>
+      );
+    }
+
+    function AccountPage({ user, orders, name, phone, addr, locationType, setName, setPhone, setAddr, setLocationType, onLogout, customerLat, customerLng, onOpenLegal, onOpenSupport }) {
       const [editMode,      setEditMode]      = useState(false);
       const [localName,     setLocalName]     = useState(name);
       const [localPhone,    setLocalPhone]    = useState(phone);
@@ -4867,6 +5294,14 @@
                       <button onClick={saveProfile} style={{ flex:2, padding:"11px 0", borderRadius:12, background:"linear-gradient(135deg,#166534,#22C55E)", fontSize:13, fontWeight:700, color:"#fff" }}><Ic n="floppy-disk" style={{marginRight:6}} />I-save</button>
                     </div>
                   )}
+                </div>
+                <div style={{ background:"#fff", borderRadius:16, marginTop:12, padding:14, border:"1px solid #CCFBF1", boxShadow:"0 2px 8px rgba(0,0,0,.04)" }}>
+                  <div style={{ fontSize:11, color:"#0F766E", fontWeight:700, textTransform:"uppercase", letterSpacing:".07em", marginBottom:8 }}>
+                    Support
+                  </div>
+                  <button onClick={onOpenSupport} style={{ width:"100%", padding:"11px 12px", borderRadius:10, background:"#F0FDFA", color:"#0F766E", fontWeight:700, display:"flex", alignItems:"center", justifyContent:"center", gap:8 }}>
+                    <Ic n="headset" /> Contact Support
+                  </button>
                 </div>
                 <div style={{ background:"#fff", borderRadius:16, marginTop:12, padding:14, border:"1px solid #DBEAFE", boxShadow:"0 2px 8px rgba(0,0,0,.04)" }}>
                   <div style={{ fontSize:11, color:"#1D4ED8", fontWeight:700, textTransform:"uppercase", letterSpacing:".07em", marginBottom:8 }}>
