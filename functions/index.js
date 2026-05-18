@@ -59,6 +59,147 @@ function toStartOfMonth(year, month) {
   return Date.UTC(year, month - 1, 1, 0, 0, 0, 0);
 }
 
+function normalizeSupportReferralCode(rawValue) {
+  return String(rawValue || "").trim().replace(/[^a-zA-Z0-9_-]/g, "").slice(0, 80);
+}
+
+function isApprovedSupportAgentRecord(record = {}) {
+  const approved = String(record?.approved ?? "").trim().toLowerCase();
+  const status = String(record?.status ?? "").trim().toLowerCase();
+  const role = String(record?.role ?? "").trim().toLowerCase();
+  return record?.approved === true ||
+    record?.approved === 1 ||
+    approved === "true" ||
+    approved === "approved" ||
+    status === "approved" ||
+    record?.isAdmin === true ||
+    role === "admin";
+}
+
+async function resolveSupportAgentUidByReferralCode(referralCode) {
+  const normalized = normalizeSupportReferralCode(referralCode);
+  if (!normalized) return "";
+  const db = getDatabase();
+  const [primarySnap, legacySnap] = await Promise.all([
+    db.ref(`supportAgents/${normalized}`).get(),
+    db.ref(`support_agents/${normalized}`).get(),
+  ]);
+
+  const candidates = [
+    primarySnap.exists() ? primarySnap.val() : null,
+    legacySnap.exists() ? legacySnap.val() : null,
+  ].filter(Boolean);
+
+  return candidates.some(isApprovedSupportAgentRecord) ? normalized : "";
+}
+
+async function incrementSupportAgentMetric(agentUid, metricKey, amount = 1) {
+  if (!agentUid || !metricKey || !Number.isFinite(amount) || amount === 0) return;
+  const db = getDatabase();
+  await Promise.allSettled(
+    ["supportAgents", "support_agents"].map((path) =>
+      db.ref(`${path}/${agentUid}/${metricKey}`).transaction((current) => {
+        const base = Number(current || 0);
+        return Math.max(0, base + amount);
+      })
+    )
+  );
+}
+
+async function ensureSupportReferralAttribution(uid, referralPayload = {}) {
+  if (!uid) return null;
+  const referralCode = normalizeSupportReferralCode(
+    referralPayload?.code || referralPayload?.ref || referralPayload?.referralCode
+  );
+  if (!referralCode) return null;
+
+  const agentUid = await resolveSupportAgentUidByReferralCode(referralCode);
+  if (!agentUid) return null;
+
+  const db = getDatabase();
+  const now = Date.now();
+  const attributionRef = db.ref(`support_referral_attributions/${uid}`);
+  const attribution = {
+    uid,
+    code: referralCode,
+    agentUid,
+    source: String(referralPayload?.source || "support_agent_link"),
+    capturedAt: Number(referralPayload?.capturedAt || now),
+    downloadTrackedAt: now,
+    attributionKey: `${uid}:${now}`,
+    orderCount: 0,
+  };
+
+  const txResult = await attributionRef.transaction((current) => current?.agentUid ? current : attribution);
+  const savedAttribution = txResult?.snapshot?.val?.() || attribution;
+
+  if (savedAttribution.attributionKey === attribution.attributionKey) {
+    await incrementSupportAgentMetric(agentUid, "downloads", 1);
+  }
+
+  await Promise.allSettled([
+    db.ref(`users/${uid}/profile/supportReferralResolved`).update({
+      agentUid: savedAttribution.agentUid || agentUid,
+      code: savedAttribution.code || referralCode,
+      attributedAt: savedAttribution.downloadTrackedAt || now,
+    }),
+    db.ref(`app_usage/${uid}/supportReferral`).update({
+      code: savedAttribution.code || referralCode,
+      agentUid: savedAttribution.agentUid || agentUid,
+      attributedAt: savedAttribution.downloadTrackedAt || now,
+    }),
+  ]);
+
+  return savedAttribution;
+}
+
+async function trackSupportReferralOrder(orderId, uid) {
+  if (!orderId || !uid) return;
+  const db = getDatabase();
+  const attributionSnap = await db.ref(`support_referral_attributions/${uid}`).get();
+  if (!attributionSnap.exists()) return;
+
+  const attribution = attributionSnap.val() || {};
+  const agentUid = String(attribution.agentUid || "").trim();
+  if (!agentUid) return;
+
+  const orderEventRef = db.ref(`support_referral_order_events/${orderId}`);
+  const now = Date.now();
+  const txResult = await orderEventRef.transaction((current) => current || {
+    orderId,
+    uid,
+    agentUid,
+    trackedAt: now,
+    eventKey: `${orderId}:${now}`,
+  });
+  const savedEvent = txResult?.snapshot?.val?.() || null;
+  if (!savedEvent || savedEvent.eventKey !== `${orderId}:${now}`) return;
+
+  await incrementSupportAgentMetric(agentUid, "orders", 1);
+  await Promise.allSettled([
+    db.ref(`support_referral_attributions/${uid}/orderCount`).transaction((current) => Number(current || 0) + 1),
+    db.ref(`support_referral_attributions/${uid}`).update({
+      lastOrderId: orderId,
+      lastOrderTrackedAt: now,
+    }),
+    db.ref(`orders/${orderId}/supportReferralResolved`).update({
+      agentUid,
+      code: String(attribution.code || ""),
+      trackedAt: now,
+    }),
+  ]);
+}
+
+async function processSupportReferralUsage(uid, beforeValue = {}, afterValue = {}) {
+  if (!uid) return;
+  const beforeCode = normalizeSupportReferralCode(beforeValue?.supportReferral?.code);
+  const afterPayload = afterValue?.supportReferral || {};
+  const afterCode = normalizeSupportReferralCode(afterPayload?.code);
+  if (!afterCode) return;
+  if (beforeCode === afterCode && String(afterPayload?.agentUid || "").trim()) return;
+  await ensureSupportReferralAttribution(uid, afterPayload);
+}
+
 // ─────────────────────────────────────────────────────────────────────────────
 // RTDB-TRIGGERED: notification_queue
 // ─────────────────────────────────────────────────────────────────────────────
@@ -114,6 +255,32 @@ exports.processNotificationQueue = onValueCreated(
 // RTDB-TRIGGERED: partner merchant enforcement updates
 // Sends in-app notification + email queue payload when access is moderated.
 // ─────────────────────────────────────────────────────────────────────────────
+exports.trackSupportReferralAppUsageCreated = onValueCreated(
+  { ref: "app_usage/{uid}", region: "asia-southeast1" },
+  async (event) => {
+    try {
+      await processSupportReferralUsage(event.params.uid, {}, event.data.val() || {});
+    } catch (err) {
+      console.error(`[trackSupportReferralAppUsageCreated ${event.params.uid}] Error:`, err);
+    }
+  }
+);
+
+exports.trackSupportReferralAppUsageUpdated = onValueUpdated(
+  { ref: "app_usage/{uid}", region: "asia-southeast1" },
+  async (event) => {
+    try {
+      await processSupportReferralUsage(
+        event.params.uid,
+        event.data.before.val() || {},
+        event.data.after.val() || {}
+      );
+    } catch (err) {
+      console.error(`[trackSupportReferralAppUsageUpdated ${event.params.uid}] Error:`, err);
+    }
+  }
+);
+
 exports.notifyPartnerMerchantModeration = onValueUpdated(
   { ref: "partner_merchants/{merchantId}", region: "asia-southeast1" },
   async (event) => {
@@ -673,6 +840,10 @@ exports.onOrderUpdated = onValueUpdated(
             });
           }
         }
+      }
+
+      if (before.status !== "delivered" && after.status === "delivered" && uid) {
+        await trackSupportReferralOrder(orderId, uid);
       }
 
       // 1a. Merchant order becomes open for riders -> notify riders (uid-independent)

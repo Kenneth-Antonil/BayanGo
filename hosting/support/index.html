@@ -553,7 +553,7 @@ body.is-admin .dock-item.admin-only{display:flex}
     <div class="nav-item" data-page="kb" onclick="showPage('kb')"><span class="material-symbols-rounded icon">menu_book</span><span>Knowledge Base</span></div>
     <div class="nav-section admin-only">Admin</div>
     <div class="nav-item admin-only" data-page="agents" onclick="showPage('agents')" id="navAgents"><span class="material-symbols-rounded icon">groups</span><span>Agents</span><span class="nav-badge amber" id="badgeAgents" style="display:none">0</span></div>
-    <div class="nav-item admin-only" data-page="referrals" onclick="showPage('referrals')"><span class="material-symbols-rounded icon">payments</span><span>Referrals</span></div>
+    <div class="nav-item" data-page="referrals" onclick="showPage('referrals')"><span class="material-symbols-rounded icon">payments</span><span>Referrals</span></div>
     <div class="nav-item admin-only" data-page="settings" onclick="showPage('settings')"><span class="material-symbols-rounded icon">settings</span><span>Settings</span></div>
     <div class="sidebar-footer">
       <div class="agent-chip">
@@ -664,8 +664,8 @@ body.is-admin .dock-item.admin-only{display:flex}
       </div>
     </div>
 
-    <!-- ═══ REFERRALS PAGE (ADMIN) ═══ -->
-    <div class="page admin-only" id="page-referrals">
+    <!-- ═══ REFERRALS PAGE ═══ -->
+    <div class="page" id="page-referrals">
       <div class="kpi-grid" id="refKpiGrid" style="margin-bottom:18px"></div>
       <div class="card-header" style="margin-bottom:14px">
         <div><div class="card-title" style="font-size:17px">Referral & Incentive Tracker</div><div class="card-sub">Rules: Download = ₱0 · Successful Order = ₱50 · Partner Merchant Invite = ₱1,000 · Weekly Quota (10 orders) Bonus = ₱1,000</div></div>
@@ -729,7 +729,8 @@ const state = { me:null, role:'support', agents:[], messages:[], selectedTicketI
 // ── HELPERS ──
 const $=id=>document.getElementById(id);
 const peso=n=>new Intl.NumberFormat('en-PH',{style:'currency',currency:'PHP',maximumFractionDigits:0}).format(n);
-const linkFor=a=>`https://bayango.store/app?ref=${a.id}`;
+const getAgentReferralCode=a=>String(a?.referralCode || a?.uid || a?.id || '').trim();
+const linkFor=a=>`https://bayango.store/app.html?ref=${encodeURIComponent(getAgentReferralCode(a))}`;
 const initials=s=>((s||'?').split(/\s+/).map(w=>w[0]).join('').toUpperCase().slice(0,2));
 const sanitizeTokenKey = token => encodeURIComponent(String(token || '')).replace(/\./g, '%2E');
 const commission=(a,rules)=>{const r=rules||{order:50,merchant:1000,quota:10,bonus:1000};const o=(a.orders||0)*r.order,m=(a.merchants||0)*r.merchant,b=(a.orders||0)>=r.quota?r.bonus:0;return{order:o,merchant:m,bonus:b,total:o+m+b}};
@@ -1391,6 +1392,7 @@ function renderReferrals(){
   const totO=appr.reduce((x,a)=>x+(a.orders||0),0);
   const totM=appr.reduce((x,a)=>x+(a.merchants||0),0);
   const totC=appr.reduce((x,a)=>x+commission(a).total,0);
+  const canEdit=state.role==='admin';
   const rk=$('refKpiGrid');
   if(rk) rk.innerHTML=[
     {label:'Total Downloads',val:totDL,icon:'download',cls:'blue'},
@@ -1402,28 +1404,55 @@ function renderReferrals(){
   if(!rc) return;
   rc.innerHTML=appr.length?appr.map(a=>{
     const c=commission(a);
+    const referralLink=linkFor(a);
     return `<div class="referral-agent-card" style="margin-bottom:12px">
       <div class="ref-av">${initials(a.name||a.email)}</div>
       <div style="flex:1">
         <div class="ref-name">${a.name||a.id}</div>
         <div class="ref-email">${a.email||'—'}</div>
-        <div class="ref-link"><span class="material-symbols-rounded" style="font-size:12px">link</span> ${linkFor(a)}</div>
+        <div class="ref-link"><span class="material-symbols-rounded" style="font-size:12px">link</span> ${referralLink}</div>
+        <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:10px">
+          <button class="save-btn" onclick="copyRefLink('${a.id}')" style="padding:9px 12px">Copy Link</button>
+          <span class="badge badge-muted">Code: ${getAgentReferralCode(a) || a.id}</span>
+        </div>
         <div class="ref-stats">
           <div class="ref-stat"><div class="ref-stat-val">${a.downloads||0}</div><div class="ref-stat-label">Downloads</div></div>
           <div class="ref-stat"><div class="ref-stat-val">${a.orders||0}</div><div class="ref-stat-label">Orders</div></div>
           <div class="ref-stat"><div class="ref-stat-val">${a.merchants||0}</div><div class="ref-stat-label">Merchants</div></div>
         </div>
         <div class="commission-pill"><span class="material-symbols-rounded" style="font-size:13px">paid</span> ${peso(c.total)} total &nbsp;·&nbsp; Orders ${peso(c.order)} &nbsp;·&nbsp; Merchants ${peso(c.merchant)} &nbsp;·&nbsp; Bonus ${peso(c.bonus)}</div>
-        <div class="ref-input-row">
+        ${canEdit ? `<div class="ref-input-row">
           <div class="ref-field"><label>Downloads</label><input type="number" id="dl_${a.id}" value="${a.downloads||0}" min="0"/></div>
           <div class="ref-field"><label>Orders</label><input type="number" id="or_${a.id}" value="${a.orders||0}" min="0"/></div>
           <div class="ref-field"><label>Merchants</label><input type="number" id="me_${a.id}" value="${a.merchants||0}" min="0"/></div>
           <button class="save-btn" onclick="saveRef('${a.id}')">Save</button>
-        </div>
+        </div>` : ''}
       </div>
     </div>`;
   }).join(''):'<div class="empty"><span class="empty-icon material-symbols-rounded">payments</span><div class="empty-title">Walang approved agents pa</div></div>';
 }
+
+window.copyRefLink = async function(id){
+  const agent=state.agents.find(a=>String(a.id||a.uid||'')===String(id));
+  if(!agent) return;
+  const referralLink=linkFor(agent);
+  try{
+    if(navigator.clipboard?.writeText){
+      await navigator.clipboard.writeText(referralLink);
+    }else{
+      const input=document.createElement('input');
+      input.value=referralLink;
+      document.body.appendChild(input);
+      input.select();
+      document.execCommand('copy');
+      input.remove();
+    }
+    showToast('Referral link copied.','success');
+  }catch(err){
+    console.error('Referral copy failed:', err);
+    showToast('Hindi makopya ang referral link.','error');
+  }
+};
 
 window.saveRef = async function(id){
   if(state.role!=='admin'){ showToast('Admin only action.','error'); return; }

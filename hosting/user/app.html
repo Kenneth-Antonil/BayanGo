@@ -564,10 +564,68 @@
     const genId = () => Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
     const sanitizeTokenKey = (token) => encodeURIComponent(String(token || "")).replace(/\./g, "%2E");
     const ACTIVE_USER_WINDOW_MS = 5 * 60 * 1000;
+    const SUPPORT_REFERRAL_STORAGE_KEY = "bayango_support_referral_code";
 
     const isStandaloneMode = () =>
       window.matchMedia("(display-mode: standalone)").matches ||
       window.navigator.standalone === true;
+
+    function normalizeSupportReferralCode(rawValue) {
+      const value = String(rawValue || "").trim();
+      if (!value) return "";
+      return value.replace(/[^a-zA-Z0-9_-]/g, "").slice(0, 80);
+    }
+
+    function readSupportReferralCodeFromLocation() {
+      try {
+        const url = new URL(window.location.href);
+        return normalizeSupportReferralCode(url.searchParams.get("ref"));
+      } catch {
+        return "";
+      }
+    }
+
+    function getStoredSupportReferralCode() {
+      try {
+        return normalizeSupportReferralCode(localStorage.getItem(SUPPORT_REFERRAL_STORAGE_KEY));
+      } catch {
+        return "";
+      }
+    }
+
+    function persistSupportReferralCode(code) {
+      const normalized = normalizeSupportReferralCode(code);
+      if (!normalized) return "";
+      try {
+        localStorage.setItem(SUPPORT_REFERRAL_STORAGE_KEY, normalized);
+      } catch {}
+      return normalized;
+    }
+
+    const capturedSupportReferralCode = persistSupportReferralCode(readSupportReferralCodeFromLocation());
+
+    async function syncSupportReferralForUser(user) {
+      if (!user?.uid || !_fbDb) return "";
+      const referralCode = getStoredSupportReferralCode() || capturedSupportReferralCode;
+      if (!referralCode) return "";
+      const now = Date.now();
+      const payload = {
+        code: referralCode,
+        source: "support_agent_link",
+        capturedAt: now,
+      };
+      await Promise.all([
+        _fbDb.ref(`users/${user.uid}/profile/supportReferral`).transaction((current) => {
+          if (current?.code) return current;
+          return payload;
+        }),
+        _fbDb.ref(`app_usage/${user.uid}/supportReferral`).transaction((current) => {
+          if (current?.code) return current;
+          return payload;
+        }),
+      ]);
+      return referralCode;
+    }
 
     async function trackUserAppUsage(user, { markInstalled = false } = {}) {
       if (!user?.uid || !_fbDb) return;
@@ -581,6 +639,12 @@
         activeWindowUntil: now + ACTIVE_USER_WINDOW_MS,
         platform: navigator.userAgent || "web",
       };
+      const referralCode = getStoredSupportReferralCode() || capturedSupportReferralCode;
+      if (referralCode) {
+        updates["supportReferral/code"] = referralCode;
+        updates["supportReferral/source"] = "support_agent_link";
+        updates["supportReferral/capturedAt"] = now;
+      }
       if (markInstalled || isStandaloneMode()) {
         const installedSnap = await usageRef.child("installedAt").once("value");
         if (!installedSnap.exists()) updates.installedAt = now;
@@ -1124,6 +1188,7 @@
               bindBgMartPromoBanner();
               setPushPermission(typeof Notification !== "undefined" ? Notification.permission : "default");
               enablePushForUser(currentUser, { requestPermission: false });
+              syncSupportReferralForUser(currentUser).catch(err => console.error("Support referral sync error:", err));
               trackUserAppUsage(currentUser).catch(err => console.error("Usage tracking error:", err));
 
               visibilityHandler = () => {
@@ -1221,15 +1286,26 @@
         setSyncError(null);
         try {
           if (!_fbDb) throw new Error("RTDB not initialized");
-          const uid = _fbAuth.currentUser?.uid || null;
+          const currentUser = _fbAuth.currentUser || null;
+          const uid = currentUser?.uid || null;
+          if (currentUser) {
+            await syncSupportReferralForUser(currentUser).catch(err => console.error("Support referral order sync error:", err));
+          }
+          const referralCode = getStoredSupportReferralCode() || capturedSupportReferralCode || null;
           const savedOrder = {
             ...order,
             uid,
             userId: uid,
-            userEmail: _fbAuth.currentUser?.email || null,
+            userEmail: currentUser?.email || null,
             status: order?.status || "pending",
             createdAt: order?.createdAt || Date.now(),
           };
+          if (referralCode) {
+            savedOrder.supportReferral = {
+              code: referralCode,
+              source: "support_agent_link",
+            };
+          }
           const orderRef = await _fbDb.ref("orders").push(savedOrder);
           const orderId = orderRef?.key;
 
