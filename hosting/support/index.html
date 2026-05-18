@@ -5,15 +5,16 @@
 <meta name="viewport" content="width=device-width,initial-scale=1.0,maximum-scale=1.0,user-scalable=no"/>
 <title>BayanGo Support — Command Center</title>
 <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700;800;900&family=Manrope:wght@300;400;500;600;700&display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Rounded:opsz,wght,FILL,GRAD@20..48,400,0,0" rel="stylesheet"/>
 <style>
 :root{
-  --bg:#080f0a;--surface:#0e1a11;--card:#121f15;--card2:#16271a;
-  --border:#1e3024;--border2:#253d2b;
+  --bg:#f3f6fb;--surface:#ffffff;--card:#ffffff;--card2:#f8fbff;
+  --border:#dbe5f0;--border2:#cddaea;
   --green:#22c55e;--green2:#16a34a;--green3:#4ade80;--green-dim:#22c55e22;
   --amber:#f59e0b;--amber-dim:#f59e0b22;
   --red:#ef4444;--red-dim:#ef444422;
   --blue:#38bdf8;--blue-dim:#38bdf822;
-  --text:#e8f5eb;--muted:#6b8f72;--muted2:#4a6b52;
+  --text:#1e293b;--muted:#64748b;--muted2:#94a3b8;
   --radius:14px;--radius-sm:8px;
   --font-display:'Outfit',sans-serif;
   --font-body:'Manrope',sans-serif;
@@ -31,7 +32,7 @@ body{font-family:var(--font-body);background:var(--bg);color:var(--text);min-hei
 body::before{
   content:'';position:fixed;inset:0;
   background-image:url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.65' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='.03'/%3E%3C/svg%3E");
-  pointer-events:none;z-index:9999;opacity:.4
+  pointer-events:none;z-index:9999;opacity:.08
 }
 
 /* ══════════════ AUTH ══════════════ */
@@ -112,7 +113,8 @@ body::before{
 }
 .nav-item:hover{background:var(--card);color:var(--text)}
 .nav-item.active{background:var(--green-dim);color:var(--green3)}
-.nav-item .icon{font-size:15px;width:20px;text-align:center;flex-shrink:0}
+.nav-item .icon{font-size:18px;width:20px;text-align:center;flex-shrink:0}
+.material-symbols-rounded{font-variation-settings:'FILL' 0,'wght' 400,'GRAD' 0,'opsz' 24;line-height:1;vertical-align:middle}
 .nav-badge{
   margin-left:auto;background:var(--green2);color:#fff;
   border-radius:999px;padding:1px 6px;font-size:10px;font-weight:700
@@ -146,7 +148,7 @@ body::before{
 .topbar-actions{display:flex;align-items:center;gap:8px}
 .icon-btn{
   width:34px;height:34px;border-radius:8px;background:var(--card);border:1px solid var(--border);
-  display:flex;align-items:center;justify-content:center;font-size:16px;cursor:pointer;transition:.15s;position:relative
+  display:flex;align-items:center;justify-content:center;font-size:20px;cursor:pointer;transition:.15s;position:relative
 }
 .icon-btn:hover{border-color:var(--green2)}
 .notif-dot{
@@ -174,7 +176,7 @@ body::before{
 .kpi-label{font-size:10px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.6px;margin-bottom:8px}
 .kpi-val{font-family:var(--font-display);font-size:26px;font-weight:800;line-height:1}
 .kpi-sub{font-size:11px;color:var(--muted);margin-top:4px}
-.kpi-icon{position:absolute;top:14px;right:14px;font-size:20px;opacity:.5}
+.kpi-icon{position:absolute;top:14px;right:14px;font-size:20px;opacity:.6;color:var(--muted)}
 
 .grid-2{display:grid;grid-template-columns:1fr 1fr;gap:14px}
 .grid-3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:14px}
@@ -427,13 +429,13 @@ body.is-admin .admin-only-flex{display:flex}
       <span>Support Center</span>
     </div>
     <div class="nav-section">Support</div>
-    <div class="nav-item active" onclick="showPage('dashboard')"><span class="icon">📊</span><span>Dashboard</span></div>
-    <div class="nav-item" onclick="showPage('tickets')" id="navTickets"><span class="icon">🎫</span><span>Tickets</span><span class="nav-badge red pulse" id="badgeTickets" style="display:none">0</span></div>
-    <div class="nav-item" onclick="showPage('kb')"><span class="icon">📚</span><span>Knowledge Base</span></div>
+    <div class="nav-item active" onclick="showPage('dashboard')"><span class="material-symbols-rounded icon">dashboard</span><span>Dashboard</span></div>
+    <div class="nav-item" onclick="showPage('tickets')" id="navTickets"><span class="material-symbols-rounded icon">confirmation_number</span><span>Tickets</span><span class="nav-badge red pulse" id="badgeTickets" style="display:none">0</span></div>
+    <div class="nav-item" onclick="showPage('kb')"><span class="material-symbols-rounded icon">menu_book</span><span>Knowledge Base</span></div>
     <div class="nav-section admin-only">Admin</div>
-    <div class="nav-item admin-only" onclick="showPage('agents')" id="navAgents"><span class="icon">👥</span><span>Agents</span><span class="nav-badge amber" id="badgeAgents" style="display:none">0</span></div>
-    <div class="nav-item admin-only" onclick="showPage('referrals')"><span class="icon">💸</span><span>Referrals</span></div>
-    <div class="nav-item admin-only" onclick="showPage('settings')"><span class="icon">⚙️</span><span>Settings</span></div>
+    <div class="nav-item admin-only" onclick="showPage('agents')" id="navAgents"><span class="material-symbols-rounded icon">groups</span><span>Agents</span><span class="nav-badge amber" id="badgeAgents" style="display:none">0</span></div>
+    <div class="nav-item admin-only" onclick="showPage('referrals')"><span class="material-symbols-rounded icon">payments</span><span>Referrals</span></div>
+    <div class="nav-item admin-only" onclick="showPage('settings')"><span class="material-symbols-rounded icon">settings</span><span>Settings</span></div>
     <div class="sidebar-footer">
       <div class="agent-chip">
         <div class="avatar" id="sideAvatar">?</div>
@@ -451,8 +453,8 @@ body.is-admin .admin-only-flex{display:flex}
     <div class="topbar">
       <div class="topbar-title" id="topbarTitle">Dashboard</div>
       <div class="topbar-actions">
-        <div class="icon-btn" title="Notifications" onclick="showPage('tickets')">🔔<div class="notif-dot" id="notifDot" style="display:none"></div></div>
-        <div class="icon-btn" title="Help">❓</div>
+        <div class="icon-btn" title="Notifications" onclick="showPage('tickets')"><span class="material-symbols-rounded">notifications</span><div class="notif-dot" id="notifDot" style="display:none"></div></div>
+        <div class="icon-btn" title="Help"><span class="material-symbols-rounded">help</span></div>
       </div>
     </div>
 
@@ -483,7 +485,7 @@ body.is-admin .admin-only-flex{display:flex}
 
     <!-- ═══ TICKETS PAGE ═══ -->
     <div class="page" id="page-tickets">
-      <div class="search-wrap"><span class="search-icon">🔍</span><input id="ticketSearch" type="search" placeholder="Search tickets by user, message..." oninput="renderTickets()"/></div>
+      <div class="search-wrap"><span class="search-icon material-symbols-rounded">search</span><input id="ticketSearch" type="search" placeholder="Search tickets by user, message..." oninput="renderTickets()"/></div>
       <div class="form-row" style="margin-bottom:14px">
         <div class="form-field" style="max-width:140px">
           <label>Status Filter</label>
@@ -510,7 +512,7 @@ body.is-admin .admin-only-flex{display:flex}
         </div>
         <div class="ticket-detail" id="ticketDetail">
           <div id="ticketDetailContent">
-            <div class="empty"><span class="empty-icon">🎫</span><div class="empty-title">Walang napiling ticket</div><div class="empty-sub">Pumili ng ticket sa kaliwang lista</div></div>
+            <div class="empty"><span class="empty-icon material-symbols-rounded">confirmation_number</span><div class="empty-title">Walang napiling ticket</div><div class="empty-sub">Pumili ng ticket sa kaliwang lista</div></div>
           </div>
         </div>
       </div>
@@ -522,7 +524,7 @@ body.is-admin .admin-only-flex{display:flex}
         <div><div class="card-title" style="font-size:17px">Knowledge Base</div><div class="card-sub">Quick answers para sa mga common na tanong</div></div>
         <button class="form-action-btn primary admin-only" onclick="openAddArticle()">+ Add Article</button>
       </div>
-      <div class="search-wrap"><span class="search-icon">🔍</span><input id="kbSearch" type="search" placeholder="Search articles…" oninput="renderKB()"/></div>
+      <div class="search-wrap"><span class="search-icon material-symbols-rounded">search</span><input id="kbSearch" type="search" placeholder="Search articles…" oninput="renderKB()"/></div>
       <div class="kb-grid" id="kbGrid"></div>
     </div>
 
@@ -532,7 +534,7 @@ body.is-admin .admin-only-flex{display:flex}
         <div class="card-header">
           <div><div class="card-title">Agent Management</div><div class="card-sub">I-approve o i-reject ang mga support agent</div></div>
         </div>
-        <div class="search-wrap"><span class="search-icon">🔍</span><input id="agentSearch" type="search" placeholder="Search agents…" oninput="renderAgents()"/></div>
+        <div class="search-wrap"><span class="search-icon material-symbols-rounded">search</span><input id="agentSearch" type="search" placeholder="Search agents…" oninput="renderAgents()"/></div>
         <div class="table-wrap">
           <table>
             <thead><tr><th>Agent</th><th>Auth Method</th><th>Downloads</th><th>Orders</th><th>Merchants</th><th>Commission</th><th>Status</th><th>Actions</th></tr></thead>
@@ -669,7 +671,7 @@ $('signupBtn').onclick=async()=>{
     const cred=await createUserWithEmailAndPassword(auth,e,p);
     await updateProfile(cred.user,{displayName:n});
     await upsertAgent({...cred.user,displayName:n});
-    setStatus('Account created! Waiting for admin approval. 🎉','ok');
+    setStatus('Account created! Waiting for admin approval.','ok');
   }catch(err){setStatus(err.message,'error');}
 };
 $('googleBtn').onclick=async()=>{
@@ -699,7 +701,6 @@ function renderDashboard(){
   const inProg=state.messages.filter(m=>m.status==='In Progress').length;
   const resolved=state.messages.filter(m=>m.status==='Resolved').length;
   const pending=state.agents.filter(a=>!a.approved).length;
-  const approved=state.agents.filter(a=>a.approved).length;
   const totComm=state.agents.reduce((x,a)=>{return x+commission(a).total},0);
 
   // Notification dot
@@ -711,13 +712,12 @@ function renderDashboard(){
   $('pendingCount').textContent=pending+' Pending';
 
   $('kpiGrid').innerHTML=[
-    {label:'Open Tickets',val:open,sub:`${inProg} In Progress`,icon:'🎫',cls:'red'},
-    {label:'Resolved Today',val:resolved,sub:'Tickets closed',icon:'✅',cls:'green'},
-    {label:'Approved Agents',val:approved,sub:`${pending} pending`,icon:'👥',cls:'blue'},
-    {label:'Total Incentives',val:peso(totComm),sub:'All agents',icon:'💰',cls:'amber'},
-    {label:'Total Messages',val:state.messages.length,sub:'All time',icon:'💬',cls:'green'},
-    {label:'Merchant Invites',val:state.agents.reduce((x,a)=>x+(a.merchants||0),0),sub:'By all agents',icon:'🤝',cls:'blue'},
-  ].map(k=>`<div class="kpi-card ${k.cls}"><div class="kpi-icon">${k.icon}</div><div class="kpi-label">${k.label}</div><div class="kpi-val">${k.val}</div><div class="kpi-sub">${k.sub}</div></div>`).join('');
+    {label:'Open Tickets',val:open,sub:`${inProg} In Progress`,icon:'confirmation_number',cls:'red'},
+    {label:'Resolved Today',val:resolved,sub:'Tickets closed',icon:'task_alt',cls:'green'},
+    {label:'Total Incentives',val:peso(totComm),sub:'All agents',icon:'paid',cls:'amber'},
+    {label:'Total Messages',val:state.messages.length,sub:'All time',icon:'chat',cls:'green'},
+    {label:'Merchant Invites',val:state.agents.reduce((x,a)=>x+(a.merchants||0),0),sub:'By all agents',icon:'handshake',cls:'blue'},
+  ].map(k=>`<div class="kpi-card ${k.cls}"><div class="kpi-icon material-symbols-rounded">${k.icon}</div><div class="kpi-label">${k.label}</div><div class="kpi-val">${k.val}</div><div class="kpi-sub">${k.sub}</div></div>`).join('');
 
   // Recent tickets
   const recent=state.messages.slice(-5).reverse();
@@ -729,7 +729,7 @@ function renderDashboard(){
         <div class="ticket-preview">${m.msg||m.message||'—'}</div>
       </div>
       <div style="flex-shrink:0"><span class="badge ${getStatusBadge(m.status)}">${m.status||'Open'}</span></div>
-    </div>`).join(''):'<div class="empty"><span class="empty-icon">🎫</span><div class="empty-title">Walang tickets pa</div></div>';
+    </div>`).join(''):'<div class="empty"><span class="empty-icon material-symbols-rounded">confirmation_number</span><div class="empty-title">Walang tickets pa</div></div>';
 
   // Agent perf
   const top=[...state.agents].filter(a=>a.approved).sort((a,b)=>(b.orders||0)-(a.orders||0)).slice(0,5);
@@ -742,13 +742,13 @@ function renderDashboard(){
         <div style="font-size:11px;color:var(--muted)">${a.orders||0} orders · ${a.merchants||0} merchants</div>
       </div>
       <div style="text-align:right;font-size:12px;font-weight:700;color:var(--green3)">${peso(commission(a).total)}</div>
-    </div>`).join(''):'<div class="empty"><span class="empty-icon">👥</span><div class="empty-title">Walang agents pa</div></div>';
+    </div>`).join(''):'<div class="empty"><span class="empty-icon material-symbols-rounded">groups</span><div class="empty-title">Walang agents pa</div></div>';
 
   // Pending approvals (admin)
   const pend=state.agents.filter(a=>!a.approved);
   $('pendingApprovals').innerHTML=pend.length?`<div class="table-wrap"><table><thead><tr><th>Agent</th><th>Email</th><th>Auth</th><th>Registered</th><th>Actions</th></tr></thead><tbody>${
     pend.map(a=>`<tr><td><div class="td-name">${a.name||a.id}</div></td><td>${a.email||'—'}</td><td><span class="badge badge-muted">${a.authProvider||'password'}</span></td><td>${a.createdAt?new Date(a.createdAt).toLocaleDateString('en-PH'):'—'}</td><td class="td-actions"><button class="action-btn green" onclick="approveAgent('${a.id}')">Approve</button><button class="action-btn red" onclick="rejectAgent('${a.id}')">Reject</button></td></tr>`).join('')
-  }</tbody></table></div>`:'<div class="empty"><span class="empty-icon">✅</span><div class="empty-title">Lahat approved na</div></div>';
+  }</tbody></table></div>`:'<div class="empty"><span class="empty-icon material-symbols-rounded">task_alt</span><div class="empty-title">Lahat approved na</div></div>';
 }
 
 // ── TICKETS ──
@@ -772,7 +772,7 @@ window.renderTickets = function(){
         <div style="margin-bottom:4px"><span class="badge ${getStatusBadge(m.status)}">${m.status||'Open'}</span></div>
         <div class="ticket-time">${timeAgo(m.createdAt||m.timestamp)}</div>
       </div>
-    </div>`).join(''):'<div class="empty"><span class="empty-icon">🎫</span><div class="empty-title">Walang matching tickets</div></div>';
+    </div>`).join(''):'<div class="empty"><span class="empty-icon material-symbols-rounded">confirmation_number</span><div class="empty-title">Walang matching tickets</div></div>';
 };
 
 window.selectTicket = function(id){
@@ -806,8 +806,8 @@ window.selectTicket = function(id){
       </div>
     </div>
     <div class="ticket-messages" id="msgThread">
-      <div><div class="msg-sender">👤 ${m.user||'User'}</div><div class="msg-bubble from-user">${m.msg||m.message||'—'}</div></div>
-      ${replies.map(r=>`<div><div class="msg-sender" style="text-align:right">🧑‍💼 ${r.agent||'Agent'}</div><div class="msg-bubble from-agent">${r.text}</div></div>`).join('')}
+      <div><div class="msg-sender"><span class="material-symbols-rounded" style="font-size:12px">person</span> ${m.user||'User'}</div><div class="msg-bubble from-user">${m.msg||m.message||'—'}</div></div>
+      ${replies.map(r=>`<div><div class="msg-sender" style="text-align:right"><span class="material-symbols-rounded" style="font-size:12px">support_agent</span> ${r.agent||'Agent'}</div><div class="msg-bubble from-agent">${r.text}</div></div>`).join('')}
     </div>
     <div class="reply-box">
       <textarea class="reply-input" id="replyInput" rows="1" placeholder="Type your reply…"></textarea>
@@ -877,11 +877,11 @@ function renderReferrals(){
   const totC=appr.reduce((x,a)=>x+commission(a).total,0);
   const rk=$('refKpiGrid');
   if(rk) rk.innerHTML=[
-    {label:'Total Downloads',val:totDL,icon:'📥',cls:'blue'},
-    {label:'Successful Orders',val:totO,icon:'🛒',cls:'green'},
-    {label:'Merchant Invites',val:totM,icon:'🤝',cls:'amber'},
-    {label:'Total Commissions',val:peso(totC),icon:'💰',cls:'green'},
-  ].map(k=>`<div class="kpi-card ${k.cls}"><div class="kpi-icon">${k.icon}</div><div class="kpi-label">${k.label}</div><div class="kpi-val">${k.val}</div></div>`).join('');
+    {label:'Total Downloads',val:totDL,icon:'download',cls:'blue'},
+    {label:'Successful Orders',val:totO,icon:'shopping_cart',cls:'green'},
+    {label:'Merchant Invites',val:totM,icon:'handshake',cls:'amber'},
+    {label:'Total Commissions',val:peso(totC),icon:'paid',cls:'green'},
+  ].map(k=>`<div class="kpi-card ${k.cls}"><div class="kpi-icon material-symbols-rounded">${k.icon}</div><div class="kpi-label">${k.label}</div><div class="kpi-val">${k.val}</div></div>`).join('');
   const rc=$('refAgentCards');
   if(!rc) return;
   rc.innerHTML=appr.length?appr.map(a=>{
@@ -891,13 +891,13 @@ function renderReferrals(){
       <div style="flex:1">
         <div class="ref-name">${a.name||a.id}</div>
         <div class="ref-email">${a.email||'—'}</div>
-        <div class="ref-link">🔗 ${linkFor(a)}</div>
+        <div class="ref-link"><span class="material-symbols-rounded" style="font-size:12px">link</span> ${linkFor(a)}</div>
         <div class="ref-stats">
           <div class="ref-stat"><div class="ref-stat-val">${a.downloads||0}</div><div class="ref-stat-label">Downloads</div></div>
           <div class="ref-stat"><div class="ref-stat-val">${a.orders||0}</div><div class="ref-stat-label">Orders</div></div>
           <div class="ref-stat"><div class="ref-stat-val">${a.merchants||0}</div><div class="ref-stat-label">Merchants</div></div>
         </div>
-        <div class="commission-pill">💰 ${peso(c.total)} total &nbsp;·&nbsp; Orders ${peso(c.order)} &nbsp;·&nbsp; Merchants ${peso(c.merchant)} &nbsp;·&nbsp; Bonus ${peso(c.bonus)}</div>
+        <div class="commission-pill"><span class="material-symbols-rounded" style="font-size:13px">paid</span> ${peso(c.total)} total &nbsp;·&nbsp; Orders ${peso(c.order)} &nbsp;·&nbsp; Merchants ${peso(c.merchant)} &nbsp;·&nbsp; Bonus ${peso(c.bonus)}</div>
         <div class="ref-input-row">
           <div class="ref-field"><label>Downloads</label><input type="number" id="dl_${a.id}" value="${a.downloads||0}" min="0"/></div>
           <div class="ref-field"><label>Orders</label><input type="number" id="or_${a.id}" value="${a.orders||0}" min="0"/></div>
@@ -906,7 +906,7 @@ function renderReferrals(){
         </div>
       </div>
     </div>`;
-  }).join(''):'<div class="empty"><span class="empty-icon">💸</span><div class="empty-title">Walang approved agents pa</div></div>';
+  }).join(''):'<div class="empty"><span class="empty-icon material-symbols-rounded">payments</span><div class="empty-title">Walang approved agents pa</div></div>';
 }
 
 window.saveRef = async function(id){
@@ -939,7 +939,7 @@ window.renderKB = function(){
       <div class="kb-cat">${a.cat}</div>
       <div class="kb-title">${a.title}</div>
       <div class="kb-preview">${a.body.slice(0,80)}…</div>
-    </div>`).join(''):'<div class="empty" style="grid-column:1/-1"><span class="empty-icon">📚</span><div class="empty-title">Walang matching articles</div></div>';
+    </div>`).join(''):'<div class="empty" style="grid-column:1/-1"><span class="empty-icon material-symbols-rounded">menu_book</span><div class="empty-title">Walang matching articles</div></div>';
 };
 
 window.viewArticle = function(id){
@@ -953,7 +953,7 @@ window.viewArticle = function(id){
       <button onclick="this.closest('div[style]').remove()" style="background:none;border:none;color:var(--muted);font-size:20px;cursor:pointer;margin-left:12px">×</button>
     </div>
     <div style="font-size:14px;line-height:1.7;color:var(--muted)">${a.body}</div>
-    <button onclick="this.closest('div[style]').remove()" style="margin-top:20px;padding:10px 20px;background:var(--green2);color:#fff;border:none;border-radius:8px;font-family:var(--font-display);font-weight:700;cursor:pointer">Got it 👍</button>
+    <button onclick="this.closest('div[style]').remove()" style="margin-top:20px;padding:10px 20px;background:var(--green2);color:#fff;border:none;border-radius:8px;font-family:var(--font-display);font-weight:700;cursor:pointer">Got it</button>
   </div>`;
   document.body.appendChild(d);
 };
