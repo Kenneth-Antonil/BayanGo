@@ -823,6 +823,7 @@
         { key: "partners",  label: "Partners",    icon: "handshake", badge: pendingPartners },
         { key: "vouchers",  label: "Vouchers",    icon: "ticket" },
         { key: "refunds",   label: "Refunds",     icon: "money-bill-transfer" },
+        { key: "support_ops", label: "Support Ops", icon: "headset" },
         { key: "settings",  label: "Settings",    icon: "gear" },
       ];
       return (
@@ -2675,10 +2676,91 @@
       );
     }
 
+    function SupportOpsPanel({ supportTickets = [], supportAgents = [], onApproveAgent }) {
+      const [agentQ, setAgentQ] = useState("");
+      const [ticketQ, setTicketQ] = useState("");
+      const normalizedAgents = (supportAgents || []).map(a => ({ ...a, id: a.id || a.uid || "" }));
+      const pendingAgents = normalizedAgents.filter(a => ["pending", "for_approval"].includes(String(a.status || "").toLowerCase()));
+      const approvedAgents = normalizedAgents.filter(a => String(a.status || "").toLowerCase() === "approved");
+      const filteredPendingAgents = pendingAgents.filter(a => {
+        const q = agentQ.trim().toLowerCase();
+        if (!q) return true;
+        return String(a.name || a.displayName || "").toLowerCase().includes(q) || String(a.email || "").toLowerCase().includes(q);
+      });
+      const agentStats = useMemo(() => {
+        const map = {};
+        approvedAgents.forEach(agent => {
+          const uid = String(agent.uid || agent.id || "");
+          if (!uid) return;
+          map[uid] = { uid, name: agent.name || agent.displayName || agent.email || uid, resolved: 0, total: 0, avgMins: 0 };
+        });
+        (supportTickets || []).forEach(ticket => {
+          const uid = String(ticket.assignedAgentUid || ticket.agentUid || "");
+          if (!uid) return;
+          if (!map[uid]) map[uid] = { uid, name: ticket.assignedAgentName || uid, resolved: 0, total: 0, avgMins: 0 };
+          map[uid].total += 1;
+          const st = String(ticket.status || "").toLowerCase();
+          if (st === "resolved" || st === "closed") map[uid].resolved += 1;
+          const created = Number(ticket.createdAt || 0);
+          const updated = Number(ticket.updatedAt || ticket.resolvedAt || 0);
+          if (created > 0 && updated >= created) map[uid].avgMins += (updated - created) / 60000;
+        });
+        return Object.values(map).map(a => ({ ...a, avgMins: a.total ? Math.round(a.avgMins / a.total) : 0, resolutionRate: a.total ? Math.round((a.resolved / a.total) * 100) : 0 })).sort((a, b) => b.resolved - a.resolved);
+      }, [approvedAgents, supportTickets]);
+      const filteredTickets = (supportTickets || []).filter(t => {
+        const q = ticketQ.trim().toLowerCase();
+        if (!q) return true;
+        return String(t.subject || "").toLowerCase().includes(q) || String(t.message || t.lastMessage || "").toLowerCase().includes(q) || String(t.uid || t.userUid || "").toLowerCase().includes(q);
+      });
+      return (
+        <div style={{ padding: "20px 24px" }}>
+          <h2 style={{ fontSize: 18, fontWeight: 800, marginBottom: 14 }}>Support Ops</h2>
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(220px,1fr))", gap: 10, marginBottom: 14 }}>
+            <div className="card"><div style={{ fontSize: 11, color: "var(--muted)" }}>Pending Agent Approvals</div><div style={{ fontSize: 24, fontWeight: 800, color: "#D97706" }}>{pendingAgents.length}</div></div>
+            <div className="card"><div style={{ fontSize: 11, color: "var(--muted)" }}>Approved Agents</div><div style={{ fontSize: 24, fontWeight: 800, color: "#166534" }}>{approvedAgents.length}</div></div>
+            <div className="card"><div style={{ fontSize: 11, color: "var(--muted)" }}>Total Tickets</div><div style={{ fontSize: 24, fontWeight: 800 }}>{supportTickets.length}</div></div>
+          </div>
+          <div className="card" style={{ marginBottom: 14 }}>
+            <div style={{ fontSize: 14, fontWeight: 800, marginBottom: 8 }}><Ic n="user-check" style={{ marginRight: 6 }} />Approve Support Agents</div>
+            <input className="input" placeholder="Search pending agents..." value={agentQ} onChange={e => setAgentQ(e.target.value)} style={{ marginBottom: 10 }} />
+            {filteredPendingAgents.map(agent => (
+              <div key={agent.id} style={{ border: "1px solid var(--border)", borderRadius: 10, padding: 10, display: "flex", justifyContent: "space-between", gap: 10, marginBottom: 8 }}>
+                <div><div style={{ fontWeight: 700, fontSize: 13 }}>{agent.name || agent.displayName || "Unnamed Agent"}</div><div style={{ fontSize: 11, color: "var(--muted)" }}>{agent.email || "No email"}</div></div>
+                <button className="btn btn-brand" style={{ padding: "6px 10px", fontSize: 11 }} onClick={() => onApproveAgent?.(agent)}>Approve</button>
+              </div>
+            ))}
+            {filteredPendingAgents.length === 0 && <div style={{ fontSize: 12, color: "var(--text-muted)" }}>No pending approvals.</div>}
+          </div>
+          <div className="card" style={{ marginBottom: 14 }}>
+            <div style={{ fontSize: 14, fontWeight: 800, marginBottom: 8 }}><Ic n="chart-line" style={{ marginRight: 6 }} />Individual Agent Performance</div>
+            {agentStats.map((a, idx) => (
+              <div key={a.uid} style={{ display: "grid", gridTemplateColumns: "1fr repeat(4,90px)", gap: 8, padding: "8px 0", borderTop: idx === 0 ? "none" : "1px solid var(--border-light)", fontSize: 12 }}>
+                <div style={{ fontWeight: 700 }}>{a.name}</div><div style={{ textAlign: "right" }}>{a.total}</div><div style={{ textAlign: "right" }}>{a.resolved}</div><div style={{ textAlign: "right" }}>{a.resolutionRate}%</div><div style={{ textAlign: "right" }}>{a.avgMins}m</div>
+              </div>
+            ))}
+            {agentStats.length === 0 && <div style={{ fontSize: 12, color: "var(--text-muted)" }}>No performance data yet.</div>}
+          </div>
+          <div className="card">
+            <div style={{ fontSize: 14, fontWeight: 800, marginBottom: 8 }}><Ic n="headset" style={{ marginRight: 6 }} />Support Ticket Monitor</div>
+            <input className="input" placeholder="Search tickets..." value={ticketQ} onChange={e => setTicketQ(e.target.value)} style={{ marginBottom: 10 }} />
+            <div style={{ maxHeight: 280, overflow: "auto" }}>
+              {filteredTickets.map((t, idx) => (
+                <div key={t.id} style={{ padding: "8px 0", borderTop: idx === 0 ? "none" : "1px solid var(--border-light)" }}>
+                  <div style={{ display: "flex", justifyContent: "space-between", gap: 8 }}><div style={{ fontWeight: 700, fontSize: 12 }}>{t.subject || "Support Ticket"}</div><span className="status-badge" style={{ background: "#EEF2FF", color: "#3730A3" }}>{String(t.status || "open")}</span></div>
+                  <div style={{ fontSize: 11, color: "var(--muted)" }}>Agent: {t.assignedAgentName || t.assignedAgentUid || "Unassigned"} · User: {t.uid || t.userUid || "-"}</div>
+                </div>
+              ))}
+              {filteredTickets.length === 0 && <div style={{ fontSize: 12, color: "var(--text-muted)" }}>No tickets found.</div>}
+            </div>
+          </div>
+        </div>
+      );
+    }
+
     /* ══════════════════ ADMIN DASHBOARD (Main Shell) ══════════════════ */
     function AdminDashboard({ user, onLogout, orders, onUpdateStatus, onBroadcast, products, onAddProduct, onUpdateProduct, onDeleteProduct, marketPricing, onUpdateMarketPricing, vouchers, onAddVoucher, onUpdateVoucher, onDeleteVoucher, refunds, onCreateRefund, appUsageStats, appUsageMap, partnerApplications, partnerMerchants, partnerStoreRecords, onDecidePartnerApplication, onToggleFeaturedPartnerMerchant, onModeratePartnerMerchant, authzError, partnerDataLoaded }) {
       const getInitialTab = () => {
-        const validTabs = new Set(["dashboard", "orders", "grocery", "products", "bgmart", "seasonal", "data", "partners", "vouchers", "refunds", "settings"]);
+        const validTabs = new Set(["dashboard", "orders", "grocery", "products", "bgmart", "seasonal", "data", "partners", "vouchers", "refunds", "support_ops", "settings"]);
         try { const hash = (window.location.hash || "").replace("#", "").toLowerCase(); if (validTabs.has(hash)) return hash; } catch {}
         return "dashboard";
       };
@@ -2714,6 +2796,8 @@
       const [cancellingOrderId, setCancellingOrderId] = useState(null);
       const [messageModalOrder, setMessageModalOrder] = useState(null);
       const [customerMessageDraft, setCustomerMessageDraft] = useState("");
+      const [supportTickets, setSupportTickets] = useState([]);
+      const [supportAgents, setSupportAgents] = useState([]);
 
       const pendingPartners = (partnerApplications || []).filter(a => !["approved", "rejected"].includes(String(a.status || "").toLowerCase())).length;
 
@@ -2781,6 +2865,33 @@
             else { const defaults = { number: "09618280589", name: "Kenneth Antonil", qrUrl: "" }; await fns.set(fns.ref(db, "settings/gcash"), defaults); }
           } catch (err) { console.error("GCash settings load failed:", err); }
         })();
+      }, []);
+
+      useEffect(() => {
+        let cleanup = () => {};
+        (async () => {
+          try {
+            const { db, fns } = await initFirebase();
+            const tRef = fns.ref(db, "support_tickets");
+            const aRef = fns.ref(db, "supportAgents");
+            const onTickets = fns.onValue(tRef, snap => {
+              const rows = [];
+              snap.forEach(c => rows.push({ id: c.key, ...(c.val() || {}) }));
+              rows.sort((a, b) => Number(b.updatedAt || b.createdAt || 0) - Number(a.updatedAt || a.createdAt || 0));
+              setSupportTickets(rows);
+            });
+            const onAgents = fns.onValue(aRef, snap => {
+              const rows = [];
+              snap.forEach(c => rows.push({ id: c.key, ...(c.val() || {}) }));
+              rows.sort((a, b) => String(a.name || a.displayName || "").localeCompare(String(b.name || b.displayName || "")));
+              setSupportAgents(rows);
+            });
+            cleanup = () => { fns.off(tRef, "value", onTickets); fns.off(aRef, "value", onAgents); };
+          } catch (err) {
+            console.error("Support ops load failed:", err);
+          }
+        })();
+        return () => cleanup();
       }, []);
 
       useEffect(() => {
@@ -2980,6 +3091,23 @@
         } catch (err) { toast.error("Failed: " + err.message); }
         finally { setVoucherBusyUid(""); }
       };
+      const approveSupportAgent = async (agent) => {
+        const uid = String(agent?.uid || agent?.id || "").trim();
+        if (!uid) return toast.error("Missing support agent UID.");
+        try {
+          const { db, fns } = await initFirebase();
+          await fns.update(fns.ref(db, "supportAgents/" + uid), {
+            status: "approved",
+            approved: true,
+            approvedAt: Date.now(),
+            approvedByUid: user?.uid || null,
+            approvedByEmail: user?.email || null,
+          });
+          toast.success("Support agent approved.");
+        } catch (err) {
+          toast.error("Failed to approve agent: " + err.message);
+        }
+      };
 
       return (
         <div style={{ display: "flex", minHeight: "100vh" }}>
@@ -3012,6 +3140,7 @@
             {tab === "data" && <DataTab orders={orders} />}
             {tab === "vouchers" && <VouchersPanel vouchers={vouchers} onAdd={onAddVoucher} onUpdate={onUpdateVoucher} onDelete={onDeleteVoucher} />}
             {tab === "refunds" && <RefundsPanel refunds={refunds} orders={orders} onCreateRefund={onCreateRefund} />}
+            {tab === "support_ops" && <SupportOpsPanel supportTickets={supportTickets} supportAgents={supportAgents} onApproveAgent={approveSupportAgent} />}
 
             {tab === "settings" && (
               <div style={{ padding: "20px 24px" }}>
