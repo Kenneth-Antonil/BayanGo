@@ -682,7 +682,9 @@ $('signupBtn').onclick=async()=>{
   try{
     const cred=await createUserWithEmailAndPassword(auth,e,p);
     await updateProfile(cred.user,{displayName:n});
-    await upsertAgent({...cred.user,displayName:n});
+    // Pass the Firebase user object directly so `uid` is always preserved.
+    // Spreading `cred.user` can drop non-enumerable SDK fields like `uid`.
+    await upsertAgent(cred.user);
     setStatus('Account created! Waiting for admin approval.','ok');
   }catch(err){setStatus(err.message,'error');}
 };
