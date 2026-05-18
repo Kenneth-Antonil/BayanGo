@@ -377,9 +377,122 @@ tr:hover td{background:var(--card2)}
 }
 
 /* ══════════════ ADMIN ONLY ══════════════ */
+.mobile-only{display:flex}
+.desktop-only{display:none}
+.shell-backdrop{
+  position:fixed;inset:0;background:rgba(15,23,42,.42);backdrop-filter:blur(3px);
+  opacity:0;pointer-events:none;transition:.2s;z-index:95
+}
+.sidebar{
+  width:min(86vw,320px);max-width:320px;transform:translateX(-100%);
+  box-shadow:0 20px 60px rgba(15,23,42,.22);border-right:0;overflow-y:auto
+}
+.sidebar-logo{padding:18px 16px 14px;position:relative}
+.sidebar-close{
+  position:absolute;top:14px;right:14px;width:38px;height:38px;border-radius:12px;border:1px solid var(--border);
+  background:var(--card2);color:var(--text);align-items:center;justify-content:center;cursor:pointer
+}
+.sidebar .sidebar-logo h2,.sidebar-footer .agent-info,.sidebar-footer .btn-logout{display:block}
+.sidebar .nav-item span:not(.icon):not(.nav-badge){display:inline}
+.sidebar .nav-badge{display:inline-flex}
+.nav-section{padding:10px 16px 4px}
+.nav-item{margin:0 12px 6px;padding:14px 14px;border-radius:14px;font-size:14px;font-weight:700}
+.nav-item .icon{font-size:20px;width:22px}
+.nav-badge{padding:2px 7px;font-size:10px}
+.sidebar-footer{padding:14px 16px calc(22px + env(safe-area-inset-bottom))}
+.avatar{width:38px;height:38px;font-size:14px}
+.agent-name{font-size:13px}
+.agent-role{font-size:11px}
+.btn-logout{padding:12px;border-radius:12px;font-size:12px}
+.main{margin-left:0;min-width:0;padding-bottom:calc(88px + env(safe-area-inset-bottom))}
+.topbar{height:64px;padding:0 14px;background:rgba(255,255,255,.9);backdrop-filter:blur(18px)}
+.topbar-title{font-size:18px;letter-spacing:-.3px}
+.page{padding:14px}
+.kpi-grid{grid-template-columns:1fr 1fr;gap:10px}
+.kpi-card{padding:14px;border-radius:18px}
+.kpi-val{font-size:22px}
+.grid-2,.grid-3,.kb-grid,.tickets-layout{grid-template-columns:1fr}
+.card{padding:14px;border-radius:18px}
+.card-header{align-items:flex-start;gap:10px;flex-direction:column}
+.card-title{font-size:16px}
+.card-sub{font-size:12px}
+.table-wrap{margin:0 -14px}
+th,td{padding-left:14px;padding-right:14px}
+.action-btn,.form-action-btn,.save-btn{min-height:42px;border-radius:12px}
+.form-row{gap:12px;align-items:stretch}
+.form-field{min-width:0}
+.form-field input,.form-field select,.form-field textarea,.search-wrap input,.reply-input,.ref-field input{min-height:46px;border-radius:12px;font-size:14px}
+.search-wrap{margin-bottom:12px}
+.search-icon{left:12px;font-size:16px}
+.search-wrap input{padding-left:38px}
+.ticket-list-item{padding:14px;border-radius:16px;margin-bottom:10px}
+.ticket-avi{width:38px;height:38px;font-size:14px}
+.ticket-user{font-size:14px}
+.ticket-preview{font-size:12px;white-space:normal;line-height:1.45}
+.ticket-detail{display:none;position:fixed;inset:0;top:0;z-index:120;border-radius:0;border:0;background:var(--surface)}
+.ticket-detail.mobile-open{display:flex}
+.ticket-detail-header{padding:14px 14px 12px;position:sticky;top:0;background:var(--surface);z-index:2}
+.ticket-messages{padding:14px;max-height:none;min-height:0;flex:1}
+.msg-bubble{max-width:92%;font-size:14px}
+.reply-box{padding:12px 14px calc(12px + env(safe-area-inset-bottom));background:var(--surface)}
+.send-btn{width:44px;height:44px;border-radius:14px}
+.referral-agent-card{padding:14px;gap:10px;flex-direction:column}
+.ref-av{width:44px;height:44px}
+.ref-input-row{flex-direction:column;align-items:stretch}
+.ref-field{width:100%}
+.empty{padding:28px 16px}
+.mobile-dock{
+  position:fixed;left:0;right:0;bottom:0;z-index:90;display:grid;grid-template-columns:repeat(auto-fit,minmax(0,1fr));
+  gap:8px;padding:10px 12px calc(10px + env(safe-area-inset-bottom));background:rgba(255,255,255,.94);
+  border-top:1px solid var(--border);backdrop-filter:blur(18px)
+}
+.dock-item{
+  border:0;background:transparent;border-radius:16px;padding:10px 6px;color:var(--muted);
+  display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px;
+  font-family:var(--font-body);font-size:11px;font-weight:800;cursor:pointer
+}
+.dock-item .material-symbols-rounded{font-size:20px}
+.dock-item.active{background:var(--green-dim);color:var(--green2)}
+.mobile-menu-btn{display:flex}
+body.nav-open .sidebar{transform:translateX(0)}
+body.nav-open .shell-backdrop,body.ticket-open .shell-backdrop{opacity:1;pointer-events:auto}
+body.nav-open,body.ticket-open{overflow:hidden}
+
+@media (min-width: 960px){
+  .mobile-only{display:none}
+  .desktop-only{display:flex}
+  .shell-backdrop{display:none}
+  .sidebar{
+    width:var(--sidebar);max-width:none;transform:none;border-right:1px solid var(--border);
+    box-shadow:none
+  }
+  .nav-section{padding:8px 8px 4px}
+  .nav-item{margin:1px 8px;padding:9px 12px;border-radius:9px;font-size:13px;font-weight:500}
+  .sidebar-footer{padding:12px}
+  .main{margin-left:var(--sidebar);padding-bottom:0}
+  .topbar{height:56px;padding:0 20px}
+  .topbar-title{font-size:15px}
+  .page{padding:20px}
+  .grid-2{grid-template-columns:1fr 1fr}
+  .grid-3{grid-template-columns:1fr 1fr 1fr}
+  .kpi-grid{grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px}
+  .kpi-card{padding:16px;border-radius:var(--radius)}
+  .card{padding:16px;border-radius:var(--radius)}
+  .card-header{flex-direction:row;align-items:center}
+  .tickets-layout{grid-template-columns:minmax(0,1fr) 340px}
+  .ticket-detail{display:flex;position:sticky;inset:auto;top:70px;z-index:1;border:1px solid var(--border);border-radius:var(--radius)}
+  .ticket-detail.mobile-open{display:flex}
+  .ticket-messages{max-height:360px}
+  .ticket-preview{white-space:nowrap}
+  .referral-agent-card{flex-direction:row}
+  .ref-input-row{flex-direction:row;align-items:flex-end}
+  .mobile-dock,.mobile-menu-btn,.sidebar-close{display:none}
+}
+
 .admin-only{display:none}
 body.is-admin .admin-only{display:block}
 body.is-admin .admin-only-flex{display:flex}
+body.is-admin .dock-item.admin-only{display:flex}
 .admin-only-flex{display:none}
 </style>
 </head>
@@ -387,6 +500,7 @@ body.is-admin .admin-only-flex{display:flex}
 
 <!-- ── TOAST ── -->
 <div id="toast"></div>
+<div class="shell-backdrop" id="shellBackdrop" onclick="closeShellPanels()"></div>
 
 <!-- ══════════════ AUTH SCREEN ══════════════ -->
 <div class="auth-screen" id="authScreen">
@@ -426,20 +540,21 @@ body.is-admin .admin-only-flex{display:flex}
 <div class="app" id="mainApp" style="display:none">
 
   <!-- SIDEBAR -->
-  <aside class="sidebar">
+  <aside class="sidebar" id="appSidebar">
     <div class="sidebar-logo">
+      <button class="sidebar-close mobile-only" type="button" onclick="closeShellPanels()"><span class="material-symbols-rounded">close</span></button>
       <div class="logo-mark"><img src="https://i.imgur.com/wL8wcBB.jpeg" style="width:22px;height:22px;object-fit:contain;border-radius:4px"/></div>
       <h2>BayanGo</h2>
       <span>Support Center</span>
     </div>
     <div class="nav-section">Support</div>
-    <div class="nav-item active" onclick="showPage('dashboard')"><span class="material-symbols-rounded icon">dashboard</span><span>Dashboard</span></div>
-    <div class="nav-item" onclick="showPage('tickets')" id="navTickets"><span class="material-symbols-rounded icon">confirmation_number</span><span>Tickets</span><span class="nav-badge red pulse" id="badgeTickets" style="display:none">0</span></div>
-    <div class="nav-item" onclick="showPage('kb')"><span class="material-symbols-rounded icon">menu_book</span><span>Knowledge Base</span></div>
+    <div class="nav-item active" data-page="dashboard" onclick="showPage('dashboard')"><span class="material-symbols-rounded icon">dashboard</span><span>Dashboard</span></div>
+    <div class="nav-item" data-page="tickets" onclick="showPage('tickets')" id="navTickets"><span class="material-symbols-rounded icon">confirmation_number</span><span>Tickets</span><span class="nav-badge red pulse" id="badgeTickets" style="display:none">0</span></div>
+    <div class="nav-item" data-page="kb" onclick="showPage('kb')"><span class="material-symbols-rounded icon">menu_book</span><span>Knowledge Base</span></div>
     <div class="nav-section admin-only">Admin</div>
-    <div class="nav-item admin-only" onclick="showPage('agents')" id="navAgents"><span class="material-symbols-rounded icon">groups</span><span>Agents</span><span class="nav-badge amber" id="badgeAgents" style="display:none">0</span></div>
-    <div class="nav-item admin-only" onclick="showPage('referrals')"><span class="material-symbols-rounded icon">payments</span><span>Referrals</span></div>
-    <div class="nav-item admin-only" onclick="showPage('settings')"><span class="material-symbols-rounded icon">settings</span><span>Settings</span></div>
+    <div class="nav-item admin-only" data-page="agents" onclick="showPage('agents')" id="navAgents"><span class="material-symbols-rounded icon">groups</span><span>Agents</span><span class="nav-badge amber" id="badgeAgents" style="display:none">0</span></div>
+    <div class="nav-item admin-only" data-page="referrals" onclick="showPage('referrals')"><span class="material-symbols-rounded icon">payments</span><span>Referrals</span></div>
+    <div class="nav-item admin-only" data-page="settings" onclick="showPage('settings')"><span class="material-symbols-rounded icon">settings</span><span>Settings</span></div>
     <div class="sidebar-footer">
       <div class="agent-chip">
         <div class="avatar" id="sideAvatar">?</div>
@@ -455,10 +570,11 @@ body.is-admin .admin-only-flex{display:flex}
   <!-- MAIN CONTENT -->
   <main class="main">
     <div class="topbar">
+      <button class="icon-btn mobile-menu-btn" type="button" title="Menu" onclick="openSidebar()"><span class="material-symbols-rounded">menu</span></button>
       <div class="topbar-title" id="topbarTitle">Dashboard</div>
       <div class="topbar-actions">
         <div class="icon-btn" title="Notifications" onclick="showPage('tickets')"><span class="material-symbols-rounded">notifications</span><div class="notif-dot" id="notifDot" style="display:none"></div></div>
-        <div class="icon-btn" title="Help"><span class="material-symbols-rounded">help</span></div>
+        <div class="icon-btn desktop-only" title="Help"><span class="material-symbols-rounded">help</span></div>
       </div>
     </div>
 
@@ -585,6 +701,12 @@ body.is-admin .admin-only-flex{display:flex}
     </div>
 
   </main>
+  <nav class="mobile-dock" aria-label="Support navigation">
+    <button class="dock-item active" data-page="dashboard" type="button" onclick="showPage('dashboard')"><span class="material-symbols-rounded">dashboard</span><span>Home</span></button>
+    <button class="dock-item" data-page="tickets" type="button" onclick="showPage('tickets')"><span class="material-symbols-rounded">confirmation_number</span><span>Tickets</span></button>
+    <button class="dock-item" data-page="kb" type="button" onclick="showPage('kb')"><span class="material-symbols-rounded">menu_book</span><span>KB</span></button>
+    <button class="dock-item admin-only" data-page="agents" type="button" onclick="showPage('agents')"><span class="material-symbols-rounded">groups</span><span>Agents</span></button>
+  </nav>
 </div>
 
 <script type="module">
@@ -611,6 +733,29 @@ const commission=(a,rules)=>{const r=rules||{order:50,merchant:1000,quota:10,bon
 const getStatusBadge=s=>{const map={Open:'badge-red',In_Progress:'badge-amber','In Progress':'badge-amber',Resolved:'badge-green'};return map[s?.replace(' ','_')]||'badge-muted'};
 const getPriorityBadge=p=>{const map={High:'badge-red',Medium:'badge-amber',Low:'badge-green'};return map[p]||'badge-muted'};
 const timeAgo=ts=>{if(!ts)return '';const d=Date.now()-ts;if(d<60000)return 'just now';if(d<3600000)return Math.floor(d/60000)+'m ago';if(d<86400000)return Math.floor(d/3600000)+'h ago';return Math.floor(d/86400000)+'d ago'};
+const MOBILE_BREAKPOINT=960;
+const isMobileView=()=>window.innerWidth<MOBILE_BREAKPOINT;
+
+function setSidebarOpen(open){
+  document.body.classList.toggle('nav-open',!!open);
+}
+
+function setTicketDetailOpen(open){
+  const detail=$('ticketDetail');
+  if(detail) detail.classList.toggle('mobile-open',!!open);
+  document.body.classList.toggle('ticket-open',!!open);
+}
+
+window.openSidebar=function(){setSidebarOpen(true)};
+window.closeShellPanels=function(){setSidebarOpen(false);setTicketDetailOpen(false)};
+window.closeTicketDetail=function(){setTicketDetailOpen(false)};
+
+function syncShellMode(){
+  if(!isMobileView()){
+    setSidebarOpen(false);
+    setTicketDetailOpen(false);
+  }
+}
 
 window.showToast = function(msg,type='success'){
   const t=$('toast'); t.textContent=msg; t.className='show '+type;
@@ -858,6 +1003,9 @@ async function handleAuth(user){
 }
 
 onAuthStateChanged(auth, handleAuth);
+window.addEventListener('resize',syncShellMode);
+window.addEventListener('orientationchange',syncShellMode);
+syncShellMode();
 
 (async function resolveGoogleRedirect(){
   try{
@@ -925,11 +1073,13 @@ $('googleBtn').onclick=async()=>{
 // ── NAV ──
 window.showPage = function(name){
   document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
-  document.querySelectorAll('.nav-item').forEach(n=>n.classList.remove('active'));
+  document.querySelectorAll('.nav-item,.dock-item').forEach(n=>n.classList.remove('active'));
   const pg=$('page-'+name); if(pg) pg.classList.add('active');
-  const nv=document.querySelector(`.nav-item[onclick*="${name}"]`); if(nv) nv.classList.add('active');
+  document.querySelectorAll(`[data-page="${name}"]`).forEach(n=>n.classList.add('active'));
   const titles={dashboard:'Dashboard',tickets:'Support Tickets',kb:'Knowledge Base',agents:'Agent Management',referrals:'Referral & Incentives',settings:'Settings'};
   $('topbarTitle').textContent=titles[name]||name;
+  if(name!=='tickets') setTicketDetailOpen(false);
+  setSidebarOpen(false);
 };
 
 // ── RENDER ALL ──
@@ -1031,10 +1181,14 @@ window.selectTicket = function(id){
   state.selectedTicketId=id;
   renderTickets();
   const m=state.messages.find(x=>x.id===id);
-  if(!m){$('ticketDetailContent').innerHTML='';return;}
+  if(!m){$('ticketDetailContent').innerHTML='';setTicketDetailOpen(false);return;}
   const replies=[...(m.replies||[])];
   $('ticketDetailContent').innerHTML=`
     <div class="ticket-detail-header">
+      <div style="display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:10px">
+        <div style="font-size:12px;font-weight:800;letter-spacing:.4px;color:var(--muted);text-transform:uppercase">Ticket Detail</div>
+        <button class="icon-btn mobile-only" type="button" onclick="closeTicketDetail()" style="width:36px;height:36px"><span class="material-symbols-rounded">close</span></button>
+      </div>
       <div style="display:flex;align-items:center;gap:10px">
         <div class="ticket-avi">${initials(m.user||'?')}</div>
         <div>
@@ -1067,6 +1221,7 @@ window.selectTicket = function(id){
     </div>`;
   // scroll to bottom
   setTimeout(()=>{const t=$('msgThread');if(t)t.scrollTop=t.scrollHeight;},50);
+  if(isMobileView()) setTicketDetailOpen(true);
 };
 
 window.updateTicketStatus = async function(id,val){
