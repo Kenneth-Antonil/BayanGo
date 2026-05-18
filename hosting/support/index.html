@@ -589,7 +589,7 @@ body.is-admin .admin-only-flex{display:flex}
 
 <script type="module">
 import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.13.2/firebase-app.js';
-import { getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword, onAuthStateChanged, signOut, GoogleAuthProvider, signInWithRedirect, updateProfile } from 'https://www.gstatic.com/firebasejs/10.13.2/firebase-auth.js';
+import { getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword, onAuthStateChanged, signOut, GoogleAuthProvider, signInWithRedirect, getRedirectResult, updateProfile } from 'https://www.gstatic.com/firebasejs/10.13.2/firebase-auth.js';
 import { getDatabase, ref, get, onValue, set, update, push, serverTimestamp } from 'https://www.gstatic.com/firebasejs/10.13.2/firebase-database.js';
 
 const FC = { apiKey:'AIzaSyC0AQ3rkH-fhxlThobjDDtrvxttAfFLXTE', authDomain:'bayango-315c6.firebaseapp.com', databaseURL:'https://bayango-315c6-default-rtdb.asia-southeast1.firebasedatabase.app', projectId:'bayango-315c6', storageBucket:'bayango-315c6.firebasestorage.app', messagingSenderId:'199013441811', appId:'1:199013441811:web:315a38f03ddc9b676e3ae6' };
@@ -703,6 +703,22 @@ async function handleAuth(user){
 }
 
 onAuthStateChanged(auth, handleAuth);
+
+(async function resolveGoogleRedirect(){
+  try{
+    const result=await getRedirectResult(auth);
+    if(result?.user){
+      setStatus('Google login successful. Checking account access…','ok');
+    }
+  }catch(err){
+    const code=String(err?.code||'');
+    if(code==='auth/unauthorized-domain'){
+      setStatus('Google login blocked: unauthorized domain. Add this support URL domain in Firebase Auth > Authorized domains.','error');
+      return;
+    }
+    setStatus(err?.message||'Google login failed.','error');
+  }
+})();
 
 // ── LOGIN ──
 $('loginBtn').onclick=async()=>{
