@@ -589,7 +589,7 @@ body.is-admin .admin-only-flex{display:flex}
 
 <script type="module">
 import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.13.2/firebase-app.js';
-import { getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword, onAuthStateChanged, signOut, GoogleAuthProvider, signInWithRedirect, getRedirectResult, updateProfile } from 'https://www.gstatic.com/firebasejs/10.13.2/firebase-auth.js';
+import { getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword, onAuthStateChanged, signOut, GoogleAuthProvider, signInWithRedirect, signInWithPopup, getRedirectResult, updateProfile } from 'https://www.gstatic.com/firebasejs/10.13.2/firebase-auth.js';
 import { getDatabase, ref, get, onValue, set, update, push, serverTimestamp } from 'https://www.gstatic.com/firebasejs/10.13.2/firebase-database.js';
 
 const FC = { apiKey:'AIzaSyC0AQ3rkH-fhxlThobjDDtrvxttAfFLXTE', authDomain:'bayango-315c6.firebaseapp.com', databaseURL:'https://bayango-315c6-default-rtdb.asia-southeast1.firebasedatabase.app', projectId:'bayango-315c6', storageBucket:'bayango-315c6.firebasestorage.app', messagingSenderId:'199013441811', appId:'1:199013441811:web:315a38f03ddc9b676e3ae6' };
@@ -597,6 +597,7 @@ const fbApp = initializeApp(FC);
 const auth = getAuth(fbApp);
 const db = getDatabase(fbApp);
 const gProvider = new GoogleAuthProvider();
+const SUPPORT_AGENT_PATHS = ['supportAgents','support_agents'];
 
 // ── STATE ──
 const state = { me:null, role:'support', agents:[], messages:[], selectedTicketId:null, kbArticles:KB_DEFAULT() };
@@ -629,7 +630,7 @@ function setStatus(msg,type=''){
   el.className='auth-status'+(type?' '+type:'');
 }
 
-async function upsertAgent(user){
+async function legacyUpsertAgentUnused(user){
   const base={
     id:user.uid,
     uid:user.uid,
@@ -667,7 +668,7 @@ async function upsertAgent(user){
   }
 }
 
-async function handleAuth(user){
+async function legacyHandleAuthUnused(user){
   if(!user){$('authScreen').style.display='flex';$('mainApp').style.display='none';return;}
   try{ await upsertAgent(user); }catch(e){ setStatus('DB access denied. Contact admin.','error'); return; }
   const primarySnap=await get(ref(db,`supportAgents/${user.uid}`)).catch(()=>null);
@@ -699,6 +700,160 @@ async function handleAuth(user){
       ? rows
       : rows.filter(a=>String(a.id||a.uid||'')===String(me.id||user.uid));
     renderAll();
+  });
+}
+
+function isApprovedAgent(agent){
+  const normalizedApproved=String(agent?.approved||'').trim().toLowerCase();
+  const normalizedStatus=String(agent?.status||'').trim().toLowerCase();
+  return agent?.approved===true
+    || agent?.approved===1
+    || normalizedApproved==='true'
+    || normalizedApproved==='approved'
+    || normalizedStatus==='approved';
+}
+
+function mergeAgentRecords(records,user){
+  const merged=(records||[]).filter(Boolean).reduce((acc,row)=>({ ...acc, ...row }),{});
+  return {
+    ...merged,
+    id: merged.id || user?.uid || '',
+    uid: merged.uid || user?.uid || '',
+    email: merged.email || user?.email || '',
+    name: merged.name || merged.displayName || user?.displayName || (user?.email || 'agent').split('@')[0],
+    authProvider: merged.authProvider || user?.providerData?.[0]?.providerId || 'password'
+  };
+}
+
+async function loadAgentRecord(user){
+  const results=await Promise.allSettled(
+    SUPPORT_AGENT_PATHS.map(path=>get(ref(db,`${path}/${user.uid}`)))
+  );
+  const records=results
+    .filter(r=>r.status==='fulfilled' && r.value?.exists())
+    .map(r=>r.value.val());
+  return mergeAgentRecords(records,user);
+}
+
+async function upsertAgent(user){
+  const current=await loadAgentRecord(user);
+  const approved=isApprovedAgent(current);
+  const next={
+    ...current,
+    id:user.uid,
+    uid:user.uid,
+    email:user.email||current.email||'',
+    name:user.displayName||current.name||(user.email||'agent').split('@')[0],
+    approved,
+    status:approved ? 'approved' : (current.status || 'pending'),
+    downloads:Number(current.downloads||0),
+    orders:Number(current.orders||0),
+    merchants:Number(current.merchants||0),
+    createdAt:current.createdAt||Date.now(),
+    authProvider:user.providerData?.[0]?.providerId||current.authProvider||'password'
+  };
+
+  const results=await Promise.allSettled(
+    SUPPORT_AGENT_PATHS.map(path=>set(ref(db,`${path}/${user.uid}`),next))
+  );
+  if(results.every(r=>r.status==='rejected')){
+    throw new Error('No writable support agent paths');
+  }
+}
+
+function normalizeSupportThread(thread){
+  return Object.entries(thread||{})
+    .map(([id,value])=>({id,...(value||{})}))
+    .sort((a,b)=>Number(a.createdAt||a.timestamp||0)-Number(b.createdAt||b.timestamp||0));
+}
+
+function normalizeSupportTicket(ticket,thread){
+  const entries=normalizeSupportThread(thread);
+  const firstUserEntry=entries.find(entry=>String(entry.senderType||'').toLowerCase()==='user');
+  const adminReplies=entries.filter(entry=>String(entry.senderType||'').toLowerCase()!=='user');
+  const lastEntry=entries[entries.length-1]||null;
+  const fallbackMessage=ticket.message||ticket.msg||ticket.lastMessage||ticket.subject||'—';
+  return {
+    ...ticket,
+    user: ticket.user || ticket.userName || ticket.name || ticket.customerName || 'Unknown',
+    email: ticket.email || ticket.userEmail || '',
+    message: ticket.message || ticket.msg || firstUserEntry?.text || fallbackMessage,
+    msg: ticket.msg || ticket.message || firstUserEntry?.text || fallbackMessage,
+    replies: adminReplies,
+    lastMessage: lastEntry?.text || ticket.lastMessage || fallbackMessage,
+    lastMessageAt: Number(lastEntry?.createdAt || lastEntry?.timestamp || ticket.updatedAt || ticket.createdAt || 0),
+    createdAt: Number(ticket.createdAt || firstUserEntry?.createdAt || firstUserEntry?.timestamp || 0),
+    updatedAt: Number(ticket.updatedAt || lastEntry?.createdAt || lastEntry?.timestamp || ticket.createdAt || 0),
+    priority: ticket.priority || 'Medium',
+    status: ticket.status || 'Open'
+  };
+}
+
+async function handleAuth(user){
+  if(!user){$('authScreen').style.display='flex';$('mainApp').style.display='none';return;}
+  try{ await upsertAgent(user); }catch(e){ setStatus('DB access denied. Contact admin.','error'); return; }
+  const me=await loadAgentRecord(user);
+  if(!isApprovedAgent(me)){ $('authScreen').style.display='flex'; $('mainApp').style.display='none'; setStatus('Logged in - pending admin approval. Hintayin mo lang.',''); $('logoutBtn').style.display='block'; return; }
+  $('authScreen').style.display='none';
+  $('mainApp').style.display='flex';
+  state.me={ ...me, approved:isApprovedAgent(me) };
+  const isAdmin = me.isAdmin===true || String(me.role||'').trim().toLowerCase()==='admin' || (me.email||'').includes('admin') || user.email==='admin@bayango.store';
+  state.role=isAdmin?'admin':'support';
+  if(isAdmin) document.body.classList.add('is-admin');
+  $('sideAvatar').textContent=initials(me.name||me.email);
+  $('sideName').textContent=me.name||me.email||'Agent';
+  $('sideRole').textContent=isAdmin?'Admin':'Support Agent';
+  $('logoutBtn').addEventListener('click',()=>signOut(auth));
+  let ticketRows=[];
+  let ticketThreads={};
+  const syncTickets=()=>{
+    const rows=ticketRows.map(ticket=>normalizeSupportTicket(ticket,ticketThreads[ticket.id]||{}));
+    rows.sort((a,b)=>Number(b.updatedAt||b.lastMessageAt||b.createdAt||0)-Number(a.updatedAt||a.lastMessageAt||a.createdAt||0));
+    state.messages = state.role==='admin'
+      ? rows
+      : rows.filter(m=>{
+        const assignedUid=String(m.assignedAgentUid||m.agentUid||'').trim();
+        return assignedUid===String(me.id||user.uid);
+      });
+    if(state.selectedTicketId && !state.messages.some(m=>m.id===state.selectedTicketId)){
+      state.selectedTicketId=null;
+    }
+    renderAll();
+  };
+  onValue(ref(db,'support_tickets'),snap=>{
+    ticketRows = Object.entries(snap.val()||{}).map(([id,v])=>({id,...v}));
+    syncTickets();
+  });
+  onValue(ref(db,'support_messages'),snap=>{
+    ticketThreads = snap.val()||{};
+    syncTickets();
+  });
+  let primaryAgents=[];
+  let legacyAgents=[];
+  const syncAgents=()=>{
+    const merged=new Map();
+    [...primaryAgents,...legacyAgents].forEach(agent=>{
+      const uid=String(agent.id||agent.uid||'').trim();
+      if(!uid) return;
+      const prev=merged.get(uid)||{};
+      const next={ ...prev, ...agent, id:uid, uid };
+      next.approved=isApprovedAgent(next);
+      merged.set(uid,next);
+    });
+    const rows=Array.from(merged.values());
+    rows.sort((a,b)=>String(a.name||a.email||'').localeCompare(String(b.name||b.email||'')));
+    state.agents = state.role==='admin'
+      ? rows
+      : rows.filter(a=>String(a.id||a.uid||'')===String(me.id||user.uid));
+    renderAll();
+  };
+  SUPPORT_AGENT_PATHS.forEach((path,index)=>{
+    onValue(ref(db,path),snap=>{
+      const rows = Object.entries(snap.val()||{}).map(([id,v])=>({id,...v}));
+      if(index===0) primaryAgents=rows;
+      else legacyAgents=rows;
+      syncAgents();
+    });
   });
 }
 
@@ -741,8 +896,28 @@ $('signupBtn').onclick=async()=>{
 };
 $('googleBtn').onclick=async()=>{
   try{
-    await signInWithRedirect(auth,gProvider);
+    await signInWithPopup(auth,gProvider);
   }catch(err){
+    const code=String(err?.code||'');
+    const popupBlocked=code==='auth/popup-blocked' || code==='auth/popup-closed-by-user' || code==='auth/cancelled-popup-request';
+    if(popupBlocked){
+      try{
+        await signInWithRedirect(auth,gProvider);
+        return;
+      }catch(redirectErr){
+        const redirectCode=String(redirectErr?.code||'');
+        if(redirectCode==='auth/unauthorized-domain'){
+          setStatus(`Google login blocked for domain ${window.location.hostname}. Add it in Firebase Auth > Authorized domains.`,'error');
+          return;
+        }
+        setStatus(redirectErr?.message||'Google login failed.','error');
+        return;
+      }
+    }
+    if(code==='auth/unauthorized-domain'){
+      setStatus(`Google login blocked for domain ${window.location.hostname}. Add it in Firebase Auth > Authorized domains.`,'error');
+      return;
+    }
     setStatus(err.message,'error');
   }
 };
@@ -792,7 +967,7 @@ function renderDashboard(){
   ].map(k=>`<div class="kpi-card ${k.cls}"><div class="kpi-icon material-symbols-rounded">${k.icon}</div><div class="kpi-label">${k.label}</div><div class="kpi-val">${k.val}</div><div class="kpi-sub">${k.sub}</div></div>`).join('');
 
   // Recent tickets
-  const recent=state.messages.slice(-5).reverse();
+  const recent=state.messages.slice(0,5);
   $('recentTickets').innerHTML=recent.length?recent.map(m=>`
     <div class="ticket-list-item" onclick="showPage('tickets');selectTicket('${m.id}')">
       <div class="ticket-avi">${initials(m.user||'?')}</div>
@@ -829,10 +1004,15 @@ window.renderTickets = function(){
   const sf=($('filterStatus').value||'');
   const pf=($('filterPriority').value||'');
   let msgs=[...state.messages];
-  if(q) msgs=msgs.filter(m=>(m.user||'').toLowerCase().includes(q)||(m.msg||m.message||'').toLowerCase().includes(q));
+  if(q) msgs=msgs.filter(m=>
+    (m.user||'').toLowerCase().includes(q)
+    || (m.msg||m.message||'').toLowerCase().includes(q)
+    || (m.subject||'').toLowerCase().includes(q)
+    || (m.lastMessage||'').toLowerCase().includes(q)
+  );
   if(sf) msgs=msgs.filter(m=>(m.status||'Open')===sf);
   if(pf) msgs=msgs.filter(m=>(m.priority||'Medium')===pf);
-  msgs=msgs.slice().reverse();
+  msgs=msgs.slice();
   $('ticketListItems').innerHTML=msgs.length?msgs.map(m=>`
     <div class="ticket-list-item${state.selectedTicketId===m.id?' selected':''}" onclick="selectTicket('${m.id}')">
       <div class="ticket-avi">${initials(m.user||'?')}</div>
@@ -852,7 +1032,7 @@ window.selectTicket = function(id){
   renderTickets();
   const m=state.messages.find(x=>x.id===id);
   if(!m){$('ticketDetailContent').innerHTML='';return;}
-  const replies=Object.values(m.replies||{});
+  const replies=[...(m.replies||[])];
   $('ticketDetailContent').innerHTML=`
     <div class="ticket-detail-header">
       <div style="display:flex;align-items:center;gap:10px">
@@ -879,7 +1059,7 @@ window.selectTicket = function(id){
     </div>
     <div class="ticket-messages" id="msgThread">
       <div><div class="msg-sender"><span class="material-symbols-rounded" style="font-size:12px">person</span> ${m.user||'User'}</div><div class="msg-bubble from-user">${m.msg||m.message||'—'}</div></div>
-      ${replies.map(r=>`<div><div class="msg-sender" style="text-align:right"><span class="material-symbols-rounded" style="font-size:12px">support_agent</span> ${r.agent||'Agent'}</div><div class="msg-bubble from-agent">${r.text}</div></div>`).join('')}
+      ${replies.map(r=>`<div><div class="msg-sender" style="${String(r.senderType||'').toLowerCase()==='admin'?'text-align:right':''}"><span class="material-symbols-rounded" style="font-size:12px">${String(r.senderType||'').toLowerCase()==='admin'?'support_agent':'person'}</span> ${r.agent||r.senderName||r.userName||m.user||'Agent'}</div><div class="msg-bubble ${String(r.senderType||'').toLowerCase()==='admin'?'from-agent':'from-user'}">${r.text||'-'}</div></div>`).join('')}
     </div>
     <div class="reply-box">
       <textarea class="reply-input" id="replyInput" rows="1" placeholder="Type your reply…"></textarea>
@@ -890,18 +1070,19 @@ window.selectTicket = function(id){
 };
 
 window.updateTicketStatus = async function(id,val){
-  await update(ref(db,`supportMessages/${id}`),{status:val});
+  await update(ref(db,`support_tickets/${id}`),{status:val,updatedAt:Date.now()});
   showToast('Status updated to '+val,'success');
 };
 window.updateTicketPriority = async function(id,val){
-  await update(ref(db,`supportMessages/${id}`),{priority:val});
+  await update(ref(db,`support_tickets/${id}`),{priority:val,updatedAt:Date.now()});
   showToast('Priority set to '+val,'success');
 };
 window.sendReply = async function(ticketId){
   const inp=$('replyInput'); const txt=inp.value.trim(); if(!txt) return;
   const agentName=state.me?.name||state.me?.email||'Agent';
-  await push(ref(db,`supportMessages/${ticketId}/replies`),{text:txt,agent:agentName,timestamp:Date.now()});
-  await update(ref(db,`supportMessages/${ticketId}`),{status:'In Progress'});
+  const now=Date.now();
+  await push(ref(db,`support_messages/${ticketId}`),{text:txt,agent:agentName,senderName:agentName,senderType:'admin',senderUid:state.me?.uid||state.me?.id||auth.currentUser?.uid||'',createdAt:now});
+  await update(ref(db,`support_tickets/${ticketId}`),{status:'In Progress',updatedAt:now,lastMessage:txt,assignedAgentUid:state.me?.uid||state.me?.id||auth.currentUser?.uid||'',assignedAgentName:agentName});
   inp.value='';
   showToast('Reply sent ✓','success');
   // re-select to refresh
@@ -932,13 +1113,17 @@ window.renderAgents = function(){
 
 window.approveAgent = async function(id){
   if(state.role!=='admin'){ showToast('Admin only action.','error'); return; }
-  await update(ref(db,`supportAgents/${id}`),{approved:true});
+  await Promise.allSettled(
+    SUPPORT_AGENT_PATHS.map(path=>update(ref(db,`${path}/${id}`),{approved:true,status:'approved',approvedAt:Date.now()}))
+  );
   showToast('Agent approved! ✓','success');
 };
 window.rejectAgent = async function(id){
   if(state.role!=='admin'){ showToast('Admin only action.','error'); return; }
   if(!confirm('Are you sure you want to revoke/reject this agent?')) return;
-  await update(ref(db,`supportAgents/${id}`),{approved:false});
+  await Promise.allSettled(
+    SUPPORT_AGENT_PATHS.map(path=>update(ref(db,`${path}/${id}`),{approved:false,status:'pending'}))
+  );
   showToast('Agent access revoked.','error');
 };
 
@@ -988,7 +1173,9 @@ window.saveRef = async function(id){
   const dl=Math.max(0,+($('dl_'+id)?.value||0));
   const or=Math.max(0,+($('or_'+id)?.value||0));
   const me=Math.max(0,+($('me_'+id)?.value||0));
-  await update(ref(db,`supportAgents/${id}`),{downloads:dl,orders:or,merchants:me});
+  await Promise.allSettled(
+    SUPPORT_AGENT_PATHS.map(path=>update(ref(db,`${path}/${id}`),{downloads:dl,orders:or,merchants:me}))
+  );
   showToast('Progress saved ✓','success');
 };
 

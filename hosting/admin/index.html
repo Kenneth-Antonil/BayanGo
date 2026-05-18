@@ -3135,13 +3135,17 @@
         if (!uid) return toast.error("Missing support agent UID.");
         try {
           const { db, fns } = await initFirebase();
-          await fns.update(fns.ref(db, "supportAgents/" + uid), {
+          const payload = {
             status: "approved",
             approved: true,
             approvedAt: Date.now(),
             approvedByUid: user?.uid || null,
             approvedByEmail: user?.email || null,
-          });
+          };
+          await Promise.allSettled([
+            fns.update(fns.ref(db, "supportAgents/" + uid), payload),
+            fns.update(fns.ref(db, "support_agents/" + uid), payload),
+          ]);
           toast.success("Support agent approved.");
         } catch (err) {
           toast.error("Failed to approve agent: " + err.message);
