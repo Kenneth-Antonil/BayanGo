@@ -651,8 +651,20 @@ async function handleAuth(user){
   $('sideRole').textContent=isAdmin?'Admin':'Support Agent';
   $('logoutBtn').addEventListener('click',()=>signOut(auth));
   // live data
-  onValue(ref(db,'supportMessages'),snap=>{ state.messages=Object.entries(snap.val()||{}).map(([id,v])=>({id,...v})); renderAll(); });
-  onValue(ref(db,'supportAgents'),snap=>{ state.agents=Object.entries(snap.val()||{}).map(([id,v])=>({id,...v})); renderAll(); });
+  onValue(ref(db,'supportMessages'),snap=>{
+    const rows = Object.entries(snap.val()||{}).map(([id,v])=>({id,...v}));
+    state.messages = state.role==='admin'
+      ? rows
+      : rows.filter(m=>String(m.assignedAgentUid||m.agentUid||'')===String(me.id||user.uid));
+    renderAll();
+  });
+  onValue(ref(db,'supportAgents'),snap=>{
+    const rows = Object.entries(snap.val()||{}).map(([id,v])=>({id,...v}));
+    state.agents = state.role==='admin'
+      ? rows
+      : rows.filter(a=>String(a.id||a.uid||'')===String(me.id||user.uid));
+    renderAll();
+  });
 }
 
 onAuthStateChanged(auth, handleAuth);
@@ -859,10 +871,12 @@ window.renderAgents = function(){
 };
 
 window.approveAgent = async function(id){
+  if(state.role!=='admin'){ showToast('Admin only action.','error'); return; }
   await update(ref(db,`supportAgents/${id}`),{approved:true});
   showToast('Agent approved! ✓','success');
 };
 window.rejectAgent = async function(id){
+  if(state.role!=='admin'){ showToast('Admin only action.','error'); return; }
   if(!confirm('Are you sure you want to revoke/reject this agent?')) return;
   await update(ref(db,`supportAgents/${id}`),{approved:false});
   showToast('Agent access revoked.','error');
@@ -910,6 +924,7 @@ function renderReferrals(){
 }
 
 window.saveRef = async function(id){
+  if(state.role!=='admin'){ showToast('Admin only action.','error'); return; }
   const dl=Math.max(0,+($('dl_'+id)?.value||0));
   const or=Math.max(0,+($('or_'+id)?.value||0));
   const me=Math.max(0,+($('me_'+id)?.value||0));
