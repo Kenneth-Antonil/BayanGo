@@ -38,14 +38,18 @@ body::before{
 /* ══════════════ AUTH ══════════════ */
 .auth-screen{
   display:flex;align-items:center;justify-content:center;
-  min-height:100vh;padding:20px;
+  min-height:100vh;padding:0;
 }
 .auth-box{
-  width:100%;max-width:400px;
-  background:var(--card);border:1px solid var(--border2);
-  border-radius:24px;padding:36px 32px;
-  box-shadow:0 0 0 1px #22c55e18, 0 40px 80px rgba(0,0,0,.6);
-  animation:slideUp .4s ease
+  width:100%;min-height:100vh;max-width:none;
+  background:var(--bg);border:0;
+  border-radius:0;padding:36px 32px;
+  box-shadow:none;
+  animation:slideUp .4s ease;
+  display:flex;flex-direction:column;justify-content:center;
+}
+.auth-box > *{
+  width:100%;max-width:400px;margin-left:auto;margin-right:auto;
 }
 @keyframes slideUp{from{opacity:0;transform:translateY(24px)}to{opacity:1;transform:translateY(0)}}
 .auth-logo{display:flex;align-items:center;gap:10px;margin-bottom:28px}
