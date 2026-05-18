@@ -1003,9 +1003,7 @@ function getTicketAssignedUid(ticket){
 function canViewSupportTicket(ticket,user,role){
   if(role==='admin') return true;
   const myUid=String(user?.uid || user?.id || '').trim();
-  if(!myUid) return false;
-  const assignedUid=getTicketAssignedUid(ticket);
-  return !assignedUid || assignedUid===myUid;
+  return !!myUid;
 }
 
 function buildAgentClaimPatch(ticket,user){
