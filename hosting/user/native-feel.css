@@ -1,0 +1,85 @@
+:root {
+  --native-bg: #f6f8fc;
+  --native-surface: rgba(255, 255, 255, 0.78);
+  --native-border: rgba(20, 23, 38, 0.08);
+  --native-shadow: 0 10px 30px rgba(17, 24, 39, 0.12);
+  --native-radius: 18px;
+}
+
+html,
+body {
+  min-height: 100%;
+  overscroll-behavior-y: contain;
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+  background: var(--native-bg);
+}
+
+body {
+  padding-top: env(safe-area-inset-top);
+  padding-bottom: env(safe-area-inset-bottom);
+}
+
+* {
+  -webkit-tap-highlight-color: transparent;
+}
+
+button,
+input,
+select,
+textarea,
+a {
+  touch-action: manipulation;
+  font: inherit;
+}
+
+input,
+select,
+textarea,
+button {
+  border-radius: 12px;
+}
+
+.card,
+.panel,
+.sheet,
+.modal-content,
+.dialog,
+.toast,
+nav,
+header,
+section {
+  backdrop-filter: saturate(1.05) blur(12px);
+}
+
+@supports (backdrop-filter: blur(6px)) {
+  .native-surface,
+  .card,
+  .panel,
+  .sheet,
+  .modal-content,
+  .dialog {
+    background: var(--native-surface);
+    border: 1px solid var(--native-border);
+    border-radius: var(--native-radius);
+    box-shadow: var(--native-shadow);
+  }
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  * {
+    scroll-behavior: smooth;
+  }
+
+  button,
+  a,
+  [role='button'] {
+    transition: transform 140ms ease, box-shadow 180ms ease, opacity 180ms ease;
+  }
+
+  button:active,
+  a:active,
+  [role='button']:active {
+    transform: scale(0.98);
+  }
+}
