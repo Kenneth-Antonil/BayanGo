@@ -249,6 +249,23 @@
     // Approved support agents and admins can read/write messages on any ticket.
     // ─────────────────────────────────────────────────────────────────────────
     "support_messages": {
+      ".read": "auth != null && (
+        root.child('admins').child(auth.uid).val() === true ||
+        root.child('supportAgents').child(auth.uid).child('approved').val() === true ||
+        root.child('supportAgents').child(auth.uid).child('approved').val() === 1 ||
+        root.child('supportAgents').child(auth.uid).child('approved').val() === 'true' ||
+        root.child('supportAgents').child(auth.uid).child('approved').val() === 'approved' ||
+        root.child('supportAgents').child(auth.uid).child('status').val() === 'approved' ||
+        root.child('supportAgents').child(auth.uid).child('isAdmin').val() === true ||
+        root.child('supportAgents').child(auth.uid).child('role').val() === 'admin' ||
+        root.child('support_agents').child(auth.uid).child('approved').val() === true ||
+        root.child('support_agents').child(auth.uid).child('approved').val() === 1 ||
+        root.child('support_agents').child(auth.uid).child('approved').val() === 'true' ||
+        root.child('support_agents').child(auth.uid).child('approved').val() === 'approved' ||
+        root.child('support_agents').child(auth.uid).child('status').val() === 'approved' ||
+        root.child('support_agents').child(auth.uid).child('isAdmin').val() === true ||
+        root.child('support_agents').child(auth.uid).child('role').val() === 'admin'
+      )",
       "$ticketId": {
         ".indexOn": ["createdAt"],
         ".read": "auth != null && (
