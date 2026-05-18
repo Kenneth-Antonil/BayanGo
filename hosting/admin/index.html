@@ -2679,9 +2679,16 @@
     function SupportOpsPanel({ supportTickets = [], supportAgents = [], onApproveAgent }) {
       const [agentQ, setAgentQ] = useState("");
       const [ticketQ, setTicketQ] = useState("");
-      const normalizedAgents = (supportAgents || []).map(a => ({ ...a, id: a.id || a.uid || "" }));
-      const pendingAgents = normalizedAgents.filter(a => ["pending", "for_approval"].includes(String(a.status || "").toLowerCase()));
-      const approvedAgents = normalizedAgents.filter(a => String(a.status || "").toLowerCase() === "approved");
+      const normalizedAgents = (supportAgents || []).map(a => {
+        const rawStatus = String(a?.status || "").trim().toLowerCase();
+        const approvedFlag = a?.approved === true || a?.approved === 1 || String(a?.approved || "").trim().toLowerCase() === "true";
+        const normalizedStatus = approvedFlag || rawStatus === "approved"
+          ? "approved"
+          : (["pending", "for_approval"].includes(rawStatus) || !rawStatus ? "pending" : rawStatus);
+        return { ...a, id: a.id || a.uid || "", normalizedStatus };
+      });
+      const pendingAgents = normalizedAgents.filter(a => a.normalizedStatus === "pending");
+      const approvedAgents = normalizedAgents.filter(a => a.normalizedStatus === "approved");
       const filteredPendingAgents = pendingAgents.filter(a => {
         const q = agentQ.trim().toLowerCase();
         if (!q) return true;
