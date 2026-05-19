@@ -901,6 +901,7 @@
       const [pushError, setPushError] = useState("");
       const [gcashSettings, setGcashSettings] = useState({ number:"09618280589", name:"Kenneth Antonil", qrUrl:"" });
       const [bgMartPromoBannerUrl, setBgMartPromoBannerUrl] = useState("");
+      const [seasonalPromoBannerUrl, setSeasonalPromoBannerUrl] = useState("");
       const [appAvailability, setAppAvailability] = useState({ userAppEnabled: true, userAppMessage: "" });
       const [openLegalDoc, setOpenLegalDoc] = useState(null);
 
@@ -916,7 +917,7 @@
       }, []);
 
       useEffect(() => {
-        let unsubAuth, unsubOrders, unsubProducts, unsubMarketPricing, unsubAppAvailability, unsubBgMartBanner;
+        let unsubAuth, unsubOrders, unsubProducts, unsubMarketPricing, unsubAppAvailability, unsubBgMartBanner, unsubSeasonalBanner;
         let activityIntervalId = null;
         let visibilityHandler = null;
         let usingOrdersFallback = false;
@@ -1090,6 +1091,17 @@
           });
         };
 
+        const bindSeasonalPromoBanner = () => {
+          if (!_fbDb) return;
+          _fbDb.ref("settings/seasonalBanner").off();
+          unsubSeasonalBanner = _fbDb.ref("settings/seasonalBanner").on("value", async snap => {
+            const raw = snap.val() || {};
+            const imageUrlRaw = typeof raw.imageUrl === "string" ? raw.imageUrl.trim() : "";
+            const imageUrl = await normalizeStorageDownloadUrl(imageUrlRaw);
+            setSeasonalPromoBannerUrl(raw.enabled === true ? imageUrl : "");
+          });
+        };
+
         try {
           _fbAuth.getRedirectResult().catch(err => console.error("Redirect result error:", err));
           unsubAuth = _fbAuth.onAuthStateChanged(currentUser => {
@@ -1122,6 +1134,7 @@
               });
               bindAppAvailability();
               bindBgMartPromoBanner();
+              bindSeasonalPromoBanner();
               setPushPermission(typeof Notification !== "undefined" ? Notification.permission : "default");
               enablePushForUser(currentUser, { requestPermission: false });
               trackUserAppUsage(currentUser).catch(err => console.error("Usage tracking error:", err));
@@ -1521,7 +1534,7 @@
 
       return (
         <>
-          <UserApp products={products} orders={orders} refunds={refunds} onOrder={addOrder} user={user} onLogout={handleLogout} gcashSettings={gcashSettings} bgMartPromoBannerUrl={bgMartPromoBannerUrl} appAvailability={appAvailability} onOpenLegal={setOpenLegalDoc} />
+          <UserApp products={products} orders={orders} refunds={refunds} onOrder={addOrder} user={user} onLogout={handleLogout} gcashSettings={gcashSettings} bgMartPromoBannerUrl={bgMartPromoBannerUrl} seasonalPromoBannerUrl={seasonalPromoBannerUrl} appAvailability={appAvailability} onOpenLegal={setOpenLegalDoc} />
           {syncError && (
             <div className="pop" style={{
               position:"fixed", top:"calc(env(safe-area-inset-top,0px) + 16px)", left:20, right:20, zIndex:9999,
@@ -1751,7 +1764,7 @@
       );
     }
 
-    function UserApp({ products, orders, refunds, onOrder, user, onLogout, gcashSettings, bgMartPromoBannerUrl, appAvailability, onOpenLegal }) {
+    function UserApp({ products, orders, refunds, onOrder, user, onLogout, gcashSettings, bgMartPromoBannerUrl, seasonalPromoBannerUrl, appAvailability, onOpenLegal }) {
       const [activeCat,      setActiveCat]      = useState("all");
       const bagStorageKey = useCallback((key) => `bayango_bag_${key}_${user?.uid || "anon"}`, [user?.uid]);
       const [cart,           setCart]           = useState(() => {
@@ -2676,7 +2689,7 @@
           )}
 
           {/* ── Pabili Content (existing shop) ── */}
-          {(activeService === "pabili" || activeService === "bgmart") && <>
+          {(activeService === "pabili" || activeService === "bgmart" || activeService === "seasonal") && <>
 
           {/* ── Search ── */}
           <div style={{ padding:"12px 20px 10px" }}>
@@ -2703,6 +2716,14 @@
             <div style={{ padding:"14px 20px 0" }}>
               <div style={{ borderRadius:16, overflow:"hidden", border:"1px solid #DCFCE7", background:"#F0FDF4" }}>
                 <img src={bgMartPromoBannerUrl} alt="BG Mart Promo Banner" style={{ width:"100%", display:"block", objectFit:"cover", maxHeight:210 }} />
+              </div>
+            </div>
+          )}
+
+          {activeService === "seasonal" && seasonalPromoBannerUrl && (
+            <div style={{ padding:"14px 20px 0" }}>
+              <div style={{ borderRadius:16, overflow:"hidden", border:"1px solid #DCFCE7", background:"#F0FDF4" }}>
+                <img src={seasonalPromoBannerUrl} alt="Seasonal Promo Banner" style={{ width:"100%", display:"block", objectFit:"cover", maxHeight:210 }} />
               </div>
             </div>
           )}
