@@ -54,7 +54,7 @@
     // ORDERS
     // - Admins & riders: full read on the collection (for dashboards / order lists)
     // - Customers: can query filtered by their own uid ONLY
-    // - New order: any authenticated user, but uid must match their own auth.uid
+    // - New order: only non-anonymous authenticated users, and uid must match auth.uid
     // - Update/delete: order owner (customer), admin, or rider
     // ─────────────────────────────────────────────────────────────────────────
     "orders": {
@@ -73,7 +73,7 @@
           root.child('riders').child(auth.uid).val() === true
         )",
         ".write": "auth != null && (
-          (!data.exists() && newData.child('uid').val() === auth.uid) ||
+          (!data.exists() && newData.child('uid').val() === auth.uid && auth.token.firebase.sign_in_provider !== 'anonymous') ||
           (data.exists() && data.child('uid').val() === auth.uid) ||
           (data.exists() && data.child('merchantId').val() === auth.uid && root.child('partner_merchants').child(auth.uid).child('approved').val() === true) ||
           root.child('admins').child(auth.uid).val() === true ||

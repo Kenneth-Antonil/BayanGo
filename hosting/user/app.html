@@ -942,6 +942,163 @@
 
 
     /* ══════════════════ MAIN APP ══════════════════ */
+    function AuthCard({
+      authMode,
+      setAuthMode,
+      authEmail,
+      setAuthEmail,
+      authPassword,
+      setAuthPassword,
+      authConfirm,
+      setAuthConfirm,
+      authName,
+      setAuthName,
+      authPhone,
+      setAuthPhone,
+      authAddr,
+      setAuthAddr,
+      authLocationType,
+      setAuthLocationType,
+      authError,
+      setAuthError,
+      authLoading,
+      onGoogleLogin,
+      onEmailSignIn,
+      onEmailSignUp,
+      onGuestLogin,
+      allowGuestLogin = false,
+      heading = "Welcome to BayanGo",
+      subheading = "Browse now and sign in when you're ready to order.",
+      compact = false,
+      onClose = null,
+    }) {
+      const inputStyle = {
+        border:"1px solid #E5E7EB", borderRadius:12, padding:"14px 16px",
+        fontSize:15, outline:"none", background:"#fff", width:"100%",
+      };
+
+      return (
+        <div style={{ width:"100%", maxWidth:compact ? 420 : 360, display:"flex", flexDirection:"column", gap:12 }}>
+          {onClose && (
+            <div style={{ display:"flex", justifyContent:"flex-end" }}>
+              <button onClick={onClose} style={{ width:34, height:34, borderRadius:10, background:"#F3F4F6", display:"flex", alignItems:"center", justifyContent:"center" }}>
+                <Ic n="xmark" />
+              </button>
+            </div>
+          )}
+
+          <div className="fade-up" style={{ textAlign:"center" }}>
+            <img src="https://i.imgur.com/1W159zD.png" style={{ height:compact ? 84 : 108, maxWidth:"72vw", objectFit:"contain", marginBottom:12 }} />
+            <h2 style={{ fontSize:compact ? 22 : 24, fontWeight:800, color:"#166534" }}>{heading}</h2>
+            <p style={{ color:"#666", fontSize:14, marginTop:6, lineHeight:1.5 }}>{subheading}</p>
+          </div>
+
+          {authMode === "options" && (
+            <div className="fade-up" style={{ width:"100%", display:"flex", flexDirection:"column", gap:12, animationDelay:".1s" }}>
+              <button onClick={onGoogleLogin} disabled={authLoading} style={{
+                background:"#fff", border:"1px solid #E5E7EB", padding:"14px 20px", borderRadius:100,
+                fontSize:15, fontWeight:700, color:"#333", display:"flex", alignItems:"center", justifyContent:"center", gap:12,
+                boxShadow:"0 4px 12px rgba(0,0,0,0.05)", opacity: authLoading ? 0.65 : 1,
+              }}>
+                <img src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg" alt="Google" style={{width:22, height:22}} />
+                Continue with Google
+              </button>
+              <button onClick={() => { setAuthMode("email-signin"); setAuthError?.(""); }} disabled={authLoading} style={{
+                background:"#166534", border:"none", padding:"14px 20px", borderRadius:100,
+                fontSize:15, fontWeight:700, color:"#fff", display:"flex", alignItems:"center", justifyContent:"center", gap:10,
+                boxShadow:"0 4px 16px rgba(22,101,52,0.3)", opacity: authLoading ? 0.65 : 1,
+              }}>
+                <Ic n="envelope" style={{marginRight:8}} />Sign in with Email
+              </button>
+              {allowGuestLogin && (
+                <button onClick={onGuestLogin} disabled={authLoading} style={{
+                  background:"#F8FAFC", border:"1px solid #D1D5DB", padding:"14px 20px", borderRadius:100,
+                  fontSize:15, fontWeight:700, color:"#334155", display:"flex", alignItems:"center", justifyContent:"center", gap:10,
+                  opacity: authLoading ? 0.65 : 1,
+                }}>
+                  <Ic n="user-secret" style={{marginRight:8}} />Continue as Guest
+                </button>
+              )}
+              <div style={{ textAlign:"center", fontSize:13, color:"#888", marginTop:4 }}>
+                No account yet?{" "}
+                <button onClick={() => { setAuthMode("email-signup"); setAuthError?.(""); }} style={{ color:"#166534", fontWeight:700, textDecoration:"underline", fontSize:13 }}>
+                  Sign up
+                </button>
+              </div>
+            </div>
+          )}
+
+          {(authMode === "email-signin" || authMode === "email-signup") && (
+            <div className="fade-up" style={{ width:"100%", display:"flex", flexDirection:"column", gap:12 }}>
+              <h3 style={{ textAlign:"center", fontSize:20, fontWeight:800, color:"#166534", marginBottom:4 }}>
+                {authMode === "email-signup" ? "Create Account" : "Sign in"}
+              </h3>
+
+              {authError && (
+                <div style={{ background:"#FEF2F2", border:"1px solid #FCA5A5", borderRadius:12, padding:"10px 14px", fontSize:13, color:"#B91C1C" }}>
+                  {authError}
+                </div>
+              )}
+
+              <input type="email" placeholder="Email address" value={authEmail}
+                onChange={e => setAuthEmail(e.target.value)} style={inputStyle} />
+              {authMode === "email-signup" && (
+                <>
+                  <input type="text" placeholder="Buong pangalan" value={authName}
+                    onChange={e => setAuthName(e.target.value)} style={inputStyle} />
+                  <input type="tel" placeholder="Mobile Number (09XXXXXXXXX)" value={authPhone}
+                    onChange={e => setAuthPhone(e.target.value)} style={inputStyle} />
+                  <textarea placeholder="Address (Bahay, Barangay, Lungsod)" value={authAddr}
+                    onChange={e => setAuthAddr(e.target.value)}
+                    style={{ ...inputStyle, minHeight:82, resize:"vertical", fontFamily:"inherit" }} />
+                  <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:8 }}>
+                    {["Mainland", "Island"].map(loc => (
+                      <button key={loc} type="button" onClick={() => setAuthLocationType(loc)} style={{
+                        border: authLocationType === loc ? "2px solid #166534" : "1px solid #D1D5DB",
+                        background: authLocationType === loc ? "#F0FDF4" : "#fff",
+                        borderRadius:10, padding:"10px 12px", fontSize:13, fontWeight:700,
+                        color: authLocationType === loc ? "#166534" : "#4B5563",
+                      }}>
+                        {loc}
+                      </button>
+                    ))}
+                  </div>
+                </>
+              )}
+              <input type="password" placeholder="Password" value={authPassword}
+                onChange={e => setAuthPassword(e.target.value)} style={inputStyle} />
+              {authMode === "email-signup" && (
+                <input type="password" placeholder="Ulitin ang Password" value={authConfirm}
+                  onChange={e => setAuthConfirm(e.target.value)} style={inputStyle} />
+              )}
+
+              <button
+                onClick={authMode === "email-signup" ? onEmailSignUp : onEmailSignIn}
+                disabled={authLoading}
+                style={{
+                  background:"#166534", border:"none", padding:"14px", borderRadius:100,
+                  fontSize:15, fontWeight:700, color:"#fff", opacity: authLoading ? 0.7 : 1, marginTop:4,
+                }}
+              >
+                {authLoading ? "Loading..." : authMode === "email-signup" ? "Create Account" : "Sign in"}
+              </button>
+
+              <div style={{ textAlign:"center", fontSize:13, color:"#888" }}>
+                {authMode === "email-signup"
+                  ? <>Already have an account? <button onClick={() => { setAuthMode("email-signin"); setAuthError?.(""); }} style={{ color:"#166534", fontWeight:700, textDecoration:"underline", fontSize:13 }}>Sign in</button></>
+                  : <>No account yet? <button onClick={() => { setAuthMode("email-signup"); setAuthError?.(""); }} style={{ color:"#166534", fontWeight:700, textDecoration:"underline", fontSize:13 }}>Sign up</button></>
+                }
+              </div>
+
+              <button onClick={() => { setAuthMode("options"); setAuthError?.(""); }} style={{ color:"#999", fontSize:13, textAlign:"center", marginTop:2 }}>
+                <Ic n="arrow-left" style={{marginRight:6}} />Bumalik sa ibang options
+              </button>
+            </div>
+          )}
+        </div>
+      );
+    }
+
     function App() {
       const [products,      setProducts]      = useState([]);
       const [orders,        setOrders]        = useState([]);
@@ -959,6 +1116,7 @@
       const [authLocationType, setAuthLocationType] = useState("Mainland");
       const [authError,     setAuthError]     = useState("");
       const [authLoading,   setAuthLoading]   = useState(false);
+      const [showAuthOverlay, setShowAuthOverlay] = useState(false);
       const [syncError,     setSyncError]     = useState(null);
       const [pushPermission, setPushPermission] = useState(typeof Notification !== "undefined" ? Notification.permission : "default");
       const [pushBusy, setPushBusy] = useState(false);
@@ -968,6 +1126,7 @@
       const [seasonalPromoBannerUrl, setSeasonalPromoBannerUrl] = useState("");
       const [appAvailability, setAppAvailability] = useState({ userAppEnabled: true, userAppMessage: "" });
       const [openLegalDoc, setOpenLegalDoc] = useState(null);
+      const isGuestUser = !!user?.isAnonymous;
 
       useEffect(() => {
         const syncStandalone = () => setIsStandalone(isStandaloneMode());
@@ -979,6 +1138,12 @@
           document.removeEventListener("visibilitychange", syncStandalone);
         };
       }, []);
+
+      useEffect(() => {
+        if (!user || !user.isAnonymous) {
+          setShowAuthOverlay(false);
+        }
+      }, [user]);
 
       useEffect(() => {
         let unsubAuth, unsubOrders, unsubProducts, unsubMarketPricing, unsubAppAvailability, unsubBgMartBanner, unsubSeasonalBanner;
@@ -1200,8 +1365,10 @@
               bindBgMartPromoBanner();
               bindSeasonalPromoBanner();
               setPushPermission(typeof Notification !== "undefined" ? Notification.permission : "default");
-              enablePushForUser(currentUser, { requestPermission: false });
-              syncSupportReferralForUser(currentUser).catch(err => console.error("Support referral sync error:", err));
+              if (!currentUser.isAnonymous) {
+                enablePushForUser(currentUser, { requestPermission: false });
+                syncSupportReferralForUser(currentUser).catch(err => console.error("Support referral sync error:", err));
+              }
               trackUserAppUsage(currentUser).catch(err => console.error("Usage tracking error:", err));
 
               visibilityHandler = () => {
@@ -1300,10 +1467,13 @@
         try {
           if (!_fbDb) throw new Error("RTDB not initialized");
           const currentUser = _fbAuth.currentUser || null;
-          const uid = currentUser?.uid || null;
-          if (currentUser) {
-            await syncSupportReferralForUser(currentUser).catch(err => console.error("Support referral order sync error:", err));
+          if (!currentUser || currentUser.isAnonymous) {
+            const authErr = new Error("Login required before placing an order.");
+            authErr.code = "auth/requires-real-login";
+            throw authErr;
           }
+          const uid = currentUser?.uid || null;
+          await syncSupportReferralForUser(currentUser).catch(err => console.error("Support referral order sync error:", err));
           const referralCode = getStoredSupportReferralCode() || capturedSupportReferralCode || null;
           const savedOrder = {
             ...order,
@@ -1341,13 +1511,29 @@
           'auth/invalid-email':      'Invalid email address.',
           'auth/too-many-requests':  'Napakaraming pagtatangka. Subukan ulit mamaya.',
           'auth/popup-blocked':      'Nablock ang popup. Subukan ulit.',
+          'auth/operation-not-allowed': 'Hindi pa enabled ang sign-in method na ito sa Firebase project.',
+          'auth/account-exists-with-different-credential': 'May existing account na gamit ang ibang sign-in method para sa email na ito.',
+          'auth/requires-real-login': 'Mag-sign in muna gamit ang tunay na account bago mag-order.',
         };
         return map[code] || 'May error. Subukan ulit.';
       };
 
       const handleGoogleLogin = async () => {
+        setAuthError("");
+        setAuthLoading(true);
         try {
           const provider = new firebase.auth.GoogleAuthProvider();
+          const currentUser = _fbAuth.currentUser;
+          if (currentUser?.isAnonymous && typeof currentUser.linkWithPopup === "function") {
+            try {
+              await currentUser.linkWithPopup(provider);
+              return;
+            } catch (linkError) {
+              if (!['auth/credential-already-in-use', 'auth/email-already-in-use', 'auth/provider-already-linked'].includes(linkError.code)) {
+                throw linkError;
+              }
+            }
+          }
           await _fbAuth.signInWithPopup(provider);
         } catch (error) {
           if (
@@ -1357,13 +1543,26 @@
           ) {
             try {
               const provider = new firebase.auth.GoogleAuthProvider();
+              const currentUser = _fbAuth.currentUser;
+              if (currentUser?.isAnonymous && typeof currentUser.linkWithRedirect === "function") {
+                try {
+                  await currentUser.linkWithRedirect(provider);
+                  return;
+                } catch (linkRedirectError) {
+                  if (!['auth/credential-already-in-use', 'auth/email-already-in-use', 'auth/provider-already-linked'].includes(linkRedirectError.code)) {
+                    throw linkRedirectError;
+                  }
+                }
+              }
               await _fbAuth.signInWithRedirect(provider);
             } catch (err2) {
-              alert("Error sa pag-login: " + err2.message);
+              setAuthError(getFriendlyError(err2.code));
             }
           } else {
-            alert("Error sa pag-login: " + error.message);
+            setAuthError(getFriendlyError(error.code));
           }
+        } finally {
+          setAuthLoading(false);
         }
       };
 
@@ -1394,15 +1593,20 @@
         }
         setAuthLoading(true);
         try {
-          const cred = await _fbAuth.createUserWithEmailAndPassword(authEmail, authPassword);
+          const currentUser = _fbAuth.currentUser;
+          let cred;
+          if (currentUser?.isAnonymous) {
+            const credential = firebase.auth.EmailAuthProvider.credential(authEmail, authPassword);
+            cred = await currentUser.linkWithCredential(credential);
+          } else {
+            cred = await _fbAuth.createUserWithEmailAndPassword(authEmail, authPassword);
+          }
           if (_fbDb && cred?.user?.uid) {
-            await _fbDb.ref("users/" + cred.user.uid + "/profile").set({
+            await _fbDb.ref("users/" + cred.user.uid + "/profile").update({
               name: signupName,
               phone: signupPhone,
               addr: signupAddr,
               locationType: authLocationType,
-              lat: null,
-              lng: null,
               updatedAt: Date.now(),
             });
           }
@@ -1417,8 +1621,29 @@
         await _fbAuth.signOut();
       };
 
+      const handleGuestLogin = async () => {
+        setAuthError("");
+        setAuthLoading(true);
+        try {
+          await _fbAuth.signInAnonymously();
+        } catch (error) {
+          setAuthError(getFriendlyError(error.code));
+        } finally {
+          setAuthLoading(false);
+        }
+      };
+
+      const openAuthOverlay = (mode = "options") => {
+        setAuthMode(mode);
+        setAuthError("");
+        setShowAuthOverlay(true);
+      };
+
       const handleEnablePush = async () => {
-        if (!user) return;
+        if (!user || user.isAnonymous) {
+          setPushError("Mag-sign in muna bago mag-enable ng order notifications.");
+          return;
+        }
         setPushBusy(true);
         setPushError("");
         try {
@@ -1448,160 +1673,38 @@
 
       if (loading) return <SplashScreen message="Ina-activate ang iyong app..." />;
 
-      if (!isStandalone) {
-        return <InstallGate />;
-      }
-
       if (!user) {
-        const inputStyle = {
-          border:"1px solid #E5E7EB", borderRadius:12, padding:"14px 16px",
-          fontSize:15, outline:"none", background:"#fff", width:"100%",
-        };
         return (
           <>
             <div style={{ minHeight:"100vh", display:"flex", alignItems:"center", justifyContent:"center", flexDirection:"column", gap:20, padding:"20px 24px" }}>
-              <div className="fade-up" style={{ textAlign:"center" }}>
-                <img src="https://i.imgur.com/1W159zD.png" style={{ height:108, maxWidth:"72vw", objectFit:"contain", marginBottom:12 }} />
-                <p style={{ color:"#666", fontSize:15, marginTop:4 }}>Market shopping made easy. Sign in to place an order.</p>
-              </div>
-
-              {authMode === "options" && (
-                <div className="fade-up" style={{ width:"100%", maxWidth:360, display:"flex", flexDirection:"column", gap:12, animationDelay:".1s" }}>
-                  <button onClick={handleGoogleLogin} style={{
-                    background:"#fff", border:"1px solid #E5E7EB", padding:"14px 20px", borderRadius:100,
-                    fontSize:15, fontWeight:700, color:"#333", display:"flex", alignItems:"center", justifyContent:"center", gap:12,
-                    boxShadow:"0 4px 12px rgba(0,0,0,0.05)",
-                  }}>
-                    <img src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg" alt="Google" style={{width:22, height:22}} />
-                    Sign in with Google
-                  </button>
-                  <button onClick={() => { setAuthMode("email-signin"); setAuthError(""); }} style={{
-                    background:"#166534", border:"none", padding:"14px 20px", borderRadius:100,
-                    fontSize:15, fontWeight:700, color:"#fff", display:"flex", alignItems:"center", justifyContent:"center", gap:10,
-                    boxShadow:"0 4px 16px rgba(22,101,52,0.3)",
-                  }}>
-                    <Ic n="envelope" style={{marginRight:8}} />Sign in with Email
-                  </button>
-                  <div style={{ textAlign:"center", fontSize:13, color:"#888", marginTop:4 }}>
-                    No account yet?{" "}
-                    <button onClick={() => { setAuthMode("email-signup"); setAuthError(""); }} style={{ color:"#166534", fontWeight:700, textDecoration:"underline", fontSize:13 }}>
-                      Sign up
-                    </button>
-                  </div>
-                </div>
-              )}
-
-              {(authMode === "email-signin" || authMode === "email-signup") && (
-                <div className="fade-up" style={{ width:"100%", maxWidth:360, display:"flex", flexDirection:"column", gap:12 }}>
-                  <h2 style={{ textAlign:"center", fontSize:20, fontWeight:800, color:"#166534", marginBottom:4 }}>
-                    {authMode === "email-signup" ? "Create Account" : "Sign in"}
-                  </h2>
-
-                {authError && (
-                  <div style={{ background:"#FEF2F2", border:"1px solid #FCA5A5", borderRadius:12, padding:"10px 14px", fontSize:13, color:"#B91C1C" }}>
-                    {authError}
-                  </div>
-                )}
-
-                <input type="email" placeholder="Email address" value={authEmail}
-                  onChange={e => setAuthEmail(e.target.value)} style={inputStyle} />
-                {authMode === "email-signup" && (
-                  <>
-                    <input type="text" placeholder="Buong pangalan" value={authName}
-                      onChange={e => setAuthName(e.target.value)} style={inputStyle} />
-                    <input type="tel" placeholder="Mobile Number (09XXXXXXXXX)" value={authPhone}
-                      onChange={e => setAuthPhone(e.target.value)} style={inputStyle} />
-                    <textarea placeholder="Address (Bahay, Barangay, Lungsod)" value={authAddr}
-                      onChange={e => setAuthAddr(e.target.value)}
-                      style={{ ...inputStyle, minHeight:82, resize:"vertical", fontFamily:"inherit" }} />
-                    <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:8 }}>
-                      {["Mainland", "Island"].map(loc => (
-                        <button key={loc} type="button" onClick={() => setAuthLocationType(loc)} style={{
-                          border: authLocationType === loc ? "2px solid #166534" : "1px solid #D1D5DB",
-                          background: authLocationType === loc ? "#F0FDF4" : "#fff",
-                          borderRadius:10, padding:"10px 12px", fontSize:13, fontWeight:700,
-                          color: authLocationType === loc ? "#166534" : "#4B5563",
-                        }}>
-                          {loc}
-                        </button>
-                      ))}
-                    </div>
-                  </>
-                )}
-                <input type="password" placeholder="Password" value={authPassword}
-                  onChange={e => setAuthPassword(e.target.value)} style={inputStyle} />
-                {authMode === "email-signup" && (
-                  <input type="password" placeholder="Ulitin ang Password" value={authConfirm}
-                    onChange={e => setAuthConfirm(e.target.value)} style={inputStyle} />
-                )}
-
-                <button
-                  onClick={authMode === "email-signup" ? handleEmailSignUp : handleEmailSignIn}
-                  disabled={authLoading}
-                  style={{
-                    background:"#166534", border:"none", padding:"14px", borderRadius:100,
-                    fontSize:15, fontWeight:700, color:"#fff", opacity: authLoading ? 0.7 : 1, marginTop:4,
-                  }}
-                >
-                  {authLoading ? "Loading..." : authMode === "email-signup" ? "Create Account" : "Sign in"}
-                </button>
-
-                <div style={{ textAlign:"center", fontSize:13, color:"#888" }}>
-                  {authMode === "email-signup"
-                    ? <>Already have an account? <button onClick={() => { setAuthMode("email-signin"); setAuthError(""); }} style={{ color:"#166534", fontWeight:700, textDecoration:"underline", fontSize:13 }}>Sign in</button></>
-                    : <>No account yet? <button onClick={() => { setAuthMode("email-signup"); setAuthError(""); }} style={{ color:"#166534", fontWeight:700, textDecoration:"underline", fontSize:13 }}>Sign up</button></>
-                  }
-                </div>
-
-                  <button onClick={() => { setAuthMode("options"); setAuthError(""); }} style={{ color:"#999", fontSize:13, textAlign:"center", marginTop:2 }}>
-                    <Ic n="arrow-left" style={{marginRight:6}} />Bumalik sa ibang options
-                  </button>
-                </div>
-              )}
-            </div>
-            <LegalModal docKey={openLegalDoc} onClose={() => setOpenLegalDoc(null)} />
-          </>
-        );
-      }
-
-      if (pushPermission !== "granted") {
-        return (
-          <>
-            <div style={{ minHeight:"100vh", display:"flex", alignItems:"center", justifyContent:"center", padding:"20px 16px" }}>
-              <div className="fade-up" style={{
-                width:"100%", maxWidth:400, background:"#fff", border:"1px solid #D1FAE5", borderRadius:18,
-                boxShadow:"0 12px 30px rgba(0,0,0,.12)", padding:"20px 16px", display:"flex", flexDirection:"column", gap:12,
-              }}>
-                <div style={{ display:"flex", alignItems:"center", gap:10, color:"#166534", fontWeight:800, fontSize:18 }}>
-                  <Ic n="bell" />
-                  Enable Notifications
-                </div>
-                <div style={{ fontSize:14, color:"#374151", lineHeight:1.5 }}>
-                  Kailangan naka-enable ang notifications bago magamit ang app para makatanggap ka ng real-time order updates.
-                </div>
-                {pushPermission === "denied" && (
-                  <div style={{ fontSize:12, color:"#B91C1C", background:"#FEF2F2", border:"1px solid #FECACA", borderRadius:10, padding:"10px 12px" }}>
-                    Notifications are blocked. I-enable ito sa browser/site settings, tapos pindutin ulit ang button sa ibaba.
-                  </div>
-                )}
-                {pushError && (
-                  <div style={{ fontSize:12, color:"#B91C1C" }}>
-                    {pushError}
-                  </div>
-                )}
-                <button onClick={handleEnablePush} disabled={pushBusy} style={{
-                  background: pushBusy ? "#9CA3AF" : "#166534", color:"#fff", borderRadius:12, padding:"12px 14px",
-                  fontSize:14, fontWeight:700, border:"none",
-                }}>
-                  {pushBusy ? "Ina-activate..." : "Enable Notifications"}
-                </button>
-                <button onClick={handleLogout} style={{
-                  background:"#fff", color:"#4B5563", borderRadius:12, padding:"10px 12px",
-                  fontSize:13, fontWeight:700, border:"1px solid #D1D5DB",
-                }}>
-                  Sign out
-                </button>
-              </div>
+              <AuthCard
+                authMode={authMode}
+                setAuthMode={setAuthMode}
+                authEmail={authEmail}
+                setAuthEmail={setAuthEmail}
+                authPassword={authPassword}
+                setAuthPassword={setAuthPassword}
+                authConfirm={authConfirm}
+                setAuthConfirm={setAuthConfirm}
+                authName={authName}
+                setAuthName={setAuthName}
+                authPhone={authPhone}
+                setAuthPhone={setAuthPhone}
+                authAddr={authAddr}
+                setAuthAddr={setAuthAddr}
+                authLocationType={authLocationType}
+                setAuthLocationType={setAuthLocationType}
+                authError={authError}
+                setAuthError={setAuthError}
+                authLoading={authLoading}
+                onGoogleLogin={handleGoogleLogin}
+                onEmailSignIn={handleEmailSignIn}
+                onEmailSignUp={handleEmailSignUp}
+                onGuestLogin={handleGuestLogin}
+                allowGuestLogin={true}
+                heading="Welcome to BayanGo"
+                subheading="Pwede kang mag-browse sa browser as guest. Kailangan lang mag-sign in kapag oorder na."
+              />
             </div>
             <LegalModal docKey={openLegalDoc} onClose={() => setOpenLegalDoc(null)} />
           </>
@@ -1610,7 +1713,42 @@
 
       return (
         <>
-          <UserApp products={products} orders={orders} refunds={refunds} onOrder={addOrder} user={user} onLogout={handleLogout} gcashSettings={gcashSettings} bgMartPromoBannerUrl={bgMartPromoBannerUrl} seasonalPromoBannerUrl={seasonalPromoBannerUrl} appAvailability={appAvailability} onOpenLegal={setOpenLegalDoc} />
+          <UserApp products={products} orders={orders} refunds={refunds} onOrder={addOrder} user={user} onLogout={handleLogout} gcashSettings={gcashSettings} bgMartPromoBannerUrl={bgMartPromoBannerUrl} seasonalPromoBannerUrl={seasonalPromoBannerUrl} appAvailability={appAvailability} onOpenLegal={setOpenLegalDoc} isGuest={isGuestUser} onRequireLogin={openAuthOverlay} pushPermission={pushPermission} pushBusy={pushBusy} pushError={pushError} onEnablePush={handleEnablePush} isStandalone={isStandalone} />
+          {showAuthOverlay && isGuestUser && (
+            <div style={{ position:"fixed", inset:0, zIndex:10020, background:"rgba(15,23,42,.6)", backdropFilter:"blur(4px)", display:"flex", alignItems:"center", justifyContent:"center", padding:"20px" }}>
+              <div className="pop" style={{ width:"100%", maxWidth:440, background:"#fff", borderRadius:24, padding:"18px 18px 20px", boxShadow:"0 20px 60px rgba(0,0,0,.3)" }}>
+                <AuthCard
+                  authMode={authMode}
+                  setAuthMode={setAuthMode}
+                  authEmail={authEmail}
+                  setAuthEmail={setAuthEmail}
+                  authPassword={authPassword}
+                  setAuthPassword={setAuthPassword}
+                  authConfirm={authConfirm}
+                  setAuthConfirm={setAuthConfirm}
+                  authName={authName}
+                  setAuthName={setAuthName}
+                  authPhone={authPhone}
+                  setAuthPhone={setAuthPhone}
+                  authAddr={authAddr}
+                  setAuthAddr={setAuthAddr}
+                  authLocationType={authLocationType}
+                  setAuthLocationType={setAuthLocationType}
+                  authError={authError}
+                  setAuthError={setAuthError}
+                  authLoading={authLoading}
+                  onGoogleLogin={handleGoogleLogin}
+                  onEmailSignIn={handleEmailSignIn}
+                  onEmailSignUp={handleEmailSignUp}
+                  onGuestLogin={handleGuestLogin}
+                  heading="Sign in to place your order"
+                  subheading="Guest browsing is enabled, pero tunay na login ang kailangan bago mag-checkout."
+                  compact={true}
+                  onClose={() => setShowAuthOverlay(false)}
+                />
+              </div>
+            </div>
+          )}
           {syncError && (
             <div className="pop" style={{
               position:"fixed", top:"calc(env(safe-area-inset-top,0px) + 16px)", left:20, right:20, zIndex:9999,
@@ -1840,11 +1978,12 @@
       );
     }
 
-    function UserApp({ products, orders, refunds, onOrder, user, onLogout, gcashSettings, bgMartPromoBannerUrl, seasonalPromoBannerUrl, appAvailability, onOpenLegal }) {
+    function UserApp({ products, orders, refunds, onOrder, user, onLogout, gcashSettings, bgMartPromoBannerUrl, seasonalPromoBannerUrl, appAvailability, onOpenLegal, isGuest, onRequireLogin, pushPermission, pushBusy, pushError, onEnablePush, isStandalone }) {
       const [activeCat,      setActiveCat]      = useState("all");
-      const bagStorageKey = useCallback((key) => `bayango_bag_${key}_${user?.uid || "anon"}`, [user?.uid]);
+      const bagOwnerKey = user?.isAnonymous ? "guest" : (user?.uid || "anon");
+      const bagStorageKey = useCallback((key) => `bayango_bag_${key}_${bagOwnerKey}`, [bagOwnerKey]);
       const [cart,           setCart]           = useState(() => {
-        try { const v = localStorage.getItem(`bayango_bag_cart_${user?.uid || "anon"}`); return v ? JSON.parse(v) : {}; } catch { return {}; }
+        try { const v = localStorage.getItem(`bayango_bag_cart_${user?.isAnonymous ? "guest" : (user?.uid || "anon")}`); return v ? JSON.parse(v) : {}; } catch { return {}; }
       });
       const [showCart,       setShowCart]       = useState(false);
       const [showTracker,    setShowTracker]    = useState(null);
@@ -1903,7 +2042,7 @@
       const [hideBatchTimer, setHideBatchTimer] = useState(false);
       const [showUserMenu,   setShowUserMenu]   = useState(false);
       const [customItems,    setCustomItems]    = useState(() => {
-        try { const v = localStorage.getItem(`bayango_bag_custom_${user?.uid || "anon"}`); return v ? JSON.parse(v) : []; } catch { return []; }
+        try { const v = localStorage.getItem(`bayango_bag_custom_${user?.isAnonymous ? "guest" : (user?.uid || "anon")}`); return v ? JSON.parse(v) : []; } catch { return []; }
       });
       const [showCustomList, setShowCustomList] = useState(false);
       const [newItemName,    setNewItemName]    = useState("");
@@ -1917,7 +2056,7 @@
       const [voucherMsg,     setVoucherMsg]     = useState("");
       const [showVoucherList,setShowVoucherList]= useState(false);
       const [cartWeightUnit, setCartWeightUnit] = useState(() => {
-        try { const v = localStorage.getItem(`bayango_bag_weight_${user?.uid || "anon"}`); return v ? JSON.parse(v) : {}; } catch { return {}; }
+        try { const v = localStorage.getItem(`bayango_bag_weight_${user?.isAnonymous ? "guest" : (user?.uid || "anon")}`); return v ? JSON.parse(v) : {}; } catch { return {}; }
       });
       const [paymentMethod,  setPaymentMethod]  = useState("COD");
       const [qrPhModal, setQrPhModal] = useState(null); // { orderId, total }
@@ -1978,6 +2117,18 @@
       useEffect(() => {
         try { localStorage.setItem(bagStorageKey("custom"), JSON.stringify(customItems)); } catch {}
       }, [customItems, bagStorageKey]);
+
+      useEffect(() => {
+        if (!user?.uid || user?.isAnonymous) return;
+        try {
+          const guestCart = localStorage.getItem("bayango_bag_cart_guest");
+          const guestWeight = localStorage.getItem("bayango_bag_weight_guest");
+          const guestCustom = localStorage.getItem("bayango_bag_custom_guest");
+          if (guestCart && Object.keys(cart || {}).length === 0) setCart(JSON.parse(guestCart));
+          if (guestWeight && Object.keys(cartWeightUnit || {}).length === 0) setCartWeightUnit(JSON.parse(guestWeight));
+          if (guestCustom && (customItems || []).length === 0) setCustomItems(JSON.parse(guestCustom));
+        } catch {}
+      }, [cart, cartWeightUnit, customItems, user?.isAnonymous, user?.uid]);
 
       useEffect(() => {
         if (!user?.uid) {
@@ -2407,6 +2558,11 @@
       const placeOrder = async () => {
         if (appIsUnavailable) {
           alert(unavailableMessage);
+          return;
+        }
+        if (isGuest) {
+          setActivePage("checkout");
+          onRequireLogin?.("options");
           return;
         }
         if (!name || !phone || !addr || !hasPinnedLocation) {
@@ -3104,6 +3260,20 @@
                   <button onClick={() => setActivePage("shop")} style={{ height:36, borderRadius:10, background:"#F3F4F6", fontSize:13, fontWeight:700, display:"flex", alignItems:"center", justifyContent:"center", gap:6, padding:"0 12px" }}><Ic n="arrow-left" />Back</button>
                 </div>
 
+                {isGuest && (
+                  <div style={{ marginBottom:16, borderRadius:14, background:"#EFF6FF", border:"1px solid #BFDBFE", padding:"13px 14px", display:"flex", alignItems:"center", justifyContent:"space-between", gap:12 }}>
+                    <div>
+                      <div style={{ fontSize:13, fontWeight:800, color:"#1D4ED8" }}><Ic n="user-lock" style={{ marginRight:6 }} />Guest mode</div>
+                      <div style={{ fontSize:11, color:"#475569", marginTop:4, lineHeight:1.45 }}>
+                        Pwede kang mag-browse bilang guest, pero kailangan mag-sign in bago makapag-place ng order.
+                      </div>
+                    </div>
+                    <button onClick={() => onRequireLogin?.("options")} style={{ padding:"10px 12px", borderRadius:10, background:"#1D4ED8", color:"#fff", fontSize:12, fontWeight:800, whiteSpace:"nowrap" }}>
+                      Sign in
+                    </button>
+                  </div>
+                )}
+
                 {/* ── Order Details (at the top) with inline +/- ── */}
                 <div style={{ background:"#fff", borderRadius:14, padding:"14px 16px", marginBottom:16, border:"1.5px solid #E5E7EB", boxShadow:"0 1px 2px rgba(15,23,42,.04)" }}>
                   <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", marginBottom:10 }}>
@@ -3530,14 +3700,14 @@
                   </div>
                 </div>
 
-                <button onClick={placeOrder} disabled={appIsUnavailable || !name||!phone||!addr||!hasPinnedLocation} style={{
+                <button onClick={placeOrder} disabled={!isGuest && (appIsUnavailable || !name||!phone||!addr||!hasPinnedLocation)} style={{
                   width:"100%", padding:"17px", borderRadius:16,
-                  background:(appIsUnavailable || !name||!phone||!addr||!hasPinnedLocation)?"#D1D5DB":"linear-gradient(135deg,#166534,#22C55E)",
+                  background:(!isGuest && (appIsUnavailable || !name||!phone||!addr||!hasPinnedLocation))?"#D1D5DB":"linear-gradient(135deg,#166534,#22C55E)",
                   color:"#fff", fontSize:16, fontWeight:700,
-                  boxShadow:(!name||!phone||!addr||!hasPinnedLocation)?"none":"0 4px 20px rgba(22,101,52,.35)",
+                  boxShadow:(!isGuest && (!name||!phone||!addr||!hasPinnedLocation))?"none":"0 4px 20px rgba(22,101,52,.35)",
                   transition:"all .2s"
-                }}>Place Order Now! <Ic n="bag-shopping" style={{marginLeft:6}} /></button>
-                {!hasPinnedLocation && (
+                }}>{isGuest ? "Sign in to Order" : "Place Order Now!"} <Ic n={isGuest ? "right-to-bracket" : "bag-shopping"} style={{marginLeft:6}} /></button>
+                {!isGuest && !hasPinnedLocation && (
                   <div style={{ marginTop:8, fontSize:11, color:"#B45309" }}>
                     <Ic n="triangle-exclamation" style={{marginRight:4}} />I-pin muna ang exact location bago mag-order.
                   </div>
@@ -3921,7 +4091,10 @@
               setName={setName} setPhone={setPhone} setAddr={setAddr} onLogout={onLogout}
               locationType={locationType} setLocationType={setLocationType}
               customerLat={customerLat} customerLng={customerLng} onOpenLegal={onOpenLegal}
-              onOpenSupport={() => setActivePage("support")} />
+              onOpenSupport={() => setActivePage("support")} isGuest={isGuest}
+              onRequireLogin={onRequireLogin} pushPermission={pushPermission}
+              pushBusy={pushBusy} pushError={pushError} onEnablePush={onEnablePush}
+              isStandalone={isStandalone} />
           )}
 
           {/* ── Order Tracker Modal (global so it opens from any tab) ── */}
@@ -4163,11 +4336,11 @@
                 <div style={{ padding:"14px 16px 8px" }}>
                   <button onClick={() => { setActivePage("account"); setShowUserMenu(false); }} style={{ width:"100%", textAlign:"left", padding:"12px", borderRadius:14, background:"#F8FAFC", border:"1px solid #E5E7EB", display:"flex", gap:12, alignItems:"center" }}>
                     <div style={{ width:44, height:44, borderRadius:"50%", overflow:"hidden", background:"#DCFCE7", color:"#166534", display:"flex", alignItems:"center", justifyContent:"center", fontSize:18, fontWeight:800 }}>
-                      {user?.photoURL ? <img src={user.photoURL} style={{ width:"100%", height:"100%", objectFit:"cover" }} /> : (name||user?.displayName||"U").charAt(0).toUpperCase()}
+                      {user?.photoURL ? <img src={user.photoURL} style={{ width:"100%", height:"100%", objectFit:"cover" }} /> : (name || user?.displayName || (isGuest ? "G" : "U")).charAt(0).toUpperCase()}
                     </div>
                     <div style={{ minWidth:0 }}>
-                      <div style={{ fontSize:14, fontWeight:800, color:"#111827", whiteSpace:"nowrap", overflow:"hidden", textOverflow:"ellipsis" }}>{name || user?.displayName || "BayanGo User"}</div>
-                      <div style={{ fontSize:12, color:"#6B7280", whiteSpace:"nowrap", overflow:"hidden", textOverflow:"ellipsis" }}>{user?.email || "Open profile settings"}</div>
+                      <div style={{ fontSize:14, fontWeight:800, color:"#111827", whiteSpace:"nowrap", overflow:"hidden", textOverflow:"ellipsis" }}>{name || user?.displayName || (isGuest ? "Guest User" : "BayanGo User")}</div>
+                      <div style={{ fontSize:12, color:"#6B7280", whiteSpace:"nowrap", overflow:"hidden", textOverflow:"ellipsis" }}>{user?.email || (isGuest ? "Browsing as guest" : "Open profile settings")}</div>
                     </div>
                   </button>
                 </div>
@@ -5281,7 +5454,7 @@
       );
     }
 
-    function AccountPage({ user, orders, name, phone, addr, locationType, setName, setPhone, setAddr, setLocationType, onLogout, customerLat, customerLng, onOpenLegal, onOpenSupport }) {
+    function AccountPage({ user, orders, name, phone, addr, locationType, setName, setPhone, setAddr, setLocationType, onLogout, customerLat, customerLng, onOpenLegal, onOpenSupport, isGuest, onRequireLogin, pushPermission, pushBusy, pushError, onEnablePush, isStandalone }) {
       const [editMode,      setEditMode]      = useState(false);
       const [localName,     setLocalName]     = useState(name);
       const [localPhone,    setLocalPhone]    = useState(phone);
@@ -5311,7 +5484,7 @@
       };
 
 
-      const initials = (user?.displayName || user?.email || "?")
+      const initials = (user?.displayName || user?.email || (isGuest ? "Guest" : "?"))
         .split(" ").map(w => w[0]).join("").toUpperCase().slice(0,2);
       const deliveredOrders = orders.filter(o => o.status === "delivered" || o.status === "cancelled");
       const activeOrders    = orders.filter(o => o.status !== "delivered" && o.status !== "cancelled");
@@ -5346,7 +5519,7 @@
                     {!editMode && <button onClick={() => { setLocalName(name); setLocalPhone(phone); setLocalAddr(addr); setLocalLocationType(locationType || "Mainland"); setEditMode(true); }} style={{ fontSize:12, fontWeight:700, color:"#166534", display:"flex", alignItems:"center", gap:5 }}><Ic n="pen-to-square" />I-edit</button>}
                   </div>
                   {[
-                    { icon:"envelope",     label:"Email",    val: user?.email,  editable:false },
+                    { icon:"envelope",     label:"Email",    val: user?.email || (isGuest ? "Guest mode" : "—"),  editable:false },
                     { icon:"user",         label:"Pangalan", val: editMode?null:(name||"—"),  editable:true, state:localName,  set:setLocalName,  placeholder:"Ilagay ang iyong pangalan" },
                     { icon:"phone",        label:"Telepono", val: editMode?null:(phone||"—"), editable:true, state:localPhone, set:setLocalPhone, placeholder:"09XXXXXXXXX" },
                     { icon:"location-dot", label:"Address",  val: editMode?null:(addr||"—"),  editable:true, state:localAddr,  set:setLocalAddr,  placeholder:"Bahay, Barangay, Lungsod" },
@@ -5392,6 +5565,50 @@
                     </div>
                   )}
                 </div>
+                {isGuest && (
+                  <div style={{ background:"#EFF6FF", borderRadius:16, padding:14, border:"1px solid #BFDBFE", marginBottom:12 }}>
+                    <div style={{ fontSize:11, color:"#1D4ED8", fontWeight:700, textTransform:"uppercase", letterSpacing:".07em", marginBottom:8 }}>
+                      Account Upgrade
+                    </div>
+                    <div style={{ fontSize:13, color:"#334155", lineHeight:1.5, marginBottom:10 }}>
+                      Guest browsing is active. Mag-sign in o gumawa ng account bago ka makapag-place ng order.
+                    </div>
+                    <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:8 }}>
+                      <button onClick={() => onRequireLogin?.("email-signin")} style={{ padding:"11px 12px", borderRadius:10, background:"#1D4ED8", color:"#fff", fontWeight:800 }}>
+                        Sign in
+                      </button>
+                      <button onClick={() => onRequireLogin?.("email-signup")} style={{ padding:"11px 12px", borderRadius:10, background:"#fff", border:"1px solid #93C5FD", color:"#1D4ED8", fontWeight:800 }}>
+                        Create account
+                      </button>
+                    </div>
+                  </div>
+                )}
+                {!isGuest && pushPermission !== "granted" && (
+                  <div style={{ background:"#F8FAFC", borderRadius:16, padding:14, border:"1px solid #D1FAE5", marginBottom:12 }}>
+                    <div style={{ fontSize:11, color:"#166534", fontWeight:700, textTransform:"uppercase", letterSpacing:".07em", marginBottom:8 }}>
+                      Notifications
+                    </div>
+                    <div style={{ fontSize:13, color:"#334155", lineHeight:1.5, marginBottom:10 }}>
+                      Optional ito sa browser, pero makakatulong para sa real-time order updates.
+                    </div>
+                    {pushError && (
+                      <div style={{ fontSize:11, color:"#B91C1C", marginBottom:8 }}>{pushError}</div>
+                    )}
+                    <button onClick={onEnablePush} disabled={pushBusy} style={{ width:"100%", padding:"11px 12px", borderRadius:10, background:pushBusy ? "#9CA3AF" : "#166534", color:"#fff", fontWeight:800 }}>
+                      {pushBusy ? "Ina-activate..." : "Enable Notifications"}
+                    </button>
+                  </div>
+                )}
+                {!isStandalone && (
+                  <div style={{ background:"#FFF7ED", borderRadius:16, padding:14, border:"1px solid #FED7AA", marginBottom:12 }}>
+                    <div style={{ fontSize:11, color:"#C2410C", fontWeight:700, textTransform:"uppercase", letterSpacing:".07em", marginBottom:8 }}>
+                      Browser Mode
+                    </div>
+                    <div style={{ fontSize:13, color:"#7C2D12", lineHeight:1.5 }}>
+                      Gumagana na ang app sa browser. Kung gusto mo, pwede mo rin itong i-add sa home screen para mas mabilis buksan.
+                    </div>
+                  </div>
+                )}
                 <div style={{ background:"#fff", borderRadius:16, marginTop:12, padding:14, border:"1px solid #CCFBF1", boxShadow:"0 2px 8px rgba(0,0,0,.04)" }}>
                   <div style={{ fontSize:11, color:"#0F766E", fontWeight:700, textTransform:"uppercase", letterSpacing:".07em", marginBottom:8 }}>
                     Support
@@ -5409,7 +5626,7 @@
                   </button>
                 </div>
                 <button onClick={onLogout} style={{ width:"100%", marginTop:12, padding:"13px 0", borderRadius:14, background:"#FEF2F2", fontSize:13, fontWeight:700, color:"#EF4444", display:"flex", alignItems:"center", justifyContent:"center", gap:8 }}>
-                  <Ic n="right-from-bracket" />Log Out
+                  <Ic n="right-from-bracket" />{isGuest ? "Exit Guest Mode" : "Log Out"}
                 </button>
                 <div style={{ background:"#fff", borderRadius:16, marginTop:12, padding:14, border:"1px solid #ECFDF3", boxShadow:"0 2px 8px rgba(0,0,0,.04)" }}>
                   <div style={{ fontSize:11, color:"#94A3B8", fontWeight:700, textTransform:"uppercase", letterSpacing:".07em", marginBottom:8 }}>
