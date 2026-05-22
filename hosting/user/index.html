@@ -132,6 +132,25 @@
     }
     .btn-main:active { transform: scale(.97); box-shadow: 0 4px 12px rgba(0,0,0,.18); }
     .btn-main[disabled] { opacity: .6; cursor: not-allowed; }
+    .btn-browser {
+      width: 100%;
+      padding: 15px;
+      border-radius: 16px;
+      border: none;
+      background: #fff;
+      color: #166534;
+      font-family: inherit;
+      font-size: 15px;
+      font-weight: 800;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 9px;
+      cursor: pointer;
+      box-shadow: 0 8px 24px rgba(0,0,0,.22);
+      transition: transform .15s ease, box-shadow .15s ease;
+    }
+    .btn-browser:active { transform: scale(.97); box-shadow: 0 4px 12px rgba(0,0,0,.18); }
     .btn-ghost {
       width: 100%;
       padding: 12px;
@@ -448,9 +467,13 @@
       <h1>Fresh from <span>Pritil</span>,<br>Delivered to Your Door!</h1>
       <p class="sub">Simple market shopping for Binangonan and Talim Island residents.</p>
       <div class="hero-cta">
+        <button id="openAppBtn" class="btn-browser">
+          <i class="fa-solid fa-store"></i>
+          <span>BUKSAN ANG APP SA BROWSER</span>
+        </button>
         <button id="installBtn" class="btn-main">
           <i class="fa-solid fa-download"></i>
-          <span>I-INSTALL ANG APP</span>
+          <span>I-INSTALL NA LANG KUNG GUSTO MO</span>
         </button>
         <button id="learnBtn" class="btn-ghost">
           <i class="fa-solid fa-circle-question"></i>
@@ -586,12 +609,16 @@
 
     <!-- ── Bottom CTA ── -->
     <div class="bottom-cta">
+      <button id="openAppBtn2" class="btn-browser" style="margin-bottom:10px;">
+        <i class="fa-solid fa-store"></i>
+        <span>MAG-BROWSE MUNA SA BROWSER</span>
+      </button>
       <button id="installBtn2">
         <i class="fa-solid fa-download"></i>
-        <span>I-INSTALL ANG APP — LIBRE!</span>
+        <span>OPTIONAL: I-INSTALL ANG APP</span>
       </button>
       <p id="helpNote" class="help-note">
-        Kapag installed na, awtomatikong magbubukas ang BayanGo sa full-screen app mode.
+        Gumagana na ang BayanGo kahit browser lang. Optional lang ang install para mas mabilis buksan next time.
       </p>
     </div>
 
@@ -607,6 +634,14 @@
   </div><!-- end .page -->
 
   <script>
+    const currentUrl = new URL(window.location.href);
+    const forceLanding = currentUrl.searchParams.get('landing') === '1' || currentUrl.hash === '#landing';
+
+    // ── Redirect to app by default; keep landing only when explicitly requested ──
+    if (!forceLanding) {
+      window.location.replace('app.html');
+    }
+
     // ── Redirect if already installed as PWA ──
     if (window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone === true) {
       window.location.replace('app.html');
@@ -660,8 +695,14 @@
     // ── PWA Install Logic ──
     let deferredPrompt = null;
     const helpNote   = document.getElementById('helpNote');
+    const openAppBtn = document.getElementById('openAppBtn');
+    const openAppBtn2 = document.getElementById('openAppBtn2');
     const installBtn  = document.getElementById('installBtn');
     const installBtn2 = document.getElementById('installBtn2');
+
+    function openBrowserApp() {
+      window.location.href = 'app.html';
+    }
 
     function setInstalled() {
       [installBtn, installBtn2].forEach(btn => {
@@ -708,6 +749,8 @@
 
     installBtn.addEventListener('click',  () => triggerInstall(installBtn));
     installBtn2.addEventListener('click', () => triggerInstall(installBtn2));
+    openAppBtn.addEventListener('click', openBrowserApp);
+    openAppBtn2.addEventListener('click', openBrowserApp);
 
     document.getElementById('learnBtn').addEventListener('click', () => {
       document.querySelector('.install-box').scrollIntoView({ behavior: 'smooth', block: 'start' });
