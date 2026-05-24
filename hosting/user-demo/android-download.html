@@ -1,0 +1,159 @@
+<!DOCTYPE html>
+<html lang="tl">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <title>Download BayanGo Android App</title>
+  <meta name="theme-color" content="#166534" />
+  <link rel="icon" href="https://i.imgur.com/wL8wcBB.jpeg" />
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;600;700;800;900&display=swap" rel="stylesheet" />
+  <style>
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      min-height: 100vh;
+      font-family: 'Plus Jakarta Sans', system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
+      background: linear-gradient(160deg, #052e16 0%, #14532d 48%, #22c55e 100%);
+      color: #111827;
+      padding: 18px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    .card {
+      width: 100%;
+      max-width: 440px;
+      background: #fff;
+      border-radius: 28px;
+      overflow: hidden;
+      box-shadow: 0 28px 70px rgba(0,0,0,.35);
+    }
+    .hero {
+      padding: 24px 22px 20px;
+      color: #fff;
+      background: radial-gradient(circle at top right, rgba(134,239,172,.55), transparent 32%), linear-gradient(135deg, #052e16, #166534 58%, #22c55e);
+    }
+    .logo {
+      width: 70px;
+      height: 70px;
+      border-radius: 20px;
+      background: #fff;
+      object-fit: contain;
+      padding: 8px;
+      box-shadow: 0 12px 28px rgba(0,0,0,.18);
+    }
+    .badge {
+      display: inline-flex;
+      margin-top: 18px;
+      padding: 6px 12px;
+      border-radius: 999px;
+      background: rgba(255,255,255,.17);
+      border: 1px solid rgba(255,255,255,.2);
+      font-size: 10px;
+      font-weight: 900;
+      letter-spacing: .08em;
+      text-transform: uppercase;
+    }
+    h1 {
+      margin: 12px 0 8px;
+      font-size: 27px;
+      line-height: 1.12;
+      letter-spacing: -.03em;
+    }
+    .hero p {
+      margin: 0;
+      font-size: 13.5px;
+      line-height: 1.6;
+      opacity: .94;
+    }
+    .body { padding: 20px 20px 22px; }
+    .download {
+      display: block;
+      width: 100%;
+      border: 0;
+      border-radius: 16px;
+      padding: 16px 18px;
+      background: linear-gradient(135deg,#166534,#22c55e);
+      color: #fff;
+      font-weight: 900;
+      font-size: 16px;
+      text-align: center;
+      text-decoration: none;
+      box-shadow: 0 12px 26px rgba(22,101,52,.28);
+    }
+    .note {
+      margin-top: 14px;
+      border-radius: 16px;
+      border: 1px solid #fde68a;
+      background: #fffbeb;
+      color: #92400e;
+      padding: 12px 13px;
+      font-size: 12px;
+      line-height: 1.55;
+      font-weight: 700;
+    }
+    .steps {
+      display: grid;
+      gap: 10px;
+      margin-top: 14px;
+    }
+    .step {
+      display: flex;
+      gap: 10px;
+      align-items: flex-start;
+      padding: 11px 12px;
+      border-radius: 15px;
+      background: #f8fafc;
+      border: 1px solid #e5e7eb;
+      font-size: 12.5px;
+      line-height: 1.5;
+      color: #374151;
+      font-weight: 650;
+    }
+    .num {
+      width: 28px;
+      height: 28px;
+      border-radius: 10px;
+      background: #166534;
+      color: #fff;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 12px;
+      font-weight: 900;
+      flex-shrink: 0;
+    }
+    .back {
+      display: block;
+      margin-top: 14px;
+      text-align: center;
+      color: #166534;
+      font-size: 13px;
+      font-weight: 800;
+      text-decoration: none;
+    }
+  </style>
+</head>
+<body>
+  <main class="card">
+    <section class="hero">
+      <img class="logo" src="https://i.imgur.com/1W159zD.png" alt="BayanGo" />
+      <div class="badge">Android App</div>
+      <h1>I-download ang BayanGo App</h1>
+      <p>Mas stable at mas app-like ang experience. Same account, same orders, same Firebase data pa rin.</p>
+    </section>
+    <section class="body">
+      <a class="download" href="/downloads/bayango-user.apk" download>Download Android APK</a>
+      <div class="note">
+        Note: Kapag may security warning, buksan ang Settings at i-allow ang install from this source. Mas okay kung i-upload din ito sa Play Store kapag ready na.
+      </div>
+      <div class="steps">
+        <div class="step"><span class="num">1</span><span>Pindutin ang <b>Download Android APK</b>.</span></div>
+        <div class="step"><span class="num">2</span><span>Buksan ang downloaded file sa phone.</span></div>
+        <div class="step"><span class="num">3</span><span>Kapag tinanong, piliin ang <b>Install</b>.</span></div>
+      </div>
+      <a class="back" href="/user-demo/app.html">Bumalik sa BayanGo</a>
+    </section>
+  </main>
+</body>
+</html>
