@@ -12,7 +12,6 @@ import android.net.NetworkCapabilities
 import android.net.Uri
 import android.os.Build
 import android.os.Bundle
-import android.provider.MediaStore
 import android.view.View
 import android.webkit.GeolocationPermissions
 import android.webkit.ValueCallback
@@ -22,38 +21,14 @@ import android.webkit.WebView
 import android.webkit.WebViewClient
 import android.widget.Button
 import android.widget.LinearLayout
-import androidx.activity.result.contract.ActivityResultContracts
-import androidx.appcompat.app.AppCompatActivity
-import androidx.core.app.ActivityCompat
-import androidx.core.content.ContextCompat
 
-class MainActivity : AppCompatActivity() {
+class MainActivity : Activity() {
     private lateinit var webView: WebView
     private lateinit var offlineView: LinearLayout
     private var filePathCallback: ValueCallback<Array<Uri>>? = null
 
     private val userAppUrl = "https://bayango-315c6.web.app/user-demo/app.html"
-
-    private val filePickerLauncher = registerForActivityResult(ActivityResultContracts.StartActivityForResult()) { result ->
-        val callback = filePathCallback
-        filePathCallback = null
-
-        if (callback == null) return@registerForActivityResult
-        if (result.resultCode != Activity.RESULT_OK) {
-            callback.onReceiveValue(null)
-            return@registerForActivityResult
-        }
-
-        val data = result.data
-        val uri = data?.data
-        val clipData = data?.clipData
-        val uris = when {
-            clipData != null -> Array(clipData.itemCount) { index -> clipData.getItemAt(index).uri }
-            uri != null -> arrayOf(uri)
-            else -> null
-        }
-        callback.onReceiveValue(uris)
-    }
+    private val fileChooserRequestCode = 2001
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -120,12 +95,14 @@ class MainActivity : AppCompatActivity() {
                     putExtra(Intent.EXTRA_ALLOW_MULTIPLE, true)
                 }
 
-                runCatching { filePickerLauncher.launch(intent) }
-                    .onFailure {
-                        this@MainActivity.filePathCallback = null
-                        filePathCallback?.onReceiveValue(null)
-                    }
-                return true
+                return try {
+                    startActivityForResult(intent, fileChooserRequestCode)
+                    true
+                } catch (_: Exception) {
+                    this@MainActivity.filePathCallback = null
+                    filePathCallback?.onReceiveValue(null)
+                    false
+                }
             }
         }
     }
@@ -186,13 +163,31 @@ class MainActivity : AppCompatActivity() {
             permissions.add(Manifest.permission.READ_EXTERNAL_STORAGE)
         }
 
-        val missing = permissions.filter {
-            ContextCompat.checkSelfPermission(this, it) != PackageManager.PERMISSION_GRANTED
+        val missing = permissions.filter { checkSelfPermission(it) != PackageManager.PERMISSION_GRANTED }
+        if (missing.isNotEmpty()) requestPermissions(missing.toTypedArray(), 1001)
+    }
+
+    @Deprecated("Deprecated in Java")
+    override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
+        super.onActivityResult(requestCode, resultCode, data)
+        if (requestCode != fileChooserRequestCode) return
+
+        val callback = filePathCallback ?: return
+        filePathCallback = null
+
+        if (resultCode != RESULT_OK) {
+            callback.onReceiveValue(null)
+            return
         }
 
-        if (missing.isNotEmpty()) {
-            ActivityCompat.requestPermissions(this, missing.toTypedArray(), 1001)
+        val uri = data?.data
+        val clipData = data?.clipData
+        val uris = when {
+            clipData != null -> Array(clipData.itemCount) { index -> clipData.getItemAt(index).uri }
+            uri != null -> arrayOf(uri)
+            else -> null
         }
+        callback.onReceiveValue(uris)
     }
 
     override fun onBackPressed() {
