@@ -2788,9 +2788,12 @@
       const [userSearch, setUserSearch] = useState("");
       const [gcashSettings, setGcashSettings] = useState({ number: "09618280589", name: "Kenneth Antonil", qrUrl: "" });
       const [appAvailability, setAppAvailability] = useState({ userAppEnabled: true, userAppMessage: "" });
+      const [homeCarousel, setHomeCarousel] = useState({ enabled: true, images: [] });
       const [appAvailabilitySaving, setAppAvailabilitySaving] = useState(false);
       const [gcashSaving, setGcashSaving] = useState(false);
       const [qrUploading, setQrUploading] = useState(false);
+      const [homeCarouselSaving, setHomeCarouselSaving] = useState(false);
+      const [homeCarouselUploading, setHomeCarouselUploading] = useState(false);
       const [confirmingPay, setConfirmingPay] = useState(null);
       const [editedPrices, setEditedPrices] = useState({});
       const [proofImages, setProofImages] = useState([]);
@@ -2959,6 +2962,34 @@
         (async () => {
           try {
             const { db, fns } = await initFirebase();
+            const snap = await fns.get(fns.ref(db, "settings/homeCarousel"));
+            const raw = snap.val() || {};
+            const source = Array.isArray(raw.images) ? raw.images : raw.images ? Object.values(raw.images) : [];
+            const images = source
+              .map((item, idx) => {
+                const row = typeof item === "string" ? { url: item } : (item || {});
+                const url = typeof row.url === "string" ? row.url.trim() : typeof row.imageUrl === "string" ? row.imageUrl.trim() : "";
+                return {
+                  id: row.id || `home_${Date.now()}_${idx}`,
+                  url,
+                  sort: Number.isFinite(Number(row.sort)) ? Number(row.sort) : idx,
+                  active: row.active !== false,
+                };
+              })
+              .filter(row => row.url)
+              .sort((a, b) => a.sort - b.sort)
+              .map((row, idx) => ({ ...row, sort: idx }));
+            setHomeCarousel({ enabled: raw.enabled !== false, images });
+          } catch (err) {
+            console.error("Home carousel settings load failed:", err);
+          }
+        })();
+      }, []);
+
+      useEffect(() => {
+        (async () => {
+          try {
+            const { db, fns } = await initFirebase();
             const snap = await fns.get(fns.ref(db, "push_tokens"));
             if (!snap.exists()) { setRiders([]); return; }
             const allTokens = snap.val() || {};
@@ -2991,6 +3022,58 @@
         } finally {
           setAppAvailabilitySaving(false);
         }
+      };
+      const saveHomeCarousel = async (nextState = homeCarousel) => {
+        setHomeCarouselSaving(true);
+        try {
+          const { db, fns } = await initFirebase();
+          const images = (nextState.images || [])
+            .filter(item => String(item?.url || "").trim())
+            .map((item, idx) => ({
+              id: item.id || `home_${Date.now()}_${idx}`,
+              url: String(item.url || "").trim(),
+              sort: idx,
+              active: item.active !== false,
+            }));
+          const payload = { enabled: nextState.enabled !== false, images, updatedAt: Date.now() };
+          await fns.set(fns.ref(db, "settings/homeCarousel"), payload);
+          setHomeCarousel({ enabled: payload.enabled, images });
+          toast.success("Home carousel saved.");
+        } catch (err) {
+          toast.error("Home carousel save failed: " + (err.message || "unknown"));
+        } finally {
+          setHomeCarouselSaving(false);
+        }
+      };
+      const uploadHomeCarouselImage = async (file) => {
+        if (!file || !String(file.type || "").startsWith("image/")) return toast.error("Upload an image file.");
+        if (file.size >= 6 * 1024 * 1024) return toast.error("Image must be < 6MB.");
+        setHomeCarouselUploading(true);
+        try {
+          const st = await initStorage();
+          const safeName = (file.name || "home-carousel.jpg").replace(/[^\w.\-]/g, "_");
+          const storageRef = st.ref(st.storage, `home_carousel/${Date.now()}_${safeName}`);
+          await st.uploadBytes(storageRef, file);
+          const url = await st.getDownloadURL(storageRef);
+          const next = {
+            enabled: true,
+            images: [...(homeCarousel.images || []), { id: `home_${Date.now()}`, url, sort: homeCarousel.images?.length || 0, active: true }],
+          };
+          setHomeCarousel(next);
+          await saveHomeCarousel(next);
+        } catch (err) {
+          toast.error("Upload failed: " + (err.message || "unknown"));
+        } finally {
+          setHomeCarouselUploading(false);
+        }
+      };
+      const removeHomeCarouselImage = async (index) => {
+        const next = {
+          ...homeCarousel,
+          images: (homeCarousel.images || []).filter((_, idx) => idx !== index),
+        };
+        setHomeCarousel(next);
+        await saveHomeCarousel(next);
       };
       const uploadQrImage = async (file) => {
         if (!file || !String(file.type || "").startsWith("image/")) return toast.error("Upload an image file.");
@@ -3188,6 +3271,49 @@
             {tab === "settings" && (
               <div style={{ padding: "20px 24px" }}>
                 <h2 style={{ fontSize: 18, fontWeight: 800, marginBottom: 16 }}>Settings</h2>
+
+                {/* User Home Carousel */}
+                <div className="card" style={{ marginBottom: 16 }}>
+                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 12, marginBottom: 10 }}>
+                    <div>
+                      <div style={{ fontSize: 14, fontWeight: 800, color: "var(--brand)", marginBottom: 4 }}><Ic n="images" style={{ marginRight: 6 }} />User Home Carousel</div>
+                      <div style={{ fontSize: 11, color: "var(--text-muted)" }}>Center-mode image slider shown on the user app Home page.</div>
+                    </div>
+                    <span className="status-badge" style={{ background: homeCarousel.enabled !== false ? "#DCFCE7" : "#FEE2E2", color: homeCarousel.enabled !== false ? "#166534" : "#991B1B" }}>
+                      {homeCarousel.enabled !== false ? "Visible" : "Hidden"}
+                    </span>
+                  </div>
+
+                  {(homeCarousel.images || []).length > 0 ? (
+                    <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill,minmax(130px,1fr))", gap: 8, marginBottom: 10 }}>
+                      {homeCarousel.images.map((image, idx) => (
+                        <div key={image.id || `${image.url}_${idx}`} style={{ border: "1px solid var(--border)", borderRadius: 10, overflow: "hidden", background: "#fff" }}>
+                          <img src={image.url} alt={`Home carousel ${idx + 1}`} style={{ width: "100%", height: 76, objectFit: "cover", display: "block" }} />
+                          <button onClick={() => removeHomeCarouselImage(idx)} disabled={homeCarouselSaving || homeCarouselUploading} className="btn btn-danger" style={{ width: "100%", borderRadius: 0, fontSize: 11, padding: "6px 8px" }}>Remove</button>
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <div style={{ border: "1.5px dashed var(--border)", borderRadius: 12, padding: "16px 12px", fontSize: 12, color: "var(--text-muted)", textAlign: "center", marginBottom: 10 }}>No Home carousel images yet.</div>
+                  )}
+
+                  <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+                    <label className="btn btn-outline" style={{ fontSize: 12, padding: "8px 12px", cursor: homeCarouselUploading || homeCarouselSaving ? "not-allowed" : "pointer", opacity: homeCarouselUploading || homeCarouselSaving ? 0.65 : 1 }}>
+                      <Ic n={homeCarouselUploading ? "spinner" : "camera"} className={homeCarouselUploading ? "spin" : ""} />
+                      {homeCarouselUploading ? "Uploading..." : "Add Image"}
+                      <input type="file" accept="image/*" style={{ display: "none" }} disabled={homeCarouselUploading || homeCarouselSaving} onChange={e => { if (e.target.files?.[0]) uploadHomeCarouselImage(e.target.files[0]); e.target.value = ""; }} />
+                    </label>
+                    <button
+                      onClick={() => saveHomeCarousel({ ...homeCarousel, enabled: homeCarousel.enabled === false })}
+                      disabled={homeCarouselSaving || homeCarouselUploading || !(homeCarousel.images || []).length}
+                      className="btn btn-outline"
+                      style={{ fontSize: 12, padding: "8px 12px" }}
+                    >
+                      {homeCarousel.enabled !== false ? "Hide Carousel" : "Show Carousel"}
+                    </button>
+                  </div>
+                  <div style={{ fontSize: 11, color: "var(--text-muted)", marginTop: 8 }}>Recommended image ratio: around 16:7 or wider. Multiple images automatically become a swipeable slider.</div>
+                </div>
 
                 {/* Push Notifications */}
                 <div className="card" style={{ marginBottom: 16 }}>

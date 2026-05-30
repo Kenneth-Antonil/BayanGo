@@ -1124,6 +1124,7 @@
       const [gcashSettings, setGcashSettings] = useState({ number:"09618280589", name:"Kenneth Antonil", qrUrl:"" });
       const [bgMartPromoBannerUrl, setBgMartPromoBannerUrl] = useState("");
       const [seasonalPromoBannerUrl, setSeasonalPromoBannerUrl] = useState("");
+      const [homeCarouselImages, setHomeCarouselImages] = useState([]);
       const [appAvailability, setAppAvailability] = useState({ userAppEnabled: true, userAppMessage: "" });
       const [openLegalDoc, setOpenLegalDoc] = useState(null);
       const isGuestUser = !!user?.isAnonymous;
@@ -1146,7 +1147,7 @@
       }, [user]);
 
       useEffect(() => {
-        let unsubAuth, unsubOrders, unsubProducts, unsubMarketPricing, unsubAppAvailability, unsubBgMartBanner, unsubSeasonalBanner;
+        let unsubAuth, unsubOrders, unsubProducts, unsubMarketPricing, unsubAppAvailability, unsubBgMartBanner, unsubSeasonalBanner, unsubHomeCarousel;
         let activityIntervalId = null;
         let visibilityHandler = null;
         let usingOrdersFallback = false;
@@ -1331,6 +1332,40 @@
           });
         };
 
+        const normalizeCarouselImages = async (rawImages) => {
+          const source = Array.isArray(rawImages) ? rawImages : rawImages ? Object.values(rawImages) : [];
+          const rows = source
+            .map((item, idx) => {
+              const row = typeof item === "string" ? { url: item } : (item || {});
+              return {
+                id: row.id || `home_${idx}`,
+                url: typeof row.url === "string" ? row.url.trim() : typeof row.imageUrl === "string" ? row.imageUrl.trim() : "",
+                active: row.active !== false,
+                sort: Number.isFinite(Number(row.sort)) ? Number(row.sort) : idx,
+              };
+            })
+            .filter(row => row.active && row.url);
+          rows.sort((a, b) => a.sort - b.sort);
+          const normalized = await Promise.all(rows.map(async row => ({ ...row, url: await normalizeStorageDownloadUrl(row.url) })));
+          return normalized.filter(row => row.url);
+        };
+
+        const bindHomeCarousel = () => {
+          if (!_fbDb) return;
+          _fbDb.ref("settings/homeCarousel").off();
+          unsubHomeCarousel = _fbDb.ref("settings/homeCarousel").on("value", async snap => {
+            const raw = snap.val() || {};
+            if (raw.enabled === false) {
+              setHomeCarouselImages([]);
+              return;
+            }
+            setHomeCarouselImages(await normalizeCarouselImages(raw.images));
+          }, err => {
+            console.error("Home carousel listener error:", err.code);
+            setHomeCarouselImages([]);
+          });
+        };
+
         try {
           _fbAuth.getRedirectResult().catch(err => console.error("Redirect result error:", err));
           unsubAuth = _fbAuth.onAuthStateChanged(currentUser => {
@@ -1364,6 +1399,7 @@
               bindAppAvailability();
               bindBgMartPromoBanner();
               bindSeasonalPromoBanner();
+              bindHomeCarousel();
               setPushPermission(typeof Notification !== "undefined" ? Notification.permission : "default");
               if (!currentUser.isAnonymous) {
                 enablePushForUser(currentUser, { requestPermission: false });
@@ -1427,6 +1463,8 @@
               _fbDb.ref("refunds").off();
               _fbDb.ref("settings/appAvailability").off();
               _fbDb.ref("settings/bgMartPromoBanner").off();
+              _fbDb.ref("settings/seasonalBanner").off();
+              _fbDb.ref("settings/homeCarousel").off();
               baseProductsRaw = [];
               partnerListingsRaw = [];
               partnerMerchantsById = {};
@@ -1434,6 +1472,8 @@
               setOrders([]);
               setRefunds([]);
               setBgMartPromoBannerUrl("");
+              setSeasonalPromoBannerUrl("");
+              setHomeCarouselImages([]);
               setPushError("");
               setPushBusy(false);
             }
@@ -1455,6 +1495,8 @@
             _fbDb.ref("refunds").off();
             _fbDb.ref("settings/appAvailability").off();
             _fbDb.ref("settings/bgMartPromoBanner").off();
+            _fbDb.ref("settings/seasonalBanner").off();
+            _fbDb.ref("settings/homeCarousel").off();
           }
           if (activityIntervalId) clearInterval(activityIntervalId);
           if (visibilityHandler) document.removeEventListener("visibilitychange", visibilityHandler);
@@ -1713,7 +1755,7 @@
 
       return (
         <>
-          <UserApp products={products} orders={orders} refunds={refunds} onOrder={addOrder} user={user} onLogout={handleLogout} gcashSettings={gcashSettings} bgMartPromoBannerUrl={bgMartPromoBannerUrl} seasonalPromoBannerUrl={seasonalPromoBannerUrl} appAvailability={appAvailability} onOpenLegal={setOpenLegalDoc} isGuest={isGuestUser} onRequireLogin={openAuthOverlay} pushPermission={pushPermission} pushBusy={pushBusy} pushError={pushError} onEnablePush={handleEnablePush} isStandalone={isStandalone} />
+          <UserApp products={products} orders={orders} refunds={refunds} onOrder={addOrder} user={user} onLogout={handleLogout} gcashSettings={gcashSettings} bgMartPromoBannerUrl={bgMartPromoBannerUrl} seasonalPromoBannerUrl={seasonalPromoBannerUrl} homeCarouselImages={homeCarouselImages} appAvailability={appAvailability} onOpenLegal={setOpenLegalDoc} isGuest={isGuestUser} onRequireLogin={openAuthOverlay} pushPermission={pushPermission} pushBusy={pushBusy} pushError={pushError} onEnablePush={handleEnablePush} isStandalone={isStandalone} />
           {showAuthOverlay && isGuestUser && (
             <div style={{ position:"fixed", inset:0, zIndex:10020, background:"rgba(15,23,42,.6)", backdropFilter:"blur(4px)", display:"flex", alignItems:"center", justifyContent:"center", padding:"20px" }}>
               <div className="pop" style={{ width:"100%", maxWidth:440, background:"#fff", borderRadius:24, padding:"18px 18px 20px", boxShadow:"0 20px 60px rgba(0,0,0,.3)" }}>
@@ -1978,7 +2020,113 @@
       );
     }
 
-    function UserApp({ products, orders, refunds, onOrder, user, onLogout, gcashSettings, bgMartPromoBannerUrl, seasonalPromoBannerUrl, appAvailability, onOpenLegal, isGuest, onRequireLogin, pushPermission, pushBusy, pushError, onEnablePush, isStandalone }) {
+    function HomeCenterCarousel({ images = [] }) {
+      const [activeIndex, setActiveIndex] = useState(0);
+      const scrollerRef = useRef(null);
+      const visibleImages = Array.isArray(images) ? images.filter(img => img?.url) : [];
+
+      useEffect(() => {
+        if (activeIndex >= visibleImages.length) setActiveIndex(0);
+      }, [activeIndex, visibleImages.length]);
+
+      useEffect(() => {
+        if (visibleImages.length <= 1) return;
+        const timer = setInterval(() => {
+          setActiveIndex(prev => {
+            const next = (prev + 1) % visibleImages.length;
+            const scroller = scrollerRef.current;
+            const slide = scroller?.children?.[next];
+            if (slide && typeof slide.scrollIntoView === "function") {
+              slide.scrollIntoView({ behavior: "smooth", inline: "center", block: "nearest" });
+            }
+            return next;
+          });
+        }, 4200);
+        return () => clearInterval(timer);
+      }, [visibleImages.length]);
+
+      if (!visibleImages.length) return null;
+
+      return (
+        <div style={{ padding:"14px 0 2px" }}>
+          <div
+            ref={scrollerRef}
+            onScroll={(e) => {
+              const scroller = e.currentTarget;
+              const center = scroller.scrollLeft + scroller.clientWidth / 2;
+              let nearest = 0;
+              let nearestDistance = Infinity;
+              Array.from(scroller.children).forEach((child, idx) => {
+                const childCenter = child.offsetLeft + child.offsetWidth / 2;
+                const distance = Math.abs(center - childCenter);
+                if (distance < nearestDistance) {
+                  nearestDistance = distance;
+                  nearest = idx;
+                }
+              });
+              setActiveIndex(nearest);
+            }}
+            style={{
+              display:"flex",
+              gap:10,
+              overflowX:"auto",
+              scrollSnapType:"x mandatory",
+              scrollbarWidth:"none",
+              padding:"0 30px 8px",
+            }}
+          >
+            {visibleImages.map((image, idx) => {
+              const isActive = idx === activeIndex;
+              return (
+                <div
+                  key={image.id || image.url || idx}
+                  style={{
+                    flex:"0 0 82%",
+                    height:138,
+                    borderRadius:18,
+                    overflow:"hidden",
+                    position:"relative",
+                    scrollSnapAlign:"center",
+                    background:"#E5E7EB",
+                    border:"1px solid #DCFCE7",
+                    boxShadow: isActive ? "0 12px 28px rgba(22,101,52,.22)" : "0 4px 14px rgba(15,23,42,.08)",
+                    transform: isActive ? "scale(1)" : "scale(.92)",
+                    opacity: isActive ? 1 : .72,
+                    transition:"transform .22s ease, opacity .22s ease, box-shadow .22s ease",
+                  }}
+                >
+                  <img src={image.url} alt="BayanGo home promo" style={{ width:"100%", height:"100%", objectFit:"cover", display:"block" }} />
+                </div>
+              );
+            })}
+          </div>
+          {visibleImages.length > 1 && (
+            <div style={{ display:"flex", justifyContent:"center", gap:5, paddingTop:2 }}>
+              {visibleImages.map((image, idx) => (
+                <button
+                  key={`dot_${image.id || idx}`}
+                  aria-label={`Go to promo ${idx + 1}`}
+                  onClick={() => {
+                    setActiveIndex(idx);
+                    const slide = scrollerRef.current?.children?.[idx];
+                    if (slide && typeof slide.scrollIntoView === "function") slide.scrollIntoView({ behavior:"smooth", inline:"center", block:"nearest" });
+                  }}
+                  style={{
+                    width: idx === activeIndex ? 18 : 6,
+                    height:6,
+                    borderRadius:10,
+                    background: idx === activeIndex ? "#166534" : "#CBD5E1",
+                    transition:"width .2s ease, background .2s ease",
+                  }}
+                />
+              ))}
+            </div>
+          )}
+        </div>
+      );
+    }
+
+    function UserApp({ products, orders, refunds, onOrder, user, onLogout, gcashSettings, bgMartPromoBannerUrl, seasonalPromoBannerUrl, homeCarouselImages, appAvailability, onOpenLegal, isGuest, onRequireLogin, pushPermission, pushBusy, pushError, onEnablePush, isStandalone }) {
       const [activeCat,      setActiveCat]      = useState("all");
       const bagOwnerKey = user?.isAnonymous ? "guest" : (user?.uid || "anon");
       const bagStorageKey = useCallback((key) => `bayango_bag_${key}_${bagOwnerKey}`, [bagOwnerKey]);
@@ -2942,6 +3090,8 @@
           </div>
 
           {/* ── Batch Timer ── */}
+          {activeService === "pabili" && <HomeCenterCarousel images={homeCarouselImages} />}
+
           {activeService !== "bgmart" && <BatchTimerBanner hidden={hideBatchTimer} onDismiss={() => setHideBatchTimer(true)} />}
 
           {activeService === "bgmart" && bgMartPromoBannerUrl && (
