@@ -1848,44 +1848,53 @@
       const isAM     = batch === "AM";
       const isUrgent = secsToDeadline < 30 * 60;
       const accent   = isUrgent ? "#DC2626" : (isAM ? "#1D4ED8" : "#D97706");
-      const halo     = isUrgent ? "rgba(239,68,68,.35)" : "rgba(59,130,246,.25)";
-      const toneBg   = isUrgent ? "#FEE2E2" : (isAM ? "#DBEAFE" : "#FEF3C7");
+      const softBg   = isUrgent ? "#FEF2F2" : (isAM ? "#EFF6FF" : "#FFFBEB");
+      const softBd   = isUrgent ? "#FECACA" : (isAM ? "#BFDBFE" : "#FDE68A");
+      const iconBg   = isUrgent ? "#DC2626" : (isAM ? "#2563EB" : "#D97706");
+      const timeText = hh > 0 ? `${pad(hh)}:${pad(mm)}:${pad(ss)}` : `${pad(mm)}:${pad(ss)}`;
       return (
         <div className="pop" style={{
           position:"fixed",
-          left:14,
-          right:14,
+          left:12,
+          right:12,
           bottom:"calc(env(safe-area-inset-bottom,0px) + 76px)",
           zIndex:76,
-          borderRadius:20,
-          background:isUrgent
-            ? "radial-gradient(120% 120% at 0% 0%, #991B1B 0%, #7F1D1D 35%, #DC2626 100%)"
-            : "radial-gradient(135% 120% at 0% 0%, #1E293B 0%, #111827 45%, #0F172A 100%)",
-          border:`1px solid ${isUrgent ? "#FCA5A5" : "#475569"}`,
-          boxShadow:`0 18px 38px ${halo}, inset 0 1px 0 rgba(255,255,255,.15)`,
-          padding:"14px 14px 13px",
-          color:"#fff",
-          backdropFilter:"blur(5px)",
+          maxWidth:448,
+          margin:"0 auto",
+          borderRadius:24,
+          background:"rgba(255,255,255,.96)",
+          border:"1px solid rgba(226,232,240,.96)",
+          boxShadow:"0 18px 44px rgba(15,23,42,.18)",
+          padding:"8px 14px 14px",
+          color:"#0F172A",
+          backdropFilter:"blur(14px)",
           animation:"slideUp .45s cubic-bezier(.22,1,.36,1)"
         }}>
-          <div style={{ display:"flex", alignItems:"center", gap:10 }}>
-            <span style={{ width:30, height:30, borderRadius:10, background:toneBg, color:accent, display:"inline-flex", alignItems:"center", justifyContent:"center", flexShrink:0, boxShadow:"inset 0 1px 2px rgba(255,255,255,.4)" }}>
+          <div style={{ width:38, height:4, borderRadius:999, background:"#CBD5E1", margin:"0 auto 10px", opacity:.85 }} />
+          <div style={{ display:"flex", alignItems:"flex-start", gap:12 }}>
+            <span style={{ width:42, height:42, borderRadius:14, background:iconBg, color:"#fff", display:"inline-flex", alignItems:"center", justifyContent:"center", flexShrink:0, boxShadow:"0 8px 18px rgba(15,23,42,.16)" }}>
               <Ic n={isUrgent ? "fire" : (isAM ? "sun" : "cloud-sun")} size={14} />
             </span>
             <div style={{ minWidth:0, flex:1 }}>
-              <div style={{ fontSize:10, opacity:.82, fontWeight:700, letterSpacing:".11em", textTransform:"uppercase", marginBottom:3 }}>Batch cut-off alert</div>
-              <div style={{ fontSize:15, lineHeight:1.2, fontWeight:800, letterSpacing:"-.01em", whiteSpace:"nowrap", overflow:"hidden", textOverflow:"ellipsis" }}>{isUrgent ? "Urgent: malapit na ang cut-off!" : `${batch} Batch delivery ${deliveryLabel}`}</div>
+              <div style={{ fontSize:11, color:"#64748B", fontWeight:800, letterSpacing:".08em", textTransform:"uppercase", marginBottom:3 }}>Batch cut-off</div>
+              <div style={{ fontSize:15, lineHeight:1.28, fontWeight:900, color:"#0F172A" }}>{isUrgent ? "Malapit na ang cut-off" : `${batch} Batch delivery`}</div>
+              <div style={{ marginTop:3, fontSize:12, lineHeight:1.35, color:"#64748B", fontWeight:650 }}>
+                Delivery {deliveryLabel}. Cut-off {cutoffLabel}.
+              </div>
             </div>
-            <button onClick={onDismiss} style={{ width:28, height:28, borderRadius:9, background:"rgba(255,255,255,.14)", color:"#fff", display:"inline-flex", alignItems:"center", justifyContent:"center", flexShrink:0, border:"1px solid rgba(255,255,255,.22)" }} aria-label="Close batch timer">
+            <button onClick={onDismiss} style={{ width:32, height:32, borderRadius:12, background:"#F1F5F9", color:"#64748B", display:"inline-flex", alignItems:"center", justifyContent:"center", flexShrink:0 }} aria-label="Close batch timer">
               <Ic n="xmark" size={11} />
             </button>
           </div>
-          <div style={{ marginTop:12, display:"flex", justifyContent:"space-between", alignItems:"flex-end", gap:10 }}>
-            <div style={{ fontSize:12, lineHeight:1.35, opacity:.94, letterSpacing:".01em" }}>Cut-off <strong style={{ color:"#fff", fontWeight:800 }}>{cutoffLabel}</strong></div>
-            <div style={{ textAlign:"right" }}>
-              <div style={{ fontSize:10, opacity:.78, fontWeight:700, letterSpacing:".1em", textTransform:"uppercase", marginBottom:1 }}>Time left</div>
-              <div style={{ fontSize: hh > 0 ? 20 : 22, lineHeight:1.05, fontWeight:900, letterSpacing:".03em", textShadow:"0 2px 10px rgba(0,0,0,.25)", color:isUrgent ? "#FECACA" : "#FDE68A", fontVariantNumeric:"tabular-nums" }}>
-                {hh > 0 ? `${pad(hh)}:${pad(mm)}:${pad(ss)}` : `${pad(mm)}:${pad(ss)}`}
+          <div style={{ marginTop:12, borderRadius:16, padding:"10px 12px", background:softBg, border:`1px solid ${softBd}`, display:"flex", justifyContent:"space-between", alignItems:"center", gap:12 }}>
+            <div style={{ minWidth:0 }}>
+              <div style={{ fontSize:11, color:accent, fontWeight:850 }}>{isUrgent ? "Order now before it closes" : "Order before the cut-off"}</div>
+              <div style={{ fontSize:11, color:"#64748B", marginTop:1 }}>Next available batch updates automatically.</div>
+            </div>
+            <div style={{ flexShrink:0, textAlign:"right" }}>
+              <div style={{ fontSize:9, color:"#94A3B8", fontWeight:850, letterSpacing:".08em", textTransform:"uppercase", marginBottom:2 }}>Time left</div>
+              <div style={{ minWidth:76, fontSize:17, lineHeight:1, fontWeight:900, color:accent, fontVariantNumeric:"tabular-nums" }}>
+                {timeText}
               </div>
             </div>
           </div>
@@ -1895,6 +1904,54 @@
 
     /* ══════════════════ USER APP ══════════════════ */
     /* ══════════════════ PRODUCT CARD ══════════════════ */
+    function CheckoutBatchCard() {
+      const [info, setInfo] = React.useState(getDeliveryBatch);
+      React.useEffect(() => {
+        const t = setInterval(() => setInfo(getDeliveryBatch()), 1000);
+        return () => clearInterval(t);
+      }, []);
+      const isAM = info.batch === "AM";
+      const secs = info.secsToDeadline;
+      const hh = Math.floor(secs / 3600);
+      const mm = Math.floor((secs % 3600) / 60);
+      const ss = secs % 60;
+      const pad2 = n => String(n).padStart(2, "0");
+      const isUrgent = secs < 30 * 60;
+      const accent = isUrgent ? "#DC2626" : (isAM ? "#1D4ED8" : "#D97706");
+      const bg = isUrgent ? "#FEF2F2" : (isAM ? "#EFF6FF" : "#FFFBEB");
+      const bd = isUrgent ? "#FECACA" : (isAM ? "#BFDBFE" : "#FDE68A");
+      const iconBg = isUrgent ? "#DC2626" : (isAM ? "#2563EB" : "#D97706");
+      const timeText = hh > 0 ? `${pad2(hh)}:${pad2(mm)}:${pad2(ss)}` : `${pad2(mm)}:${pad2(ss)}`;
+      return (
+        <div style={{ borderRadius:18, padding:12, marginBottom:14, background:"#fff", border:"1px solid #E2E8F0", boxShadow:"0 8px 22px rgba(15,23,42,.06)" }}>
+          <div style={{ display:"flex", gap:11, alignItems:"center" }}>
+            <div style={{ width:40, height:40, borderRadius:14, flexShrink:0, background:iconBg, display:"flex", alignItems:"center", justifyContent:"center", color:"#fff", fontSize:16 }}>
+              <Ic n={isUrgent ? "fire" : (isAM ? "sun" : "cloud-sun")} />
+            </div>
+            <div style={{ flex:1, minWidth:0 }}>
+              <div style={{ fontSize:13, fontWeight:900, color:"#0F172A", lineHeight:1.25 }}>
+                {info.batch} Batch delivery
+              </div>
+              <div style={{ fontSize:11, color:"#64748B", marginTop:3, lineHeight:1.35 }}>
+                Delivery {info.deliveryLabel} - Cut-off {info.cutoffLabel}
+              </div>
+            </div>
+            <div style={{ flexShrink:0, minWidth:78, borderRadius:14, padding:"8px 9px", background:bg, border:`1px solid ${bd}`, textAlign:"center" }}>
+              <div style={{ fontSize:8.5, fontWeight:850, color:"#94A3B8", letterSpacing:".07em", textTransform:"uppercase", marginBottom:2 }}>Time left</div>
+              <div style={{ fontSize:15, fontWeight:900, color:accent, fontVariantNumeric:"tabular-nums", lineHeight:1 }}>
+                {timeText}
+              </div>
+            </div>
+          </div>
+          {isUrgent && (
+            <div style={{ marginTop:10, borderRadius:12, padding:"8px 10px", background:"#FFF7ED", color:"#B45309", fontSize:11, fontWeight:750, lineHeight:1.35 }}>
+              Malapit nang magsara ang batch. Place your order as soon as possible.
+            </div>
+          )}
+        </div>
+      );
+    }
+
     function ProductCard({ p, cart, add, rem, cartWeightUnit, setCartWeightUnit, openStoreProfile, catColor, catIcon, animDelay }) {
       const isStoreClosed = p.source === "partner" && p.storeOpen === false;
       const color = catColor || "#94A3B8";
@@ -3744,42 +3801,7 @@
                 </div>
 
                 {/* ── Delivery Batch Banner (Checkout) ── */}
-                {(() => {
-                  const b = getDeliveryBatch();
-                  const isAM = b.batch === "AM";
-                  const secs = b.secsToDeadline;
-                  const hh = Math.floor(secs / 3600);
-                  const mm = Math.floor((secs % 3600) / 60);
-                  const ss = secs % 60;
-                  const pad2 = n => String(n).padStart(2, "0");
-                  const isUrgent = secs < 30 * 60;
-                  const accent = isUrgent ? "#EF4444" : (isAM ? "#1E40AF" : "#92400E");
-                  const bg     = isUrgent ? "#FEF2F2"  : (isAM ? "#EFF6FF"  : "#FFFBEB");
-                  const bd     = isUrgent ? "#FCA5A5"  : (isAM ? "#BFDBFE"  : "#FDE68A");
-                  return (
-                    <div style={{ borderRadius:12, padding:"12px 14px", marginBottom:14, background:bg, border:`1.5px solid ${bd}`, display:"flex", gap:10, alignItems:"center" }}>
-                      <div style={{ width:38, height:38, borderRadius:10, flexShrink:0, background: isUrgent ? "#EF4444" : (isAM ? "#1D4ED8" : "#F59E0B"), display:"flex", alignItems:"center", justifyContent:"center", color:"#fff", fontSize:17 }}>
-                        <Ic n={isUrgent ? "fire" : (isAM ? "sun" : "cloud-sun")} />
-                      </div>
-                      <div style={{ flex:1 }}>
-                        <div style={{ fontSize:13, fontWeight:800, color:accent }}>
-                          {b.batch} Batch &nbsp;·&nbsp; Delivery: {b.deliveryLabel}
-                        </div>
-                        <div style={{ fontSize:11, color:"#6B7280", marginTop:2 }}>
-                          Cut-off: <strong style={{color:accent}}>{b.cutoffLabel}</strong>
-                          &nbsp;—&nbsp;
-                          {isUrgent ? <span style={{color:"#EF4444",fontWeight:700}}>⚠ Malapit nang magsara!</span> : "Order na habang maaga!"}
-                        </div>
-                      </div>
-                      <div style={{ textAlign:"center", flexShrink:0 }}>
-                        <div style={{ fontSize:9, fontWeight:700, color:"#9CA3AF", marginBottom:1 }}>TIME LEFT</div>
-                        <div style={{ fontSize: hh > 0 ? 14 : 16, fontWeight:800, color:accent, fontVariantNumeric:"tabular-nums" }}>
-                          {hh > 0 ? `${pad2(hh)}:${pad2(mm)}:${pad2(ss)}` : `${pad2(mm)}:${pad2(ss)}`}
-                        </div>
-                      </div>
-                    </div>
-                  );
-                })()}
+                <CheckoutBatchCard />
 
                 {/* ── Location Type Selector (Dropdown) ── */}
                 <div style={{ marginBottom:16 }}>
