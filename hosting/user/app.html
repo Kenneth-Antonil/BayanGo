@@ -44,6 +44,7 @@
     .pop      { animation: pop .25s ease both; }
     .spin     { animation: spin 1s linear infinite; }
     .ai-pulse { animation: pulse 1.4s ease infinite; }
+    .home-carousel-scroller::-webkit-scrollbar { display: none; }
     .splash-shell {
       display:flex; flex-direction:column; align-items:center; justify-content:center;
       height:100vh; background:#fff; gap:0; padding:24px;
@@ -2023,56 +2024,91 @@
     function HomeCenterCarousel({ images = [] }) {
       const [activeIndex, setActiveIndex] = useState(0);
       const scrollerRef = useRef(null);
+      const scrollTimerRef = useRef(null);
+      const isTouchingRef = useRef(false);
       const visibleImages = Array.isArray(images) ? images.filter(img => img?.url) : [];
 
-      useEffect(() => {
-        if (activeIndex >= visibleImages.length) setActiveIndex(0);
-      }, [activeIndex, visibleImages.length]);
-
-      useEffect(() => {
+      const getNearestIndex = useCallback(() => {
         const scroller = scrollerRef.current;
-        const slide = scroller?.children?.[activeIndex];
+        if (!scroller?.children?.length) return 0;
+        const center = scroller.scrollLeft + scroller.clientWidth / 2;
+        let nearest = 0;
+        let nearestDistance = Infinity;
+        Array.from(scroller.children).forEach((child, idx) => {
+          const childCenter = child.offsetLeft + child.offsetWidth / 2;
+          const distance = Math.abs(center - childCenter);
+          if (distance < nearestDistance) {
+            nearestDistance = distance;
+            nearest = idx;
+          }
+        });
+        return nearest;
+      }, []);
+
+      const scrollToIndex = useCallback((idx, behavior = "smooth") => {
+        const scroller = scrollerRef.current;
+        const targetIndex = Math.max(0, Math.min(idx, visibleImages.length - 1));
+        const slide = scroller?.children?.[targetIndex];
         if (!scroller || !slide) return;
         const left = slide.offsetLeft - (scroller.clientWidth - slide.clientWidth) / 2;
-        scroller.scrollTo({ left: Math.max(0, left), behavior: "smooth" });
-      }, [activeIndex, visibleImages.length]);
+        scroller.scrollTo({ left: Math.max(0, left), behavior });
+        setActiveIndex(targetIndex);
+      }, [visibleImages.length]);
+
+      useEffect(() => {
+        if (activeIndex >= visibleImages.length) scrollToIndex(0, "auto");
+      }, [activeIndex, visibleImages.length, scrollToIndex]);
 
       useEffect(() => {
         if (visibleImages.length <= 1) return;
         const timer = setInterval(() => {
-          setActiveIndex(prev => (prev + 1) % visibleImages.length);
-        }, 4200);
+          if (isTouchingRef.current) return;
+          const next = (getNearestIndex() + 1) % visibleImages.length;
+          scrollToIndex(next);
+        }, 4800);
         return () => clearInterval(timer);
-      }, [visibleImages.length]);
+      }, [getNearestIndex, scrollToIndex, visibleImages.length]);
+
+      useEffect(() => () => {
+        if (scrollTimerRef.current) clearTimeout(scrollTimerRef.current);
+      }, []);
 
       if (!visibleImages.length) return null;
 
       return (
-        <div style={{ padding:"14px 0 2px" }}>
+        <div style={{ padding:"14px 0 4px" }}>
           <div
+            className="home-carousel-scroller"
             ref={scrollerRef}
             onScroll={(e) => {
-              const scroller = e.currentTarget;
-              const center = scroller.scrollLeft + scroller.clientWidth / 2;
-              let nearest = 0;
-              let nearestDistance = Infinity;
-              Array.from(scroller.children).forEach((child, idx) => {
-                const childCenter = child.offsetLeft + child.offsetWidth / 2;
-                const distance = Math.abs(center - childCenter);
-                if (distance < nearestDistance) {
-                  nearestDistance = distance;
-                  nearest = idx;
-                }
-              });
-              setActiveIndex(nearest);
+              if (scrollTimerRef.current) clearTimeout(scrollTimerRef.current);
+              scrollTimerRef.current = setTimeout(() => {
+                setActiveIndex(getNearestIndex());
+              }, 80);
+            }}
+            onPointerDown={() => {
+              isTouchingRef.current = true;
+            }}
+            onPointerUp={() => {
+              isTouchingRef.current = false;
+              setActiveIndex(getNearestIndex());
+            }}
+            onPointerCancel={() => {
+              isTouchingRef.current = false;
             }}
             style={{
               display:"flex",
-              gap:10,
+              gap:12,
               overflowX:"auto",
               scrollSnapType:"x mandatory",
+              scrollBehavior:"smooth",
               scrollbarWidth:"none",
-              padding:"0 30px 8px",
+              msOverflowStyle:"none",
+              WebkitOverflowScrolling:"touch",
+              overscrollBehaviorX:"contain",
+              touchAction:"pan-x",
+              padding:"0 38px 10px",
+              scrollPadding:"0 38px",
             }}
           >
             {visibleImages.map((image, idx) => {
@@ -2081,17 +2117,22 @@
                 <div
                   key={image.id || image.url || idx}
                   style={{
-                    flex:"0 0 82%",
-                    height:138,
-                    borderRadius:18,
+                    flex:"0 0 84%",
+                    aspectRatio:"1200 / 420",
+                    minHeight:132,
+                    maxHeight:156,
+                    borderRadius:20,
                     overflow:"hidden",
                     position:"relative",
                     scrollSnapAlign:"center",
+                    scrollSnapStop:"always",
                     background:"#E5E7EB",
                     border:"1px solid #DCFCE7",
-                    transform: isActive ? "scale(1)" : "scale(.92)",
-                    opacity: isActive ? 1 : .72,
-                    transition:"transform .22s ease, opacity .22s ease",
+                    boxShadow: isActive ? "0 12px 28px rgba(15,23,42,.12)" : "0 6px 16px rgba(15,23,42,.08)",
+                    transform: isActive ? "scale(1)" : "scale(.96)",
+                    opacity: isActive ? 1 : .82,
+                    transition:"transform .28s cubic-bezier(.2,.8,.2,1), opacity .28s ease, box-shadow .28s ease",
+                    willChange:"transform",
                   }}
                 >
                   <img src={image.url} alt="BayanGo home promo" style={{ width:"100%", height:"100%", objectFit:"cover", display:"block" }} />
@@ -2106,10 +2147,10 @@
                   key={`dot_${image.id || idx}`}
                   aria-label={`Go to promo ${idx + 1}`}
                   onClick={() => {
-                    setActiveIndex(idx);
+                    scrollToIndex(idx);
                   }}
                   style={{
-                    width: idx === activeIndex ? 18 : 6,
+                    width: idx === activeIndex ? 20 : 6,
                     height:6,
                     borderRadius:10,
                     background: idx === activeIndex ? "#166534" : "#CBD5E1",
