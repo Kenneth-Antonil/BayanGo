@@ -1835,10 +1835,17 @@
 
     function BatchTimerBanner({ hidden, onDismiss }) {
       const [info, setInfo] = React.useState(getDeliveryBatch);
+      const [isExpanded, setIsExpanded] = React.useState(true);
       React.useEffect(() => {
         const t = setInterval(() => setInfo(getDeliveryBatch()), 1000);
         return () => clearInterval(t);
       }, []);
+      React.useEffect(() => {
+        if (hidden) return;
+        setIsExpanded(true);
+        const t = setTimeout(() => setIsExpanded(false), 5600);
+        return () => clearTimeout(t);
+      }, [hidden]);
       if (hidden) return null;
       const { batch, cutoffLabel, deliveryLabel, secsToDeadline } = info;
       const hh  = Math.floor(secsToDeadline / 3600);
@@ -1852,20 +1859,58 @@
       const softBd   = isUrgent ? "#FECACA" : (isAM ? "#BFDBFE" : "#FDE68A");
       const iconBg   = isUrgent ? "#DC2626" : (isAM ? "#2563EB" : "#D97706");
       const timeText = hh > 0 ? `${pad(hh)}:${pad(mm)}:${pad(ss)}` : `${pad(mm)}:${pad(ss)}`;
+      if (!isExpanded) {
+        return (
+          <button
+            className="pop"
+            onClick={() => setIsExpanded(true)}
+            aria-label={`Batch cut-off timer ${timeText}`}
+            style={{
+              position:"fixed",
+              right:"max(14px, calc((100vw - 480px) / 2 + 14px))",
+              bottom:"calc(env(safe-area-inset-bottom,0px) + 82px)",
+              zIndex:151,
+              minWidth:138,
+              height:46,
+              borderRadius:999,
+              background:"rgba(255,255,255,.96)",
+              border:"1px solid rgba(226,232,240,.95)",
+              boxShadow:"0 12px 30px rgba(15,23,42,.16)",
+              color:"#0F172A",
+              display:"flex",
+              alignItems:"center",
+              justifyContent:"center",
+              gap:9,
+              padding:"0 12px 0 10px",
+              backdropFilter:"blur(14px)",
+              animation:"slideUp .32s cubic-bezier(.22,1,.36,1)"
+            }}
+          >
+            <span style={{ width:28, height:28, borderRadius:"50%", background:iconBg, color:"#fff", display:"inline-flex", alignItems:"center", justifyContent:"center", flexShrink:0 }}>
+              <Ic n="clock" size={12} />
+            </span>
+            <span style={{ display:"flex", flexDirection:"column", alignItems:"flex-start", lineHeight:1 }}>
+              <span style={{ fontSize:9, fontWeight:850, color:"#94A3B8", letterSpacing:".06em", textTransform:"uppercase", marginBottom:3 }}>Cut-off</span>
+              <span style={{ fontSize:14, fontWeight:900, color:accent, fontVariantNumeric:"tabular-nums" }}>{timeText}</span>
+            </span>
+          </button>
+        );
+      }
       return (
         <div className="pop" style={{
           position:"fixed",
-          left:12,
-          right:12,
-          bottom:"calc(env(safe-area-inset-bottom,0px) + 76px)",
-          zIndex:76,
-          maxWidth:448,
+          left:0,
+          right:0,
+          bottom:"calc(env(safe-area-inset-bottom,0px) + 70px)",
+          zIndex:149,
+          maxWidth:480,
           margin:"0 auto",
-          borderRadius:24,
+          borderRadius:"24px 24px 0 0",
           background:"rgba(255,255,255,.96)",
           border:"1px solid rgba(226,232,240,.96)",
-          boxShadow:"0 18px 44px rgba(15,23,42,.18)",
-          padding:"8px 14px 14px",
+          borderBottom:"none",
+          boxShadow:"0 -12px 34px rgba(15,23,42,.14)",
+          padding:"8px 16px 14px",
           color:"#0F172A",
           backdropFilter:"blur(14px)",
           animation:"slideUp .45s cubic-bezier(.22,1,.36,1)"
@@ -1882,8 +1927,8 @@
                 Delivery {deliveryLabel}. Cut-off {cutoffLabel}.
               </div>
             </div>
-            <button onClick={onDismiss} style={{ width:32, height:32, borderRadius:12, background:"#F1F5F9", color:"#64748B", display:"inline-flex", alignItems:"center", justifyContent:"center", flexShrink:0 }} aria-label="Close batch timer">
-              <Ic n="xmark" size={11} />
+            <button onClick={() => setIsExpanded(false)} style={{ width:32, height:32, borderRadius:12, background:"#F1F5F9", color:"#64748B", display:"inline-flex", alignItems:"center", justifyContent:"center", flexShrink:0 }} aria-label="Collapse batch timer">
+              <Ic n="chevron-down" size={12} />
             </button>
           </div>
           <div style={{ marginTop:12, borderRadius:16, padding:"10px 12px", background:softBg, border:`1px solid ${softBd}`, display:"flex", justifyContent:"space-between", alignItems:"center", gap:12 }}>
