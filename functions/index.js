@@ -598,6 +598,10 @@ exports.createPaymongoCheckout = onRequest(
       res.status(400).json({ ok: false, error: "invalid_order_amount" });
       return;
     }
+    if (!order.pricesUpdatedAt) {
+      res.status(409).json({ ok: false, error: "prices_not_ready" });
+      return;
+    }
 
     const customer = order.customer || {};
     const returnUrl = `${USER_APP_URL}?section=orders#orders`;
@@ -1151,8 +1155,9 @@ exports.onOrderUpdated = onValueUpdated(
         const hasProof = Array.isArray(after.proofImages) && after.proofImages.length > 0;
         const userTokens = await getUserTokens(uid, { excludeRole: "rider" });
         if (userTokens.length) {
+          const paymentReadyBody = `Order #${String(orderId).slice(-6)}: Your order prices have been updated. You can now pay ${Number(total).toLocaleString("en-PH", { style: "currency", currency: "PHP" })}.`;
           const notifPayload = hasProof ? {
-            title: "Your order has been purchased!",
+            title: "Your final total is ready",
             body: `Order #${String(orderId).slice(-6)}: Tapos na ang pamimili at may proof of order na. Total: ₱${Number(total).toLocaleString("en-PH")}`,
             type: "order_bought_with_proof",
             link: `${USER_APP_URL}#orders`,
@@ -1162,6 +1167,8 @@ exports.onOrderUpdated = onValueUpdated(
             type: "prices_updated",
             link: `${USER_APP_URL}#orders`,
           };
+          notifPayload.title = "Your final total is ready";
+          notifPayload.body = paymentReadyBody;
           await sendBatchNotification(userTokens, notifPayload);
         }
       }

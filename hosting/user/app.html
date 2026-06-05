@@ -2413,6 +2413,7 @@
       const [paymentMethod,  setPaymentMethod]  = useState("COD");
       const [qrPhModal, setQrPhModal] = useState(null); // { orderId, total }
       const [paymongoBusyOrderId, setPaymongoBusyOrderId] = useState("");
+      const autoPaymentPromptedRef = useRef(new Set());
       const [showAddressEditor, setShowAddressEditor] = useState(false);
       const [showPaymentPicker, setShowPaymentPicker] = useState(false);
       const [loyaltyPoints,  setLoyaltyPoints]  = useState(0);
@@ -2974,6 +2975,10 @@
       const initiateQrPhPayment = (orderId, overrideTotal) => {
         if (!orderId) return;
         const order = myOrders.find(o => o.id === orderId);
+        if (!order?.pricesUpdatedAt) {
+          alert("Your final prices are not ready yet. We will show payment once the admin updates your order total.");
+          return;
+        }
         const orderTotal = overrideTotal ?? order?.total ?? 0;
         setQrPhModal({
           orderId,
@@ -3003,6 +3008,24 @@
           setPaymongoBusyOrderId("");
         }
       };
+
+      useEffect(() => {
+        const payableOrder = myOrders.find((order) => {
+          if (!order?.id || autoPaymentPromptedRef.current.has(order.id)) return false;
+          if (order.paymentMethod !== "PAYMONGO" && order.paymentMethod !== "QRPH") return false;
+          if (isOrderClosed(order)) return false;
+          if (order.gcashPaymentConfirmed || order.paymentStatus === "paid") return false;
+          return Boolean(order.pricesUpdatedAt);
+        });
+        if (!payableOrder) return;
+        autoPaymentPromptedRef.current.add(payableOrder.id);
+        setActivePage("orders");
+        setQrPhModal({
+          orderId: payableOrder.id,
+          total: payableOrder.total || 0,
+          readyMessage: "Your final total is ready. You can now pay for your BayanGo order.",
+        });
+      }, [myOrders]);
 
       const placeOrder = async () => {
         if (appIsUnavailable) {
@@ -3113,7 +3136,8 @@
           setShowCart(false);
           if (paymentMethod === "PAYMONGO" && newOrderId) {
             setActivePage("orders");
-            initiateQrPhPayment(newOrderId, total);
+            setOrderPlaced(true);
+            setTimeout(() => setOrderPlaced(false), 3500);
           } else {
             setActivePage("shop");
             setOrderPlaced(true);
@@ -4640,16 +4664,28 @@
                         </div>
                         <div>
                           <div style={{ fontSize:14, fontWeight:800, color:"#166534", display:"flex", alignItems:"center", gap:6 }}><img src="https://i.imgur.com/AsLCstJ.png" alt="QR Ph" style={{width:18,height:18,objectFit:"contain",borderRadius:3}} />Online Payment Confirmed!</div>
-                          <div style={{ fontSize:11, color:"#555" }}>Natanggap na ang iyong bayad.</div>
+                          <div style={{ fontSize:11, color:"#555" }}>Your payment has been received.</div>
+                        </div>
+                      </div>
+                    ) : !liveOrder.pricesUpdatedAt ? (
+                      <div style={{ display:"flex", alignItems:"flex-start", gap:10 }}>
+                        <div style={{ width:36, height:36, borderRadius:10, background:"#DBEAFE", display:"flex", alignItems:"center", justifyContent:"center", flexShrink:0 }}>
+                          <Ic n="clock" size={18} style={{ color:"#1D4ED8" }} />
+                        </div>
+                        <div>
+                          <div style={{ fontSize:14, fontWeight:900, color:"#1D4ED8" }}>Final prices are being updated</div>
+                          <div style={{ fontSize:12, color:"#475569", lineHeight:1.45, marginTop:3 }}>
+                            We will show the checkout automatically once the admin updates your final order total.
+                          </div>
                         </div>
                       </div>
                     ) : (
                       <>
                         <div style={{ fontSize:13, fontWeight:800, color:"#1D4ED8", marginBottom:10, display:"flex", alignItems:"center", gap:6 }}>
-                          <img src="https://i.imgur.com/AsLCstJ.png" alt="QR Ph" style={{width:20,height:20,objectFit:"contain",borderRadius:4}} /> Pay via QRPH / UnionBank Online
+                          <img src="https://i.imgur.com/AsLCstJ.png" alt="QR Ph" style={{width:20,height:20,objectFit:"contain",borderRadius:4}} /> Your final total is ready. You can now pay.
                         </div>
                         <div style={{ background:"#FEF3C7", borderRadius:10, padding:"10px 12px", marginBottom:10, border:"1px solid #FDE68A" }}>
-                          <div style={{ fontSize:11, color:"#92400E", marginBottom:2 }}>Halaga ng Bayad</div>
+                          <div style={{ fontSize:11, color:"#92400E", marginBottom:2 }}>Amount to pay</div>
                           <div style={{ fontSize:20, fontWeight:800, color:"#92400E" }}>{fmt(liveOrder.total)}</div>
                         </div>
                         <button
@@ -4666,7 +4702,7 @@
                         {liveOrder.locationType === "Island" && (
                           <div style={{ fontSize:11, color:"#3B82F6", lineHeight:1.5, display:"flex", alignItems:"flex-start", gap:5, marginTop:8 }}>
                             <Ic n="triangle-exclamation" style={{ marginTop:1, flexShrink:0 }} />
-                            <span>Hindi mapapadala sa bangka ang order hanggang ma-confirm ang payment.</span>
+                            <span>Your island order will be processed after payment is confirmed.</span>
                           </div>
                         )}
                       </>
@@ -4720,6 +4756,7 @@
             <QrPhModal
               orderId={qrPhModal.orderId}
               total={qrPhModal.total}
+              readyMessage={qrPhModal.readyMessage}
               onCreateCheckout={createPaymongoCheckout}
               busy={paymongoBusyOrderId === qrPhModal.orderId}
               onClose={() => setQrPhModal(null)}
@@ -4988,7 +5025,7 @@
 
 
     /* ══════════════════ QR PH PAYMENT MODAL ══════════════════ */
-    function QrPhModal({ orderId, total, onCreateCheckout, busy, onClose, onPaid }) {
+    function QrPhModal({ orderId, total, readyMessage, onCreateCheckout, busy, onClose, onPaid }) {
       const [error, setError] = useState("");
 
       const openCheckout = async () => {
@@ -4997,7 +5034,7 @@
           await onCreateCheckout?.(orderId);
         } catch (err) {
           console.error("PayMongo checkout error:", err);
-          setError("Hindi mabuksan ang PayMongo checkout. Subukan ulit.");
+          setError("Unable to open BayanGo secure checkout. Please try again.");
         }
       };
 
@@ -5070,6 +5107,11 @@
                 </>
               ) : (
                 <>
+                  {readyMessage && (
+                    <div style={{ background:"#ECFDF3", border:"1px solid #BBF7D0", borderRadius:12, color:"#166534", fontSize:12, fontWeight:900, padding:"10px 12px", marginBottom:12 }}>
+                      {readyMessage}
+                    </div>
+                  )}
                   <div style={{ fontSize:13, color:"#6B7280", lineHeight:1.55, marginBottom:14 }}>
                     Complete your BayanGo payment using <strong>QRPH</strong> or <strong>UnionBank Online</strong>. Your order updates automatically after payment confirmation.
                   </div>
@@ -6757,10 +6799,14 @@
             {(o.paymentMethod === "QRPH" || o.paymentMethod === "PAYMONGO") && o.status !== "delivered" && o.status !== "cancelled" && (
               (o.gcashPaymentConfirmed || o.paymentStatus === "paid")
                 ? <div style={{ padding:"10px 14px", background:"#DCFCE7", color:"#166534", fontSize:12, fontWeight:700, display:"flex", alignItems:"center", gap:6, borderTop:"1px solid #BBF7D0" }}>
-                    <img src="https://i.imgur.com/AsLCstJ.png" alt="QR Ph" style={{width:16,height:16,objectFit:"contain",borderRadius:3}} /> Online Payment Confirmed - Handa na!
+                    <img src="https://i.imgur.com/AsLCstJ.png" alt="QR Ph" style={{width:16,height:16,objectFit:"contain",borderRadius:3}} /> Online Payment Confirmed
                   </div>
-                : <div onClick={() => onPayQrPh?.(o.id)} style={{ padding:"10px 14px", background:"#EFF6FF", color:"#1D4ED8", fontSize:12, fontWeight:700, display:"flex", alignItems:"center", gap:6, borderTop:"1px solid #BFDBFE", cursor:"pointer" }}>
-                    <img src="https://i.imgur.com/AsLCstJ.png" alt="QR Ph" style={{width:16,height:16,objectFit:"contain",borderRadius:3}} /> Pay via QRPH / UnionBank Online
+                : !o.pricesUpdatedAt
+                  ? <div style={{ padding:"10px 14px", background:"#EFF6FF", color:"#1D4ED8", fontSize:12, fontWeight:700, display:"flex", alignItems:"center", gap:6, borderTop:"1px solid #BFDBFE" }}>
+                      <Ic n="clock" /> Final prices are being updated. Checkout will appear automatically once your final total is ready.
+                    </div>
+                  : <div onClick={() => onPayQrPh?.(o.id)} style={{ padding:"10px 14px", background:"#ECFDF3", color:"#166534", fontSize:12, fontWeight:800, display:"flex", alignItems:"center", gap:6, borderTop:"1px solid #BBF7D0", cursor:"pointer" }}>
+                    <img src="https://i.imgur.com/AsLCstJ.png" alt="QR Ph" style={{width:16,height:16,objectFit:"contain",borderRadius:3}} /> Your final total is ready. You can now pay.
                   </div>
             )}
 
