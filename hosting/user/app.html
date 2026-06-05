@@ -985,6 +985,65 @@
 
 
     /* ══════════════════ MAIN APP ══════════════════ */
+    function NotificationGate({ pushPermission, pushBusy, pushError, onEnablePush }) {
+      const isBlocked = pushPermission === "denied";
+      return (
+        <div style={{
+          minHeight:"100vh",
+          padding:"22px 18px calc(env(safe-area-inset-bottom,0px) + 22px)",
+          background:"linear-gradient(165deg,#052e16 0%,#14532d 46%,#166534 100%)",
+          display:"flex", alignItems:"center", justifyContent:"center",
+        }}>
+          <div style={{ width:"100%", maxWidth:430, borderRadius:24, background:"#fff", boxShadow:"0 28px 60px rgba(0,0,0,.34)", overflow:"hidden" }}>
+            <div style={{ padding:"22px 20px 16px", background:"linear-gradient(140deg,#166534,#22C55E)", color:"#fff" }}>
+              <div style={{ width:54, height:54, borderRadius:18, background:"rgba(255,255,255,.18)", display:"flex", alignItems:"center", justifyContent:"center", fontSize:24 }}>
+                <Ic n="bell" />
+              </div>
+              <h2 style={{ marginTop:14, fontSize:25, lineHeight:1.15, fontWeight:900 }}>I-approve muna ang notifications</h2>
+              <p style={{ marginTop:8, fontSize:14, lineHeight:1.55, opacity:.94 }}>
+                Kailangan ito para makatanggap ka ng order updates, rider status, at important reminders.
+              </p>
+            </div>
+            <div style={{ padding:"20px", display:"grid", gap:14 }}>
+              <div style={{ border:"1px solid #DCFCE7", borderRadius:16, background:"#F0FDF4", padding:"14px", display:"grid", gap:10 }}>
+                {[
+                  ["receipt", "Order confirmation at status updates"],
+                  ["motorcycle", "Rider pickup at delivery alerts"],
+                  ["clock", "Batch cut-off at important app reminders"],
+                ].map(([icon, text]) => (
+                  <div key={icon} style={{ display:"flex", alignItems:"center", gap:10, fontSize:14, color:"#14532D", fontWeight:700 }}>
+                    <span style={{ width:28, height:28, borderRadius:9, background:"#166534", color:"#fff", display:"flex", alignItems:"center", justifyContent:"center", flexShrink:0 }}>
+                      <Ic n={icon} />
+                    </span>
+                    <span>{text}</span>
+                  </div>
+                ))}
+              </div>
+              {(pushError || isBlocked) && (
+                <div style={{ border:"1px solid #FCA5A5", borderRadius:14, background:"#FEF2F2", color:"#991B1B", padding:"12px 13px", fontSize:13, lineHeight:1.5, fontWeight:700 }}>
+                  {isBlocked
+                    ? "Notifications are blocked. I-enable ito sa browser/site settings o app settings, tapos bumalik dito."
+                    : pushError}
+                </div>
+              )}
+              <button onClick={onEnablePush} disabled={pushBusy || isBlocked} style={{
+                width:"100%", padding:"15px 16px", borderRadius:14,
+                background: (pushBusy || isBlocked) ? "#9CA3AF" : "linear-gradient(135deg,#166534,#22C55E)",
+                color:"#fff", fontSize:16, fontWeight:900,
+                boxShadow:(pushBusy || isBlocked) ? "none" : "0 12px 24px rgba(22,101,52,.25)",
+              }}>
+                <Ic n={pushBusy ? "spinner" : "bell"} className={pushBusy ? "spin" : ""} style={{ marginRight:9 }} />
+                {pushBusy ? "Ina-activate..." : "Enable Notifications"}
+              </button>
+              <div style={{ fontSize:12, color:"#64748B", lineHeight:1.55, textAlign:"center" }}>
+                Hindi muna magbubukas ang BayanGo hangga't hindi naka-approve ang notifications.
+              </div>
+            </div>
+          </div>
+        </div>
+      );
+    }
+
     function AuthCard({
       authMode,
       setAuthMode,
@@ -1444,8 +1503,8 @@
               bindSeasonalPromoBanner();
               bindHomeCarousel();
               setPushPermission(typeof Notification !== "undefined" ? Notification.permission : "default");
+              enablePushForUser(currentUser, { requestPermission: false });
               if (!currentUser.isAnonymous) {
-                enablePushForUser(currentUser, { requestPermission: false });
                 syncSupportReferralForUser(currentUser).catch(err => console.error("Support referral sync error:", err));
               }
               trackUserAppUsage(currentUser).catch(err => console.error("Usage tracking error:", err));
@@ -1725,8 +1784,8 @@
       };
 
       const handleEnablePush = async () => {
-        if (!user || user.isAnonymous) {
-          setPushError("Mag-sign in muna bago mag-enable ng order notifications.");
+        if (!user) {
+          setPushError("Mag-log in muna bago mag-enable ng notifications.");
           return;
         }
         setPushBusy(true);
@@ -1758,6 +1817,10 @@
 
       if (loading) return <SplashScreen message="Ina-activate ang iyong app..." />;
 
+      if (!isStandaloneMode()) {
+        return <InstallGate />;
+      }
+
       if (!user) {
         return (
           <>
@@ -1788,11 +1851,22 @@
                 onGuestLogin={handleGuestLogin}
                 allowGuestLogin={true}
                 heading="Welcome to BayanGo"
-                subheading="Pwede kang mag-browse sa browser as guest. Kailangan lang mag-sign in kapag oorder na."
+                subheading="Pwede kang mag-browse as guest kapag installed na ang app. Kailangan lang mag-sign in kapag oorder na."
               />
             </div>
             <LegalModal docKey={openLegalDoc} onClose={() => setOpenLegalDoc(null)} />
           </>
+        );
+      }
+
+      if (typeof Notification !== "undefined" && pushPermission !== "granted") {
+        return (
+          <NotificationGate
+            pushPermission={pushPermission}
+            pushBusy={pushBusy}
+            pushError={pushError}
+            onEnablePush={handleEnablePush}
+          />
         );
       }
 

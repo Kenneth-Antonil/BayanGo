@@ -468,12 +468,12 @@
       <p class="sub">Simple market shopping for Binangonan and Talim Island residents.</p>
       <div class="hero-cta">
         <button id="openAppBtn" class="btn-browser">
-          <i class="fa-solid fa-store"></i>
-          <span>BUKSAN ANG APP SA BROWSER</span>
+          <i class="fa-solid fa-lock"></i>
+          <span>I-DOWNLOAD MUNA ANG APP</span>
         </button>
         <button id="installBtn" class="btn-main">
           <i class="fa-solid fa-download"></i>
-          <span>I-INSTALL NA LANG KUNG GUSTO MO</span>
+          <span>I-INSTALL ANG APP - LIBRE!</span>
         </button>
         <button id="learnBtn" class="btn-ghost">
           <i class="fa-solid fa-circle-question"></i>
@@ -610,15 +610,15 @@
     <!-- ── Bottom CTA ── -->
     <div class="bottom-cta">
       <button id="openAppBtn2" class="btn-browser" style="margin-bottom:10px;">
-        <i class="fa-solid fa-store"></i>
-        <span>MAG-BROWSE MUNA SA BROWSER</span>
+        <i class="fa-solid fa-lock"></i>
+        <span>KAILANGAN I-INSTALL BAGO GAMITIN</span>
       </button>
       <button id="installBtn2">
         <i class="fa-solid fa-download"></i>
-        <span>OPTIONAL: I-INSTALL ANG APP</span>
+        <span>I-INSTALL ANG APP - LIBRE!</span>
       </button>
       <p id="helpNote" class="help-note">
-        Gumagana na ang BayanGo kahit browser lang. Optional lang ang install para mas mabilis buksan next time.
+        Hindi magagamit ang BayanGo sa browser. I-install muna ito, pagkatapos buksan mula sa home screen.
       </p>
     </div>
 
@@ -701,7 +701,8 @@
     const installBtn2 = document.getElementById('installBtn2');
 
     function openBrowserApp() {
-      window.location.href = 'app.html';
+      document.querySelector('.install-box').scrollIntoView({ behavior: 'smooth', block: 'start' });
+      helpNote.textContent = 'I-install muna ang BayanGo bago ito magamit. Pag installed na, automatic itong bubukas sa app mode.';
     }
 
     function setInstalled() {
