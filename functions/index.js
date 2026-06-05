@@ -1,7 +1,9 @@
 const { onSchedule } = require("firebase-functions/v2/scheduler");
 const { onValueCreated, onValueUpdated } = require("firebase-functions/v2/database");
 const { onRequest } = require("firebase-functions/v2/https");
+const { defineSecret } = require("firebase-functions/params");
 const { initializeApp } = require("firebase-admin/app");
+const { getAuth } = require("firebase-admin/auth");
 const { getDatabase } = require("firebase-admin/database");
 const { getFirestore } = require("firebase-admin/firestore");
 const { getStorage } = require("firebase-admin/storage");
@@ -45,6 +47,9 @@ const {
 } = require("./core/storage");
 
 initializeApp();
+
+const BAYANGO_PAYMONGO_SECRET_KEY = defineSecret("BAYANGO_PAYMONGO_SECRET_KEY");
+const BAYANGO_PAYMONGO_WEBHOOK_SECRET = defineSecret("BAYANGO_PAYMONGO_WEBHOOK_SECRET");
 
 const PAYMONGO_WEBHOOK_SECRET = process.env.PAYMONGO_WEBHOOK_SECRET || "";
 const PAYMONGO_SECRET_KEY = process.env.PAYMONGO_SECRET_KEY || "";
@@ -382,7 +387,87 @@ exports.onOrderMessageCreated = onValueCreated(
 // ─────────────────────────────────────────────────────────────────────────────
 // HTTPS: PAYMONGO WEBHOOK (PAYMENT EVENTS)
 // ─────────────────────────────────────────────────────────────────────────────
-// exports.paymongoWebhook removed as requested
+exports.paymongoWebhook = onRequest(
+  { region: "us-central1", secrets: [BAYANGO_PAYMONGO_WEBHOOK_SECRET] },
+  async (req, res) => {
+    if (req.method !== "POST") {
+      res.status(405).json({ ok: false, error: "Method Not Allowed" });
+      return;
+    }
+
+    const webhookSecret = BAYANGO_PAYMONGO_WEBHOOK_SECRET.value() || PAYMONGO_WEBHOOK_SECRET;
+    const signatureHeader =
+      req.get("Paymongo-Signature") ||
+      req.get("PayMongo-Signature") ||
+      req.get("paymongo-signature") ||
+      "";
+    const verification = verifyPaymongoSignature({
+      rawBody: req.rawBody,
+      signatureHeader,
+      secret: webhookSecret,
+    });
+    if (!verification.valid) {
+      console.warn("[paymongoWebhook] invalid signature:", verification.reason);
+      res.status(401).json({ ok: false, error: verification.reason });
+      return;
+    }
+
+    const body = req.body || {};
+    const eventType = String(body?.data?.type || body?.type || body?.event_type || "");
+    const resource = body?.data?.data || body?.data || {};
+    const attrs = resource?.attributes || {};
+    const metadata = attrs?.metadata || {};
+    const orderId =
+      metadata.orderId ||
+      metadata.order_id ||
+      attrs.reference_number ||
+      extractOrderId(resource) ||
+      "";
+
+    if (!orderId) {
+      console.warn("[paymongoWebhook] order id not found for event:", eventType);
+      res.status(200).json({ ok: true, ignored: true, reason: "missing_order_id" });
+      return;
+    }
+
+    const payments = Array.isArray(attrs.payments) ? attrs.payments : [];
+    const paidPayment = payments.find((payment) => {
+      const status = String(payment?.attributes?.status || "").toLowerCase();
+      return status === "paid" || status === "succeeded";
+    });
+    const paymentAttrs = paidPayment?.attributes || {};
+    const paymentSource = paymentAttrs?.source || {};
+    const state = eventType.includes("checkout_session.payment.paid")
+      ? "paid"
+      : derivePaymentState(eventType, { ...attrs, status: attrs.status || paymentAttrs.status });
+
+    const update = {
+      paymentProvider: "paymongo",
+      paymentStatus: state,
+      paymongoLastEventType: eventType,
+      paymongoLastEventAt: Date.now(),
+      paymongoCheckoutSessionId: resource?.id || attrs.checkout_session_id || null,
+    };
+
+    if (state === "paid") {
+      update.gcashPaymentConfirmed = true;
+      update.paidAt = Date.now();
+      update.paymongoPaymentId = paidPayment?.id || attrs.payment_intent?.id || "";
+      update.paymongoPaymentSource = paymentSource.type || "";
+      update.paymongoPaidAmount = Number(paymentAttrs.amount || attrs.amount || 0) / 100;
+      update.paymongoNetAmount = Number(paymentAttrs.net_amount || 0) / 100 || null;
+      update.paymongoFee = Number(paymentAttrs.fee || 0) / 100 || null;
+    }
+
+    try {
+      await getDatabase().ref(`orders/${orderId}`).update(update);
+      res.status(200).json({ ok: true });
+    } catch (err) {
+      console.error(`[paymongoWebhook ${orderId}] update failed:`, err);
+      res.status(500).json({ ok: false, error: "order_update_failed" });
+    }
+  }
+);
 
 
 exports.exportMonthlyAccountingCsv = onRequest(
@@ -454,7 +539,137 @@ exports.exportMonthlyAccountingCsv = onRequest(
 // ─────────────────────────────────────────────────────────────────────────────
 // HTTPS: CREATE PAYMONGO QRPH CHECKOUT SESSION
 // ─────────────────────────────────────────────────────────────────────────────
-// exports.createPaymongoQrphCheckout removed as requested
+exports.createPaymongoCheckout = onRequest(
+  { region: "us-central1", cors: ADMIN_ALLOWED_ORIGINS, secrets: [BAYANGO_PAYMONGO_SECRET_KEY] },
+  async (req, res) => {
+    setCors(res, req.get("origin") || "");
+    if (req.method === "OPTIONS") {
+      res.status(204).send("");
+      return;
+    }
+    if (req.method !== "POST") {
+      res.status(405).json({ ok: false, error: "Method Not Allowed" });
+      return;
+    }
+
+    const secretKey = BAYANGO_PAYMONGO_SECRET_KEY.value() || PAYMONGO_SECRET_KEY;
+    if (!secretKey) {
+      res.status(500).json({ ok: false, error: "paymongo_secret_not_configured" });
+      return;
+    }
+
+    let decoded;
+    try {
+      const authHeader = req.get("authorization") || "";
+      if (!authHeader.toLowerCase().startsWith("bearer ")) {
+        res.status(401).json({ ok: false, error: "missing_auth_token" });
+        return;
+      }
+      decoded = await getAuth().verifyIdToken(authHeader.slice(7).trim());
+    } catch (err) {
+      console.warn("[createPaymongoCheckout] auth failed:", err?.message || err);
+      res.status(401).json({ ok: false, error: "unauthorized" });
+      return;
+    }
+
+    const uid = decoded?.uid || "";
+    const orderId = String(req.body?.orderId || "").trim();
+    if (!uid || !orderId) {
+      res.status(400).json({ ok: false, error: "orderId_required" });
+      return;
+    }
+
+    const db = getDatabase();
+    const orderSnap = await db.ref(`orders/${orderId}`).get();
+    if (!orderSnap.exists()) {
+      res.status(404).json({ ok: false, error: "order_not_found" });
+      return;
+    }
+
+    const order = orderSnap.val() || {};
+    const orderUid = order.uid || order.userId || order.customerUid || "";
+    if (orderUid !== uid) {
+      res.status(403).json({ ok: false, error: "order_not_owned_by_user" });
+      return;
+    }
+
+    const amount = Math.round(Number(order.total || 0) * 100);
+    if (!Number.isFinite(amount) || amount < 100) {
+      res.status(400).json({ ok: false, error: "invalid_order_amount" });
+      return;
+    }
+
+    const customer = order.customer || {};
+    const returnUrl = `${USER_APP_URL}?section=orders#orders`;
+    const checkoutPayload = {
+      data: {
+        attributes: {
+          line_items: [
+            {
+              name: `BayanGo Market Delivery #${orderId.slice(-6)}`,
+              amount,
+              currency: "PHP",
+              quantity: 1,
+            },
+          ],
+          payment_method_types: ["qrph", "dob"],
+          success_url: returnUrl,
+          cancel_url: returnUrl,
+          reference_number: orderId,
+          send_email_receipt: true,
+          metadata: {
+            orderId,
+            uid,
+            source: "bayango_user_app",
+          },
+          billing: {
+            name: customer.name || decoded.name || decoded.email || "BayanGo Customer",
+            email: decoded.email || "",
+            phone: customer.phone || "",
+          },
+        },
+      },
+    };
+
+    try {
+      const paymongoRes = await fetch("https://api.paymongo.com/v2/checkout_sessions", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Basic ${Buffer.from(`${secretKey}:`).toString("base64")}`,
+        },
+        body: JSON.stringify(checkoutPayload),
+      });
+      const json = await paymongoRes.json().catch(() => ({}));
+      const checkoutUrl = json?.data?.attributes?.checkout_url || "";
+      const checkoutSessionId = json?.data?.id || "";
+      if (!paymongoRes.ok || !checkoutUrl) {
+        console.error("[createPaymongoCheckout] PayMongo error:", paymongoRes.status, json?.errors || json);
+        res.status(502).json({ ok: false, error: "paymongo_checkout_failed" });
+        return;
+      }
+
+      await db.ref(`orders/${orderId}`).update({
+        paymentMethod: "PAYMONGO",
+        paymentProvider: "paymongo",
+        paymentStatus: "pending",
+        paymongoCheckoutSessionId: checkoutSessionId,
+        paymongoCheckoutUrl: checkoutUrl,
+        paymongoPaymentMethods: ["qrph", "dob"],
+        paymongoCheckoutCreatedAt: Date.now(),
+      });
+
+      res.status(200).json({
+        ok: true,
+        checkoutUrl,
+        checkoutSessionId,
+      });
+    } catch (err) {
+      console.error("[createPaymongoCheckout] error:", err);
+      res.status(500).json({ ok: false, error: "checkout_create_error" });
+    }
+  }
+);
 
 
 // ─────────────────────────────────────────────────────────────────────────────

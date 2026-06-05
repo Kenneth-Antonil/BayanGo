@@ -344,6 +344,24 @@
     };
 
     const fmt = n => "₱" + Number(n).toLocaleString("en-PH", { minimumFractionDigits:0 });
+    const SUBSCRIPTION_PLAN = {
+      id: "bayango_plus_monthly",
+      name: "BayanGo Plus",
+      price: 100,
+      durationDays: 30,
+      benefits: ["Unlimited free delivery", "Customised eco bag", "Prioritized support"],
+    };
+    const getSubscriptionExpiresAt = (subscription) => Number(subscription?.expiresAt || subscription?.activeUntil || 0);
+    const isSubscriptionActiveNow = (subscription) => {
+      if (!subscription || subscription.status !== "active") return false;
+      const expiresAt = getSubscriptionExpiresAt(subscription);
+      return !expiresAt || expiresAt > Date.now();
+    };
+    const formatSubscriptionDate = (ts) => {
+      const n = Number(ts || 0);
+      if (!Number.isFinite(n) || n <= 0) return "";
+      return new Date(n).toLocaleDateString("en-PH", { month:"short", day:"numeric", year:"numeric" });
+    };
     const getSupportDisplayName = (user, profileName) => profileName || user?.displayName || user?.email || "BayanGo User";
     const normalizeSupportTicketForUser = (ticket, entries = []) => {
       const orderedEntries = [...entries].sort((a, b) => Number(a?.createdAt || a?.timestamp || 0) - Number(b?.createdAt || b?.timestamp || 0));
@@ -409,7 +427,7 @@
           },
           {
             heading: "Contact",
-            body: "Para sa concerns, makipag-ugnayan sa BayanGo team gamit ang official Facebook page o contact number na ibinigay sa inyo."
+            body: "Email: contact.kraph@gmail.com. Contact number: 09618280589. Address: 0280 Antazo Street, Dalig, Batingan, Binangonan, Rizal, Philippines. Facebook: https://www.facebook.com/BayanGoApp"
           },
         ],
       },
@@ -459,6 +477,29 @@
           },
         ],
       },
+      refund: {
+        title: "Return and Refund Policy",
+        icon: "money-bill-transfer",
+        updatedAt: "June 3, 2026",
+        sections: [
+          {
+            heading: "Refund eligibility",
+            body: "Refunds may be reviewed for duplicate payments, failed payments with deducted funds, cancelled eligible orders, unavailable paid items, missing items, incorrect items, or verified delivery issues."
+          },
+          {
+            heading: "Cancellations",
+            body: "Eligible orders may be cancelled only within the cancellation window shown in the app. Once purchasing, merchant preparation, rider assignment, or delivery has started, cancellation may no longer be available."
+          },
+          {
+            heading: "How to request",
+            body: "Contact BayanGo support with the order number, payment reference, concern details, and photos when applicable."
+          },
+          {
+            heading: "Contact",
+            body: "Email: contact.kraph@gmail.com. Contact number: 09618280589. Address: 0280 Antazo Street, Dalig, Batingan, Binangonan, Rizal, Philippines."
+          },
+        ],
+      },
       bir: {
         title: "BIR Registration",
         icon: "receipt",
@@ -483,6 +524,7 @@
       { key:"about", label:"About Us", icon:"circle-info", href:"about-us.html" },
       { key:"privacy", label:"Privacy Policy", icon:"shield-halved", href:"privacy-policy.html" },
       { key:"terms", label:"Terms & Conditions", icon:"file-contract", href:"terms-of-condition.html" },
+      { key:"refund", label:"Return & Refund Policy", icon:"money-bill-transfer", href:"refund-policy.html" },
       { key:"bir", label:"BIR Registration", icon:"receipt", href:"#legal-bir" },
     ];
     function LegalLinks({ compact = false, onOpenLegal = null }) {
@@ -2287,6 +2329,8 @@
       const [customerLat,    setCustomerLat]    = useState(null);
       const [customerLng,    setCustomerLng]    = useState(null);
       const [locationType,   setLocationType]   = useState("Mainland");
+      const [subscription, setSubscription] = useState(null);
+      const [subscriptionRequest, setSubscriptionRequest] = useState(null);
 
       // Load profile from RTDB when user logs in
       useEffect(() => {
@@ -2305,6 +2349,26 @@
           setLoyaltyPoints(Number.isFinite(pts) ? Math.max(0, pts) : 0);
         }).catch(err => console.error("Loyalty points load error:", err.code));
       }, [user?.uid]);
+
+      useEffect(() => {
+        if (!user?.uid || user.isAnonymous || !_fbDb) {
+          setSubscription(null);
+          setSubscriptionRequest(null);
+          return;
+        }
+        const subscriptionRef = _fbDb.ref(`subscriptions/${user.uid}`);
+        const requestRef = _fbDb.ref(`subscription_requests/${user.uid}`);
+        const handleSubscription = subscriptionRef.on("value", snap => {
+          setSubscription(snap.exists() ? snap.val() : null);
+        }, err => console.error("Subscription load error:", err.code));
+        const handleRequest = requestRef.on("value", snap => {
+          setSubscriptionRequest(snap.exists() ? snap.val() : null);
+        }, err => console.error("Subscription request load error:", err.code));
+        return () => {
+          subscriptionRef.off("value", handleSubscription);
+          requestRef.off("value", handleRequest);
+        };
+      }, [user?.uid, user?.isAnonymous]);
       const [searchQ,        setSearchQ]        = useState("");
       const [shopScrolled,   setShopScrolled]   = useState(false);
       const [orderPlaced,    setOrderPlaced]    = useState(false);
@@ -2348,6 +2412,7 @@
       });
       const [paymentMethod,  setPaymentMethod]  = useState("COD");
       const [qrPhModal, setQrPhModal] = useState(null); // { orderId, total }
+      const [paymongoBusyOrderId, setPaymongoBusyOrderId] = useState("");
       const [showAddressEditor, setShowAddressEditor] = useState(false);
       const [showPaymentPicker, setShowPaymentPicker] = useState(false);
       const [loyaltyPoints,  setLoyaltyPoints]  = useState(0);
@@ -2484,6 +2549,7 @@
         .filter(i => i.name);
 
       const myOrders         = orders;
+      const subscriptionActive = isSubscriptionActiveNow(subscription);
       const customEstTotal   = customItems.reduce((s,i) => s + (i.estPrice || 0), 0);
       const subtotal         = cartItems.reduce((s,i) => s + i.price * i.weightUnit * i.qty, 0);
       const itemsTotal       = subtotal + customEstTotal;
@@ -2507,16 +2573,17 @@
       const FIRST_ORDER_FREE_SHIPPING_MIN_ORDER = 500;
       const firstOrderFreeShippingGap = Math.max(0, FIRST_ORDER_FREE_SHIPPING_MIN_ORDER - itemsTotal);
       const isEligibleFirstOrderFreeShipping = isFirstTimeUser && itemsTotal >= FIRST_ORDER_FREE_SHIPPING_MIN_ORDER;
-      const freeShipDiscount = isEligibleFirstOrderFreeShipping ? deliveryFee : 0;
+      const subscriptionDeliveryDiscount = subscriptionActive ? deliveryFee : 0;
+      const freeShipDiscount = !subscriptionDeliveryDiscount && isEligibleFirstOrderFreeShipping ? deliveryFee : 0;
 
       const computeVoucherDiscount = useCallback((voucher) => {
         if (!voucher || voucher.active === false) return 0;
         if (voucher.minOrder > 0 && itemsTotal < voucher.minOrder) return 0;
         if (voucher.expiresAt && Date.now() > voucher.expiresAt) return 0;
         if (voucher.type === "percent") return Math.round(itemsTotal * ((voucher.value || 0) / 100));
-        if (voucher.type === "free_shipping") return deliveryFee;
+        if (voucher.type === "free_shipping") return Math.max(0, deliveryFee - subscriptionDeliveryDiscount - freeShipDiscount);
         return Math.max(0, Number(voucher.value || 0));
-      }, [deliveryFee, itemsTotal]);
+      }, [deliveryFee, freeShipDiscount, itemsTotal, subscriptionDeliveryDiscount]);
       const getVoucherAvailability = useCallback((voucher) => {
         if (!voucher || voucher.active === false) return { canUse:false, reason:"Inactive" };
         if (voucher.expiresAt && Date.now() > voucher.expiresAt) return { canUse:false, reason:"Expired" };
@@ -2535,9 +2602,9 @@
       };
 
       const voucherDiscount = Math.min(computeVoucherDiscount(appliedVoucher), itemsTotal + deliveryFee);
-      const totalBeforePoints = Math.max(0, itemsTotal + deliveryFee + serviceFee + smallOrderFee - (freeShipDiscount + voucherDiscount));
+      const totalBeforePoints = Math.max(0, itemsTotal + deliveryFee + serviceFee + smallOrderFee - (subscriptionDeliveryDiscount + freeShipDiscount + voucherDiscount));
       const loyaltyDiscount = useLoyaltyPoints ? Math.min(loyaltyPoints, totalBeforePoints) : 0;
-      const totalDiscount   = freeShipDiscount + voucherDiscount + loyaltyDiscount;
+      const totalDiscount   = subscriptionDeliveryDiscount + freeShipDiscount + voucherDiscount + loyaltyDiscount;
       const total            = Math.max(0, totalBeforePoints - loyaltyDiscount);
       const earnedLoyaltyPoints = 0.20;
       const totalItemCount = cartCount + customItems.length;
@@ -2564,6 +2631,78 @@
         setNewItemName(""); setNewItemQty(""); setNewItemUnit("pc"); setNewItemPrice("");
       };
       const removeCustom = id => setCustomItems(prev => prev.filter(i => i.id !== id));
+
+      const requestSubscription = useCallback(async () => {
+        if (isGuest || !user?.uid || !_fbDb) {
+          onRequireLogin?.("options");
+          return;
+        }
+        if (subscriptionActive) {
+          alert("Active na ang BayanGo Plus subscription mo.");
+          return;
+        }
+        const now = Date.now();
+        const payload = {
+          uid: user.uid,
+          email: user.email || "",
+          name: name || user.displayName || "",
+          phone: phone || "",
+          planId: SUBSCRIPTION_PLAN.id,
+          planName: SUBSCRIPTION_PLAN.name,
+          amount: SUBSCRIPTION_PLAN.price,
+          currency: "PHP",
+          durationDays: SUBSCRIPTION_PLAN.durationDays,
+          benefits: SUBSCRIPTION_PLAN.benefits,
+          status: "pending_payment",
+          paymentMethod: "manual_qrph",
+          createdAt: subscriptionRequest?.createdAt || now,
+          updatedAt: now,
+        };
+        try {
+          await _fbDb.ref(`subscription_requests/${user.uid}`).set(payload);
+          setSubscriptionRequest(payload);
+          alert("Subscription request sent. Pay ₱100/month via the app's QR PH/GCash details, then wait for admin activation.");
+        } catch (err) {
+          console.error("Subscription request error:", err);
+          alert("Hindi maipadala ang subscription request. Pakisubukan ulit.");
+        }
+      }, [isGuest, name, onRequireLogin, phone, subscriptionActive, subscriptionRequest?.createdAt, user?.displayName, user?.email, user?.uid]);
+
+      const cancelSubscription = useCallback(async () => {
+        if (!user?.uid || !_fbDb) return;
+        const now = Date.now();
+        const requestStatus = String(subscriptionRequest?.status || "").toLowerCase();
+        const isPendingPayment = requestStatus === "pending_payment";
+        const message = isPendingPayment
+          ? "Cancel your pending BayanGo Plus subscription request?"
+          : "Request cancellation for your active BayanGo Plus subscription?";
+        if (!window.confirm(message)) return;
+        const payload = {
+          uid: user.uid,
+          email: user.email || "",
+          name: name || user.displayName || "",
+          phone: phone || "",
+          planId: SUBSCRIPTION_PLAN.id,
+          planName: SUBSCRIPTION_PLAN.name,
+          amount: SUBSCRIPTION_PLAN.price,
+          currency: "PHP",
+          durationDays: SUBSCRIPTION_PLAN.durationDays,
+          benefits: SUBSCRIPTION_PLAN.benefits,
+          status: isPendingPayment ? "cancelled" : "cancellation_requested",
+          paymentMethod: subscriptionRequest?.paymentMethod || "manual_qrph",
+          cancelRequestedAt: now,
+          createdAt: subscriptionRequest?.createdAt || now,
+          updatedAt: now,
+        };
+        try {
+          await _fbDb.ref(`subscription_requests/${user.uid}`).set(payload);
+          setSubscriptionRequest(payload);
+          alert(isPendingPayment ? "Subscription request cancelled." : "Cancellation request sent. Your current benefits stay active until admin processing or expiry.");
+        } catch (err) {
+          console.error("Subscription cancel error:", err);
+          alert("Hindi ma-process ang cancellation. Pakisubukan ulit.");
+        }
+      }, [name, phone, subscriptionRequest, user?.displayName, user?.email, user?.uid]);
 
       const partnerStores = useMemo(() => {
         const map = {};
@@ -2823,11 +2962,11 @@
       };
 
       useEffect(() => {
-        if (locationType === "Island" && paymentMethod !== "QRPH") {
-          setPaymentMethod("QRPH");
+        if (locationType === "Island" && paymentMethod !== "PAYMONGO") {
+          setPaymentMethod("PAYMONGO");
           return;
         }
-        if (locationType === "Mainland" && !["COD", "QRPH"].includes(paymentMethod)) {
+        if (locationType === "Mainland" && !["COD", "PAYMONGO"].includes(paymentMethod)) {
           setPaymentMethod("COD");
         }
       }, [locationType, paymentMethod]);
@@ -2839,8 +2978,30 @@
         setQrPhModal({
           orderId,
           total: orderTotal,
-          existingQrImageUrl: order?.paymongoQrImageUrl || null,
         });
+      };
+
+      const createPaymongoCheckout = async (orderId) => {
+        if (!orderId || !user?.getIdToken) throw new Error("missing_order_or_user");
+        setPaymongoBusyOrderId(orderId);
+        try {
+          const token = await user.getIdToken();
+          const res = await fetch("https://us-central1-bayango-315c6.cloudfunctions.net/createPaymongoCheckout", {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              "Authorization": `Bearer ${token}`,
+            },
+            body: JSON.stringify({ orderId }),
+          });
+          const json = await res.json().catch(() => ({}));
+          if (!res.ok || !json.checkoutUrl) {
+            throw new Error(json.error || "paymongo_checkout_failed");
+          }
+          window.location.href = json.checkoutUrl;
+        } finally {
+          setPaymongoBusyOrderId("");
+        }
       };
 
       const placeOrder = async () => {
@@ -2896,6 +3057,13 @@
             items: allItems,
             subtotal, customEstimate: customEstTotal, deliveryFee,
             serviceFee, smallOrderFee,
+            subscriptionFreeDelivery: subscriptionDeliveryDiscount > 0,
+            subscriptionDeliveryDiscount,
+            subscription: subscriptionActive ? {
+              planId: subscription?.planId || SUBSCRIPTION_PLAN.id,
+              planName: subscription?.planName || SUBSCRIPTION_PLAN.name,
+              expiresAt: getSubscriptionExpiresAt(subscription) || null,
+            } : null,
             firstTimeFreeShipping: isEligibleFirstOrderFreeShipping,
             freeShipDiscount,
             voucher: appliedVoucher ? {
@@ -2923,6 +3091,7 @@
             deliveryDate:  batchInfo.date,
             locationType,
             paymentMethod,
+            paymentStatus: paymentMethod === "PAYMONGO" ? "pending" : "cod",
           });
           if (user?.uid && _fbDb) {
             const earned = Number(earnedLoyaltyPoints || 0);
@@ -2942,7 +3111,7 @@
           setAppliedVoucher(null);
           setVoucherMsg("");
           setShowCart(false);
-          if (paymentMethod === "QRPH" && newOrderId) {
+          if (paymentMethod === "PAYMONGO" && newOrderId) {
             setActivePage("orders");
             initiateQrPhPayment(newOrderId, total);
           } else {
@@ -3808,6 +3977,12 @@
                     <div style={{ display:"flex", justifyContent:"space-between", marginBottom:4 }}>
                       <span>Delivery ({deliveryMetaLabel})</span><span style={{ fontWeight:600 }}>{fmt(deliveryFee)}</span>
                     </div>
+                    {subscriptionDeliveryDiscount > 0 && (
+                      <div style={{ display:"flex", justifyContent:"space-between", marginBottom:4 }}>
+                        <span style={{ color:"#166534" }}><Ic n="crown" style={{marginRight:4}} />BayanGo Plus Free Delivery</span>
+                        <span style={{ fontWeight:600, color:"#166534" }}>-{fmt(subscriptionDeliveryDiscount)}</span>
+                      </div>
+                    )}
                     <div style={{ display:"flex", justifyContent:"space-between", marginBottom: smallOrderFee > 0 ? 4 : 0 }}>
                       <span>Service Fee</span><span style={{ fontWeight:600 }}>{fmt(serviceFee)}</span>
                     </div>
@@ -3896,10 +4071,10 @@
                   </label>
                   {(() => {
                     const options = locationType === "Island"
-                      ? [{ val:"QRPH", icon:"qrcode", label:"QR PH", desc:"QR PH only for Island orders" }]
+                      ? [{ val:"PAYMONGO", icon:"qrcode", label:"QRPH / UnionBank Online", desc:"Required for Island orders" }]
                       : [
                           { val:"COD",  icon:"money-bill-wave", label:"Cash on Delivery", desc:"Pay when the order arrives" },
-                          { val:"QRPH", icon:"qrcode",          label:"QR PH",           desc:"Scan QR PH at magbayad" },
+                          { val:"PAYMONGO", icon:"qrcode", label:"QRPH / UnionBank Online", desc:"Pay through PayMongo checkout" },
                         ];
                     const QrPhLogoInline = ({ size=18 }) => <img src="https://i.imgur.com/AsLCstJ.png" alt="QR Ph" style={{width:size,height:size,objectFit:"contain",flexShrink:0,borderRadius:3}} />;
                     const selected = options.find(opt => opt.val === paymentMethod) || options[0];
@@ -3907,8 +4082,8 @@
                       <>
                         <button type="button" onClick={() => setShowPaymentPicker(true)} style={{ width:"100%", padding:"12px 14px", borderRadius:12, border:"1.5px solid #E5E7EB", background:"#fff", display:"flex", alignItems:"center", justifyContent:"space-between", gap:10 }}>
                           <span style={{ display:"flex", alignItems:"center", gap:10 }}>
-                            <span style={{ width:34, height:34, borderRadius:10, background: selected.val==="QRPH" ? "#EFF6FF" : "#ECFDF3", color:"#166534", display:"flex", alignItems:"center", justifyContent:"center" }}>
-                              {selected.val==="QRPH" ? <QrPhLogoInline size={22} /> : <Ic n={selected.icon} />}
+                            <span style={{ width:34, height:34, borderRadius:10, background: selected.val==="PAYMONGO" ? "#EFF6FF" : "#ECFDF3", color:"#166534", display:"flex", alignItems:"center", justifyContent:"center" }}>
+                              {selected.val==="PAYMONGO" ? <QrPhLogoInline size={22} /> : <Ic n={selected.icon} />}
                             </span>
                             <span style={{ textAlign:"left" }}>
                               <div style={{ fontSize:13, fontWeight:800, color:"#111827" }}>{selected.label}</div>
@@ -3930,7 +4105,7 @@
                                 {options.map(opt => (
                                   <button key={opt.val} type="button" onClick={() => { setPaymentMethod(opt.val); setShowPaymentPicker(false); }} style={{ padding:"11px 12px", borderRadius:12, border: paymentMethod === opt.val ? "2px solid #166534" : "1.5px solid #E5E7EB", background: paymentMethod === opt.val ? "#F0FDF4" : "#fff", display:"flex", alignItems:"center", gap:10, textAlign:"left" }}>
                                     <span style={{ width:18, height:18, borderRadius:"50%", border: paymentMethod === opt.val ? "5px solid #166534" : "2px solid #CBD5E1", background:"#fff", flexShrink:0 }} />
-                                    {opt.val === "QRPH" && <QrPhLogoInline size={20} />}
+                                    {opt.val === "PAYMONGO" && <QrPhLogoInline size={20} />}
                                     <span>
                                       <div style={{ fontSize:13, fontWeight:800, color: paymentMethod === opt.val ? "#166534" : "#374151" }}>{opt.label}</div>
                                       <div style={{ fontSize:10, color:"#9CA3AF", marginTop:2 }}>{opt.desc}</div>
@@ -4338,7 +4513,7 @@
           )}
 
           {activePage === "support" && (
-            <SupportPage user={user} name={name} phone={phone} />
+            <SupportPage user={user} name={name} phone={phone} subscriptionActive={subscriptionActive} />
           )}
 
           {activePage === "account" && (
@@ -4349,7 +4524,10 @@
               onOpenSupport={() => setActivePage("support")} isGuest={isGuest}
               onRequireLogin={onRequireLogin} pushPermission={pushPermission}
               pushBusy={pushBusy} pushError={pushError} onEnablePush={onEnablePush}
-              isStandalone={isStandalone} />
+              isStandalone={isStandalone}
+              subscription={subscription} subscriptionRequest={subscriptionRequest}
+              subscriptionActive={subscriptionActive} onSubscribe={requestSubscription}
+              onCancelSubscription={cancelSubscription} gcashSettings={gcashSettings} />
           )}
 
           {/* ── Order Tracker Modal (global so it opens from any tab) ── */}
@@ -4453,7 +4631,7 @@
                 )}
 
                 {/* QR PH Payment Section (PayMongo) */}
-                {liveOrder.paymentMethod === "QRPH" && !isOrderClosed(liveOrder) && (
+                {(liveOrder.paymentMethod === "QRPH" || liveOrder.paymentMethod === "PAYMONGO") && !isOrderClosed(liveOrder) && (
                   <div style={{ marginTop:18, borderRadius:16, border:"2px solid #3B82F6", background:"#EFF6FF", padding:"16px" }}>
                     {(liveOrder.gcashPaymentConfirmed || liveOrder.paymentStatus === "paid") ? (
                       <div style={{ display:"flex", alignItems:"center", gap:10 }}>
@@ -4461,14 +4639,14 @@
                           <Ic n="circle-check" size={18} style={{ color:"#166534" }} />
                         </div>
                         <div>
-                          <div style={{ fontSize:14, fontWeight:800, color:"#166534", display:"flex", alignItems:"center", gap:6 }}><img src="https://i.imgur.com/AsLCstJ.png" alt="QR Ph" style={{width:18,height:18,objectFit:"contain",borderRadius:3}} />QR PH Payment Confirmed!</div>
+                          <div style={{ fontSize:14, fontWeight:800, color:"#166534", display:"flex", alignItems:"center", gap:6 }}><img src="https://i.imgur.com/AsLCstJ.png" alt="QR Ph" style={{width:18,height:18,objectFit:"contain",borderRadius:3}} />Online Payment Confirmed!</div>
                           <div style={{ fontSize:11, color:"#555" }}>Natanggap na ang iyong bayad.</div>
                         </div>
                       </div>
                     ) : (
                       <>
                         <div style={{ fontSize:13, fontWeight:800, color:"#1D4ED8", marginBottom:10, display:"flex", alignItems:"center", gap:6 }}>
-                          <img src="https://i.imgur.com/AsLCstJ.png" alt="QR Ph" style={{width:20,height:20,objectFit:"contain",borderRadius:4}} /> Bayad via QR PH
+                          <img src="https://i.imgur.com/AsLCstJ.png" alt="QR Ph" style={{width:20,height:20,objectFit:"contain",borderRadius:4}} /> Pay via QRPH / UnionBank Online
                         </div>
                         <div style={{ background:"#FEF3C7", borderRadius:10, padding:"10px 12px", marginBottom:10, border:"1px solid #FDE68A" }}>
                           <div style={{ fontSize:11, color:"#92400E", marginBottom:2 }}>Halaga ng Bayad</div>
@@ -4483,7 +4661,7 @@
                             display:"flex", alignItems:"center", justifyContent:"center", gap:8,
                             boxShadow:"0 4px 12px rgba(37,99,235,.35)",
                           }}>
-                          <img src="https://i.imgur.com/AsLCstJ.png" alt="QR Ph" style={{width:20,height:20,objectFit:"contain",borderRadius:4}} /> Bayad via QR PH
+                          <img src="https://i.imgur.com/AsLCstJ.png" alt="QR Ph" style={{width:20,height:20,objectFit:"contain",borderRadius:4}} /> Pay via QRPH / UnionBank Online
                         </button>
                         {liveOrder.locationType === "Island" && (
                           <div style={{ fontSize:11, color:"#3B82F6", lineHeight:1.5, display:"flex", alignItems:"flex-start", gap:5, marginTop:8 }}>
@@ -4542,7 +4720,8 @@
             <QrPhModal
               orderId={qrPhModal.orderId}
               total={qrPhModal.total}
-              existingQrImageUrl={qrPhModal.existingQrImageUrl}
+              onCreateCheckout={createPaymongoCheckout}
+              busy={paymongoBusyOrderId === qrPhModal.orderId}
               onClose={() => setQrPhModal(null)}
               onPaid={() => { setQrPhModal(null); setActivePage("orders"); }}
             />
@@ -4730,6 +4909,7 @@
                     ["Delivery ("+deliveryMetaLabel+")",fmt(deliveryFee)],
                     ["Service Fee",fmt(serviceFee)],
                     ...(smallOrderFee > 0 ? [["Small Order Fee (5%)",fmt(smallOrderFee)]] : []),
+                    ...(subscriptionDeliveryDiscount > 0 ? [["BayanGo Plus Free Delivery","-"+fmt(subscriptionDeliveryDiscount)]] : []),
                     ...(freeShipDiscount > 0 ? [["FREE DELIVERY SA FIRST ORDER","-"+fmt(freeShipDiscount)]] : []),
                     ...(appliedVoucher && voucherDiscount > 0 ? [[`Voucher (${appliedVoucher.code})`,"-"+fmt(voucherDiscount)]] : [])
                   ].map(([l,v]) => (
@@ -4808,36 +4988,22 @@
 
 
     /* ══════════════════ QR PH PAYMENT MODAL ══════════════════ */
-    function QrPhModal({ orderId, total, existingQrImageUrl, onClose, onPaid }) {
-      const [qrImageUrl, setQrImageUrl] = useState(existingQrImageUrl || null);
-      const [loading, setLoading] = useState(true);
+    function QrPhModal({ orderId, total, onCreateCheckout, busy, onClose, onPaid }) {
       const [error, setError] = useState("");
 
-      const fetchQrCode = async () => {
-        setLoading(true);
+      const openCheckout = async () => {
         setError("");
         try {
-          const res = await fetch(
-            "https://us-central1-bayango-315c6.cloudfunctions.net/generatePaymongoQrphCode",
-            { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ orderId }) }
-          );
-          const json = await res.json().catch(() => ({}));
-          if (!res.ok || !json.qrImageUrl) {
-            setError("Hindi ma-generate ang QR code. Subukan ulit.");
-          } else {
-            setQrImageUrl(json.qrImageUrl);
-          }
-        } catch {
-          setError("May error sa pagkuha ng QR code. Subukan ulit.");
-        } finally {
-          setLoading(false);
+          await onCreateCheckout?.(orderId);
+        } catch (err) {
+          console.error("PayMongo checkout error:", err);
+          setError("Hindi mabuksan ang PayMongo checkout. Subukan ulit.");
         }
       };
 
       useEffect(() => {
-        if (existingQrImageUrl) return;
-        fetchQrCode();
-      }, [existingQrImageUrl, orderId]);
+        openCheckout();
+      }, [orderId]);
 
       // Real-time listener — close modal automatically when payment is confirmed
       useEffect(() => {
@@ -4854,56 +5020,71 @@
       }, [orderId]);
 
       return (
-        <div onClick={onClose} style={{ position:"fixed", inset:0, background:"rgba(0,0,0,.65)", zIndex:13000, display:"flex", alignItems:"center", justifyContent:"center", padding:20 }}>
-          <div onClick={e => e.stopPropagation()} style={{ background:"#fff", borderRadius:24, padding:"24px 20px", maxWidth:360, width:"100%", boxShadow:"0 24px 64px rgba(0,0,0,.35)" }}>
+        <div onClick={onClose} style={{ position:"fixed", inset:0, background:"rgba(15,23,42,.68)", zIndex:13000, display:"flex", alignItems:"center", justifyContent:"center", padding:20 }}>
+          <div onClick={e => e.stopPropagation()} style={{ background:"#fff", borderRadius:24, padding:0, maxWidth:380, width:"100%", boxShadow:"0 24px 64px rgba(0,0,0,.35)", overflow:"hidden" }}>
 
             {/* Header */}
-            <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", marginBottom:18 }}>
-              <div style={{ display:"flex", alignItems:"center", gap:10 }}>
-                <img src="https://i.imgur.com/AsLCstJ.png" alt="QR Ph" style={{ width:42, height:42, objectFit:"contain", borderRadius:10 }} />
-                <div style={{ fontSize:16, fontWeight:800, color:"#111827" }}>QR Ph Payment</div>
-              </div>
-              <button onClick={onClose} style={{ width:32, height:32, borderRadius:"50%", background:"#F3F4F6", border:"none", cursor:"pointer", display:"flex", alignItems:"center", justifyContent:"center", color:"#6B7280" }}>
-                <Ic n="xmark" />
-              </button>
-            </div>
-
-            {/* Amount */}
-            {!!total && (
-              <div style={{ background:"#FEF3C7", borderRadius:12, padding:"10px 14px", marginBottom:16, display:"flex", alignItems:"center", justifyContent:"space-between" }}>
-                <div style={{ fontSize:11, color:"#92400E", fontWeight:600 }}>Halaga ng Bayad</div>
-                <div style={{ fontSize:22, fontWeight:800, color:"#92400E" }}>{fmt(total)}</div>
-              </div>
-            )}
-
-            {/* QR Code area */}
-            {loading ? (
-              <div style={{ textAlign:"center", padding:"32px 0" }}>
-                <div style={{ width:40, height:40, border:"4px solid #BFDBFE", borderTopColor:"#2563EB", borderRadius:"50%", animation:"spin 0.8s linear infinite", margin:"0 auto 12px" }} />
-                <div style={{ fontSize:12, color:"#6B7280" }}>Ginagawa ang QR code...</div>
-              </div>
-            ) : error ? (
-              <div style={{ textAlign:"center", padding:"20px 0" }}>
-                <Ic n="triangle-exclamation" size={32} style={{ color:"#F59E0B", display:"block", margin:"0 auto 10px" }} />
-                <div style={{ fontSize:12, color:"#B91C1C", marginBottom:14 }}>{error}</div>
-                <button onClick={fetchQrCode} style={{ padding:"10px 24px", borderRadius:10, background:"#2563EB", color:"#fff", fontWeight:700, border:"none", cursor:"pointer", fontSize:13 }}>
-                  Subukan ulit
+            <div style={{ background:"linear-gradient(135deg,#14532D,#16A34A)", color:"#fff", padding:"18px 18px 16px" }}>
+              <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", gap:12 }}>
+                <div style={{ display:"flex", alignItems:"center", gap:12, minWidth:0 }}>
+                  <img src="https://i.imgur.com/1W159zD.png" alt="BayanGo" style={{ width:46, height:46, objectFit:"contain", borderRadius:14, background:"#fff", padding:5, flexShrink:0 }} />
+                  <div style={{ minWidth:0 }}>
+                    <div style={{ fontSize:11, fontWeight:900, color:"#BBF7D0", textTransform:"uppercase", letterSpacing:".08em" }}>BayanGo Secure Payment</div>
+                    <div style={{ fontSize:18, fontWeight:900, lineHeight:1.2 }}>QRPH / UnionBank Online</div>
+                  </div>
+                </div>
+                <button onClick={onClose} style={{ width:32, height:32, borderRadius:10, background:"rgba(255,255,255,.18)", border:"1px solid rgba(255,255,255,.2)", cursor:"pointer", display:"flex", alignItems:"center", justifyContent:"center", color:"#fff", flexShrink:0 }}>
+                  <Ic n="xmark" />
                 </button>
               </div>
-            ) : (
-              <>
-                <div style={{ textAlign:"center", background:"#F8FAFF", border:"2px solid #DBEAFE", borderRadius:16, padding:16, marginBottom:14 }}>
-                  <img src={qrImageUrl} alt="QR PH" style={{ width:200, height:200, objectFit:"contain", display:"block", margin:"0 auto" }} />
+            </div>
+
+            <div style={{ padding:"18px 18px 20px" }}>
+              {!!total && (
+                <div style={{ background:"#F0FDF4", borderRadius:16, padding:"12px 14px", marginBottom:12, display:"flex", alignItems:"center", justifyContent:"space-between", border:"1px solid #BBF7D0" }}>
+                  <div>
+                    <div style={{ fontSize:11, color:"#166534", fontWeight:900, textTransform:"uppercase", letterSpacing:".06em" }}>Amount to pay</div>
+                    <div style={{ fontSize:11, color:"#64748B", marginTop:2 }}>Order #{String(orderId || "").slice(-6)}</div>
+                  </div>
+                  <div style={{ fontSize:24, fontWeight:900, color:"#14532D" }}>{fmt(total)}</div>
                 </div>
-                <div style={{ fontSize:11, color:"#6B7280", textAlign:"center", lineHeight:1.6, marginBottom:12 }}>
-                  I-scan gamit ang <strong>GCash</strong>, <strong>Maya</strong>, <strong>BPI</strong>, <strong>BDO</strong>,<br />o ibang banking app na may InstaPay.
+              )}
+
+              <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:8, marginBottom:14 }}>
+                <div style={{ border:"1px solid #DBEAFE", background:"#EFF6FF", borderRadius:14, padding:"10px 11px", display:"flex", alignItems:"center", gap:8 }}>
+                  <img src="https://i.imgur.com/AsLCstJ.png" alt="QR Ph" style={{ width:22, height:22, objectFit:"contain", borderRadius:4 }} />
+                  <div style={{ fontSize:12, fontWeight:900, color:"#1D4ED8" }}>QRPH</div>
                 </div>
-                <div style={{ background:"#EFF6FF", borderRadius:10, padding:"10px 12px", fontSize:11, color:"#1D4ED8", textAlign:"center", display:"flex", alignItems:"center", justifyContent:"center", gap:6 }}>
-                  <Ic n="circle-info" />
-                  Awtomatikong mako-confirm ang order pagkatapos mag-scan at magbayad.
+                <div style={{ border:"1px solid #D1FAE5", background:"#F0FDF4", borderRadius:14, padding:"10px 11px", display:"flex", alignItems:"center", gap:8 }}>
+                  <Ic n="building-columns" style={{ color:"#166534" }} />
+                  <div style={{ fontSize:12, fontWeight:900, color:"#166534" }}>UnionBank</div>
                 </div>
-              </>
-            )}
+              </div>
+
+              <div style={{ textAlign:"center", padding:"6px 0 0" }}>
+              {busy ? (
+                <>
+                  <div style={{ width:42, height:42, border:"4px solid #BBF7D0", borderTopColor:"#166534", borderRadius:"50%", animation:"spin 0.8s linear infinite", margin:"0 auto 12px" }} />
+                  <div style={{ fontSize:13, fontWeight:900, color:"#166534" }}>Connecting to BayanGo secure checkout...</div>
+                  <div style={{ fontSize:11, color:"#64748B", marginTop:5 }}>You will be redirected to PayMongo to complete payment.</div>
+                </>
+              ) : (
+                <>
+                  <div style={{ fontSize:13, color:"#6B7280", lineHeight:1.55, marginBottom:14 }}>
+                    Complete your BayanGo payment using <strong>QRPH</strong> or <strong>UnionBank Online</strong>. Your order updates automatically after payment confirmation.
+                  </div>
+                  {error && (
+                    <div style={{ background:"#FEF2F2", border:"1px solid #FCA5A5", borderRadius:12, color:"#B91C1C", fontSize:12, fontWeight:700, padding:"10px 12px", marginBottom:12 }}>
+                      {error}
+                    </div>
+                  )}
+                  <button onClick={openCheckout} style={{ width:"100%", padding:"14px", borderRadius:14, background:"linear-gradient(135deg,#166534,#22C55E)", color:"#fff", fontWeight:900, fontSize:13, boxShadow:"0 8px 18px rgba(22,101,52,.28)" }}>
+                    Continue to Secure Payment
+                  </button>
+                </>
+              )}
+              </div>
+            </div>
           </div>
         </div>
       );
@@ -5335,7 +5516,7 @@
 
 
     /* ══════════════════ ACCOUNT PAGE ══════════════════ */
-    function SupportPage({ user, name, phone }) {
+    function SupportPage({ user, name, phone, subscriptionActive = false }) {
       const storageKey = `bayango_support_seen_${user?.uid || "anon"}`;
       const [tickets, setTickets] = useState([]);
       const [threads, setThreads] = useState({});
@@ -5474,6 +5655,7 @@
         const now = Date.now();
         const ticketRef = _fbDb.ref("support_tickets").push();
         const ticketId = ticketRef.key;
+        const ticketPriority = subscriptionActive ? "High" : draftPriority;
         try {
           await ticketRef.set({
             uid: user.uid,
@@ -5484,7 +5666,9 @@
             subject,
             message,
             msg: message,
-            priority: draftPriority,
+            priority: ticketPriority,
+            subscriptionPriority: subscriptionActive,
+            supportTier: subscriptionActive ? SUBSCRIPTION_PLAN.name : "Standard",
             status: "Open",
             createdAt: now,
             updatedAt: now,
@@ -5500,7 +5684,7 @@
           });
           setDraftSubject("");
           setDraftMessage("");
-          setDraftPriority("Medium");
+          setDraftPriority(subscriptionActive ? "High" : "Medium");
           setReplyText("");
           setSelectedTicketId(ticketId);
           markTicketSeen(ticketId, now);
@@ -5583,6 +5767,12 @@
                 {loadError}
               </div>
             )}
+            {subscriptionActive && (
+              <div style={{ marginTop:10, fontSize:12, fontWeight:800, color:"#854D0E", background:"#FEF9C3", border:"1px solid #FDE68A", borderRadius:12, padding:"10px 12px" }}>
+                <Ic n="crown" style={{ marginRight:6 }} />
+                BayanGo Plus active: support tickets mo ay naka-priority queue.
+              </div>
+            )}
           </div>
 
           <div style={{ background:"#fff", borderRadius:18, padding:16, border:"1px solid #E5E7EB", boxShadow:"0 2px 10px rgba(0,0,0,.04)" }}>
@@ -5591,7 +5781,7 @@
             </div>
             <div style={{ display:"grid", gap:10 }}>
               <input value={draftSubject} onChange={e => setDraftSubject(e.target.value)} placeholder="Subject ng concern" style={{ width:"100%", border:"1px solid #D1D5DB", borderRadius:12, padding:"12px 13px", fontSize:13, outline:"none", background:"#fff" }} />
-              <select value={draftPriority} onChange={e => setDraftPriority(e.target.value)} style={{ width:"100%", border:"1px solid #D1D5DB", borderRadius:12, padding:"12px 13px", fontSize:13, outline:"none", background:"#fff" }}>
+              <select value={subscriptionActive ? "High" : draftPriority} onChange={e => setDraftPriority(e.target.value)} disabled={subscriptionActive} style={{ width:"100%", border:"1px solid #D1D5DB", borderRadius:12, padding:"12px 13px", fontSize:13, outline:"none", background:subscriptionActive ? "#FFFBEB" : "#fff", color:subscriptionActive ? "#92400E" : "#111827", fontWeight:subscriptionActive ? 800 : 500 }}>
                 <option value="High">High Priority</option>
                 <option value="Medium">Medium Priority</option>
                 <option value="Low">Low Priority</option>
@@ -5709,20 +5899,12 @@
       );
     }
 
-    function AccountPage({ user, orders, name, phone, addr, locationType, setName, setPhone, setAddr, setLocationType, onLogout, customerLat, customerLng, onOpenLegal, onOpenSupport, isGuest, onRequireLogin, pushPermission, pushBusy, pushError, onEnablePush, isStandalone }) {
+    function AccountPage({ user, orders, name, phone, addr, locationType, setName, setPhone, setAddr, setLocationType, onLogout, customerLat, customerLng, onOpenLegal, onOpenSupport, isGuest, onRequireLogin, pushPermission, pushBusy, pushError, onEnablePush, isStandalone, subscription, subscriptionRequest, subscriptionActive, onSubscribe, onCancelSubscription, gcashSettings }) {
       const [editMode,      setEditMode]      = useState(false);
       const [localName,     setLocalName]     = useState(name);
       const [localPhone,    setLocalPhone]    = useState(phone);
       const [localAddr,     setLocalAddr]     = useState(addr);
       const [localLocationType, setLocalLocationType] = useState(locationType || "Mainland");
-      const getInitialSection = () => {
-        try {
-          const hash = (window.location.hash || "").replace("#", "").toLowerCase();
-        } catch {}
-        return "info";
-      };
-      const [activeSection, setActiveSection] = useState(getInitialSection);
-
 
       const saveProfile = () => {
         setName(localName); setPhone(localPhone); setAddr(localAddr);
@@ -5743,34 +5925,47 @@
         .split(" ").map(w => w[0]).join("").toUpperCase().slice(0,2);
       const deliveredOrders = orders.filter(o => o.status === "delivered" || o.status === "cancelled");
       const activeOrders    = orders.filter(o => o.status !== "delivered" && o.status !== "cancelled");
-      const ST_COLOR = ORDER_STATUS_COLORS;
-      const fmtTs = ts => { if(!ts) return ""; const d = ts.toDate?ts.toDate():new Date(ts); return d.toLocaleDateString("en-PH")+" "+d.toLocaleTimeString("en-PH",{hour:"2-digit",minute:"2-digit"}); };
-      const SECTIONS = [
-        { key:"info",    label:"Profile",    icon:"user" },
-        { key:"history", label:"Kasaysayan", icon:"clock-rotate-left" },
-      ];
+      const subscriptionExpiresAt = getSubscriptionExpiresAt(subscription);
+      const subscriptionRequestStatus = String(subscriptionRequest?.status || "").toLowerCase();
+      const subscriptionPending = !subscriptionActive && subscriptionRequestStatus === "pending_payment";
+      const subscriptionCancellationRequested = subscriptionRequestStatus === "cancellation_requested";
 
       return (
         <div style={{ paddingBottom:90 }}>
 
-          {/* Section Tabs */}
-          <div style={{ display:"flex", background:"#fff", borderBottom:"1px solid #E5E7EB", padding:"0 16px" }}>
-            {SECTIONS.map(s => (
-              <button key={s.key} onClick={() => setActiveSection(s.key)} style={{ flex:1, padding:"13px 4px", fontSize:12, fontWeight:700, color: activeSection===s.key ? "#166534" : "#94A3B8", borderBottom: activeSection===s.key ? "3px solid #22C55E" : "3px solid transparent", display:"flex", alignItems:"center", justifyContent:"center", gap:5, position:"relative" }}>
-                <Ic n={s.icon} size={13} />{s.label}
-                {s.badge > 0 && <span style={{ position:"absolute", top:6, right:8, background:"#EF4444", color:"#fff", borderRadius:10, fontSize:9, fontWeight:800, padding:"1px 5px" }}>{s.badge}</span>}
-              </button>
-            ))}
-          </div>
-
           <div style={{ padding:"20px 20px 0" }}>
 
             {/* ── Profile ── */}
-            {activeSection === "info" && (
               <div>
+                <div style={{ background:"linear-gradient(135deg,#14532D,#16A34A)", borderRadius:22, padding:18, color:"#fff", marginBottom:14, boxShadow:"0 10px 24px rgba(22,101,52,.18)" }}>
+                  <div style={{ display:"flex", alignItems:"center", gap:14 }}>
+                    <div style={{ width:58, height:58, borderRadius:18, background:"rgba(255,255,255,.18)", border:"1px solid rgba(255,255,255,.28)", display:"flex", alignItems:"center", justifyContent:"center", fontSize:20, fontWeight:900, flexShrink:0 }}>
+                      {initials}
+                    </div>
+                    <div style={{ minWidth:0, flex:1 }}>
+                      <div style={{ fontSize:11, fontWeight:900, textTransform:"uppercase", letterSpacing:".08em", color:"#BBF7D0", marginBottom:4 }}>My Profile</div>
+                      <div style={{ fontSize:20, fontWeight:900, lineHeight:1.15, overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>
+                        {name || user?.displayName || (isGuest ? "Guest User" : "BayanGo User")}
+                      </div>
+                      <div style={{ fontSize:12, color:"#DCFCE7", marginTop:4, overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>
+                        {user?.email || (isGuest ? "Guest mode" : "No email yet")}
+                      </div>
+                    </div>
+                  </div>
+                  <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:10, marginTop:16 }}>
+                    <div style={{ background:"rgba(255,255,255,.14)", border:"1px solid rgba(255,255,255,.18)", borderRadius:14, padding:"10px 12px" }}>
+                      <div style={{ fontSize:20, fontWeight:900 }}>{activeOrders.length}</div>
+                      <div style={{ fontSize:11, color:"#DCFCE7", fontWeight:700 }}>Active Orders</div>
+                    </div>
+                    <div style={{ background:"rgba(255,255,255,.14)", border:"1px solid rgba(255,255,255,.18)", borderRadius:14, padding:"10px 12px" }}>
+                      <div style={{ fontSize:20, fontWeight:900 }}>{deliveredOrders.length}</div>
+                      <div style={{ fontSize:11, color:"#DCFCE7", fontWeight:700 }}>Past Orders</div>
+                    </div>
+                  </div>
+                </div>
                 <div style={{ background:"#fff", borderRadius:18, padding:20, boxShadow:"0 2px 8px rgba(0,0,0,.05)", border:"1px solid #F0F0F0", marginBottom:16 }}>
                   <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:16 }}>
-                    <span style={{ fontSize:14, fontWeight:800, color:"#111" }}><Ic n="user" style={{marginRight:8,color:"#166534"}} />Aking Impormasyon</span>
+                    <span style={{ fontSize:14, fontWeight:800, color:"#111" }}><Ic n="user" style={{marginRight:8,color:"#166534"}} />User Profile</span>
                     {!editMode && <button onClick={() => { setLocalName(name); setLocalPhone(phone); setLocalAddr(addr); setLocalLocationType(locationType || "Mainland"); setEditMode(true); }} style={{ fontSize:12, fontWeight:700, color:"#166534", display:"flex", alignItems:"center", gap:5 }}><Ic n="pen-to-square" />I-edit</button>}
                   </div>
                   {[
@@ -5817,6 +6012,92 @@
                     <div style={{ display:"flex", gap:10, marginTop:16 }}>
                       <button onClick={() => setEditMode(false)} style={{ flex:1, padding:"11px 0", borderRadius:12, background:"#F3F4F6", fontSize:13, fontWeight:700, color:"#555" }}>Kanselahin</button>
                       <button onClick={saveProfile} style={{ flex:2, padding:"11px 0", borderRadius:12, background:"linear-gradient(135deg,#166534,#22C55E)", fontSize:13, fontWeight:700, color:"#fff" }}><Ic n="floppy-disk" style={{marginRight:6}} />I-save</button>
+                    </div>
+                  )}
+                </div>
+                <div style={{
+                  background: subscriptionActive ? "linear-gradient(135deg,#14532D,#22C55E)" : "#fff",
+                  borderRadius:16, padding:16, border: subscriptionActive ? "1px solid #86EFAC" : "1px solid #D1FAE5",
+                  marginBottom:12, boxShadow:"0 2px 8px rgba(0,0,0,.05)",
+                  color: subscriptionActive ? "#fff" : "#111827"
+                }}>
+                  <div style={{ display:"flex", justifyContent:"space-between", alignItems:"flex-start", gap:12, marginBottom:12 }}>
+                    <div>
+                      <div style={{ fontSize:11, fontWeight:800, textTransform:"uppercase", letterSpacing:".08em", color: subscriptionActive ? "#BBF7D0" : "#166534", marginBottom:5 }}>
+                        Subscription
+                      </div>
+                      <div style={{ fontSize:18, fontWeight:900, lineHeight:1.2 }}>
+                        <Ic n="crown" style={{ marginRight:7 }} />{SUBSCRIPTION_PLAN.name}
+                      </div>
+                      <div style={{ fontSize:12, marginTop:5, color: subscriptionActive ? "#DCFCE7" : "#64748B", lineHeight:1.45 }}>
+                        {subscriptionActive
+                          ? subscriptionCancellationRequested
+                            ? "Cancellation requested"
+                            : `Active${subscriptionExpiresAt ? ` until ${formatSubscriptionDate(subscriptionExpiresAt)}` : ""}`
+                          : subscriptionPending
+                            ? "Pending activation after payment review"
+                            : `${fmt(SUBSCRIPTION_PLAN.price)} monthly`}
+                      </div>
+                    </div>
+                    <div style={{ flexShrink:0, borderRadius:999, padding:"6px 10px", fontSize:10, fontWeight:900, background: subscriptionActive ? "rgba(255,255,255,.18)" : subscriptionPending ? "#FEF3C7" : "#F0FDF4", color: subscriptionActive ? "#fff" : subscriptionPending ? "#92400E" : "#166534" }}>
+                      {subscriptionCancellationRequested ? "CANCEL PENDING" : subscriptionActive ? "ACTIVE" : subscriptionPending ? "PENDING" : "AVAILABLE"}
+                    </div>
+                  </div>
+                  <div style={{ marginBottom:12, fontSize:11, fontWeight:800, color: subscriptionActive ? "#DCFCE7" : "#64748B", display:"flex", alignItems:"center", gap:6 }}>
+                    <Ic n="rotate-left" />Cancel anytime from this app.
+                  </div>
+                  <div style={{ display:"grid", gap:7, marginBottom:12 }}>
+                    {SUBSCRIPTION_PLAN.benefits.map((benefit) => (
+                      <div key={benefit} style={{ display:"flex", alignItems:"center", gap:8, fontSize:12, fontWeight:700, color: subscriptionActive ? "#F0FDF4" : "#334155" }}>
+                        <Ic n="circle-check" style={{ color: subscriptionActive ? "#BBF7D0" : "#16A34A" }} />{benefit}
+                      </div>
+                    ))}
+                  </div>
+                  {subscriptionPending && (
+                    <div style={{ marginBottom:12, borderRadius:14, padding:12, background:"#FFFBEB", border:"1px solid #FDE68A", color:"#78350F" }}>
+                      <div style={{ fontSize:12, fontWeight:900, marginBottom:8 }}>
+                        <Ic n="receipt" style={{ marginRight:6 }} />Pay {fmt(SUBSCRIPTION_PLAN.price)} to complete your request
+                      </div>
+                      {gcashSettings?.qrUrl && (
+                        <div style={{ display:"flex", justifyContent:"center", marginBottom:10 }}>
+                          <img src={gcashSettings.qrUrl} alt="BayanGo payment QR" style={{ width:160, height:160, objectFit:"contain", borderRadius:12, background:"#fff", border:"1px solid #FDE68A", padding:8 }} />
+                        </div>
+                      )}
+                      <div style={{ display:"grid", gap:5, fontSize:12, lineHeight:1.4 }}>
+                        <div><strong>GCash/QR PH Name:</strong> {gcashSettings?.name || "BayanGo"}</div>
+                        <div><strong>Number:</strong> {gcashSettings?.number || "Contact support"}</div>
+                        <div><strong>Reference:</strong> SUB-{String(user?.uid || "").slice(-6).toUpperCase()}</div>
+                      </div>
+                      <div style={{ marginTop:9, fontSize:11, lineHeight:1.45, color:"#92400E" }}>
+                        Pagkatapos magbayad, ia-activate ng admin ang subscription mo. Automatic na mawawala ang delivery fee kapag active na.
+                      </div>
+                    </div>
+                  )}
+                  {!subscriptionActive && (
+                    <button onClick={onSubscribe} disabled={subscriptionPending} style={{
+                      width:"100%", padding:"12px 13px", borderRadius:12,
+                      background: subscriptionPending ? "#E5E7EB" : "linear-gradient(135deg,#166534,#22C55E)",
+                      color: subscriptionPending ? "#64748B" : "#fff", fontSize:13, fontWeight:900
+                    }}>
+                      <Ic n={subscriptionPending ? "clock" : "crown"} style={{ marginRight:7 }} />
+                      {subscriptionPending ? "Request submitted" : `Subscribe for ${fmt(SUBSCRIPTION_PLAN.price)}/month`}
+                    </button>
+                  )}
+                  {(subscriptionPending || subscriptionActive) && !subscriptionCancellationRequested && (
+                    <button onClick={onCancelSubscription} style={{
+                      width:"100%", marginTop:8, padding:"11px 13px", borderRadius:12,
+                      background: subscriptionActive ? "rgba(255,255,255,.14)" : "#FEF2F2",
+                      border: subscriptionActive ? "1px solid rgba(255,255,255,.28)" : "1px solid #FECACA",
+                      color: subscriptionActive ? "#fff" : "#B91C1C", fontSize:12, fontWeight:900
+                    }}>
+                      <Ic n="ban" style={{ marginRight:7 }} />
+                      {subscriptionPending ? "Cancel subscription request" : "Cancel subscription"}
+                    </button>
+                  )}
+                  {subscriptionCancellationRequested && (
+                    <div style={{ marginTop:8, padding:"10px 12px", borderRadius:12, background:"#FFFBEB", border:"1px solid #FDE68A", color:"#92400E", fontSize:11, fontWeight:800, lineHeight:1.45 }}>
+                      <Ic n="clock" style={{ marginRight:6 }} />
+                      Cancellation request sent. Your benefits remain until admin processing or expiry.
                     </div>
                   )}
                 </div>
@@ -5872,14 +6153,6 @@
                     <Ic n="headset" /> Contact Support
                   </button>
                 </div>
-                <div style={{ background:"#fff", borderRadius:16, marginTop:12, padding:14, border:"1px solid #DBEAFE", boxShadow:"0 2px 8px rgba(0,0,0,.04)" }}>
-                  <div style={{ fontSize:11, color:"#1D4ED8", fontWeight:700, textTransform:"uppercase", letterSpacing:".07em", marginBottom:8 }}>
-                    Merchant
-                  </div>
-                  <button onClick={() => window.open("https://bayango.store/merchant", "_blank")} style={{ width:"100%", padding:"11px 12px", borderRadius:10, background:"#F0FDF4", color:"#166534", fontWeight:700 }}>
-                    Open Merchant Dashboard
-                  </button>
-                </div>
                 <button onClick={onLogout} style={{ width:"100%", marginTop:12, padding:"13px 0", borderRadius:14, background:"#FEF2F2", fontSize:13, fontWeight:700, color:"#EF4444", display:"flex", alignItems:"center", justifyContent:"center", gap:8 }}>
                   <Ic n="right-from-bracket" />{isGuest ? "Exit Guest Mode" : "Log Out"}
                 </button>
@@ -5891,10 +6164,9 @@
                 </div>
 
               </div>
-            )}
 
             {/* ── Order History ── */}
-            {activeSection === "history" && (
+            {/*
               <div>
                 {orders.length === 0 ? (
                   <div style={{ textAlign:"center", padding:"60px 0" }}>
@@ -5939,7 +6211,7 @@
                   </>}
                 </>}
               </div>
-            )}
+            */}
 
 
           </div>
@@ -6416,7 +6688,7 @@
         const orderStatuses = getOrderStatuses(o);
         const idx = orderStatuses.findIndex(s => s.key === o.status);
         const canTrackRider = o.status === "buying" || o.status === "pickup" || o.status === "otw" || o.status === "in_boat";
-        const hasQrPhBanner = o.paymentMethod === "QRPH" && o.status !== "delivered" && o.status !== "cancelled";
+        const hasQrPhBanner = (o.paymentMethod === "QRPH" || o.paymentMethod === "PAYMONGO") && o.status !== "delivered" && o.status !== "cancelled";
         const hasBottomAttachment = canTrackRider || hasQrPhBanner;
         return (
           <div style={{ marginBottom:12 }}>
@@ -6482,13 +6754,13 @@
             </button>
 
             {/* QR PH payment banner for QRPH orders */}
-            {o.paymentMethod === "QRPH" && o.status !== "delivered" && o.status !== "cancelled" && (
+            {(o.paymentMethod === "QRPH" || o.paymentMethod === "PAYMONGO") && o.status !== "delivered" && o.status !== "cancelled" && (
               (o.gcashPaymentConfirmed || o.paymentStatus === "paid")
                 ? <div style={{ padding:"10px 14px", background:"#DCFCE7", color:"#166534", fontSize:12, fontWeight:700, display:"flex", alignItems:"center", gap:6, borderTop:"1px solid #BBF7D0" }}>
-                    <img src="https://i.imgur.com/AsLCstJ.png" alt="QR Ph" style={{width:16,height:16,objectFit:"contain",borderRadius:3}} /> QR PH Payment Confirmed — Handa na!
+                    <img src="https://i.imgur.com/AsLCstJ.png" alt="QR Ph" style={{width:16,height:16,objectFit:"contain",borderRadius:3}} /> Online Payment Confirmed - Handa na!
                   </div>
                 : <div onClick={() => onPayQrPh?.(o.id)} style={{ padding:"10px 14px", background:"#EFF6FF", color:"#1D4ED8", fontSize:12, fontWeight:700, display:"flex", alignItems:"center", gap:6, borderTop:"1px solid #BFDBFE", cursor:"pointer" }}>
-                    <img src="https://i.imgur.com/AsLCstJ.png" alt="QR Ph" style={{width:16,height:16,objectFit:"contain",borderRadius:3}} /> Bayad via QR PH — Pindutin para magbayad
+                    <img src="https://i.imgur.com/AsLCstJ.png" alt="QR Ph" style={{width:16,height:16,objectFit:"contain",borderRadius:3}} /> Pay via QRPH / UnionBank Online
                   </div>
             )}
 
